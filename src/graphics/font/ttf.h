@@ -258,8 +258,6 @@ typedef struct {
     TTF_FWord *x_buffer;
     TTF_FWord *y_buffer;
 
-    AtlasAllocation *glyph_allocations;
-
     U16 *ttf_to_internal_glyph_indicies; // NOTE: The stored indicies are 1-based.
     U16 *internal_to_ttf_glyph_indicies;
     U16 internal_glyph_count;
@@ -272,7 +270,7 @@ typedef struct {
     U16 lowest_rec_ppem;
 } TTF_Font;
 
-internal B32 ttf_load(Arena *arena, Arena *scratch, FontDescription *font_description, TTF_Font *ttf_font, U32 *atlas_width, U32 *atlas_height);
+internal B32 ttf_load(Arena *arena, Arena *scratch, FontDescription *font_description, TTF_Font *ttf_font);
 internal B32  ttf_parse_metric_data(TTF_Font *font, Font *result_font);
 
 #endif // TTF_H

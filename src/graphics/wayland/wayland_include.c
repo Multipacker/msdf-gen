@@ -442,7 +442,7 @@ internal Void wayland_registry_handle_global_remove(Void *data, struct wl_regist
     }
 }
 
-internal GraphicsContext *graphics_create(Str8 title, U32 width, U32 height, FontDescription *font_description) {
+internal GraphicsContext *graphics_create(Str8 title, U32 width, U32 height, Gfx_Image font_atlas) {
     Arena permanent_arena = arena_create();
 
     GraphicsContext *context = arena_push_struct_zero(&permanent_arena, GraphicsContext);
@@ -514,7 +514,7 @@ internal GraphicsContext *graphics_create(Str8 title, U32 width, U32 height, Fon
 
     VULKAN_RESULT_CHECK(vkCreateWaylandSurfaceKHR(state->vulkan_state.instance, &create_info, 0, &state->vulkan_state.surface));
 
-    vulkan_initialize(context->arena, &state->vulkan_state, state->width, state->height, font_description);
+    vulkan_initialize(context->arena, &state->vulkan_state, state->width, state->height, font_atlas);
 
     return context;
 }

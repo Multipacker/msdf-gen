@@ -677,16 +677,8 @@ internal Void vulkan_create_instance(VulkanState *state) {
     VULKAN_RESULT_CHECK(vkCreateInstance(&create_info, 0, &state->instance));
 }
 
-internal Void vulkan_initialize_font(Arena *arena, VulkanState *state, FontDescription *font_description) {
+internal Void vulkan_initialize_font(Arena *arena, VulkanState *state, Gfx_Image font_atlas) {
     B32 success = true;
-
-    Arena_Temporary scratch = arena_get_scratch(0, 0);
-
-    TTF_Font font    = { 0 };
-    U32 atlas_width  = 0;
-    U32 atlas_height = 0;
-
-    success = ttf_load(arena, scratch.arena, font_description, &font, &atlas_width, &atlas_height);
 
     // Create the GPU side atlas.
     if (success) {
@@ -694,8 +686,8 @@ internal Void vulkan_initialize_font(Arena *arena, VulkanState *state, FontDescr
         image_info.sType         = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
         image_info.imageType     = VK_IMAGE_TYPE_2D;
         image_info.format        = VK_FORMAT_R8G8B8A8_UNORM;
-        image_info.extent.width  = atlas_width;
-        image_info.extent.height = atlas_height;
+        image_info.extent.width  = font_atlas.width;
+        image_info.extent.height = font_atlas.height;
         image_info.extent.depth  = 1;
         image_info.mipLevels     = 1;
         image_info.arrayLayers   = 1;
@@ -734,7 +726,7 @@ internal Void vulkan_initialize_font(Arena *arena, VulkanState *state, FontDescr
 
     // Create CPU side staging buffer.
     if (success) {
-        U64 buffer_size = atlas_width * atlas_height * sizeof(U32);
+        U64 buffer_size = font_atlas.width * font_atlas.height * sizeof(U32);
 
         VkBufferCreateInfo buffer_info = { 0 };
         buffer_info.sType       = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
@@ -754,7 +746,7 @@ internal Void vulkan_initialize_font(Arena *arena, VulkanState *state, FontDescr
     if (success) {
         U8 *staging_buffer_data = vulkan_allocator_map(staging_buffer_allocation, 0, VK_WHOLE_SIZE);
 
-        ttf_generate_msdf_atlas(arena, staging_buffer_data, atlas_width, atlas_height, &font, &state->font);
+        memory_copy(staging_buffer_data, font_atlas.data, font_atlas.width * font_atlas.height * sizeof(U32));
 
         vulkan_allocator_flush(staging_buffer_allocation, 0, VK_WHOLE_SIZE);
         vulkan_allocator_unmap(staging_buffer_allocation);
@@ -798,8 +790,8 @@ internal Void vulkan_initialize_font(Arena *arena, VulkanState *state, FontDescr
         copy_region.imageSubresource.mipLevel       = 0;
         copy_region.imageSubresource.baseArrayLayer = 0;
         copy_region.imageSubresource.layerCount     = 1;
-        copy_region.imageExtent.width               = atlas_width;
-        copy_region.imageExtent.height              = atlas_height;
+        copy_region.imageExtent.width               = font_atlas.width;
+        copy_region.imageExtent.height              = font_atlas.height;
         copy_region.imageExtent.depth               = 1;
         vkCmdCopyBufferToImage(command_buffer, staging_buffer, state->msdf_image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copy_region);
 
@@ -842,11 +834,9 @@ internal Void vulkan_initialize_font(Arena *arena, VulkanState *state, FontDescr
         vkDestroyBuffer(state->device, staging_buffer, 0);
         // TODO: Free staging_buffer_allocation through some kind of temporary allocation on the GPU.
     }
-
-    arena_end_temporary(scratch);
 }
 
-internal B32 vulkan_initialize(Arena *arena, VulkanState *state, U32 window_width, U32 window_height, FontDescription *font_description) {
+internal B32 vulkan_initialize(Arena *arena, VulkanState *state, U32 window_width, U32 window_height, Gfx_Image font_atlas) {
     Arena_Temporary scratch = arena_get_scratch(0, 0);
 
     VkResult error = VK_SUCCESS;
@@ -981,7 +971,7 @@ internal B32 vulkan_initialize(Arena *arena, VulkanState *state, U32 window_widt
         VULKAN_RESULT_CHECK(vkCreateSampler(state->device, &sampler_info, 0, &state->sampler));
     }
 
-    vulkan_initialize_font(arena, state, font_description);
+    vulkan_initialize_font(arena, state, font_atlas);
 
     for (U32 i = 0; i < array_count(state->frames); ++i) {
         Vulkan_Frame *frame = &state->frames[i];
@@ -1260,116 +1250,6 @@ internal Void vulkan_cleanup(VulkanState *state) {
     vkDestroyInstance(state->instance, 0);
 }
 
-internal Void graphics_push_scissor(GraphicsContext *state, V2F32 position, V2F32 size, B32 should_inherit) {
-    VulkanState *vulkan = (VulkanState *) state->pointer;
-
-    vulkan_end_batch(vulkan);
-
-    Vulkan_Scissor *scissor = arena_push_struct_zero(vulkan->frame_arena, Vulkan_Scissor);
-    scissor->scissor.offset.x      = f32_floor(position.x * vulkan->surface_scale);
-    scissor->scissor.offset.y      = f32_floor(position.y * vulkan->surface_scale);
-    scissor->scissor.extent.width  = f32_floor(size.x * vulkan->surface_scale);
-    scissor->scissor.extent.height = f32_floor(size.y * vulkan->surface_scale);
-
-    VkRect2D parent = vulkan_rect2d(0, 0, vulkan->swapchain.extent.width, vulkan->swapchain.extent.height);
-    if (should_inherit && vulkan->scissors) {
-        parent = vulkan->scissors->scissor;
-    }
-    scissor->scissor = vulkan_rect2d_intersection(scissor->scissor, parent);
-
-    sll_stack_push(vulkan->scissors, scissor);
-    vulkan_begin_batch(vulkan);
-}
-
-internal Void graphics_pop_scissor(GraphicsContext *state) {
-    VulkanState *vulkan = (VulkanState *) state->pointer;
-
-    vulkan_end_batch(vulkan);
-    sll_stack_pop(vulkan->scissors);
-    vulkan_begin_batch(vulkan);
-}
-
-internal Void graphics_rectangle(GraphicsContext *state, V2F32 position, V2F32 size, V3F32 color) {
-    VulkanState *vulkan = (VulkanState *) state->pointer;
-
-    if (vulkan->shape_count < vulkan->shape_capacity) {
-        Vulkan_Shape rectangle = { 0 };
-
-        rectangle.shape_type    = SDF_TYPE_RECTANGLE;
-        rectangle.position      = v2f32_scale(position, vulkan->surface_scale);
-        rectangle.size          = v2f32_scale(size, vulkan->surface_scale);
-        rectangle.color         = color;
-
-        vulkan->shapes[vulkan->shape_count++] = rectangle;
-    }
-}
-
-internal Void graphics_rectangle_texture(GraphicsContext *state, V2F32 position, V2F32 size, V3F32 color, U32 texture_index, V2F32 uv0, V2F32 uv1) {
-    VulkanState *vulkan = (VulkanState *) state->pointer;
-
-    if (vulkan->shape_count < vulkan->shape_capacity) {
-        Vulkan_Shape rectangle = { 0 };
-
-        rectangle.shape_type    = SDF_TYPE_RECTANGLE;
-        rectangle.position      = v2f32_scale(position, vulkan->surface_scale);
-        rectangle.size          = v2f32_scale(size, vulkan->surface_scale);
-        rectangle.color         = color;
-        rectangle.texture_index = texture_index;
-        rectangle.uv0           = uv0;
-        rectangle.uv1           = uv1;
-
-        vulkan->shapes[vulkan->shape_count++] = rectangle;
-    }
-}
-
-internal Void graphics_circle(GraphicsContext *state, V2F32 position, F32 radius, V3F32 color) {
-    VulkanState *vulkan = (VulkanState *) state->pointer;
-
-    if (vulkan->shape_count < vulkan->shape_capacity) {
-        Vulkan_Shape circle = { 0 };
-
-        circle.shape_type    = SDF_TYPE_CIRCLE;
-        circle.position      = v2f32_scale(position, vulkan->surface_scale);
-        circle.size.x        = radius * vulkan->surface_scale;
-        circle.color         = color;
-
-        vulkan->shapes[vulkan->shape_count++] = circle;
-    }
-}
-
-internal Void graphics_circle_texture(GraphicsContext *state, V2F32 position, F32 radius, V3F32 color, U32 texture_index, V2F32 uv0, V2F32 uv1) {
-    VulkanState *vulkan = (VulkanState *) state->pointer;
-
-    if (vulkan->shape_count < vulkan->shape_capacity) {
-        Vulkan_Shape circle = { 0 };
-
-        circle.shape_type    = SDF_TYPE_CIRCLE;
-        circle.position      = v2f32_scale(position, vulkan->surface_scale);
-        circle.size.x        = radius * vulkan->surface_scale;
-        circle.color         = color;
-        circle.texture_index = texture_index;
-        circle.uv0           = uv0;
-        circle.uv1           = uv1;
-
-        vulkan->shapes[vulkan->shape_count++] = circle;
-    }
-}
-
-internal Void graphics_line(GraphicsContext *state, V2F32 p0, V2F32 p1, F32 width, V3F32 color) {
-    VulkanState *vulkan = (VulkanState *) state->pointer;
-
-    if (vulkan->shape_count < vulkan->shape_capacity) {
-        Vulkan_Shape line = { 0 };
-
-        line.shape_type = SDF_TYPE_LINE;
-        line.position   = v2f32_scale(p0, vulkan->surface_scale);
-        line.size       = v2f32_scale(p1, vulkan->surface_scale);
-        line.color      = color;
-
-        vulkan->shapes[vulkan->shape_count++] = line;
-    }
-}
-
 internal Void graphics_msdf(GraphicsContext *state, V2F32 position, V2F32 size, V3F32 color, V2F32 uv0, V2F32 uv1) {
     VulkanState *vulkan = (VulkanState *) state->pointer;
 
@@ -1384,60 +1264,5 @@ internal Void graphics_msdf(GraphicsContext *state, V2F32 position, V2F32 size, 
         msdf.uv1           = uv1;
 
         vulkan->shapes[vulkan->shape_count++] = msdf;
-    }
-}
-
-internal Void graphics_text(GraphicsContext *state, V2F32 position, F32 point_size, Str8 text) {
-    VulkanState *vulkan = (VulkanState *) state->pointer;
-    S32 origin_funit_x = 0;
-    S32 origin_funit_y = 0;
-
-    state->dpi = v2f32(92, 92);
-
-    V2F32 funits_to_pixels = v2f32_scale(state->dpi, point_size / (72.0f * vulkan->font.funits_per_em));
-
-    U8 *codepoint_ptr = text.data;
-    U8 *codepoint_opl = text.data + text.size;
-    while (codepoint_ptr < codepoint_opl) {
-        StringDecode decode = string_decode_utf8(codepoint_ptr, (U64) (codepoint_opl - codepoint_ptr));
-        codepoint_ptr += decode.size;
-
-        U32 glyph_index = font_codepoint_to_glyph_index(&vulkan->font, decode.codepoint);
-        Font_Glyph *glyph = &vulkan->font.glyphs[glyph_index];
-
-        if (decode.codepoint == '\n') {
-            origin_funit_x  = 0;
-            origin_funit_y += vulkan->font.funits_per_em;
-        } else if (decode.codepoint == '\r') {
-            origin_funit_x = 0;
-        } else if (decode.codepoint == '\f') {
-            origin_funit_y += vulkan->font.funits_per_em;
-        } else if (decode.codepoint == '\t') {
-            U32 glyph_index = font_codepoint_to_glyph_index(&vulkan->font, ' ');
-            origin_funit_x += 4 * vulkan->font.glyphs[glyph_index].advance_width;
-        } else {
-            // TODO: Only render if the character has a glyph.
-            if (vulkan->shape_count < vulkan->shape_capacity) {
-                F32 width    = glyph->x_max - glyph->x_min;
-                F32 height   = glyph->y_max - glyph->y_min;
-                F32 x_offset = (F32) origin_funit_x + glyph->x_min + (F32) glyph->left_side_bearing;
-                F32 y_offset = (F32) origin_funit_y - glyph->y_max;
-
-                Vulkan_Shape msdf = { 0 };
-
-                msdf.shape_type = SDF_TYPE_MSDF;
-                msdf.position = v2f32(
-                    position.x * vulkan->surface_scale + x_offset * funits_to_pixels.x,
-                    position.y * vulkan->surface_scale + y_offset * funits_to_pixels.y
-                );
-                msdf.size  = v2f32(width * funits_to_pixels.x, height * funits_to_pixels.y);
-                msdf.color = v3f32(1, 1, 1);
-                msdf.uv0   = glyph->uv0;
-                msdf.uv1   = glyph->uv1;
-
-                vulkan->shapes[vulkan->shape_count++] = msdf;
-            }
-            origin_funit_x += glyph->advance_width;
-        }
     }
 }

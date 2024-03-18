@@ -910,34 +910,6 @@ internal B32 ttf_get_glyph_outlines(TTF_Font *font, U32 glyph_index, U32 contour
     return success;
 }
 
-internal B32 ttf_get_pixel_size(TTF_Font *font, U32 glyph_index, U32 *width, U32 *height) {
-    B32 success = true;
-
-    Str8 glyph_data = ttf_get_raw_glyph_data(font, glyph_index);
-
-    TTF_GlyphHeader *header = 0;
-    if (glyph_data.size >= sizeof(TTF_GlyphHeader)) {
-        header = (TTF_GlyphHeader *) &glyph_data.data[0];
-
-        TTF_FWord x_min = s16_big_to_local_endian(header->x_min);
-        TTF_FWord y_min = s16_big_to_local_endian(header->y_min);
-        TTF_FWord x_max = s16_big_to_local_endian(header->x_max);
-        TTF_FWord y_max = s16_big_to_local_endian(header->y_max);
-
-        // Assuming the recomended minimum allows one whole pixel for the
-        // smallest details, we need at least 3 times that to guarantee that at
-        // least one of them is entierly inside of the contours. Apparently it
-        // needs a few extra to look good though... Not sure why yet.
-        *width  = 6.0f * (F32) (x_max - x_min) * (F32) font->lowest_rec_ppem / (F32) font->funits_per_em + 2;
-        *height = 6.0f * (F32) (y_max - y_min) * (F32) font->lowest_rec_ppem / (F32) font->funits_per_em + 2;
-    } else {
-        error_emit(str8_literal("ERROR(font/ttf): Not enough data for glyph outlines."));
-        success = false;
-    }
-
-    return success;
-}
-
 internal Void ttf_expand_contours_to_msdf(TTF_Font *font, U32 glyph_index, MSDF_State *state) {
     TTF_Glyph glyph = { 0 };
     glyph.contour_end_points = font->contour_end_points_buffer;
@@ -1006,7 +978,7 @@ internal Void ttf_expand_contours_to_msdf(TTF_Font *font, U32 glyph_index, MSDF_
     }
 }
 
-internal B32 ttf_load(Arena *arena, Arena *scratch, FontDescription *font_description, TTF_Font *ttf_font, U32 *atlas_width, U32 *atlas_height) {
+internal B32 ttf_load(Arena *arena, Arena *scratch, FontDescription *font_description, TTF_Font *ttf_font) {
     B32 success = true;
 
     Str8 font_data = { 0 };
@@ -1059,72 +1031,5 @@ internal B32 ttf_load(Arena *arena, Arena *scratch, FontDescription *font_descri
         success = ttf_get_character_map(arena, ttf_font, font_description);
     }
 
-    if (success) {
-        ttf_font->glyph_allocations = arena_push_array(scratch, AtlasAllocation, ttf_font->internal_glyph_count);
-
-        AtlasAllocator atlas = { 0 };
-
-        for (U32 i = 0; i < ttf_font->internal_glyph_count; ++i) {
-            U32 min_width  = 0;
-            U32 min_height = 0;
-            if (ttf_get_pixel_size(ttf_font, ttf_font->internal_to_ttf_glyph_indicies[i], &min_width, &min_height)) {
-                ttf_font->glyph_allocations[i] = atlas_allocate(scratch, &atlas, min_width, min_height);
-            }
-        }
-
-        *atlas_width = atlas.width;
-        *atlas_height = atlas.height;
-    }
-
     return success;
-}
-
-internal Void ttf_generate_msdf_atlas(Arena *arena, U8 *atlas_buffer, U32 atlas_width, U32 atlas_height, TTF_Font *ttf_font, Font *font) {
-    B32 success = true;
-
-    Arena_Temporary scratch = arena_get_scratch(0, 0);
-
-    font->funits_per_em = ttf_font->funits_per_em;
-
-    // Copy over the character map.
-    font->codepoint_count = ttf_font->codepoint_count;
-    font->codepoints      = arena_push_array(arena, U32, font->codepoint_count);
-    font->glyph_indicies  = arena_push_array(arena, U32, font->codepoint_count);
-    memory_copy(font->codepoints, ttf_font->codepoints, font->codepoint_count * sizeof(*font->codepoints));
-    memory_copy(font->glyph_indicies, ttf_font->glyph_indicies, font->codepoint_count * sizeof(*font->glyph_indicies));
-
-    if (success) {
-        font->glyph_count = ttf_font->internal_glyph_count;
-        font->glyphs = arena_push_array(arena, Font_Glyph, font->glyph_count);
-        success = ttf_parse_metric_data(ttf_font, font);
-    }
-
-    // NOTE: The point capacity could be replaced with the maximum number
-    // of points per contour instead of the maximum number of points for
-    // any glyph In order to save memory.
-    MSDF_State msdf_state = msdf_state_initialize(scratch.arena, ttf_font->contour_capacity, ttf_font->point_capacity);
-
-    for (U32 i = 0; i < ttf_font->internal_glyph_count; ++i) {
-        ttf_expand_contours_to_msdf(ttf_font, ttf_font->internal_to_ttf_glyph_indicies[i], &msdf_state);
-        Font_Glyph *glyph = &font->glyphs[i];
-        AtlasAllocation allocation = ttf_font->glyph_allocations[i];
-        glyph->uv0 = v2f32(
-            ((F32) allocation.x + 0.5f) / (F32) atlas_width,
-            ((F32) allocation.y + 0.5f) / (F32) atlas_height
-        );
-        glyph->uv1 = v2f32(
-            ((F32) allocation.x + allocation.width  - 0.5f) / (F32) atlas_width,
-            ((F32) allocation.y + allocation.height - 0.5f) / (F32) atlas_height
-        );
-
-        F32 width_adjustment  = (F32) (msdf_state.x_max - msdf_state.x_min) * 0.5f / (F32) (atlas_width  - 2);
-        F32 height_adjustment = (F32) (msdf_state.y_max - msdf_state.y_min) * 0.5f / (F32) (atlas_height - 2);
-        glyph->x_min = msdf_state.x_min - width_adjustment;
-        glyph->y_min = msdf_state.y_min - height_adjustment;
-        glyph->x_max = msdf_state.x_max + width_adjustment;
-        glyph->y_max = msdf_state.y_max + height_adjustment;
-        msdf_generate(&msdf_state, atlas_buffer, atlas_width, allocation.x, allocation.y, allocation.width, allocation.height);
-    }
-
-    arena_end_temporary(scratch);
 }

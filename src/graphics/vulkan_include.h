@@ -95,8 +95,6 @@ typedef struct {
     Vulkan_Swapchain swapchain;
     VkFramebuffer   *swapchain_framebuffers;
 
-    Font font;
-
     // While rendering data
     Arena          *frame_arena; 
     U32             shape_capacity;
