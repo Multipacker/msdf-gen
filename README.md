@@ -27,3 +27,19 @@ winding numbers of contours to combine in order to cut out holes and combine
 shapes (non 0 fill rule). The MSDF algorithm considers contours in isolation
 and thus we need to correct the winding numbers. After this pre-processing, the
 contours can be sent of for MSDF generation.
+
+
+
+## Q&A
+
+### Q: Why are there weird random lines between the glyphs?
+
+A: They are the result of texture bleading! You are not meant to render theI
+entire atlas as one thing, and the different MSDFs will blead into each other
+forming odd shapes between the glyphs. If the glyphs are rendered properly,
+they don't show up.
+
+### Q: Why are the glyphs cut of at the top and the bottom?
+
+A: You need to include a one pixel boundary around each glyph to guarantee that
+the MSDFs inclde the outside. If not, the glyphs will cut of weirdly.
