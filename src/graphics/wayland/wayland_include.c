@@ -10,11 +10,6 @@
 
 #include "../sdf_types.h"
 
-#include "../font/geometry.c"
-#include "../font/font.c"
-#include "../font/msdf.c"
-#include "../font/ttf.c"
-
 #include "../vulkan_include.c"
 
 global struct wl_buffer_listener wayland_buffer_listener = {

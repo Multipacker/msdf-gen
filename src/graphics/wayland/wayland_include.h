@@ -9,11 +9,6 @@
 
 #include <xkbcommon/xkbcommon.h>
 
-#include "../font/geometry.h"
-#include "../font/font.h"
-#include "../font/msdf.h"
-#include "../font/ttf.h"
-
 #define VK_USE_PLATFORM_WAYLAND_KHR
 #include "../vulkan_include.h"
 
