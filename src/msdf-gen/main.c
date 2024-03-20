@@ -6,12 +6,20 @@
 #include "src/graphics/graphics_include.c"
 #include "src/font/font_include.c"
 
+/*
+ * /usr/share/fonts/TTF/FiraMono-Regular.ttf
+ * /usr/share/fonts/TTF/Inconsolata-Regular.ttf
+ * /usr/share/fonts/ttf-linux-libertine/LinLibertine_Mah.ttf
+ * /usr/share/fonts/noto/NotoSerif-Regular.ttf
+ */
 internal S32 os_run(Str8List arguments) {
+    if (!arguments.first->next) {
+        os_console_print(str8_literal("You have to pass a file\n"));
+        os_exit(1);
+    }
+
     FontDescription font_description = { 0 };
-    //font_description.path = str8_literal("/usr/share/fonts/TTF/FiraMono-Regular.ttf");
-    font_description.path = str8_literal("/usr/share/fonts/TTF/Inconsolata-Regular.ttf"),
-    //font_description.path = str8_literal("/usr/share/fonts/ttf-linux-libertine/LinLibertine_Mah.ttf");
-    //font_description.path = str8_literal("/usr/share/fonts/noto/NotoSerif-Regular.ttf"); // 2377
+    font_description.path = arguments.first->next->string;
     font_description.codepoint_first = 0;
     font_description.codepoint_last  = 127;
 
@@ -22,7 +30,7 @@ internal S32 os_run(Str8List arguments) {
 
     U32 glyph_width  = u32_ceil_to_power_of_2((U32) f32_ceil(f32_sqrt(font.internal_glyph_count)));
     U32 glyph_height = u32_ceil_to_power_of_2(font.internal_glyph_count / glyph_width);
-    U32 glyph_size   = 32;
+    U32 glyph_size   = 16;
 
     U32 atlas_width  = glyph_width  * glyph_size;
     U32 atlas_height = glyph_height * glyph_size;
@@ -79,6 +87,7 @@ internal S32 os_run(Str8List arguments) {
     S32 grab_y   = 0;
     F32 zoom     = 2.0f;
     B32 running = true;
+    B32 render_msdf = true;
     while (running) {
         graphics_begin_frame(context);
 
@@ -97,6 +106,11 @@ internal S32 os_run(Str8List arguments) {
             offset_x = context->x - old_zoom / zoom * (context->x - offset_x);
             offset_y = context->y - old_zoom / zoom * (context->y - offset_y);
         }
+
+        if (context->tab_pressed) {
+            render_msdf = !render_msdf;
+        }
+        graphics_set_render_msdf(context, render_msdf);
 
         graphics_msdf(context, v2f32(offset_x, offset_y), v2f32(100.0f / zoom, 100.0f / zoom), v3f32(1, 1, 1), v2f32(0, 0), v2f32(1, 1));
 

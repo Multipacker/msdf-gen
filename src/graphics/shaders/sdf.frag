@@ -5,6 +5,10 @@
 
 layout (constant_id = 0) const uint OUTPUT_CONVERSION = VULKAN_CONVERSION_NONE;
 
+layout(binding = 0) uniform UniformBufferObject {
+    vec2 viewport_size;
+    uint render_msdf;
+} ubo;
 layout(binding = 1) uniform sampler   samp;
 layout(binding = 2) uniform texture2D textures[2];
 layout(binding = 3) uniform texture2D msdf_texture;
@@ -82,9 +86,9 @@ void main() {
             distance = msdf_from_texture(gl_FragCoord.xy, fragPosition, fragSize, uv);
         } break;
     }
-    float alpha = clamp(distance / fwidth(distance) + 0.5, 0.0, 1.0);
+    float alpha = ubo.render_msdf != 0 ? clamp(distance / fwidth(distance) + 0.5, 0.0, 1.0) : 1;
 
-    vec3 color = fragColor;
+    vec3 color = ubo.render_msdf != 0 ? fragColor : texture(sampler2D(msdf_texture, samp), uv).rgb;
     if (fragTextureIndex != 0) {
         color *= texture(sampler2D(textures[fragTextureIndex - 1], samp), uv).rgb;
     }

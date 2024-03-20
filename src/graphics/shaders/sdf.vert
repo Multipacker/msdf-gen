@@ -4,6 +4,7 @@
 
 layout(binding = 0) uniform UniformBufferObject {
     vec2 viewport_size;
+    uint render_msdf;
 } ubo;
 
 layout(location = 0) in uint inShapeType;

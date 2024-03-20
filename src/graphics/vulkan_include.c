@@ -1137,6 +1137,7 @@ internal Void vulkan_end_frame(VulkanState *state) {
 
     Vulkan_UniformBuffer2D *mapped_uniform_buffer = vulkan_allocator_map(frame->uniform_allocation, 0, sizeof(Vulkan_UniformBuffer2D));
     mapped_uniform_buffer->viewport_size = v2f32(state->swapchain.extent.width, state->swapchain.extent.height);
+    mapped_uniform_buffer->render_msdf   = state->render_msdf;
 
     vulkan_allocator_flush(frame->shape_allocation,   0, state->shape_count * sizeof(*state->shapes));
     vulkan_allocator_flush(frame->uniform_allocation, 0, sizeof(Vulkan_UniformBuffer2D));
@@ -1265,4 +1266,9 @@ internal Void graphics_msdf(GraphicsContext *state, V2F32 position, V2F32 size, 
 
         vulkan->shapes[vulkan->shape_count++] = msdf;
     }
+}
+
+internal Void graphics_set_render_msdf(GraphicsContext *context, U32 render_msdf) {
+    VulkanState *vulkan = (VulkanState *) context->pointer;
+    vulkan->render_msdf = render_msdf;
 }

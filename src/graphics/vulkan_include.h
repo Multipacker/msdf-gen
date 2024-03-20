@@ -43,6 +43,7 @@ typedef struct {
 
 typedef struct {
     V2F32 viewport_size;
+    U32   render_msdf;
 } Vulkan_UniformBuffer2D;
 
 typedef struct {
@@ -117,6 +118,7 @@ typedef struct {
     Vulkan_Allocation msdf_allocation;
     VkImage           msdf_image;
     VkImageView       msdf_image_view;
+    U32               render_msdf;
 
     // Frames in flight
     U32          current_frame_index;

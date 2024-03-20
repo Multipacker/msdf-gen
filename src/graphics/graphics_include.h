@@ -25,6 +25,7 @@ typedef struct {
     U32 width;
     U32 height;
     S32 x, y;
+    B32 tab_pressed;
     B32 is_grabbed;
     B32 is_pressed;
     B32 is_released;
@@ -39,5 +40,6 @@ internal GraphicsContext *graphics_create(Str8 title, U32 width, U32 height, Gfx
 internal Void graphics_destroy(GraphicsContext *context);
 internal Void graphics_begin_frame(GraphicsContext *context);
 internal Void graphics_end_frame(GraphicsContext *context);
+internal Void graphics_set_render_msdf(GraphicsContext *context, U32 render_msdf);
 
 #endif // GRAPHICS_INCLUDE_H

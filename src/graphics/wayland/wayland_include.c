@@ -354,11 +354,9 @@ internal Void wayland_keyboard_handle_key(Void *data, struct wl_keyboard *keyboa
     xkb_state_key_get_utf8(state->xkb_state, key + 8, key_memory, key_size);
     Str8 key_name = str8_cstr(key_memory);
 
-    os_console_print(key_state == WL_KEYBOARD_KEY_STATE_PRESSED ? str8_literal("pressed, ") : str8_literal("released, "));
-    os_console_print(sym_name);
-    os_console_print(str8_literal(", "));
-    os_console_print(key_name);
-    os_console_print(str8_literal("\n"));
+    if (xkb_keysym_to_utf32(sym) == '\t' && key_state == WL_KEYBOARD_KEY_STATE_PRESSED) {
+        state->tab_pressed = true;
+    }
 
     arena_end_temporary(scratch);
 }
@@ -540,6 +538,7 @@ internal Void graphics_begin_frame(GraphicsContext *context) {
 
     VULKAN_RESULT_CHECK(vkWaitForFences(state->vulkan_state.device, 1, &frame->in_flight_fence, VK_TRUE, U64_MAX));
 
+    state->tab_pressed = false;
     state->is_pressed = false;
     state->is_released = false;
     state->scroll_amount = 0;
@@ -582,6 +581,7 @@ internal Void graphics_begin_frame(GraphicsContext *context) {
         dll_push_back(state->surface_outputs_first, state->surface_outputs_last, new_output);
     }
 
+    context->tab_pressed = state->tab_pressed;
     context->width = state->width;
     context->height = state->height;
     context->x = state->x;

@@ -84,6 +84,7 @@ typedef struct {
     struct xkb_context   *xkb_context;
     struct xkb_keymap    *xkb_keymap;
 
+    B32 tab_pressed;
     S32 x, y;
     B32 is_grabbed;
     B32 is_pressed;
