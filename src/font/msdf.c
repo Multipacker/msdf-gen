@@ -1,4 +1,4 @@
-// TODO: Allow for pruning small contours. This would hoepfully increase the
+// TODO: Allow for pruning small contours. This would hopefully increase the
 // quality of the final MSDF, although it won't be as accurate any more.
 
 internal B32 msdf_distance_is_closer(MSDF_Distance a, MSDF_Distance b) {
