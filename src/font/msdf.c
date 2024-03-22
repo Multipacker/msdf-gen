@@ -960,7 +960,7 @@ internal Void msdf_generate(MSDF_State *state, U8 *buffer, U32 stride, U32 x, U3
                 }
             }
 
-            // TODO(simon): Shouldn't we always have a closest segment?
+            // TODO(simon): Shouldn't we always have a closest segment? Investigate /usr/share/fonts/TTF/Inconsolata-Regular.ttf without these checks
             if (red_segment) {
                 if (red_segment->kind == MSDF_SEGMENT_QUADRATIC_BEZIER) {
                     red_distance.distance = msdf_quadratic_bezier_signed_pseudo_distance(point, *red_segment, red_distance.unclamped_t);
