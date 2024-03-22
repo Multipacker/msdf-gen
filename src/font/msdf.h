@@ -18,13 +18,26 @@ typedef enum {
     MSDF_FLAG_REMOVE = 0x10,
 } MSDF_ColorFlags;
 
-typedef struct {
+typedef struct MSDF_Segment MSDF_Segment;
+struct MSDF_Segment {
     MSDF_SegmentKind kind;
+    MSDF_Segment *next;
+    MSDF_Segment *previous;
     V2F32 p0;
     V2F32 p1;
     V2F32 p2;
     MSDF_ColorFlags color;
-} MSDF_Segment;
+
+    // NOTE(simon): Bounding circle for pruning
+    V2F32 circle_center;
+    F32   circle_radius;
+};
+
+typedef struct MSDF_SegmentList MSDF_SegmentList;
+struct MSDF_SegmentList {
+    MSDF_Segment *first;
+    MSDF_Segment *last;
+};
 
 typedef struct {
     F32 distance;
@@ -40,9 +53,6 @@ typedef struct {
     MSDF_Segment **contour_segments;
     MSDF_Segment *temporary_buffer;
     MSDF_Segment *all_segments;
-
-    V2F32 *circle_centers;
-    F32   *circle_radie;
 
     S32 x_min;
     S32 y_min;
