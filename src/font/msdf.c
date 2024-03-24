@@ -749,42 +749,43 @@ internal MSDF_State msdf_state_initialize(Arena *arena, U32 max_contour_count, U
     return state;
 }
 
-internal Void msdf_color_edges(MSDF_State *state) {
+internal Void msdf_color_edges(MSDF_ContourList contours) {
     F32 corner_threshold = f32_sin(0.1f);
 
-    for (U32 contour_index = 0; contour_index < state->contour_count; ++contour_index) {
-        MSDF_Segment *segments      = state->contour_segments[contour_index];
-        U32           segment_count = state->contour_segment_counts[contour_index];
-
+    for (MSDF_Contour *contour = contours.first; contour; contour = contour->next) {
         // Find the first corner
         U32 corner_count = 0;
-        U32 last_corner_start_index = 0;
-        for (U32 i = 0, pre_i = segment_count - 1; i < segment_count; pre_i = i++) {
-            segments[i].color = 0;
+        MSDF_Segment *last_corner_start = 0;
+        for (
+            MSDF_Segment *previous = contour->last_segment, *current = contour->first_segment;
+            current;
+            previous = current, current = current->next
+        ) {
+            current->color = 0;
 
-            if (msdf_is_corner(segments[pre_i], segments[i], corner_threshold)) {
-                last_corner_start_index = i;
+            if (msdf_is_corner(*previous, *current, corner_threshold)) {
+                last_corner_start = current;
                 ++corner_count;
-                segments[i].color |= MSDF_STARTS_NEW_EDGE;
+                current->color |= MSDF_STARTS_NEW_EDGE;
             }
         }
 
         if (corner_count == 0) {
-            for (U32 i = 0; i < segment_count; ++i) {
-                segments[i].color = MSDF_COLOR_RED | MSDF_COLOR_GREEN | MSDF_COLOR_BLUE;
+            for (MSDF_Segment *segment = contour->first_segment; segment; segment = segment->next) {
+                segment->color = MSDF_COLOR_RED | MSDF_COLOR_GREEN | MSDF_COLOR_BLUE;
             }
         } if (corner_count == 1) {
-            for (U32 i = 0; i < segment_count; ++i) {
-                segments[i].color = MSDF_COLOR_RED | MSDF_COLOR_BLUE;
+            for (MSDF_Segment *segment = contour->first_segment; segment; segment = segment->next) {
+                segment->color = MSDF_COLOR_RED | MSDF_COLOR_BLUE;
             }
 
             // TODO(simon): More carefully handle how we split edges in this case.
             // NOTE(simon): We need to split the contour into two edges in order to preserve the corner.
-            segments[last_corner_start_index].color = MSDF_COLOR_RED | MSDF_COLOR_GREEN;
+            last_corner_start->color = MSDF_COLOR_RED | MSDF_COLOR_GREEN;
         } else {
             MSDF_ColorFlags current_color = MSDF_COLOR_RED | MSDF_COLOR_BLUE;
-            for (U32 i = 0; i < segment_count; ++i) {
-                if (segments[i].color & MSDF_STARTS_NEW_EDGE) {
+            for (MSDF_Segment *segment = contour->first_segment; segment; segment = segment->next) {
+                if (segment->color & MSDF_STARTS_NEW_EDGE) {
                     if (current_color == (MSDF_COLOR_RED | MSDF_COLOR_GREEN)) {
                         current_color = MSDF_COLOR_GREEN | MSDF_COLOR_BLUE;
                     } else {
@@ -792,7 +793,7 @@ internal Void msdf_color_edges(MSDF_State *state) {
                     }
                 }
 
-                segments[i].color = current_color;
+                segment->color = current_color;
             }
         }
     }
@@ -820,8 +821,6 @@ internal Void msdf_generate(MSDF_State *state, U8 *buffer, U32 stride, U32 x, U3
     msdf_convert_to_simple_polygons(state);
     msdf_correct_contour_orientation(state);
 
-    msdf_color_edges(state);
-
     // NOTE(simon): Generate linked list version of contours.
     MSDF_ContourList contours = { 0 };
     for (U32 contour_index = 0; contour_index < state->contour_count; ++contour_index) {
@@ -832,6 +831,8 @@ internal Void msdf_generate(MSDF_State *state, U8 *buffer, U32 stride, U32 x, U3
         }
         dll_push_back(contours.first, contours.last, contour);
     }
+
+    msdf_color_edges(contours);
 
     // NOTE(simon): We no longer need the segments to be organized in curves or
     // have any order amongst themselves. Separate them by kind to ease
