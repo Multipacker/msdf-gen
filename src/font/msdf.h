@@ -16,6 +16,9 @@ typedef enum {
     // preprocessing. We hijack this storage space.
     MSDF_FLAG_FLIP   = 0x08,
     MSDF_FLAG_REMOVE = 0x10,
+
+    // NOTE(simon): Used during edge coloring.
+    MSDF_STARTS_NEW_EDGE = 0x20,
 } MSDF_ColorFlags;
 
 typedef struct MSDF_Segment MSDF_Segment;

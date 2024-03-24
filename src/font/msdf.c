@@ -760,9 +760,12 @@ internal Void msdf_color_edges(MSDF_State *state) {
         U32 corner_count = 0;
         U32 last_corner_start_index = 0;
         for (U32 i = 0, pre_i = segment_count - 1; i < segment_count; pre_i = i++) {
+            segments[i].color = 0;
+
             if (msdf_is_corner(segments[pre_i], segments[i], corner_threshold)) {
                 last_corner_start_index = i;
                 ++corner_count;
+                segments[i].color |= MSDF_STARTS_NEW_EDGE;
             }
         }
 
@@ -771,39 +774,25 @@ internal Void msdf_color_edges(MSDF_State *state) {
                 segments[i].color = MSDF_COLOR_RED | MSDF_COLOR_GREEN | MSDF_COLOR_BLUE;
             }
         } if (corner_count == 1) {
-            // TODO: More carefully handle how we split edges in this case.
-
-            MSDF_ColorFlags current_color = MSDF_COLOR_RED | MSDF_COLOR_BLUE;
             for (U32 i = 0; i < segment_count; ++i) {
-                U32 this_segment = (last_corner_start_index + i + 0) % segment_count;
-                U32 next_segment = (last_corner_start_index + i + 1) % segment_count;
-
-                segments[this_segment].color = current_color;
-                if (msdf_is_corner(segments[this_segment], segments[next_segment], corner_threshold)) {
-                    if (current_color == (MSDF_COLOR_RED | MSDF_COLOR_GREEN)) {
-                        current_color = MSDF_COLOR_GREEN | MSDF_COLOR_BLUE;
-                    } else {
-                        current_color = MSDF_COLOR_RED | MSDF_COLOR_GREEN;
-                    }
-                }
+                segments[i].color = MSDF_COLOR_RED | MSDF_COLOR_BLUE;
             }
 
-            // We need to split the contour into two edges in order to preserve the corner.
+            // TODO(simon): More carefully handle how we split edges in this case.
+            // NOTE(simon): We need to split the contour into two edges in order to preserve the corner.
             segments[last_corner_start_index].color = MSDF_COLOR_RED | MSDF_COLOR_GREEN;
         } else {
             MSDF_ColorFlags current_color = MSDF_COLOR_RED | MSDF_COLOR_BLUE;
             for (U32 i = 0; i < segment_count; ++i) {
-                U32 this_segment = (last_corner_start_index + i + 0) % segment_count;
-                U32 next_segment = (last_corner_start_index + i + 1) % segment_count;
-
-                segments[this_segment].color = current_color;
-                if (msdf_is_corner(segments[this_segment], segments[next_segment], corner_threshold)) {
+                if (segments[i].color & MSDF_STARTS_NEW_EDGE) {
                     if (current_color == (MSDF_COLOR_RED | MSDF_COLOR_GREEN)) {
                         current_color = MSDF_COLOR_GREEN | MSDF_COLOR_BLUE;
                     } else {
                         current_color = MSDF_COLOR_RED | MSDF_COLOR_GREEN;
                     }
                 }
+
+                segments[i].color = current_color;
             }
         }
     }
