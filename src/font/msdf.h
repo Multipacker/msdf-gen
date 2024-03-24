@@ -91,8 +91,6 @@ internal F32 msdf_quadratic_bezier_signed_pseudo_distance(V2F32 point, MSDF_Segm
 internal Void msdf_segment_split(MSDF_Segment segment, F32 t, MSDF_Segment *result_a, MSDF_Segment *result_b);
 internal U32 msdf_segment_intersect(MSDF_Segment a, MSDF_Segment b, F32 *result_ats, F32 *result_bts);
 
-internal V2F32 msdf_point_along_segment(MSDF_Segment segment, F32 t);
-
 internal S32 msdf_contour_calculate_own_winding_number(MSDF_Contour *contour);
 internal S32 msdf_contour_calculate_winding_number(MSDF_Contour *contour, V2F32 point);
 

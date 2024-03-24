@@ -334,20 +334,6 @@ internal U32 msdf_segment_intersect(MSDF_Segment a, MSDF_Segment b, F32 *result_
     return intersection_count;
 }
 
-internal V2F32 msdf_point_along_segment(MSDF_Segment segment, F32 t) {
-    V2F32 result = { 0 };
-
-    if (segment.kind == MSDF_SEGMENT_LINE) {
-        result = v2f32_add(segment.p0, v2f32_scale(v2f32_subtract(segment.p1, segment.p0), t));
-    } else if (segment.kind == MSDF_SEGMENT_QUADRATIC_BEZIER) {
-        V2F32 a = v2f32_add(segment.p0, v2f32_scale(v2f32_subtract(segment.p1, segment.p0), t));
-        V2F32 b = v2f32_add(segment.p1, v2f32_scale(v2f32_subtract(segment.p2, segment.p1), t));
-        result = v2f32_add(a, v2f32_scale(v2f32_subtract(b, a), t));
-    }
-
-    return result;
-}
-
 // https://en.wikipedia.org/wiki/Curve_orientation
 internal S32 msdf_contour_calculate_own_winding_number(MSDF_Contour *contour) {
     S32 winding = 0;
