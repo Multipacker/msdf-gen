@@ -349,19 +349,15 @@ internal V2F32 msdf_point_along_segment(MSDF_Segment segment, F32 t) {
 }
 
 // https://en.wikipedia.org/wiki/Curve_orientation
-internal S32 msdf_contour_calculate_own_winding_number(MSDF_Segment *segments, U32 segment_count) {
+internal S32 msdf_contour_calculate_own_winding_number(MSDF_Contour *contour) {
     S32 winding = 0;
     V2F32 top_left = v2f32(f32_infinity(), f32_infinity());
 
-    MSDF_Segment *last_segment = &segments[segment_count - 1];
+    MSDF_Segment *last_segment = contour->last_segment;
     V2F32 previous = (last_segment->kind == MSDF_SEGMENT_LINE ? last_segment->p0 : last_segment->p1);
     V2F32 current  = (last_segment->kind == MSDF_SEGMENT_LINE ? last_segment->p1 : last_segment->p2);
-    for (U32 i = 0; i < segment_count; ++i) {
-        MSDF_Segment *segment = &segments[i];
-
-        V2F32 next;
-
-        next = segment->p1;
+    for (MSDF_Segment *segment = contour->first_segment; segment; segment = segment->next) {
+        V2F32 next = segment->p1;
         if (current.x < top_left.x || (current.x <= top_left.x && current.y < top_left.y)) {
             F32 potential_winding = v2f32_cross(v2f32_subtract(current, previous), v2f32_subtract(next, previous));
             if (f32_abs(potential_winding) > 0.00001f) {
@@ -389,20 +385,20 @@ internal S32 msdf_contour_calculate_own_winding_number(MSDF_Segment *segments, U
     return winding;
 }
 
-internal S32 msdf_contour_calculate_winding_number(MSDF_Segment *segments, U32 segment_count, V2F32 point) {
+internal S32 msdf_contour_calculate_winding_number(MSDF_Contour *contour, V2F32 point) {
     S32 winding_number = 0;
 
-    for (U32 i = 0; i < segment_count; ++i) {
-        if (segments[i].kind == MSDF_SEGMENT_LINE) {
-            V2F32 p0 = v2f32_subtract(segments[i].p0, point);
-            V2F32 p1 = v2f32_subtract(segments[i].p1, point);
+    for (MSDF_Segment *segment = contour->first_segment; segment; segment = segment->next) {
+        if (segment->kind == MSDF_SEGMENT_LINE) {
+            V2F32 p0 = v2f32_subtract(segment->p0, point);
+            V2F32 p1 = v2f32_subtract(segment->p1, point);
             F32 discriminant = v2f32_cross(p0, p1);
             winding_number += (p0.y < 0.0f && 0.0f < p1.y && discriminant >= 0.0f);
             winding_number -= (p1.y < 0.0f && 0.0f < p0.y && discriminant <= 0.0f);
-        } else if (segments[i].kind == MSDF_SEGMENT_QUADRATIC_BEZIER) {
-            V2F32 p0 = v2f32_subtract(segments[i].p0, point);
-            V2F32 p1 = v2f32_subtract(segments[i].p1, point);
-            V2F32 p2 = v2f32_subtract(segments[i].p2, point);
+        } else if (segment->kind == MSDF_SEGMENT_QUADRATIC_BEZIER) {
+            V2F32 p0 = v2f32_subtract(segment->p0, point);
+            V2F32 p1 = v2f32_subtract(segment->p1, point);
+            V2F32 p2 = v2f32_subtract(segment->p2, point);
 
             F32 a = p0.y - 2.0f * p1.y + p2.y;
             F32 b = 2.0f * (p1.y - p0.y);
@@ -625,86 +621,66 @@ internal Void msdf_convert_to_simple_polygons(MSDF_State *state) {
     }
 }
 
-internal Void msdf_correct_contour_orientation(MSDF_State *state) {
-    for (U32 i = 0; i < state->contour_count; ++i) {
-        U32 segment_count = state->contour_segment_counts[i];
-        MSDF_Segment *segments = state->contour_segments[i];
+internal Void msdf_correct_contour_orientation(MSDF_ContourList *contours) {
+    // NOTE(simon): Figure out if each contour should be kept and if we need to flip it.
+    for (MSDF_Contour *contour = contours->first; contour; contour = contour->next) {
+        S32 local_winding = msdf_contour_calculate_own_winding_number(contour);
 
-        segments[0].color &= ~(MSDF_FLAG_REMOVE | MSDF_FLAG_FLIP);
-
-        V2F32 test_point = segments[0].p0;
+        V2F32 test_point = contour->first_segment->p0;
         test_point.y += 0.0001f;
-
-        S32 local_winding = msdf_contour_calculate_own_winding_number(segments, segment_count);
         S32 global_winding = local_winding;
-        for (U32 j = 0; j < state->contour_count; ++j) {
-            if (i != j) {
-                global_winding += msdf_contour_calculate_winding_number(state->contour_segments[j], state->contour_segment_counts[j], test_point);
+        for (MSDF_Contour *other_contour = contours->first; other_contour; other_contour = other_contour->next) {
+            if (other_contour != contour) {
+                global_winding += msdf_contour_calculate_winding_number(other_contour, test_point);
             }
         }
 
-        if (global_winding < -1 || global_winding > 1) {
-            segments[0].color |= MSDF_FLAG_REMOVE;
-        } else if ((global_winding == 0 && local_winding == 1) || (global_winding != 0 && local_winding == -1)) {
-            segments[0].color |= MSDF_FLAG_FLIP;
+        if (-1 <= global_winding && global_winding <= 1) {
+            contour->flags |= MSDF_ContourFlags_Keep;
+        }
+
+        if ((global_winding == 0 && local_winding == 1) || (global_winding != 0 && local_winding == -1)) {
+            contour->flags |= MSDF_ContourFlags_Flip;
+        }
+    }
+
+    // Rebuild the list of contours while applying the accumulated change set.
+    MSDF_Contour *first = 0;
+    MSDF_Contour *last  = 0;
+    for (MSDF_Contour *contour = contours->first, *next; contour; contour = next) {
+        next = contour->next;
+
+        if (contour->flags & MSDF_ContourFlags_Flip) {
+            MSDF_Segment *first_segment = 0;
+            MSDF_Segment *last_segment  = 0;
+
+            for (MSDF_Segment *segment = contour->last_segment, *previous; segment; segment = previous) {
+                previous = segment->previous;
+
+                if (segment->kind == MSDF_SEGMENT_LINE) {
+                    V2F32 temp = segment->p0;
+                    segment->p0 = segment->p1;
+                    segment->p1 = temp;
+                } else if (segment->kind == MSDF_SEGMENT_QUADRATIC_BEZIER) {
+                    V2F32 temp = segment->p0;
+                    segment->p0 = segment->p2;
+                    segment->p2 = temp;
+                }
+
+                dll_push_back(first_segment, last_segment, segment);
+            }
+
+            contour->first_segment = first_segment;
+            contour->last_segment  = last_segment;
+        }
+
+        if (contour->flags & MSDF_ContourFlags_Keep) {
+            dll_push_back(first, last, contour);
         }
     }
 
-    for (U32 i = 0; i < state->contour_count; ++i) {
-        U32 segment_count = state->contour_segment_counts[i];
-        MSDF_Segment *segments = state->contour_segments[i];
-
-        if (segments[0].color & MSDF_FLAG_FLIP) {
-            U32 start = 0;
-            U32 end = segment_count - 1;
-
-            while (start < end) {
-                if (segments[start].kind == MSDF_SEGMENT_LINE) {
-                    V2F32 temp = segments[start].p0;
-                    segments[start].p0 = segments[start].p1;
-                    segments[start].p1 = temp;
-                } else if (segments[start].kind == MSDF_SEGMENT_QUADRATIC_BEZIER) {
-                    V2F32 temp = segments[start].p0;
-                    segments[start].p0 = segments[start].p2;
-                    segments[start].p2 = temp;
-                }
-
-                if (segments[end].kind == MSDF_SEGMENT_LINE) {
-                    V2F32 temp = segments[end].p0;
-                    segments[end].p0 = segments[end].p1;
-                    segments[end].p1 = temp;
-                } else if (segments[end].kind == MSDF_SEGMENT_QUADRATIC_BEZIER) {
-                    V2F32 temp = segments[end].p0;
-                    segments[end].p0 = segments[end].p2;
-                    segments[end].p2 = temp;
-                }
-
-                MSDF_Segment temp = segments[start];
-                segments[start] = segments[end];
-                segments[end] = temp;
-                ++start;
-                --end;
-            }
-
-            // If there is an odd number of segments, the middle one wont be flipped yet.
-            if (start == end) {
-                if (segments[start].kind == MSDF_SEGMENT_LINE) {
-                    V2F32 temp = segments[start].p0;
-                    segments[start].p0 = segments[start].p1;
-                    segments[start].p1 = temp;
-                } else if (segments[start].kind == MSDF_SEGMENT_QUADRATIC_BEZIER) {
-                    V2F32 temp = segments[start].p0;
-                    segments[start].p0 = segments[start].p2;
-                    segments[start].p2 = temp;
-                }
-            }
-        } else if (segments[0].color & MSDF_FLAG_REMOVE) {
-            memory_copy(segments, state->contour_segments[state->contour_count - 1], state->contour_segment_counts[state->contour_count - 1] * sizeof(**state->contour_segments));
-            state->contour_segment_counts[i] = state->contour_segment_counts[state->contour_count - 1];
-            --state->contour_count;
-            --i;
-        }
-    }
+    contours->first = first;
+    contours->last  = last;
 }
 
 internal MSDF_State msdf_state_initialize(Arena *arena, U32 max_contour_count, U32 max_segment_count) {
@@ -819,7 +795,6 @@ internal Void msdf_generate(MSDF_State *state, U8 *buffer, U32 stride, U32 x, U3
 
     msdf_resolve_contour_overlap(state);
     msdf_convert_to_simple_polygons(state);
-    msdf_correct_contour_orientation(state);
 
     // NOTE(simon): Generate linked list version of contours.
     MSDF_ContourList contours = { 0 };
@@ -832,6 +807,7 @@ internal Void msdf_generate(MSDF_State *state, U8 *buffer, U32 stride, U32 x, U3
         dll_push_back(contours.first, contours.last, contour);
     }
 
+    msdf_correct_contour_orientation(&contours);
     msdf_color_edges(contours);
 
     // NOTE(simon): We no longer need the segments to be organized in curves or

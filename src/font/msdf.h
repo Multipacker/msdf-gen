@@ -12,14 +12,14 @@ typedef enum {
     MSDF_COLOR_GREEN = 0x02,
     MSDF_COLOR_BLUE  = 0x04,
 
-    // NOTE: These are only set on the first segment of a contour during input
-    // preprocessing. We hijack this storage space.
-    MSDF_FLAG_FLIP   = 0x08,
-    MSDF_FLAG_REMOVE = 0x10,
-
     // NOTE(simon): Used during edge coloring.
-    MSDF_STARTS_NEW_EDGE = 0x20,
+    MSDF_STARTS_NEW_EDGE = 0x08,
 } MSDF_ColorFlags;
+
+typedef enum {
+    MSDF_ContourFlags_Flip = 0x01,
+    MSDF_ContourFlags_Keep = 0x02,
+} MSDF_ContourFlags;
 
 typedef struct MSDF_Segment MSDF_Segment;
 struct MSDF_Segment {
@@ -48,6 +48,7 @@ struct MSDF_Contour {
     MSDF_Contour *previous;
     MSDF_Segment *first_segment;
     MSDF_Segment *last_segment;
+    MSDF_ContourFlags flags;
 };
 
 typedef struct MSDF_ContourList MSDF_ContourList;
@@ -92,12 +93,12 @@ internal U32 msdf_segment_intersect(MSDF_Segment a, MSDF_Segment b, F32 *result_
 
 internal V2F32 msdf_point_along_segment(MSDF_Segment segment, F32 t);
 
-internal S32 msdf_contour_calculate_own_winding_number(MSDF_Segment *segments, U32 segment_count);
-internal S32 msdf_contour_calculate_winding_number(MSDF_Segment *segments, U32 segment_count, V2F32 point);
+internal S32 msdf_contour_calculate_own_winding_number(MSDF_Contour *contour);
+internal S32 msdf_contour_calculate_winding_number(MSDF_Contour *contour, V2F32 point);
 
 internal Void msdf_resolve_contour_overlap(MSDF_State *state);
 internal Void msdf_convert_to_simple_polygons(MSDF_State *state);
-internal Void msdf_correct_contour_orientation(MSDF_State *state);
+internal Void msdf_correct_contour_orientation(MSDF_ContourList *contours);
 
 internal MSDF_State msdf_state_initialize(Arena *arena, U32 max_contour_count, U32 max_segment_count);
 internal Void msdf_generate(MSDF_State *state, U8 *buffer, U32 stride, U32 x, U32 y, U32 width, U32 height);
