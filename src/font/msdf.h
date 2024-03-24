@@ -39,6 +39,20 @@ struct MSDF_SegmentList {
     MSDF_Segment *last;
 };
 
+typedef struct MSDF_Contour MSDF_Contour;
+struct MSDF_Contour {
+    MSDF_Contour *next;
+    MSDF_Contour *previous;
+    MSDF_Segment *first_segment;
+    MSDF_Segment *last_segment;
+};
+
+typedef struct MSDF_ContourList MSDF_ContourList;
+struct MSDF_ContourList {
+    MSDF_Contour *first;
+    MSDF_Contour *last;
+};
+
 typedef struct {
     F32 distance;
     F32 orthogonality;

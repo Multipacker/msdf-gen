@@ -825,17 +825,34 @@ internal Void msdf_generate(MSDF_State *state, U8 *buffer, U32 stride, U32 x, U3
         return;
     }
 
+    Arena_Temporary scratch = arena_get_scratch(0, 0);
+
     msdf_resolve_contour_overlap(state);
     msdf_convert_to_simple_polygons(state);
     msdf_correct_contour_orientation(state);
+
     msdf_color_edges(state);
 
-    // Separate segments by kind
+    // NOTE(simon): Generate linked list version of contours.
+    MSDF_ContourList contours = { 0 };
+    for (U32 contour_index = 0; contour_index < state->contour_count; ++contour_index) {
+        MSDF_Contour *contour = arena_push_struct_zero(scratch.arena, MSDF_Contour);
+        for (U32 segment_index = 0; segment_index < state->contour_segment_counts[contour_index]; ++segment_index) {
+            MSDF_Segment *segment = &state->contour_segments[contour_index][segment_index];
+            dll_push_back(contour->first_segment, contour->last_segment, segment);
+        }
+        dll_push_back(contours.first, contours.last, contour);
+    }
+
+    // NOTE(simon): We no longer need the segments to be organized in curves or
+    // have any order amongst themselves. Separate them by kind to ease
+    // processing.
     MSDF_SegmentList lines        = { 0 };
     MSDF_SegmentList quad_beziers = { 0 };
-    for (U32 i = 0; i < state->contour_count; ++i) {
-        for (U32 segment_index = 0; segment_index < state->contour_segment_counts[i]; ++segment_index) {
-            MSDF_Segment *segment = &state->contour_segments[i][segment_index];
+    for (MSDF_Contour *contour = contours.first; contour; contour = contour->next) {
+        for (MSDF_Segment *segment = contour->first_segment, *next; segment; segment = next) {
+            next = segment->next;
+
             switch (segment->kind) {
                 case MSDF_SEGMENT_LINE: {
                     dll_push_back(lines.first, lines.last, segment);
@@ -853,7 +870,7 @@ internal Void msdf_generate(MSDF_State *state, U8 *buffer, U32 stride, U32 x, U3
     // Scale the contours to the range [0--1].
     U32 padding = 1;
 
-    F32 x_scale = (F32) (width - 2 * padding) / (F32) (state->x_max - state->x_min);
+    F32 x_scale = (F32) (width  - 2 * padding) / (F32) (state->x_max - state->x_min);
     F32 y_scale = (F32) (height - 2 * padding) / (F32) (state->y_max - state->y_min);
 
     for (MSDF_Segment *line = lines.first; line; line = line->next) {
@@ -994,4 +1011,6 @@ internal Void msdf_generate(MSDF_State *state, U8 *buffer, U32 stride, U32 x, U3
         }
         pixel_index += stride * 4;
     }
+
+    arena_end_temporary(scratch);
 }
