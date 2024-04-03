@@ -158,45 +158,48 @@
 #define memory_copy(destination, source, count) __builtin_memcpy((destination), (source), (count))
 #define memory_equal(a, b, count)               (__builtin_memcmp((a), (b), (count)) == 0)
 
-#define dll_push_next_previous(first, last, node, next, previous) ((first) == 0 ? \
-	((first) = (last) = (node), (node)->next = (node)->previous = 0) : \
-	((node)->previous = (last), (last)->next = (node), (last) = (node), (node)->next = 0))
-#define dll_push_back(first, last, node) dll_push_next_previous(first, last, node, next, previous)
-#define dll_push_front(last, first, node) dll_push_next_previous(first, last, node, previous, next)
-#define dll_remove_next_previous(first, last, node, next, previous) ((first) == (last) && (first) == (node) ? \
-	((first) = (last) = 0) : \
-	((first) == (node) ? \
-	((first) = (first)->next, (first)->previous = 0) : \
-	((last) == (node) ? \
-	((last) = (last)->previous, (last)->next = 0) : \
-	((node)->previous->next = (node)->next, \
-	(node)->next->previous = (node)->previous))))
+#define dll_insert_next_previous(first, last, p, n, next, previous)                                                      \
+    ((first) == 0 ? (((first) = (last) = (n)), (n)->next = (n)->previous = 0) :                                          \
+    (p) == 0 ? ((n)->previous = 0, (n)->next = (first), ((first) == 0 ? 0 : ((first)->previous = (n))), (first) = (n)) : \
+    (((p)->next == 0 ? 0 : (((p)->next->previous) = (n))), (n)->next = (p)->next, (n)->previous = (p), (p)->next = (n),  \
+    ((p) == (last) ? (last) = (n) : 0)))
+#define dll_push_back(first, last, node)  dll_insert_next_previous(first, last, last, node, next, previous)
+#define dll_push_front(last, first, node) dll_insert_next_previous(last, first, frist, node, previous, next)
+#define dll_remove_next_previous(first, last, node, next, previous) \
+    ((first) == (last) && (first) == (node) ?                       \
+    ((first) = (last) = 0) :                                        \
+    ((first) == (node) ?                                            \
+    ((first) = (first)->next, (first)->previous = 0) :              \
+    ((last) == (node) ?                                             \
+    ((last) = (last)->previous, (last)->next = 0) :                 \
+    ((node)->previous->next = (node)->next,                         \
+    (node)->next->previous = (node)->previous))))
 #define dll_remove(first, last, node) dll_remove_next_previous(first, last, node, next, previous)
-#define dll_insert_next_previous(first, last, new, node, next, previous) ((first) == 0 ? \
-	((first) = (last) = (new), (new)->next = (new)->previous = 0) : \
-	((first) == (node) ?  \
-	((first) = (new), (new)->next = (node), (node)->previous = (new), (new)->previous = 0) : \
-	((new)->previous = (node)->previous, (new)->next = (node), (node)->previous = (new))))
-#define dll_insert_before(first, last, new, node) dll_insert_next_previous(first, last, new, node, next, previous)
-#define dll_insert_after(first, last, new, node) dll_insert_next_previous(last, first, new, node, previous, next)
+#define dll_insert_before(first, last, node, new) dll_insert_next_previous(last, first, node, new, previous, next)
+#define dll_insert_after(first, last, node, new)  dll_insert_next_previous(first, last, node, new, next, previous)
 
-#define sll_queue_push(first, last, node) ((first) == 0 ? \
-	(first) = (last) = (node) : \
-	((last)->next = (node), (last) = (node)), \
-	(node)->next = 0)
-#define sll_queue_push_front(first, last, node) ((first) == 0 ? \
-	((first) = (last) = (node), (node)->next = 0) : \
-	((node)->next = (first), (first) = (node)))
-#define sll_queue_pop(first, last) ((first) == (last) ? \
-	((first) = (last) = 0) : \
-	((first) = (first)->next))
+#define sll_queue_push(first, last, node)     \
+    ((first) == 0 ?                           \
+    (first) = (last) = (node) :               \
+    ((last)->next = (node), (last) = (node)), \
+    (node)->next = 0)
+#define sll_queue_push_front(first, last, node)     \
+    ((first) == 0 ?                                 \
+    ((first) = (last) = (node), (node)->next = 0) : \
+    ((node)->next = (first), (first) = (node)))
+#define sll_queue_pop(first, last) \
+    ((first) == (last) ?           \
+    ((first) = (last) = 0) :       \
+    ((first) = (first)->next))
 
-#define sll_stack_push(first, node) ((first) == 0 ? \
-	(first) = (node) : \
-	((node)->next = (first), (first) = (node)), \
-	(node)->next = 0)
-#define sll_stack_pop(first) ((first) == 0 ? \
-	0 : \
-	((first) = (first)->next))
+#define sll_stack_push(first, node)             \
+    ((first) == 0 ?                             \
+    (first) = (node) :                          \
+    ((node)->next = (first), (first) = (node)), \
+    (node)->next = 0)
+#define sll_stack_pop(first)   \
+    ((first) == 0 ?            \
+    0 :                        \
+    ((first) = (first)->next))
 
 #endif // BASE_H
