@@ -545,16 +545,13 @@ internal Void msdf_resolve_contour_overlap(MSDF_State *state) {
     }
 }
 
-internal Void msdf_convert_to_simple_polygons(MSDF_State *state) {
-    for (U32 contour_index = 0; contour_index < state->contour_count && state->contour_count < state->max_contour_count; ++contour_index) {
-        MSDF_Segment *segments = state->contour_segments[contour_index];
-        U32 segment_count = state->contour_segment_counts[contour_index];
-
-        for (U32 a_index = 0; a_index < segment_count && state->contour_count < state->max_contour_count; ++a_index) {
-            for (U32 b_index = a_index + 1; b_index < segment_count && state->contour_count < state->max_contour_count; ++b_index) {
+internal Void msdf_convert_to_simple_polygons(Arena *arena, MSDF_ContourList *contours) {
+    for (MSDF_Contour *contour = contours->first; contour; contour = contour->next) {
+        for (MSDF_Segment *a_segment = contour->first_segment; a_segment; a_segment = a_segment->next) {
+            for (MSDF_Segment *b_segment = a_segment->next; b_segment; b_segment = b_segment->next) {
                 F32 ats[4] = { 0 };
                 F32 bts[4] = { 0 };
-                U32 intersection_count = msdf_segment_intersect(segments[a_index], segments[b_index], ats, bts);
+                U32 intersection_count = msdf_segment_intersect(*a_segment, *b_segment, ats, bts);
 
                 F32 min_at = f32_infinity();
                 F32 min_bt = f32_infinity();
@@ -567,43 +564,40 @@ internal Void msdf_convert_to_simple_polygons(MSDF_State *state) {
                 }
 
                 if (min_at <= 1.0f) {
-                    memory_move(&segments[b_index + 2], &segments[b_index + 1], (segment_count - (b_index + 1)) * sizeof(*segments));
-                    msdf_segment_split(segments[b_index], min_bt, &segments[b_index], &segments[b_index + 1]);
-                    ++segment_count;
+                    MSDF_Contour *new_contour = arena_push_struct_zero(arena, MSDF_Contour);
+                    dll_push_back(contours->first, contours->last, new_contour);
 
-                    memory_move(&segments[a_index + 2], &segments[a_index + 1], (segment_count - (a_index + 1)) * sizeof(*segments));
-                    msdf_segment_split(segments[a_index], min_at, &segments[a_index], &segments[a_index + 1]);
-                    ++segment_count;
+                    MSDF_Segment *a_new = arena_push_struct_zero(arena, MSDF_Segment);
+                    msdf_segment_split(*a_segment, min_at, a_segment, a_new);
+                    dll_insert_after(contour->first_segment, contour->last_segment, a_segment, a_new);
 
-                    // Adjust b_index so that both it and a_index point to the start of the original segments.
-                    ++b_index;
+                    MSDF_Segment *b_new = arena_push_struct_zero(arena, MSDF_Segment);
+                    msdf_segment_split(*b_segment, min_bt, b_new, b_segment);
+                    dll_insert_before(contour->first_segment, contour->last_segment, b_segment, b_new);
 
-                    U32 new_segment_count = b_index - a_index;
-                    state->contour_segment_counts[state->contour_count] = new_segment_count;
-                    memory_copy(state->contour_segments[state->contour_count], &segments[a_index + 1], new_segment_count * sizeof(*segments));
-                    ++state->contour_count;
+                    new_contour->first_segment = a_new;
+                    new_contour->last_segment  = b_new;
+                    a_new->previous = 0;
+                    b_new->next     = 0;
 
-                    memory_move(&segments[a_index + 1], &segments[b_index + 1], (segment_count - (b_index + 1)) * sizeof(*segments));
-                    segment_count -= new_segment_count;
+                    a_segment->next     = b_segment;
+                    b_segment->previous = a_segment;
 
                     // Ensure that the contour is connected properly.
-                    V2F32 *a0_corner = &segments[a_index + 1].p0;
-                    V2F32 *a1_corner = (segments[a_index].kind == MSDF_SEGMENT_LINE ? &segments[a_index].p1 : &segments[a_index].p2);
+                    V2F32 *a0_corner = &a_new->p0;
+                    V2F32 *a1_corner = (b_new->kind == MSDF_SEGMENT_LINE ? &b_new->p1 : &b_new->p2);
                     V2F32 a_corner = v2f32_scale(v2f32_add(*a0_corner, *a1_corner), 0.5f);
                     *a0_corner = a_corner;
                     *a1_corner = a_corner;
 
-                    MSDF_Segment *b_segments = state->contour_segments[state->contour_count - 1];
-                    V2F32 *b0_corner = &b_segments[0].p0;
-                    V2F32 *b1_corner = (b_segments[new_segment_count - 1].kind == MSDF_SEGMENT_LINE ? &b_segments[new_segment_count - 1].p1 : &b_segments[new_segment_count - 1].p2);
+                    V2F32 *b0_corner = &b_segment->p0;
+                    V2F32 *b1_corner = (a_segment->kind == MSDF_SEGMENT_LINE ? &a_segment->p1 : &a_segment->p2);
                     V2F32 b_corner = v2f32_scale(v2f32_add(*b0_corner, *b1_corner), 0.5f);
                     *b0_corner = b_corner;
                     *b1_corner = b_corner;
                 }
             }
         }
-
-        state->contour_segment_counts[contour_index] = segment_count;
     }
 }
 
@@ -780,7 +774,6 @@ internal Void msdf_generate(MSDF_State *state, U8 *buffer, U32 stride, U32 x, U3
     Arena_Temporary scratch = arena_get_scratch(0, 0);
 
     msdf_resolve_contour_overlap(state);
-    msdf_convert_to_simple_polygons(state);
 
     // NOTE(simon): Generate linked list version of contours.
     MSDF_ContourList contours = { 0 };
@@ -793,6 +786,7 @@ internal Void msdf_generate(MSDF_State *state, U8 *buffer, U32 stride, U32 x, U3
         dll_push_back(contours.first, contours.last, contour);
     }
 
+    msdf_convert_to_simple_polygons(scratch.arena, &contours);
     msdf_correct_contour_orientation(&contours);
     msdf_color_edges(contours);
 
