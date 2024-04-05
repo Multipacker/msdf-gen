@@ -202,4 +202,11 @@
     0 :                        \
     ((first) = (first)->next))
 
+#define swap(a, b, T)           \
+    {                           \
+        T temp##__LINE__ = (a); \
+        (a) = (b);              \
+        (b) = temp##__LINE__;   \
+    }
+
 #endif // BASE_H
