@@ -416,8 +416,8 @@ internal S32 msdf_contour_calculate_winding_number(MSDF_Contour *contour, V2F32 
     return winding_number;
 }
 
-internal Void msdf_resolve_contour_overlap(Arena *arena, MSDF_ContourList *contours) {
-    for (MSDF_Contour *a_contour = contours->first; a_contour; a_contour = a_contour->next) {
+internal Void msdf_resolve_contour_overlap(Arena *arena, MSDF_Glyph *glyph) {
+    for (MSDF_Contour *a_contour = glyph->first_contour; a_contour; a_contour = a_contour->next) {
         for (MSDF_Contour *b_contour = a_contour->next; b_contour; b_contour = b_contour->next) {
             // Find 2 consecutive intersections along one of the contours.
             // Split the contours at the intersections. The parts "between" the
@@ -522,8 +522,8 @@ internal Void msdf_resolve_contour_overlap(Arena *arena, MSDF_ContourList *conto
     }
 }
 
-internal Void msdf_convert_to_simple_polygons(Arena *arena, MSDF_ContourList *contours) {
-    for (MSDF_Contour *contour = contours->first; contour; contour = contour->next) {
+internal Void msdf_convert_to_simple_polygons(Arena *arena, MSDF_Glyph *glyph) {
+    for (MSDF_Contour *contour = glyph->first_contour; contour; contour = contour->next) {
         for (MSDF_Segment *a_segment = contour->first_segment; a_segment; a_segment = a_segment->next) {
             for (MSDF_Segment *b_segment = a_segment->next; b_segment; b_segment = b_segment->next) {
                 F32 ats[4] = { 0 };
@@ -542,7 +542,7 @@ internal Void msdf_convert_to_simple_polygons(Arena *arena, MSDF_ContourList *co
 
                 if (min_at <= 1.0f) {
                     MSDF_Contour *new_contour = arena_push_struct_zero(arena, MSDF_Contour);
-                    dll_push_back(contours->first, contours->last, new_contour);
+                    dll_push_back(glyph->first_contour, glyph->last_contour, new_contour);
 
                     MSDF_Segment *a_new = arena_push_struct_zero(arena, MSDF_Segment);
                     msdf_segment_split(*a_segment, min_at, a_segment, a_new);
@@ -578,15 +578,15 @@ internal Void msdf_convert_to_simple_polygons(Arena *arena, MSDF_ContourList *co
     }
 }
 
-internal Void msdf_correct_contour_orientation(MSDF_ContourList *contours) {
+internal Void msdf_correct_contour_orientation(MSDF_Glyph *glyph) {
     // NOTE(simon): Figure out if each contour should be kept and if we need to flip it.
-    for (MSDF_Contour *contour = contours->first; contour; contour = contour->next) {
+    for (MSDF_Contour *contour = glyph->first_contour; contour; contour = contour->next) {
         S32 local_winding = msdf_contour_calculate_own_winding_number(contour);
 
         V2F32 test_point = contour->first_segment->p0;
         test_point.y += 0.0001f;
         S32 global_winding = local_winding;
-        for (MSDF_Contour *other_contour = contours->first; other_contour; other_contour = other_contour->next) {
+        for (MSDF_Contour *other_contour = glyph->first_contour; other_contour; other_contour = other_contour->next) {
             if (other_contour != contour) {
                 global_winding += msdf_contour_calculate_winding_number(other_contour, test_point);
             }
@@ -604,7 +604,7 @@ internal Void msdf_correct_contour_orientation(MSDF_ContourList *contours) {
     // Rebuild the list of contours while applying the accumulated change set.
     MSDF_Contour *first = 0;
     MSDF_Contour *last  = 0;
-    for (MSDF_Contour *contour = contours->first, *next; contour; contour = next) {
+    for (MSDF_Contour *contour = glyph->first_contour, *next; contour; contour = next) {
         next = contour->next;
 
         if (contour->flags & MSDF_ContourFlags_Flip) {
@@ -636,8 +636,8 @@ internal Void msdf_correct_contour_orientation(MSDF_ContourList *contours) {
         }
     }
 
-    contours->first = first;
-    contours->last  = last;
+    glyph->first_contour = first;
+    glyph->last_contour  = last;
 }
 
 internal MSDF_State msdf_state_initialize(Arena *arena, U32 max_contour_count, U32 max_segment_count) {
@@ -682,10 +682,10 @@ internal MSDF_State msdf_state_initialize(Arena *arena, U32 max_contour_count, U
     return state;
 }
 
-internal Void msdf_color_edges(MSDF_ContourList contours) {
+internal Void msdf_color_edges(MSDF_Glyph glyph) {
     F32 corner_threshold = f32_sin(0.1f);
 
-    for (MSDF_Contour *contour = contours.first; contour; contour = contour->next) {
+    for (MSDF_Contour *contour = glyph.first_contour; contour; contour = contour->next) {
         // Find the first corner
         U32 corner_count = 0;
         MSDF_Segment *last_corner_start = 0;
@@ -733,7 +733,24 @@ internal Void msdf_color_edges(MSDF_ContourList contours) {
 }
 
 internal Void msdf_generate(MSDF_State *state, U8 *buffer, U32 stride, U32 x, U32 y, U32 width, U32 height) {
-    if (!state->contour_count) {
+    Arena_Temporary scratch = arena_get_scratch(0, 0);
+
+    // NOTE(simon): Generate linked list version of contours.
+    MSDF_Glyph glyph = { 0 };
+    glyph.x_min = state->x_min;
+    glyph.y_min = state->y_min;
+    glyph.x_max = state->x_max;
+    glyph.y_max = state->y_max;
+    for (U32 contour_index = 0; contour_index < state->contour_count; ++contour_index) {
+        MSDF_Contour *contour = arena_push_struct_zero(scratch.arena, MSDF_Contour);
+        for (U32 segment_index = 0; segment_index < state->contour_segment_counts[contour_index]; ++segment_index) {
+            MSDF_Segment *segment = &state->contour_segments[contour_index][segment_index];
+            dll_push_back(contour->first_segment, contour->last_segment, segment);
+        }
+        dll_push_back(glyph.first_contour, glyph.last_contour, contour);
+    }
+
+    if (!glyph.first_contour) {
         U32 pixel_index = (x + y * stride) * 4;
         for (U32 y = 0; y < height; ++y) {
             U32 row = pixel_index;
@@ -748,30 +765,17 @@ internal Void msdf_generate(MSDF_State *state, U8 *buffer, U32 stride, U32 x, U3
         return;
     }
 
-    Arena_Temporary scratch = arena_get_scratch(0, 0);
-
-    // NOTE(simon): Generate linked list version of contours.
-    MSDF_ContourList contours = { 0 };
-    for (U32 contour_index = 0; contour_index < state->contour_count; ++contour_index) {
-        MSDF_Contour *contour = arena_push_struct_zero(scratch.arena, MSDF_Contour);
-        for (U32 segment_index = 0; segment_index < state->contour_segment_counts[contour_index]; ++segment_index) {
-            MSDF_Segment *segment = &state->contour_segments[contour_index][segment_index];
-            dll_push_back(contour->first_segment, contour->last_segment, segment);
-        }
-        dll_push_back(contours.first, contours.last, contour);
-    }
-
-    msdf_resolve_contour_overlap(scratch.arena, &contours);
-    msdf_convert_to_simple_polygons(scratch.arena, &contours);
-    msdf_correct_contour_orientation(&contours);
-    msdf_color_edges(contours);
+    msdf_resolve_contour_overlap(scratch.arena, &glyph);
+    msdf_convert_to_simple_polygons(scratch.arena, &glyph);
+    msdf_correct_contour_orientation(&glyph);
+    msdf_color_edges(glyph);
 
     // NOTE(simon): We no longer need the segments to be organized in curves or
     // have any order amongst themselves. Separate them by kind to ease
     // processing.
     MSDF_SegmentList lines        = { 0 };
     MSDF_SegmentList quad_beziers = { 0 };
-    for (MSDF_Contour *contour = contours.first; contour; contour = contour->next) {
+    for (MSDF_Contour *contour = glyph.first_contour; contour; contour = contour->next) {
         for (MSDF_Segment *segment = contour->first_segment, *next; segment; segment = next) {
             next = segment->next;
 
@@ -792,31 +796,31 @@ internal Void msdf_generate(MSDF_State *state, U8 *buffer, U32 stride, U32 x, U3
     // Scale the contours to the range [0--1].
     U32 padding = 1;
 
-    F32 x_scale = (F32) (width  - 2 * padding) / (F32) (state->x_max - state->x_min);
-    F32 y_scale = (F32) (height - 2 * padding) / (F32) (state->y_max - state->y_min);
+    F32 x_scale = (F32) (width  - 2 * padding) / (F32) (glyph.x_max - glyph.x_min);
+    F32 y_scale = (F32) (height - 2 * padding) / (F32) (glyph.y_max - glyph.y_min);
 
     for (MSDF_Segment *line = lines.first; line; line = line->next) {
         line->p0 = v2f32(
-            ((line->p0.x - state->x_min) * x_scale + (F32) padding) / (F32) width,
-            ((state->y_max - line->p0.y) * y_scale + (F32) padding) / (F32) height
+            ((line->p0.x  - glyph.x_min) * x_scale + (F32) padding) / (F32) width,
+            ((glyph.y_max - line->p0.y) * y_scale + (F32) padding) / (F32) height
         );
         line->p1 = v2f32(
-            ((line->p1.x - state->x_min) * x_scale + (F32) padding) / (F32) width,
-            ((state->y_max - line->p1.y) * y_scale + (F32) padding) / (F32) height
+            ((line->p1.x  - glyph.x_min) * x_scale + (F32) padding) / (F32) width,
+            ((glyph.y_max - line->p1.y) * y_scale + (F32) padding) / (F32) height
         );
     }
     for (MSDF_Segment *bezier = quad_beziers.first; bezier; bezier = bezier->next) {
         bezier->p0 = v2f32(
-            ((bezier->p0.x - state->x_min) * x_scale + (F32) padding) / (F32) width,
-            ((state->y_max - bezier->p0.y) * y_scale + (F32) padding) / (F32) height
+            ((bezier->p0.x - glyph.x_min) * x_scale + (F32) padding) / (F32) width,
+            ((glyph.y_max  - bezier->p0.y) * y_scale + (F32) padding) / (F32) height
         );
         bezier->p1 = v2f32(
-            ((bezier->p1.x - state->x_min) * x_scale + (F32) padding) / (F32) width,
-            ((state->y_max - bezier->p1.y) * y_scale + (F32) padding) / (F32) height
+            ((bezier->p1.x - glyph.x_min) * x_scale + (F32) padding) / (F32) width,
+            ((glyph.y_max  - bezier->p1.y) * y_scale + (F32) padding) / (F32) height
         );
         bezier->p2 = v2f32(
-            ((bezier->p2.x - state->x_min) * x_scale + (F32) padding) / (F32) width,
-            ((state->y_max - bezier->p2.y) * y_scale + (F32) padding) / (F32) height
+            ((bezier->p2.x - glyph.x_min) * x_scale + (F32) padding) / (F32) width,
+            ((glyph.y_max  - bezier->p2.y) * y_scale + (F32) padding) / (F32) height
         );
     }
 

@@ -51,10 +51,15 @@ struct MSDF_Contour {
     MSDF_ContourFlags flags;
 };
 
-typedef struct MSDF_ContourList MSDF_ContourList;
-struct MSDF_ContourList {
-    MSDF_Contour *first;
-    MSDF_Contour *last;
+typedef struct MSDF_Glyph MSDF_Glyph;
+struct MSDF_Glyph {
+    MSDF_Contour *first_contour;
+    MSDF_Contour *last_contour;
+
+    S32 x_min;
+    S32 y_min;
+    S32 x_max;
+    S32 y_max;
 };
 
 typedef struct {
@@ -94,9 +99,9 @@ internal U32 msdf_segment_intersect(MSDF_Segment a, MSDF_Segment b, F32 *result_
 internal S32 msdf_contour_calculate_own_winding_number(MSDF_Contour *contour);
 internal S32 msdf_contour_calculate_winding_number(MSDF_Contour *contour, V2F32 point);
 
-internal Void msdf_resolve_contour_overlap(Arena *arena, MSDF_ContourList *contours);
-internal Void msdf_convert_to_simple_polygons(Arena *arena, MSDF_ContourList *contours);
-internal Void msdf_correct_contour_orientation(MSDF_ContourList *contours);
+internal Void msdf_resolve_contour_overlap(Arena *arena, MSDF_Glyph *glyph);
+internal Void msdf_convert_to_simple_polygons(Arena *arena, MSDF_Glyph *glyph);
+internal Void msdf_correct_contour_orientation(MSDF_Glyph *glyph);
 
 internal MSDF_State msdf_state_initialize(Arena *arena, U32 max_contour_count, U32 max_segment_count);
 internal Void msdf_generate(MSDF_State *state, U8 *buffer, U32 stride, U32 x, U32 y, U32 width, U32 height);
