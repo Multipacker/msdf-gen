@@ -104,6 +104,6 @@ internal Void msdf_convert_to_simple_polygons(Arena *arena, MSDF_Glyph *glyph);
 internal Void msdf_correct_contour_orientation(MSDF_Glyph *glyph);
 
 internal MSDF_State msdf_state_initialize(Arena *arena, U32 max_contour_count, U32 max_segment_count);
-internal Void msdf_generate(MSDF_State *state, U8 *buffer, U32 stride, U32 x, U32 y, U32 width, U32 height);
+internal Void msdf_generate(MSDF_Glyph glyph, U8 *buffer, U32 stride, U32 x, U32 y, U32 width, U32 height);
 
 #endif // MSDF_H

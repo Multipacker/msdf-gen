@@ -732,30 +732,8 @@ internal Void msdf_color_edges(MSDF_Glyph glyph) {
     }
 }
 
-internal Void msdf_generate(MSDF_State *state, U8 *buffer, U32 stride, U32 x, U32 y, U32 width, U32 height) {
-    Arena_Temporary scratch = arena_get_scratch(0, 0);
-
-    // NOTE(simon): Generate linked list version of contours.
-    MSDF_Glyph glyph = { 0 };
-    glyph.x_min = state->x_min;
-    glyph.y_min = state->y_min;
-    glyph.x_max = state->x_max;
-    glyph.y_max = state->y_max;
-    for (U32 contour_index = 0; contour_index < state->contour_count; ++contour_index) {
-        MSDF_Contour *contour = arena_push_struct_zero(scratch.arena, MSDF_Contour);
-        for (U32 segment_index = 0; segment_index < state->contour_segment_counts[contour_index]; ++segment_index) {
-            MSDF_Segment *segment = &state->contour_segments[contour_index][segment_index];
-            dll_push_back(contour->first_segment, contour->last_segment, segment);
-        }
-        dll_push_back(glyph.first_contour, glyph.last_contour, contour);
-    }
-
+internal Void msdf_generate(MSDF_Glyph glyph, U8 *buffer, U32 stride, U32 x, U32 y, U32 width, U32 height) {
     if (glyph.first_contour) {
-        msdf_resolve_contour_overlap(scratch.arena, &glyph);
-        msdf_convert_to_simple_polygons(scratch.arena, &glyph);
-        msdf_correct_contour_orientation(&glyph);
-        msdf_color_edges(glyph);
-
         // NOTE(simon): We no longer need the segments to be organized in curves or
         // have any order amongst themselves. Separate them by kind to ease
         // processing.
@@ -936,6 +914,4 @@ internal Void msdf_generate(MSDF_State *state, U8 *buffer, U32 stride, U32 x, U3
             pixel_index += stride * 4;
         }
     }
-
-    arena_end_temporary(scratch);
 }

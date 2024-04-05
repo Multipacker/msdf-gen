@@ -61,19 +61,43 @@ internal S32 os_run(Str8List arguments) {
         MSDF_State msdf_state = msdf_state_initialize(scratch.arena, font.contour_capacity, font.point_capacity);
 
         for (U32 i = 0; i < font.internal_glyph_count; ++i) {
+            Arena_Temporary scratch = arena_get_scratch(0, 0);
             ttf_expand_contours_to_msdf(&font, font.internal_to_ttf_glyph_indicies[i], &msdf_state);
+
+            // NOTE(simon): Generate linked list version of contours.
+            MSDF_Glyph msdf_glyph = { 0 };
+            msdf_glyph.x_min = msdf_state.x_min;
+            msdf_glyph.y_min = msdf_state.y_min;
+            msdf_glyph.x_max = msdf_state.x_max;
+            msdf_glyph.y_max = msdf_state.y_max;
+            for (U32 contour_index = 0; contour_index < msdf_state.contour_count; ++contour_index) {
+                MSDF_Contour *contour = arena_push_struct_zero(scratch.arena, MSDF_Contour);
+                for (U32 segment_index = 0; segment_index < msdf_state.contour_segment_counts[contour_index]; ++segment_index) {
+                    MSDF_Segment *segment = &msdf_state.contour_segments[contour_index][segment_index];
+                    dll_push_back(contour->first_segment, contour->last_segment, segment);
+                }
+                dll_push_back(msdf_glyph.first_contour, msdf_glyph.last_contour, contour);
+            }
+
+            msdf_resolve_contour_overlap(scratch.arena, &msdf_glyph);
+            msdf_convert_to_simple_polygons(scratch.arena, &msdf_glyph);
+            msdf_correct_contour_orientation(&msdf_glyph);
+            msdf_color_edges(msdf_glyph);
+
             Font_Glyph *glyph = &msdf_font.glyphs[i];
 
             U32 x = glyph_size * (i % glyph_width);
             U32 y = glyph_size * (i / glyph_width);
 
-            F32 width_adjustment  = (F32) (msdf_state.x_max - msdf_state.x_min) * 0.5f / (F32) (atlas_width  - 2);
-            F32 height_adjustment = (F32) (msdf_state.y_max - msdf_state.y_min) * 0.5f / (F32) (atlas_height - 2);
-            glyph->x_min = msdf_state.x_min - width_adjustment;
-            glyph->y_min = msdf_state.y_min - height_adjustment;
-            glyph->x_max = msdf_state.x_max + width_adjustment;
-            glyph->y_max = msdf_state.y_max + height_adjustment;
-            msdf_generate(&msdf_state, font_atlas, atlas_width, x, y, glyph_size, glyph_size);
+            F32 width_adjustment  = (F32) (msdf_glyph.x_max - msdf_glyph.x_min) * 0.5f / (F32) (atlas_width  - 2);
+            F32 height_adjustment = (F32) (msdf_glyph.y_max - msdf_glyph.y_min) * 0.5f / (F32) (atlas_height - 2);
+            glyph->x_min = msdf_glyph.x_min - width_adjustment;
+            glyph->y_min = msdf_glyph.y_min - height_adjustment;
+            glyph->x_max = msdf_glyph.x_max + width_adjustment;
+            glyph->y_max = msdf_glyph.y_max + height_adjustment;
+            msdf_generate(msdf_glyph, font_atlas, atlas_width, x, y, glyph_size, glyph_size);
+
+            arena_end_temporary(scratch);
         }
     }
 
