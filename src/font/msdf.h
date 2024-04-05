@@ -94,7 +94,7 @@ internal U32 msdf_segment_intersect(MSDF_Segment a, MSDF_Segment b, F32 *result_
 internal S32 msdf_contour_calculate_own_winding_number(MSDF_Contour *contour);
 internal S32 msdf_contour_calculate_winding_number(MSDF_Contour *contour, V2F32 point);
 
-internal Void msdf_resolve_contour_overlap(MSDF_State *state);
+internal Void msdf_resolve_contour_overlap(Arena *arena, MSDF_ContourList *contours);
 internal Void msdf_convert_to_simple_polygons(Arena *arena, MSDF_ContourList *contours);
 internal Void msdf_correct_contour_orientation(MSDF_ContourList *contours);
 

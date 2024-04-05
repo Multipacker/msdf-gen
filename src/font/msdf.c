@@ -416,61 +416,59 @@ internal S32 msdf_contour_calculate_winding_number(MSDF_Contour *contour, V2F32 
     return winding_number;
 }
 
-internal Void msdf_resolve_contour_overlap(MSDF_State *state) {
-    for (U32 i = 0; i < state->contour_count; ++i) {
-        for (U32 j = i + 1; j < state->contour_count; ++j) {
-            MSDF_Segment *a_segments = state->contour_segments[i];
-            MSDF_Segment *b_segments = state->contour_segments[j];
-
+internal Void msdf_resolve_contour_overlap(Arena *arena, MSDF_ContourList *contours) {
+    for (MSDF_Contour *a_contour = contours->first; a_contour; a_contour = a_contour->next) {
+        for (MSDF_Contour *b_contour = a_contour->next; b_contour; b_contour = b_contour->next) {
             // Find 2 consecutive intersections along one of the contours.
-            // Split the contours at the intersections.
-            // The parts "between" the intersections, switch which contour they belong to.
-            // Repeat until there are no more intersections.
+            // Split the contours at the intersections. The parts "between" the
+            // intersections switch which contour they belong to. Repeat until
+            // there are no more intersections.
             U32 intersection_count = 0;
-            U32 intersection_ais[2];
-            U32 intersection_bis[2];
-            for (U32 a_index = 0; a_index < state->contour_segment_counts[i]; ++a_index) {
-                F32 min_at      = f32_infinity();
-                F32 min_bt      = f32_infinity();
-                U32 min_b_index = 0;
-                for (U32 b_index = 0; b_index < state->contour_segment_counts[j]; ++b_index) {
+            MSDF_Segment *a_intersections[2];
+            MSDF_Segment *b_intersections[2];
+            for (MSDF_Segment *a_segment = a_contour->first_segment; a_segment; a_segment = a_segment->next) {
+                F32 min_at          = f32_infinity();
+                F32 min_bt          = f32_infinity();
+                MSDF_Segment *min_b = 0;
+                for (MSDF_Segment *b_segment = b_contour->first_segment; b_segment; b_segment = b_segment->next) {
                     F32 ats[4] = { 0 };
                     F32 bts[4] = { 0 };
-                    U32 intersection_count = msdf_segment_intersect(a_segments[a_index], b_segments[b_index], ats, bts);
+                    U32 intersection_count = msdf_segment_intersect(*a_segment, *b_segment, ats, bts);
                     F32 intersection_epsilon = 0.0001f; // TODO: Move this out and figure out an appropiate value for it.
                     for (U32 i = 0; i < intersection_count; ++i) {
                         if (ats[i] < min_at && intersection_epsilon < ats[i] && ats[i] < 1.0f - intersection_epsilon) {
-                            min_at      = ats[i];
-                            min_bt      = bts[i];
-                            min_b_index = b_index;
+                            min_at = ats[i];
+                            min_bt = bts[i];
+                            min_b  = b_segment;
                         }
                     }
                 }
 
                 if (min_at <= 1.0f) {
-                    U32 b_index = min_b_index;
+                    MSDF_Segment *b_segment = min_b;
 
-                    intersection_ais[intersection_count] = a_index + 1;
-                    intersection_bis[intersection_count] = b_index + 1;
-
-                    memory_move(&a_segments[a_index + 2], &a_segments[a_index + 1], (state->contour_segment_counts[i] - (a_index + 1)) * sizeof(*a_segments));
-                    memory_move(&b_segments[b_index + 2], &b_segments[b_index + 1], (state->contour_segment_counts[j] - (b_index + 1)) * sizeof(*b_segments));
-                    msdf_segment_split(a_segments[a_index], min_at, &a_segments[a_index], &a_segments[a_index + 1]);
-                    msdf_segment_split(b_segments[b_index], min_bt, &b_segments[b_index], &b_segments[b_index + 1]);
+                    MSDF_Segment *a_new = arena_push_struct_zero(arena, MSDF_Segment);
+                    MSDF_Segment *b_new = arena_push_struct_zero(arena, MSDF_Segment);
+                    dll_insert_after(a_contour->first_segment, a_contour->last_segment, a_segment, a_new);
+                    dll_insert_after(b_contour->first_segment, b_contour->last_segment, b_segment, b_new);
+                    msdf_segment_split(*a_segment, min_at, a_segment, a_new);
+                    msdf_segment_split(*b_segment, min_bt, b_segment, b_new);
+                    a_intersections[intersection_count] = a_new;
+                    b_intersections[intersection_count] = b_new;
 
                     // The corner with the narrowest angle is moved "inwards".
                     // It needs to move at least the distance between the two
                     // corners. This can be 0, so we also add a small amount to
                     // ensure that the corners do not overlapp.
                     // TODO: Why is the "small amount" 0.005f? What should it be?
-                    V2F32 *a0_corner    = (a_segments[a_index].kind == MSDF_SEGMENT_LINE ? &a_segments[a_index].p1 : &a_segments[a_index].p2);
-                    V2F32  a0_direction = v2f32_normalize(v2f32_subtract((a_segments[a_index].kind == MSDF_SEGMENT_LINE ? a_segments[a_index].p0 : a_segments[a_index].p1), *a0_corner));
-                    V2F32 *a1_corner    = &a_segments[a_index + 1].p0;
-                    V2F32  a1_direction = v2f32_normalize(v2f32_subtract(a_segments[a_index + 1].p1, *a1_corner));
-                    V2F32 *b0_corner    = (b_segments[b_index].kind == MSDF_SEGMENT_LINE ? &b_segments[b_index].p1 : &b_segments[b_index].p2);
-                    V2F32  b0_direction = v2f32_normalize(v2f32_subtract((b_segments[b_index].kind == MSDF_SEGMENT_LINE ? b_segments[b_index].p0 : b_segments[b_index].p1), *b0_corner));
-                    V2F32 *b1_corner    = &b_segments[b_index + 1].p0;
-                    V2F32  b1_direction = v2f32_normalize(v2f32_subtract(b_segments[b_index + 1].p1, *b1_corner));
+                    V2F32 *a0_corner    = (a_segment->kind == MSDF_SEGMENT_LINE ? &a_segment->p1 : &a_segment->p2);
+                    V2F32  a0_direction = v2f32_normalize(v2f32_subtract((a_segment->kind == MSDF_SEGMENT_LINE ? a_segment->p0 : a_segment->p1), *a0_corner));
+                    V2F32 *a1_corner    = &a_new->p0;
+                    V2F32  a1_direction = v2f32_normalize(v2f32_subtract(a_new->p1, *a1_corner));
+                    V2F32 *b0_corner    = (b_segment->kind == MSDF_SEGMENT_LINE ? &b_segment->p1 : &b_segment->p2);
+                    V2F32  b0_direction = v2f32_normalize(v2f32_subtract((b_segment->kind == MSDF_SEGMENT_LINE ? b_segment->p0 : b_segment->p1), *b0_corner));
+                    V2F32 *b1_corner    = &b_new->p0;
+                    V2F32  b1_direction = v2f32_normalize(v2f32_subtract(b_new->p1, *b1_corner));
                     F32    move_amount  = 0.005f + v2f32_length(v2f32_subtract(v2f32_add(*a0_corner, *b1_corner), v2f32_add(*a1_corner, *b0_corner))) * 0.5f;
 
                     if (v2f32_dot(a0_direction, b1_direction) < v2f32_dot(a1_direction, b0_direction)) {
@@ -493,49 +491,28 @@ internal Void msdf_resolve_contour_overlap(MSDF_State *state) {
                         *b1_corner = new_other_corner;
                     }
 
-                    ++state->contour_segment_counts[i];
-                    ++state->contour_segment_counts[j];
                     ++intersection_count;
 
                     if (intersection_count == 2) {
-                        // If we split a segment that appears earlier in
-                        // `b_segments` than the first one we split, we need to
-                        // move the split index for the first split.
-                        if (intersection_bis[1] <= intersection_bis[0]) {
-                            ++intersection_bis[0];
-                        }
+                        // NOTE(simon): Swap so that we have b_intersections[0] ... b_intersections[1] ... last
+                        b_contour->first_segment->previous = b_contour->last_segment;
+                        b_contour->last_segment->next      = b_contour->first_segment;
+                        b_contour->first_segment           = b_intersections[0];
+                        b_contour->last_segment            = b_intersections[0]->previous;
+                        b_contour->first_segment->previous = 0;
+                        b_contour->last_segment->next      = 0;
 
-                        // The list of segments for b must be treated as a circular
-                        // buffer as the a segment might first intersect with a
-                        // segment further into b and then with an earlier one. The
-                        // interval crosses the end of the list
-                        while (intersection_bis[0] > intersection_bis[1]) {
-                            b_segments[state->contour_segment_counts[j]] = b_segments[0];
-                            memory_move(b_segments, &b_segments[1], state->contour_segment_counts[j] * sizeof(*b_segments));
-
-                            intersection_bis[0] = (intersection_bis[0] == 0 ? state->contour_segment_counts[j] : intersection_bis[0]) - 1;
-                            intersection_bis[1] = (intersection_bis[1] == 0 ? state->contour_segment_counts[j] : intersection_bis[1]) - 1;
-                        }
-
-                        U32 a_start_count  = intersection_ais[0];
-                        U32 b_start_count  = intersection_bis[0];
-                        U32 a_middle_count = intersection_ais[1] - intersection_ais[0];
-                        U32 b_middle_count = intersection_bis[1] - intersection_bis[0];
-                        U32 a_end_count    = state->contour_segment_counts[i] - intersection_ais[1];
-                        U32 b_end_count    = state->contour_segment_counts[j] - intersection_bis[1];
-
-                        // First swap
-                        memory_copy(state->temporary_buffer,          &a_segments[intersection_ais[1]], a_end_count * sizeof(*a_segments));
-                        memory_copy(&a_segments[intersection_ais[1]], &b_segments[intersection_bis[1]], b_end_count * sizeof(*b_segments));
-                        memory_copy(&b_segments[intersection_bis[1]], state->temporary_buffer,          a_end_count * sizeof(*a_segments));
-
-                        // Second swap
-                        memory_copy(state->temporary_buffer,          &a_segments[intersection_ais[0]], (a_middle_count + b_end_count) * sizeof(*a_segments));
-                        memory_copy(&a_segments[intersection_ais[0]], &b_segments[intersection_bis[0]], (b_middle_count + a_end_count) * sizeof(*b_segments));
-                        memory_copy(&b_segments[intersection_bis[0]], state->temporary_buffer,          (a_middle_count + b_end_count) * sizeof(*a_segments));
-
-                        state->contour_segment_counts[i] = a_start_count + b_middle_count + a_end_count;
-                        state->contour_segment_counts[j] = b_start_count + a_middle_count + b_end_count;
+#define swap(a, b, T) \
+    {                 \
+        T temp = (a); \
+        (a) = (b);    \
+        (b) = temp;   \
+    }
+                        // NOTE(simon): Swap the middle parts.
+                        swap(a_intersections[0]->previous->next, b_contour->first_segment,           MSDF_Segment *);
+                        swap(a_intersections[0]->previous,       b_intersections[0]->previous,       MSDF_Segment *);
+                        swap(a_intersections[1]->previous->next, b_intersections[1]->previous->next, MSDF_Segment *);
+                        swap(a_intersections[1]->previous      , b_intersections[1]->previous,       MSDF_Segment *);
 
                         intersection_count = 0;
                     }
@@ -773,8 +750,6 @@ internal Void msdf_generate(MSDF_State *state, U8 *buffer, U32 stride, U32 x, U3
 
     Arena_Temporary scratch = arena_get_scratch(0, 0);
 
-    msdf_resolve_contour_overlap(state);
-
     // NOTE(simon): Generate linked list version of contours.
     MSDF_ContourList contours = { 0 };
     for (U32 contour_index = 0; contour_index < state->contour_count; ++contour_index) {
@@ -786,6 +761,7 @@ internal Void msdf_generate(MSDF_State *state, U8 *buffer, U32 stride, U32 x, U3
         dll_push_back(contours.first, contours.last, contour);
     }
 
+    msdf_resolve_contour_overlap(scratch.arena, &contours);
     msdf_convert_to_simple_polygons(scratch.arena, &contours);
     msdf_correct_contour_orientation(&contours);
     msdf_color_edges(contours);
