@@ -506,7 +506,7 @@ internal Void msdf_resolve_contour_overlap(Arena *arena, MSDF_Glyph *glyph) {
                         swap(a_intersections[0]->previous->next, b_contour->first_segment,           MSDF_Segment *);
                         swap(a_intersections[0]->previous,       b_intersections[0]->previous,       MSDF_Segment *);
                         swap(a_intersections[1]->previous->next, b_intersections[1]->previous->next, MSDF_Segment *);
-                        swap(a_intersections[1]->previous      , b_intersections[1]->previous,       MSDF_Segment *);
+                        swap(a_intersections[1]->previous,       b_intersections[1]->previous,       MSDF_Segment *);
 
                         intersection_count = 0;
                     }

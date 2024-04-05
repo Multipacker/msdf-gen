@@ -251,12 +251,8 @@ typedef struct {
 
     U16 glyph_count;
 
-    U32        contour_capacity;
-    U16       *contour_end_points_buffer;
-    U32        point_capacity;
-    U8        *flag_buffer;
-    TTF_FWord *x_buffer;
-    TTF_FWord *y_buffer;
+    U32 contour_capacity;
+    U32 point_capacity;
 
     U16 *ttf_to_internal_glyph_indicies; // NOTE: The stored indicies are 1-based.
     U16 *internal_to_ttf_glyph_indicies;

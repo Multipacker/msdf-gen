@@ -181,10 +181,6 @@ internal B32 ttf_parse_maxp_table(Arena *arena, TTF_Font *font) {
         font->glyph_count = num_glyphs;
         font->contour_capacity = u16_max(max_contours, max_component_contours);
         font->point_capacity   = u16_max(max_points,   max_component_points);
-        font->contour_end_points_buffer = arena_push_array(arena, U16,       font->contour_capacity);
-        font->flag_buffer               = arena_push_array(arena, U8,        font->point_capacity);
-        font->x_buffer                  = arena_push_array(arena, TTF_FWord, font->point_capacity);
-        font->y_buffer                  = arena_push_array(arena, TTF_FWord, font->point_capacity);
     } else {
         error_emit(str8_literal("ERROR(font/ttf): Not enough data in maxp table."));
         success = false;
@@ -912,12 +908,13 @@ internal B32 ttf_get_glyph_outlines(TTF_Font *font, U32 glyph_index, U32 contour
 
 internal MSDF_Glyph ttf_expand_contours_to_msdf(Arena *arena, TTF_Font *font, U32 glyph_index) {
     MSDF_Glyph result = { 0 };
+    Arena_Temporary scratch = arena_get_scratch(&arena, 1);
 
     TTF_Glyph glyph = { 0 };
-    glyph.contour_end_points = font->contour_end_points_buffer;
-    glyph.flags              = font->flag_buffer;
-    glyph.x_coordinates      = font->x_buffer;
-    glyph.y_coordinates      = font->y_buffer;
+    glyph.contour_end_points = arena_push_array(scratch.arena, U16,       font->contour_capacity);
+    glyph.flags              = arena_push_array(scratch.arena, U8,        font->point_capacity);
+    glyph.x_coordinates      = arena_push_array(scratch.arena, TTF_FWord, font->point_capacity);
+    glyph.y_coordinates      = arena_push_array(scratch.arena, TTF_FWord, font->point_capacity);
 
     ttf_get_glyph_outlines(font, glyph_index, font->contour_capacity, font->point_capacity, &glyph);
 
@@ -979,6 +976,7 @@ internal MSDF_Glyph ttf_expand_contours_to_msdf(Arena *arena, TTF_Font *font, U3
         dll_push_back(result.first_contour, result.last_contour, contour);
     }
 
+    arena_end_temporary(scratch);
     return result;
 }
 
