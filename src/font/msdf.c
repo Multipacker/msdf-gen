@@ -640,48 +640,6 @@ internal Void msdf_correct_contour_orientation(MSDF_Glyph *glyph) {
     glyph->last_contour  = last;
 }
 
-internal MSDF_State msdf_state_initialize(Arena *arena, U32 max_contour_count, U32 max_segment_count) {
-    MSDF_State state = { 0 };
-
-    state.max_segment_count = 5 * max_segment_count + 2; // NOTE: Should be max points per contour, not for the entier glyph.
-    // NOTE: To be correct and acutally handle all cases,
-    // `max_contour_count` would have to be follow:
-    //
-    // A segment can at maximum make for intersections with another
-    // segment. Every intersection means one new contour. Every new segment
-    // to a contour can thus intersect with all previous segments 4 times
-    // each. This forms a multiple of an arithmetic sum as follows:
-    //
-    //   4 * (0 + 1 + 2 + 3 + 4 + 5 + ... + (n - 1))
-    //
-    // This is can be written in closed form as
-    //
-    //       (n - 1) + (n - 1)^2
-    //   4 * ------------------- = 2 * ((n - 1) + (n - 1)^2) = 2 * (n^2 - n)
-    //               2
-    //
-    // Where n is the segment count of the original contour. Setting this
-    // to the maximum number of segments for a contour and multiplying by
-    // the maximum number of contours will yield enough space to handle any
-    // glyph in the file.
-    //
-    // But this is not viable as it can sometimes generate counts up in the 10s
-    // of thousands causing us to run out of memory, and all practical
-    // applications use significantly fewer contours. Most glyphs don't
-    // generate a single new contour, so twice the maximum number of contours
-    // in any glyph should be enough for everyone. Hopefully
-    state.max_contour_count = 2 * max_contour_count;
-    state.contour_segment_counts = arena_push_array(arena, U32,            state.max_contour_count);
-    state.temporary_buffer       = arena_push_array(arena, MSDF_Segment,   state.max_segment_count);
-    state.contour_segments       = arena_push_array(arena, MSDF_Segment *, state.max_contour_count);
-    state.all_segments           = arena_push_array(arena, MSDF_Segment,   state.max_contour_count * state.max_segment_count);
-    for (U32 i = 0; i < state.max_contour_count; ++i) {
-        state.contour_segments[i] = &state.all_segments[i * state.max_segment_count];
-    }
-
-    return state;
-}
-
 internal Void msdf_color_edges(MSDF_Glyph glyph) {
     F32 corner_threshold = f32_sin(0.1f);
 

@@ -910,7 +910,9 @@ internal B32 ttf_get_glyph_outlines(TTF_Font *font, U32 glyph_index, U32 contour
     return success;
 }
 
-internal Void ttf_expand_contours_to_msdf(TTF_Font *font, U32 glyph_index, MSDF_State *state) {
+internal MSDF_Glyph ttf_expand_contours_to_msdf(Arena *arena, TTF_Font *font, U32 glyph_index) {
+    MSDF_Glyph result = { 0 };
+
     TTF_Glyph glyph = { 0 };
     glyph.contour_end_points = font->contour_end_points_buffer;
     glyph.flags              = font->flag_buffer;
@@ -919,14 +921,13 @@ internal Void ttf_expand_contours_to_msdf(TTF_Font *font, U32 glyph_index, MSDF_
 
     ttf_get_glyph_outlines(font, glyph_index, font->contour_capacity, font->point_capacity, &glyph);
 
-    state->contour_count = glyph.contour_count;
-    state->x_min = glyph.x_min;
-    state->y_min = glyph.y_min;
-    state->x_max = glyph.x_max;
-    state->y_max = glyph.y_max;
+    result.x_min = glyph.x_min;
+    result.y_min = glyph.y_min;
+    result.x_max = glyph.x_max;
+    result.y_max = glyph.y_max;
 
     for (U32 contour_index = 0, point_index = 0; contour_index < glyph.contour_count; ++contour_index) {
-        state->contour_segment_counts[contour_index] = 0;
+        MSDF_Contour *contour = arena_push_struct_zero(arena, MSDF_Contour);
 
         U32 prev_index    = glyph.contour_end_points[contour_index] - 1;
         U32 current_index = glyph.contour_end_points[contour_index];
@@ -943,28 +944,27 @@ internal Void ttf_expand_contours_to_msdf(TTF_Font *font, U32 glyph_index, MSDF_
             TTF_FWord next_y        = glyph.y_coordinates[point_index];
             B32       next_on_curve = (glyph.flags[point_index] & TTF_SIMPLE_GLYPH_FLAGS_ON_CURVE);
 
-            MSDF_Segment *segment = &state->contour_segments[contour_index][state->contour_segment_counts[contour_index]];
             if (current_on_curve) {
                 if (next_on_curve) {
-                    // Line
-                    segment->kind  = MSDF_SEGMENT_LINE;
-                    segment->p0    = v2f32(current_x, current_y);
-                    segment->p1    = v2f32(next_x, next_y);
-                    segment->color = 0;
-                    ++state->contour_segment_counts[contour_index];
+                    MSDF_Segment *line = arena_push_struct_zero(arena, MSDF_Segment);
+                    line->kind  = MSDF_SEGMENT_LINE;
+                    line->p0    = v2f32(current_x, current_y);
+                    line->p1    = v2f32(next_x, next_y);
+                    line->color = 0;
+                    dll_push_back(contour->first_segment, contour->last_segment, line);
                 }
             } else {
-                // Quadratic
-                segment->kind  = MSDF_SEGMENT_QUADRATIC_BEZIER;
-                segment->p0    = (prev_on_curve ? v2f32(prev_x, prev_y) : v2f32(((F32) prev_x + (F32) current_x) * 0.5f, ((F32) prev_y + (F32) current_y) * 0.5f));
-                segment->p1    = v2f32(current_x, current_y);
-                segment->p2    = (next_on_curve ? v2f32(next_x, next_y) : v2f32(((F32) next_x + (F32) current_x) * 0.5f, ((F32) next_y + (F32) current_y) * 0.5f));
-                segment->color = 0;
-                ++state->contour_segment_counts[contour_index];
+                MSDF_Segment *bezier = arena_push_struct_zero(arena, MSDF_Segment);
+                bezier->kind  = MSDF_SEGMENT_QUADRATIC_BEZIER;
+                bezier->p0    = (prev_on_curve ? v2f32(prev_x, prev_y) : v2f32(((F32) prev_x + (F32) current_x) * 0.5f, ((F32) prev_y + (F32) current_y) * 0.5f));
+                bezier->p1    = v2f32(current_x, current_y);
+                bezier->p2    = (next_on_curve ? v2f32(next_x, next_y) : v2f32(((F32) next_x + (F32) current_x) * 0.5f, ((F32) next_y + (F32) current_y) * 0.5f));
+                bezier->color = 0;
+                dll_push_back(contour->first_segment, contour->last_segment, bezier);
 
-                if (points_are_collinear(segment->p0, segment->p1, segment->p2)) {
-                    segment->kind = MSDF_SEGMENT_LINE;
-                    segment->p1 = segment->p2;
+                if (points_are_collinear(bezier->p0, bezier->p1, bezier->p2)) {
+                    bezier->kind = MSDF_SEGMENT_LINE;
+                    bezier->p1   = bezier->p2;
                 }
             }
 
@@ -975,7 +975,11 @@ internal Void ttf_expand_contours_to_msdf(TTF_Font *font, U32 glyph_index, MSDF_
             current_y        = next_y;
             current_on_curve = next_on_curve;
         }
+
+        dll_push_back(result.first_contour, result.last_contour, contour);
     }
+
+    return result;
 }
 
 internal B32 ttf_load(Arena *arena, Arena *scratch, FontDescription *font_description, TTF_Font *ttf_font) {
