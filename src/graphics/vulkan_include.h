@@ -37,8 +37,6 @@ typedef struct {
     Vulkan_Allocation uniform_allocation;
     VkBuffer          shape_buffer;
     Vulkan_Allocation shape_allocation;
-
-    VkQueryPool timer_pool;
 } Vulkan_Frame;
 
 typedef struct {
@@ -72,12 +70,6 @@ struct Vulkan_Scissor {
     VkRect2D scissor;
 };
 
-typedef enum {
-    GRAPHICS_TIMER_BEFORE_2D,
-    GRAPHICS_TIMER_AFTER_2D,
-    GRAPHICS_TIMER_COUNT,
-} Graphics_Timer;
-
 typedef struct {
     // Per program data
     VkInstance       instance;
@@ -110,10 +102,6 @@ typedef struct {
     VkPipeline            graphics_pipeline;
     VkDescriptorSetLayout descriptor_set_layout;
     VkSampler             sampler;
-
-    U32 timer_index;
-    F32 max_timer_data;
-    F32 timer_data[200];
 
     Vulkan_Allocation msdf_allocation;
     VkImage           msdf_image;

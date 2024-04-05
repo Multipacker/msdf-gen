@@ -1065,12 +1065,6 @@ internal B32 vulkan_initialize(Arena *arena, VulkanState *state, U32 window_widt
         frame->shape_allocation = vulkan_allocate(&state->allocator, shape_buffer_memory_requirements, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
 
         vkBindBufferMemory(state->device, frame->shape_buffer, frame->shape_allocation.block->memory, frame->shape_allocation.offset);
-
-        VkQueryPoolCreateInfo timer_info = { 0 };
-        timer_info.sType      = VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO;
-        timer_info.queryType  = VK_QUERY_TYPE_TIMESTAMP;
-        timer_info.queryCount = GRAPHICS_TIMER_COUNT;
-        VULKAN_RESULT_CHECK(vkCreateQueryPool(state->device, &timer_info, 0, &frame->timer_pool));
     }
 
     arena_end_temporary(scratch);
@@ -1098,25 +1092,6 @@ internal VkResult vulkan_begin_frame(VulkanState *state) {
     state->swapchain_framebuffers = new_framebuffers;
 
     VULKAN_RESULT_CHECK(vkResetFences(state->device, 1, &frame->in_flight_fence));
-
-    U64 timer_data[GRAPHICS_TIMER_COUNT] = { 0 };
-    VkResult query_result = vkGetQueryPoolResults(
-        state->device,
-        frame->timer_pool,
-        0, GRAPHICS_TIMER_COUNT,
-        GRAPHICS_TIMER_COUNT * sizeof(U64), timer_data, sizeof(U64),
-        VK_QUERY_RESULT_64_BIT
-    );
-    if (query_result == VK_SUCCESS) {
-        F32 ns = (timer_data[GRAPHICS_TIMER_AFTER_2D] - timer_data[GRAPHICS_TIMER_BEFORE_2D]) * state->physical_device_properties.limits.timestampPeriod;
-
-        state->timer_data[state->timer_index] = ns;
-        state->max_timer_data = f32_max(state->max_timer_data, ns);
-        state->timer_index = (state->timer_index + 1) % array_count(state->timer_data);
-    } else if (query_result == VK_NOT_READY) {
-    } else {
-        VULKAN_RESULT_CHECK(result);
-    }
 
     state->shapes = vulkan_allocator_map(frame->shape_allocation, 0, VK_WHOLE_SIZE);
 
@@ -1152,7 +1127,6 @@ internal Void vulkan_end_frame(VulkanState *state) {
     begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
 
     VULKAN_RESULT_CHECK(vkBeginCommandBuffer(frame->command_buffer, &begin_info));
-    vkCmdResetQueryPool(frame->command_buffer, frame->timer_pool, 0, GRAPHICS_TIMER_COUNT);
 
     VkClearValue clear_color = {{{ 0.0f, 0.0f, 0.0f, 1.0f }}};
 
@@ -1176,15 +1150,12 @@ internal Void vulkan_end_frame(VulkanState *state) {
     VkDeviceSize shape_buffer_offset = 0;
     vkCmdBindVertexBuffers(frame->command_buffer, 0, 1, &frame->shape_buffer, &shape_buffer_offset);
 
-    vkCmdWriteTimestamp(frame->command_buffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, frame->timer_pool, GRAPHICS_TIMER_BEFORE_2D);
     for (Vulkan_Batch *batch = state->first_batch; batch; batch = batch->next) {
         if (batch->shape_count != 0) {
             vkCmdSetScissor(frame->command_buffer, 0, 1, &batch->scissor);
             vkCmdDraw(frame->command_buffer, 6, batch->shape_count, 0, batch->first_shape);
         }
     }
-
-    vkCmdWriteTimestamp(frame->command_buffer, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, frame->timer_pool, GRAPHICS_TIMER_AFTER_2D);
 
     vkCmdEndRenderPass(frame->command_buffer);
 
@@ -1231,8 +1202,6 @@ internal Void vulkan_cleanup(VulkanState *state) {
         vkDestroyBuffer(state->device, frame->uniform_buffer, 0);
 
         vkDestroyBuffer(state->device, frame->shape_buffer, 0);
-
-        vkDestroyQueryPool(state->device, frame->timer_pool, 0);
     }
 
     vkDestroySampler(state->device, state->sampler, 0);
