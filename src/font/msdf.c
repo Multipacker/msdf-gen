@@ -832,27 +832,22 @@ internal Void msdf_generate(MSDF_Glyph glyph, U8 *buffer, U32 stride, U32 x, U32
                     }
                 }
 
-                // TODO(simon): Shouldn't we always have a closest segment? Investigate /usr/share/fonts/TTF/Inconsolata-Regular.ttf without these checks
-                if (red_segment) {
-                    if (red_segment->kind == MSDF_SEGMENT_QUADRATIC_BEZIER) {
-                        red_distance.distance = msdf_quadratic_bezier_signed_pseudo_distance(point, *red_segment, red_distance.unclamped_t);
-                    } else {
-                        red_distance.distance = msdf_line_signed_pseudo_distance(point, *red_segment);
-                    }
+                assert(red_segment && green_segment && blue_segment);
+
+                if (red_segment->kind == MSDF_SEGMENT_QUADRATIC_BEZIER) {
+                    red_distance.distance = msdf_quadratic_bezier_signed_pseudo_distance(point, *red_segment, red_distance.unclamped_t);
+                } else {
+                    red_distance.distance = msdf_line_signed_pseudo_distance(point, *red_segment);
                 }
-                if (green_segment) {
-                    if (green_segment->kind == MSDF_SEGMENT_QUADRATIC_BEZIER) {
-                        green_distance.distance = msdf_quadratic_bezier_signed_pseudo_distance(point, *green_segment, green_distance.unclamped_t);
-                    } else {
-                        green_distance.distance = msdf_line_signed_pseudo_distance(point, *green_segment);
-                    }
+                if (green_segment->kind == MSDF_SEGMENT_QUADRATIC_BEZIER) {
+                    green_distance.distance = msdf_quadratic_bezier_signed_pseudo_distance(point, *green_segment, green_distance.unclamped_t);
+                } else {
+                    green_distance.distance = msdf_line_signed_pseudo_distance(point, *green_segment);
                 }
-                if (blue_segment) {
-                    if (blue_segment->kind == MSDF_SEGMENT_QUADRATIC_BEZIER) {
-                        blue_distance.distance = msdf_quadratic_bezier_signed_pseudo_distance(point, *blue_segment, blue_distance.unclamped_t);
-                    } else {
-                        blue_distance.distance = msdf_line_signed_pseudo_distance(point, *blue_segment);
-                    }
+                if (blue_segment->kind == MSDF_SEGMENT_QUADRATIC_BEZIER) {
+                    blue_distance.distance = msdf_quadratic_bezier_signed_pseudo_distance(point, *blue_segment, blue_distance.unclamped_t);
+                } else {
+                    blue_distance.distance = msdf_line_signed_pseudo_distance(point, *blue_segment);
                 }
 
                 S32 red   = s32_min(s32_max(0, f32_round_to_s32((red_distance.distance   / distance_range + 0.5f) * 255.0f)), 255);
