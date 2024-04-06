@@ -25,8 +25,10 @@ internal B32 msdf_is_corner(MSDF_Segment a, MSDF_Segment b, F32 threshold) {
 
     B32 are_parallel       = f32_abs(v2f32_cross(a_dir, b_dir)) <= threshold;
     B32 are_same_direction = v2f32_dot(a_dir, b_dir) > 0.0f;
+    B32 is_same_edge       = are_parallel && are_same_direction;
+    B32 is_corner          = !is_same_edge;
 
-    return !are_parallel || !are_same_direction;
+    return is_corner;
 }
 
 internal MSDF_Distance msdf_line_distance_orthogonality(V2F32 point, MSDF_Segment line) {
