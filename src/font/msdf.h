@@ -12,8 +12,8 @@ typedef enum {
     MSDF_COLOR_GREEN = 0x02,
     MSDF_COLOR_BLUE  = 0x04,
 
-    // NOTE(simon): Used during edge coloring.
-    MSDF_STARTS_NEW_EDGE = 0x08,
+    MSDF_EDGE_START = 0x08,
+    MSDF_EDGE_END   = 0x10,
 } MSDF_ColorFlags;
 
 typedef enum {

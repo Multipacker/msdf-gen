@@ -638,7 +638,6 @@ internal Void msdf_color_edges(MSDF_Glyph glyph) {
     F32 corner_threshold = f32_sin(0.1f);
 
     for (MSDF_Contour *contour = glyph.first_contour; contour; contour = contour->next) {
-        // Find the first corner
         U32 corner_count = 0;
         MSDF_Segment *last_corner_start = 0;
         for (
@@ -651,7 +650,8 @@ internal Void msdf_color_edges(MSDF_Glyph glyph) {
             if (msdf_is_corner(*previous, *current, corner_threshold)) {
                 last_corner_start = current;
                 ++corner_count;
-                current->color |= MSDF_STARTS_NEW_EDGE;
+                current->color  |= MSDF_EDGE_START;
+                previous->color |= MSDF_EDGE_END;
             }
         }
 
@@ -669,16 +669,29 @@ internal Void msdf_color_edges(MSDF_Glyph glyph) {
             last_corner_start->color = MSDF_COLOR_RED | MSDF_COLOR_GREEN;
         } else {
             MSDF_ColorFlags current_color = MSDF_COLOR_RED | MSDF_COLOR_BLUE;
+
             for (MSDF_Segment *segment = contour->first_segment; segment; segment = segment->next) {
-                if (segment->color & MSDF_STARTS_NEW_EDGE) {
+                segment->color |= current_color;
+
+                if (segment->color & MSDF_EDGE_END) {
                     if (current_color == (MSDF_COLOR_RED | MSDF_COLOR_GREEN)) {
                         current_color = MSDF_COLOR_GREEN | MSDF_COLOR_BLUE;
                     } else {
                         current_color = MSDF_COLOR_RED | MSDF_COLOR_GREEN;
                     }
                 }
+            }
 
-                segment->color = current_color;
+            // NOTE(simon): The first edge might cross the start and end of the
+            // list and would now have two different colors, correct it!
+            if (!(contour->first_segment->color & MSDF_EDGE_START)) {
+                for (
+                    MSDF_Segment *segment = contour->last_segment;
+                    segment && !(segment->color & MSDF_EDGE_END);
+                    segment = segment->previous
+                ) {
+                    segment->color |= MSDF_COLOR_RED | MSDF_COLOR_BLUE;
+                }
             }
         }
     }
