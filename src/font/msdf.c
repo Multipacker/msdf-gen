@@ -1,131 +1,6 @@
 // TODO: Allow for pruning small contours. This would hopefully increase the
 // quality of the final MSDF, although it won't be as accurate any more.
 
-internal B32 msdf_distance_is_closer(MSDF_Distance a, MSDF_Distance b) {
-    if (f32_abs(a.distance - b.distance) < F32_EPSILON) {
-        return a.orthogonality > b.orthogonality;
-    } else {
-        return a.distance < b.distance;
-    }
-}
-
-internal B32 msdf_is_corner(MSDF_Segment a, MSDF_Segment b, F32 threshold) {
-    V2F32 a_dir = v2f32(0.0f, 0.0f);
-    V2F32 b_dir = v2f32(0.0f, 0.0f);
-    switch (a.kind) {
-        case MSDF_SEGMENT_LINE:             a_dir = v2f32_normalize(v2f32_subtract(a.p1, a.p0)); break;
-        case MSDF_SEGMENT_QUADRATIC_BEZIER: a_dir = v2f32_normalize(v2f32_subtract(a.p2, a.p1)); break;
-        case MSDF_SEGMENT_KIND_COUNT:       a_dir = v2f32(0.0f, 0.0f);                           break;
-    }
-    switch (b.kind) {
-        case MSDF_SEGMENT_LINE:             b_dir = v2f32_normalize(v2f32_subtract(b.p1, b.p0)); break;
-        case MSDF_SEGMENT_QUADRATIC_BEZIER: b_dir = v2f32_normalize(v2f32_subtract(b.p1, b.p0)); break;
-        case MSDF_SEGMENT_KIND_COUNT:       b_dir = v2f32(0.0f, 0.0f);                           break;
-    }
-
-    B32 are_parallel       = f32_abs(v2f32_cross(a_dir, b_dir)) <= threshold;
-    B32 are_same_direction = v2f32_dot(a_dir, b_dir) > 0.0f;
-    B32 is_same_edge       = are_parallel && are_same_direction;
-    B32 is_corner          = !is_same_edge;
-
-    return is_corner;
-}
-
-internal MSDF_Distance msdf_line_distance_orthogonality(V2F32 point, MSDF_Segment line) {
-    V2F32 length = v2f32_subtract(line.p1, line.p0);
-    F32 t = v2f32_dot(v2f32_subtract(point, line.p0), length) / v2f32_length_squared(length);
-    t = f32_min(f32_max(0.0f, t), 1.0f);
-    V2F32 vector_distance = v2f32_subtract(point, v2f32_add(line.p0, v2f32_scale(length, t)));
-
-    F32 distance = v2f32_length(vector_distance);
-
-    MSDF_Distance result;
-    result.distance      = distance;
-    result.orthogonality = f32_abs(v2f32_cross(v2f32_normalize(length), v2f32_scale(vector_distance, 1.0f / distance)));
-    result.unclamped_t   = t;
-
-    return result;
-}
-
-internal MSDF_Distance msdf_quadratic_bezier_distance_orthogonality(V2F32 point, MSDF_Segment bezier) {
-    V2F32 p  = v2f32_subtract(point, bezier.p0);
-    V2F32 p1 = v2f32_subtract(bezier.p1, bezier.p0);
-    V2F32 p2 = v2f32_add(v2f32_add(bezier.p2, v2f32_scale(bezier.p1, -2)), bezier.p0);
-
-    F32 a = v2f32_length_squared(p2);
-    F32 b = 3.0f * v2f32_dot(p1, p2);
-    F32 c = 2.0f * v2f32_length_squared(p1) - v2f32_dot(p2, p);
-    F32 d = -v2f32_dot(p1, p);
-
-    // NOTE: We always need to check both end points of the curve, thus we
-    // always have at least 2 "solutions" and start filling in the remaining
-    // solutions at index 2.
-    F32 ts[5] = { 0.0f, 1.0f, 0.0f, 0.0f, 0.0f };
-    U32 solution_count = 2 + f32_solve_cubic(a, b, c, d, &ts[2]);
-
-    F32 min_distance = f32_infinity();
-    F32 min_t = 0.0f;
-    F32 unclamped_t = 0.0f;
-    V2F32 min_vector_distance = v2f32(0.0f, 0.0f);
-    for (U32 i = 0; i < solution_count; ++i) {
-        F32 t = f32_min(f32_max(0.0f, ts[i]), 1.0f);
-
-        V2F32 vector_distance = v2f32_subtract(point, v2f32_add(v2f32_add(v2f32_scale(p2, t * t), v2f32_scale(p1, 2.0f * t)), bezier.p0));
-        F32 distance = v2f32_length_squared(vector_distance);
-
-        if (distance < min_distance) {
-            min_distance = distance;
-            min_t = t;
-            unclamped_t = ts[i];
-            min_vector_distance = vector_distance;
-        }
-    }
-
-    F32 distance = f32_sqrt(min_distance);
-    V2F32 direction = v2f32_normalize(v2f32_add(v2f32_scale(p2, min_t), p1));
-    V2F32 perpendicular = v2f32_scale(min_vector_distance, 1.0 / distance);
-
-    MSDF_Distance result;
-    result.distance      = distance;
-    result.orthogonality = f32_abs(v2f32_cross(direction, perpendicular));
-    result.unclamped_t   = unclamped_t;
-    return result;
-}
-
-internal F32 msdf_line_signed_pseudo_distance(V2F32 point, MSDF_Segment line) {
-    V2F32 length = v2f32_subtract(line.p1, line.p0);
-    F32 t = v2f32_dot(v2f32_subtract(point, line.p0), length) / v2f32_length_squared(length);
-    V2F32 distance = v2f32_subtract(v2f32_add(line.p0, v2f32_scale(length, t)), point);
-
-    F32 sign = f32_sign(v2f32_cross(length, distance));
-    return sign * v2f32_length(distance);
-}
-
-internal F32 msdf_quadratic_bezier_signed_pseudo_distance(V2F32 point, MSDF_Segment bezier, F32 clamped_t) {
-    V2F32 p  = v2f32_subtract(point, bezier.p0);
-    V2F32 p1 = v2f32_subtract(bezier.p1, bezier.p0);
-    V2F32 p2 = v2f32_add(v2f32_add(bezier.p2, v2f32_scale(bezier.p1, -2)), bezier.p0);
-
-    V2F32 derivative;
-    V2F32 distance;
-
-    if (clamped_t < 0.0f) {
-        derivative = v2f32_subtract(bezier.p1, bezier.p0);
-        F32 t = v2f32_dot(v2f32_subtract(point, bezier.p0), derivative) / v2f32_length_squared(derivative);
-        distance = v2f32_subtract(v2f32_add(bezier.p0, v2f32_scale(derivative, t)), point);
-    } else if (clamped_t > 1.0f) {
-        derivative = v2f32_subtract(bezier.p2, bezier.p1);
-        F32 t = v2f32_dot(v2f32_subtract(point, bezier.p1), derivative) / v2f32_length_squared(derivative);
-        distance = v2f32_subtract(v2f32_add(bezier.p1, v2f32_scale(derivative, t)), point);
-    } else {
-        distance   = v2f32_subtract(v2f32_add(v2f32_add(v2f32_scale(p2, clamped_t * clamped_t), v2f32_scale(p1, 2.0f * clamped_t)), bezier.p0), point);
-        derivative = v2f32_add(v2f32_scale(p2, 2.0f * clamped_t), v2f32_scale(p1, 2.0f));
-    }
-
-    F32 sign = f32_sign(v2f32_cross(derivative, distance));
-    return sign * v2f32_length(distance);
-}
-
 internal Void msdf_quadratic_bezier_split(MSDF_Segment segment, F32 t, MSDF_Segment *result_a, MSDF_Segment *result_b) {
     V2F32 new_points[6] = { 0 };
     quadratic_bezier_split(segment.p0, segment.p1, segment.p2, t, new_points);
@@ -165,6 +40,14 @@ internal Void msdf_segment_split(MSDF_Segment segment, F32 t, MSDF_Segment *resu
     }
 }
 
+internal B32 msdf_distance_is_closer(MSDF_Distance a, MSDF_Distance b) {
+    if (f32_abs(a.distance - b.distance) < F32_EPSILON) {
+        return a.orthogonality > b.orthogonality;
+    } else {
+        return a.distance < b.distance;
+    }
+}
+
 internal U32 msdf_quadratic_bezier_intersect_recurse(MSDF_Segment a, MSDF_Segment b, U32 iteration_count, F32 *result_ats, F32 *result_bts) {
     V2F32 a_min = v2f32_min(v2f32_min(a.p0, a.p1), a.p2);
     V2F32 a_max = v2f32_max(v2f32_max(a.p0, a.p1), a.p2);
@@ -173,7 +56,7 @@ internal U32 msdf_quadratic_bezier_intersect_recurse(MSDF_Segment a, MSDF_Segmen
 
     if (a_min.x < b_max.x && a_max.x > b_min.x && a_min.y < b_max.y && a_max.y > b_min.y) {
         if (iteration_count == 0) {
-            // Assume that the curves equivalent to lines at this point.
+            // Assume that the curves are equivalent to lines at this point.
             F32 denominator = (a.p0.x - a.p2.x) * (b.p0.y - b.p2.y) - (a.p0.y - a.p2.y) * (b.p0.x - b.p2.x);
             if (f32_abs(denominator) > F32_EPSILON) {
                 F32 at = ((a.p0.x - b.p0.x) * (b.p0.y - b.p2.y) - (a.p0.y - b.p0.y) * (b.p0.x - b.p2.x)) / denominator;
@@ -337,6 +220,8 @@ internal U32 msdf_segment_intersect(MSDF_Segment a, MSDF_Segment b, F32 *result_
 }
 
 // https://en.wikipedia.org/wiki/Curve_orientation
+// TODO(simon): Switch to using the shoelace formula for calculating signed
+// area, and thus winding number https://en.wikipedia.org/wiki/Shoelace_formula
 internal S32 msdf_contour_calculate_own_winding_number(MSDF_Contour *contour) {
     S32 winding = 0;
     V2F32 top_left = v2f32(f32_infinity(), f32_infinity());
@@ -416,6 +301,123 @@ internal S32 msdf_contour_calculate_winding_number(MSDF_Contour *contour, V2F32 
     }
 
     return winding_number;
+}
+
+internal B32 msdf_is_corner(MSDF_Segment a, MSDF_Segment b, F32 threshold) {
+    V2F32 a_dir = v2f32(0.0f, 0.0f);
+    V2F32 b_dir = v2f32(0.0f, 0.0f);
+    switch (a.kind) {
+        case MSDF_SEGMENT_LINE:             a_dir = v2f32_normalize(v2f32_subtract(a.p1, a.p0)); break;
+        case MSDF_SEGMENT_QUADRATIC_BEZIER: a_dir = v2f32_normalize(v2f32_subtract(a.p2, a.p1)); break;
+        case MSDF_SEGMENT_KIND_COUNT:       a_dir = v2f32(0.0f, 0.0f);                           break;
+    }
+    switch (b.kind) {
+        case MSDF_SEGMENT_LINE:             b_dir = v2f32_normalize(v2f32_subtract(b.p1, b.p0)); break;
+        case MSDF_SEGMENT_QUADRATIC_BEZIER: b_dir = v2f32_normalize(v2f32_subtract(b.p1, b.p0)); break;
+        case MSDF_SEGMENT_KIND_COUNT:       b_dir = v2f32(0.0f, 0.0f);                           break;
+    }
+
+    B32 are_parallel       = f32_abs(v2f32_cross(a_dir, b_dir)) <= threshold;
+    B32 are_same_direction = v2f32_dot(a_dir, b_dir) > 0.0f;
+    B32 is_same_edge       = are_parallel && are_same_direction;
+    B32 is_corner          = !is_same_edge;
+
+    return is_corner;
+}
+
+internal MSDF_Distance msdf_line_distance_orthogonality(V2F32 point, MSDF_Segment line) {
+    V2F32 length = v2f32_subtract(line.p1, line.p0);
+    F32 t = v2f32_dot(v2f32_subtract(point, line.p0), length) / v2f32_length_squared(length);
+    t = f32_min(f32_max(0.0f, t), 1.0f);
+    V2F32 vector_distance = v2f32_subtract(point, v2f32_add(line.p0, v2f32_scale(length, t)));
+
+    F32 distance = v2f32_length(vector_distance);
+
+    MSDF_Distance result;
+    result.distance      = distance;
+    result.orthogonality = f32_abs(v2f32_cross(v2f32_normalize(length), v2f32_scale(vector_distance, 1.0f / distance)));
+    result.unclamped_t   = t;
+
+    return result;
+}
+
+internal MSDF_Distance msdf_quadratic_bezier_distance_orthogonality(V2F32 point, MSDF_Segment bezier) {
+    V2F32 p  = v2f32_subtract(point, bezier.p0);
+    V2F32 p1 = v2f32_subtract(bezier.p1, bezier.p0);
+    V2F32 p2 = v2f32_add(v2f32_add(bezier.p2, v2f32_scale(bezier.p1, -2)), bezier.p0);
+
+    F32 a = v2f32_length_squared(p2);
+    F32 b = 3.0f * v2f32_dot(p1, p2);
+    F32 c = 2.0f * v2f32_length_squared(p1) - v2f32_dot(p2, p);
+    F32 d = -v2f32_dot(p1, p);
+
+    // NOTE: We always need to check both end points of the curve, thus we
+    // always have at least 2 "solutions" and start filling in the remaining
+    // solutions at index 2.
+    F32 ts[5] = { 0.0f, 1.0f, 0.0f, 0.0f, 0.0f };
+    U32 solution_count = 2 + f32_solve_cubic(a, b, c, d, &ts[2]);
+
+    F32 min_distance = f32_infinity();
+    F32 min_t = 0.0f;
+    F32 unclamped_t = 0.0f;
+    V2F32 min_vector_distance = v2f32(0.0f, 0.0f);
+    for (U32 i = 0; i < solution_count; ++i) {
+        F32 t = f32_min(f32_max(0.0f, ts[i]), 1.0f);
+
+        V2F32 vector_distance = v2f32_subtract(point, v2f32_add(v2f32_add(v2f32_scale(p2, t * t), v2f32_scale(p1, 2.0f * t)), bezier.p0));
+        F32 distance = v2f32_length_squared(vector_distance);
+
+        if (distance < min_distance) {
+            min_distance = distance;
+            min_t = t;
+            unclamped_t = ts[i];
+            min_vector_distance = vector_distance;
+        }
+    }
+
+    F32 distance = f32_sqrt(min_distance);
+    V2F32 direction = v2f32_normalize(v2f32_add(v2f32_scale(p2, min_t), p1));
+    V2F32 perpendicular = v2f32_scale(min_vector_distance, 1.0 / distance);
+
+    MSDF_Distance result;
+    result.distance      = distance;
+    result.orthogonality = f32_abs(v2f32_cross(direction, perpendicular));
+    result.unclamped_t   = unclamped_t;
+    return result;
+}
+
+internal F32 msdf_line_signed_pseudo_distance(V2F32 point, MSDF_Segment line) {
+    V2F32 length = v2f32_subtract(line.p1, line.p0);
+    F32 t = v2f32_dot(v2f32_subtract(point, line.p0), length) / v2f32_length_squared(length);
+    V2F32 distance = v2f32_subtract(v2f32_add(line.p0, v2f32_scale(length, t)), point);
+
+    F32 sign = f32_sign(v2f32_cross(length, distance));
+    return sign * v2f32_length(distance);
+}
+
+internal F32 msdf_quadratic_bezier_signed_pseudo_distance(V2F32 point, MSDF_Segment bezier, F32 clamped_t) {
+    V2F32 p  = v2f32_subtract(point, bezier.p0);
+    V2F32 p1 = v2f32_subtract(bezier.p1, bezier.p0);
+    V2F32 p2 = v2f32_add(v2f32_add(bezier.p2, v2f32_scale(bezier.p1, -2)), bezier.p0);
+
+    V2F32 derivative;
+    V2F32 distance;
+
+    if (clamped_t < 0.0f) {
+        derivative = v2f32_subtract(bezier.p1, bezier.p0);
+        F32 t = v2f32_dot(v2f32_subtract(point, bezier.p0), derivative) / v2f32_length_squared(derivative);
+        distance = v2f32_subtract(v2f32_add(bezier.p0, v2f32_scale(derivative, t)), point);
+    } else if (clamped_t > 1.0f) {
+        derivative = v2f32_subtract(bezier.p2, bezier.p1);
+        F32 t = v2f32_dot(v2f32_subtract(point, bezier.p1), derivative) / v2f32_length_squared(derivative);
+        distance = v2f32_subtract(v2f32_add(bezier.p1, v2f32_scale(derivative, t)), point);
+    } else {
+        distance   = v2f32_subtract(v2f32_add(v2f32_add(v2f32_scale(p2, clamped_t * clamped_t), v2f32_scale(p1, 2.0f * clamped_t)), bezier.p0), point);
+        derivative = v2f32_add(v2f32_scale(p2, 2.0f * clamped_t), v2f32_scale(p1, 2.0f));
+    }
+
+    F32 sign = f32_sign(v2f32_cross(derivative, distance));
+    return sign * v2f32_length(distance);
 }
 
 internal Void msdf_resolve_contour_overlap(Arena *arena, MSDF_Glyph *glyph) {
@@ -724,7 +726,8 @@ internal Void msdf_generate(MSDF_Glyph glyph, U8 *buffer, U32 stride, U32 x, U32
             }
         }
 
-        // Scale the contours to the range [0--1].
+        // Scale the contours to the range [0--1] and generate bounding circles
+        // for the them.
         U32 padding = 1;
 
         F32 x_scale = (F32) (width  - 2 * padding) / (F32) (glyph.x_max - glyph.x_min);
@@ -739,6 +742,13 @@ internal Void msdf_generate(MSDF_Glyph glyph, U8 *buffer, U32 stride, U32 x, U32
                 ((line->p1.x  - glyph.x_min) * x_scale + (F32) padding) / (F32) width,
                 ((glyph.y_max - line->p1.y) * y_scale + (F32) padding) / (F32) height
             );
+
+            V2F32 min = v2f32_min(line->p0, line->p1);
+            V2F32 max = v2f32_max(line->p0, line->p1);
+            V2F32 center = v2f32_scale(v2f32_add(max, min), 0.5f);
+            F32 radius = 0.5f * v2f32_length(v2f32_subtract(max, min));
+            line->circle_center = center;
+            line->circle_radius = radius;
         }
         for (MSDF_Segment *bezier = quad_beziers.first; bezier; bezier = bezier->next) {
             bezier->p0 = v2f32(
@@ -753,18 +763,7 @@ internal Void msdf_generate(MSDF_Glyph glyph, U8 *buffer, U32 stride, U32 x, U32
                 ((bezier->p2.x - glyph.x_min) * x_scale + (F32) padding) / (F32) width,
                 ((glyph.y_max  - bezier->p2.y) * y_scale + (F32) padding) / (F32) height
             );
-        }
 
-        // Generating bounding circles for the curves.
-        for (MSDF_Segment *line = lines.first; line; line = line->next) {
-            V2F32 min = v2f32_min(line->p0, line->p1);
-            V2F32 max = v2f32_max(line->p0, line->p1);
-            V2F32 center = v2f32_scale(v2f32_add(max, min), 0.5f);
-            F32 radius = 0.5f * v2f32_length(v2f32_subtract(max, min));
-            line->circle_center = center;
-            line->circle_radius = radius;
-        }
-        for (MSDF_Segment *bezier = quad_beziers.first; bezier; bezier = bezier->next) {
             V2F32 min = v2f32_min(v2f32_min(bezier->p0, bezier->p1), bezier->p2);
             V2F32 max = v2f32_max(v2f32_max(bezier->p0, bezier->p1), bezier->p2);
             V2F32 center = v2f32_scale(v2f32_add(max, min), 0.5f);
