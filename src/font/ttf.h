@@ -37,27 +37,28 @@ typedef U16 TTF_UFWord;
 typedef U16 TTF_F2Dot14;
 typedef U64 TTF_LongDateTime;
 
-typedef enum {
-    TTF_TABLE_CMAP,
-    TTF_TABLE_GLYF,
-    TTF_TABLE_HEAD,
-    TTF_TABLE_HHEA,
-    TTF_TABLE_HMTX,
-    TTF_TABLE_LOCA,
-    TTF_TABLE_MAXP,
-    TTF_TABLE_MAX_REQUIRED = TTF_TABLE_MAXP,
-    TTF_TABLE_COUNT,
-} TTF_Tables;
+#define TTF_TABLES(X)           \
+    X(Cmap, 'c', 'm', 'a', 'p') \
+    X(Glyf, 'g', 'l', 'y', 'f') \
+    X(Head, 'h', 'e', 'a', 'd') \
+    X(Hhea, 'h', 'h', 'e', 'a') \
+    X(Hmtx, 'h', 'm', 't', 'x') \
+    X(Loca, 'l', 'o', 'c', 'a') \
+    X(Maxp, 'm', 'a', 'x', 'p') \
 
-global U32 ttf_table_tags[TTF_TABLE_COUNT] = {
-    TTF_MAKE_TAG('c', 'm', 'a', 'p'),
-    TTF_MAKE_TAG('g', 'l', 'y', 'f'),
-    TTF_MAKE_TAG('h', 'e', 'a', 'd'),
-    TTF_MAKE_TAG('h', 'h', 'e', 'a'),
-    TTF_MAKE_TAG('h', 'm', 't', 'x'),
-    TTF_MAKE_TAG('l', 'o', 'c', 'a'),
-    TTF_MAKE_TAG('m', 'a', 'x', 'p'),
+#define X(name, ...) TTF_Table_##name,
+typedef enum {
+    TTF_TABLES(X)
+    TTF_Table_COUNT,
+    TTF_Table_MaxRequired = TTF_Table_Maxp,
+} TTF_Tables;
+#undef X
+
+#define X(name, ...) [TTF_Table_##name] = TTF_MAKE_TAG(__VA_ARGS__),
+global U32 ttf_table_tags[TTF_Table_COUNT] = {
+    TTF_TABLES(X)
 };
+#undef X
 
 typedef struct {
     U32 scaler_type;
@@ -245,7 +246,7 @@ typedef struct {
 
 // Used ONLY for parsing
 typedef struct {
-    Str8 tables[TTF_TABLE_COUNT];
+    Str8 tables[TTF_Table_COUNT];
 
     B32 is_long_loca_format;
 

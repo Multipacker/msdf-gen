@@ -12,8 +12,6 @@ internal B32 ttf_parse_font_tables(Str8 data, TTF_Font *font) {
     B32 success = true;
 
     U32 table_count = 0;
-    TTF_TableDirectoryEntry *table_directory_entries = 0;
-
     if (data.size >= sizeof(TTF_OffsetSubtable)) {
         TTF_OffsetSubtable *offset_subtable = (TTF_OffsetSubtable *) &data.data[0];
 
@@ -29,6 +27,7 @@ internal B32 ttf_parse_font_tables(Str8 data, TTF_Font *font) {
         success = false;
     }
 
+    TTF_TableDirectoryEntry *table_directory_entries = 0;
     if (success) {
         Str8 table_directory_data = str8_skip(data, sizeof(TTF_OffsetSubtable));
         if (table_directory_data.size >= table_count * sizeof(TTF_TableDirectoryEntry)) {
@@ -52,7 +51,7 @@ internal B32 ttf_parse_font_tables(Str8 data, TTF_Font *font) {
 
                 // TODO: Verify the check sum.
 
-                for (U32 i = 0; i < TTF_TABLE_COUNT && success; ++i) {
+                for (U32 i = 0; i < TTF_Table_COUNT && success; ++i) {
                     if (tag == ttf_table_tags[i]) {
                         if (!font->tables[i].data) {
                             font->tables[i] = table_data;
@@ -70,7 +69,7 @@ internal B32 ttf_parse_font_tables(Str8 data, TTF_Font *font) {
     }
 
     if (success) {
-        for (U32 i = 0; i < TTF_TABLE_MAX_REQUIRED && success; ++i) {
+        for (U32 i = 0; i < TTF_Table_MaxRequired && success; ++i) {
             if (!font->tables[i].data) {
                 error_emit(str8_literal("ERROR(font/ttf): Not all required tables are present."));
                 success = false;
@@ -84,8 +83,8 @@ internal B32 ttf_parse_font_tables(Str8 data, TTF_Font *font) {
 internal B32 ttf_parse_head_table(TTF_Font *font) {
     B32 success = true;
 
-    if (font->tables[TTF_TABLE_HEAD].size >= sizeof(TTF_HeadTable)) {
-        TTF_HeadTable *head = (TTF_HeadTable *) font->tables[TTF_TABLE_HEAD].data;
+    if (font->tables[TTF_Table_Head].size >= sizeof(TTF_HeadTable)) {
+        TTF_HeadTable *head = (TTF_HeadTable *) font->tables[TTF_Table_Head].data;
 
         TTF_Fixed version             = u32_big_to_local_endian(head->version);
         U32       magic_number        = u32_big_to_local_endian(head->magic_number);
@@ -151,8 +150,8 @@ internal B32 ttf_parse_head_table(TTF_Font *font) {
 internal B32 ttf_parse_maxp_table(Arena *arena, TTF_Font *font) {
     B32 success = true;
 
-    if (font->tables[TTF_TABLE_MAXP].size >= sizeof(TTF_MaxpTable)) {
-        TTF_MaxpTable *maxp = (TTF_MaxpTable *) font->tables[TTF_TABLE_MAXP].data;
+    if (font->tables[TTF_Table_Maxp].size >= sizeof(TTF_MaxpTable)) {
+        TTF_MaxpTable *maxp = (TTF_MaxpTable *) font->tables[TTF_Table_Maxp].data;
 
         TTF_Fixed version                = u32_big_to_local_endian(maxp->version);
         U16       num_glyphs             = u16_big_to_local_endian(maxp->num_glyphs);
@@ -192,8 +191,8 @@ internal B32 ttf_parse_maxp_table(Arena *arena, TTF_Font *font) {
 internal Str8 ttf_get_raw_glyph_data(TTF_Font *font, U32 glyph_index) {
     Str8 result = { 0 };
 
-    Str8 loca_data = font->tables[TTF_TABLE_LOCA];
-    Str8 glyf_data = font->tables[TTF_TABLE_GLYF];
+    Str8 loca_data = font->tables[TTF_Table_Loca];
+    Str8 glyf_data = font->tables[TTF_Table_Glyf];
 
     if (font->is_long_loca_format) {
         U32 *offsets = (U32 *) loca_data.data;
@@ -215,8 +214,8 @@ internal Str8 ttf_get_raw_glyph_data(TTF_Font *font, U32 glyph_index) {
 internal B32 ttf_parse_metric_data(TTF_Font *font, Font *result_font) {
     B32 success = true;
 
-    TTF_HheaTable *hhea = (TTF_HheaTable *) font->tables[TTF_TABLE_HHEA].data;
-    if (font->tables[TTF_TABLE_HHEA].size >= sizeof(TTF_HheaTable)) {
+    TTF_HheaTable *hhea = (TTF_HheaTable *) font->tables[TTF_Table_Hhea].data;
+    if (font->tables[TTF_Table_Hhea].size >= sizeof(TTF_HheaTable)) {
         TTF_Fixed version             = u32_big_to_local_endian(hhea->version);
         S16       caret_slope_rise    = s16_big_to_local_endian(hhea->caret_slope_rise);
         S16       caret_slope_run     = s16_big_to_local_endian(hhea->caret_slope_run);
@@ -256,7 +255,7 @@ internal B32 ttf_parse_metric_data(TTF_Font *font, Font *result_font) {
         U32 advance_width_count     = u16_big_to_local_endian(hhea->num_of_long_hor_metrics);
         U32 left_side_bearing_count = font->glyph_count - advance_width_count;
 
-        Str8 hmtx_data = font->tables[TTF_TABLE_HMTX];
+        Str8 hmtx_data = font->tables[TTF_Table_Hmtx];
         if (hmtx_data.size >= advance_width_count * sizeof(TTF_HmtxMetrics) + left_side_bearing_count * sizeof(TTF_FWord)) {
             TTF_HmtxMetrics *metrics            = (TTF_HmtxMetrics *) hmtx_data.data;
             TTF_FWord       *left_side_bearings = (TTF_FWord *) &hmtx_data.data[advance_width_count * sizeof(TTF_HmtxMetrics)];
@@ -344,7 +343,7 @@ internal Void ttf_add_codepoint_to_ttf_glyph_mapping(TTF_Font *font, U32 codepoi
 // TODO: Unicode varition sequence subtables.
 // TODO: Allow for loading noncontiguous sets of characters.
 internal B32 ttf_get_character_map(Arena *arena, TTF_Font *font, FontDescription *font_description) {
-    Str8 cmap_data = font->tables[TTF_TABLE_CMAP];
+    Str8 cmap_data = font->tables[TTF_Table_Cmap];
 
     B32 success = true;
 
@@ -1002,8 +1001,8 @@ internal B32 ttf_load(Arena *arena, Arena *scratch, FontDescription *font_descri
     }
 
     if (success) {
-        Str8 loca_data = ttf_font->tables[TTF_TABLE_LOCA];
-        Str8 glyf_data = ttf_font->tables[TTF_TABLE_GLYF];
+        Str8 loca_data = ttf_font->tables[TTF_Table_Loca];
+        Str8 glyf_data = ttf_font->tables[TTF_Table_Glyf];
         if (ttf_font->is_long_loca_format) {
             if (loca_data.size >= (ttf_font->glyph_count + 1) * sizeof(U32)) {
                 U32 *offsets = (U32 *) loca_data.data;
