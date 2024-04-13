@@ -258,6 +258,8 @@ internal S32 msdf_contour_calculate_own_winding_number(MSDF_Contour *contour) {
     return winding;
 }
 
+// FIXME(simon): The technique currently employed here is infringing on a patent
+// from the SLUG paper, switch to a different method.
 internal S32 msdf_contour_calculate_winding_number(MSDF_Contour *contour, V2F32 point) {
     S32 winding_number = 0;
 
