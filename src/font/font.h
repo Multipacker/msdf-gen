@@ -26,7 +26,6 @@ typedef struct {
 } Font;
 
 typedef struct {
-    Str8 path;
     U32 codepoint_first;
     U32 codepoint_last;
 } FontDescription;

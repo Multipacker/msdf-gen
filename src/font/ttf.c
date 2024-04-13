@@ -188,29 +188,6 @@ internal B32 ttf_parse_maxp_table(Arena *arena, TTF_Font *font) {
     return success;
 }
 
-internal Str8 ttf_get_raw_glyph_data(TTF_Font *font, U32 glyph_index) {
-    Str8 result = { 0 };
-
-    Str8 loca_data = font->tables[TTF_Table_Loca];
-    Str8 glyf_data = font->tables[TTF_Table_Glyf];
-
-    if (font->is_long_loca_format) {
-        U32 *offsets = (U32 *) loca_data.data;
-
-        U32 this_offset = u32_big_to_local_endian(offsets[glyph_index]);
-        U32 next_offset = u32_big_to_local_endian(offsets[glyph_index + 1]);
-        result = str8_substring(glyf_data, this_offset, next_offset - this_offset);
-    } else {
-        U16 *offsets = (U16 *) loca_data.data;
-
-        U32 this_offset = 2 * (U32) u16_big_to_local_endian(offsets[glyph_index]);
-        U32 next_offset = 2 * (U32) u16_big_to_local_endian(offsets[glyph_index + 1]);
-        result = str8_substring(glyf_data, this_offset, next_offset - this_offset);
-    }
-
-    return result;
-}
-
 internal B32 ttf_parse_metric_data(TTF_Font *font, Font *result_font) {
     B32 success = true;
 
@@ -608,8 +585,8 @@ internal B32 ttf_get_character_map(Arena *arena, TTF_Font *font, FontDescription
 internal B32 ttf_get_glyph_outlines(TTF_Font *font, U32 glyph_index, U32 contour_capacity, U32 point_capacity, TTF_Glyph *result_glyph) {
     B32 success = true;
 
-    Str8 glyph_data = ttf_get_raw_glyph_data(font, glyph_index);
-    U32     read_index = 0;
+    Str8 glyph_data = font->raw_glyph_data[glyph_index];
+    U32  read_index = 0;
 
     TTF_GlyphHeader *header = 0;
     S16 contour_count       = 0;
@@ -979,13 +956,64 @@ internal MSDF_Glyph ttf_expand_contours_to_msdf(Arena *arena, TTF_Font *font, U3
     return result;
 }
 
-internal B32 ttf_load(Arena *arena, Arena *scratch, FontDescription *font_description, TTF_Font *ttf_font) {
+internal B32 ttf_parse_loca_table(Arena *arena, TTF_Font *ttf_font) {
+    B32 success = true;
+
+    ttf_font->raw_glyph_data = arena_push_array_zero(arena, Str8, ttf_font->glyph_count);
+
+    Str8 loca_data = ttf_font->tables[TTF_Table_Loca];
+    Str8 glyf_data = ttf_font->tables[TTF_Table_Glyf];
+    if (ttf_font->is_long_loca_format) {
+        if (loca_data.size >= (ttf_font->glyph_count + 1) * sizeof(U32)) {
+            U32 *offsets = (U32 *) loca_data.data;
+
+            for (U32 i = 0; i < ttf_font->glyph_count; ++i) {
+                U32 start = u32_big_to_local_endian(offsets[i + 0]);
+                U32 end   = u32_big_to_local_endian(offsets[i + 1]);
+
+                if (start <= end && end <= glyf_data.size) {
+                    ttf_font->raw_glyph_data[i] = str8_substring(glyf_data, start, end - start);
+                } else {
+                    error_emit(str8_literal("ERROR(font/ttf): Not enough data for glyf table."));
+                    success = false;
+                }
+            }
+        } else {
+            error_emit(str8_literal("ERROR(font/ttf): Not enough data for long loca table."));
+            success = false;
+        }
+
+    } else {
+        if (loca_data.size >= (ttf_font->glyph_count + 1) * sizeof(U16)) {
+            U16 *offsets = (U16 *) loca_data.data;
+
+            for (U32 i = 0; i < ttf_font->glyph_count; ++i) {
+                U32 start = 2 * (U32) u16_big_to_local_endian(offsets[i + 0]);
+                U32 end   = 2 * (U32) u16_big_to_local_endian(offsets[i + 1]);
+
+                if (start <= end && end <= glyf_data.size) {
+                    ttf_font->raw_glyph_data[i] = str8_substring(glyf_data, start, end - start);
+                } else {
+                    error_emit(str8_literal("ERROR(font/ttf): Not enough data for glyf table."));
+                    success = false;
+                }
+            }
+        } else {
+            error_emit(str8_literal("ERROR(font/ttf): Not enough data for long loca table."));
+            success = false;
+        }
+    }
+
+    return success;
+}
+
+internal B32 ttf_load(Arena *arena, Str8 font_path, TTF_Font *ttf_font) {
     B32 success = true;
 
     Str8 font_data = { 0 };
 
     if (success) {
-        success = os_file_read(scratch, font_description->path, &font_data);
+        success = os_file_read(arena, font_path, &font_data);
     }
 
     if (success) {
@@ -997,39 +1025,11 @@ internal B32 ttf_load(Arena *arena, Arena *scratch, FontDescription *font_descri
     }
 
     if (success) {
-        success = ttf_parse_maxp_table(scratch, ttf_font);
+        success = ttf_parse_maxp_table(arena, ttf_font);
     }
 
     if (success) {
-        Str8 loca_data = ttf_font->tables[TTF_Table_Loca];
-        Str8 glyf_data = ttf_font->tables[TTF_Table_Glyf];
-        if (ttf_font->is_long_loca_format) {
-            if (loca_data.size >= (ttf_font->glyph_count + 1) * sizeof(U32)) {
-                U32 *offsets = (U32 *) loca_data.data;
-                if (glyf_data.size < u32_big_to_local_endian(offsets[ttf_font->glyph_count])) {
-                    error_emit(str8_literal("ERROR(font/ttf): Not enough data for glyf table."));
-                    success = false;
-                }
-            } else {
-                error_emit(str8_literal("ERROR(font/ttf): Not enough data for long loca table."));
-                success = false;
-            }
-        } else {
-            if (loca_data.size >= (ttf_font->glyph_count + 1) * sizeof(U16)) {
-                U16 *offsets = (U16 *) loca_data.data;
-                if (glyf_data.size < 2 * u16_big_to_local_endian(offsets[ttf_font->glyph_count])) {
-                    error_emit(str8_literal("ERROR(font/ttf): Not enough data for glyf table."));
-                    success = false;
-                }
-            } else {
-                error_emit(str8_literal("ERROR(font/ttf): Not enough data for long loca table."));
-                success = false;
-            }
-        }
-    }
-
-    if (success) {
-        success = ttf_get_character_map(arena, ttf_font, font_description);
+        success = ttf_parse_loca_table(arena, ttf_font);
     }
 
     return success;

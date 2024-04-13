@@ -18,15 +18,20 @@ internal S32 os_run(Str8List arguments) {
         os_exit(1);
     }
 
+    Str8 font_path = arguments.first->next->string;
     FontDescription font_description = { 0 };
-    font_description.path = arguments.first->next->string;
     font_description.codepoint_first = 0;
     font_description.codepoint_last  = 127;
 
     Arena_Temporary scratch = arena_get_scratch(0, 0);
 
     TTF_Font font = { 0 };
-    ttf_load(scratch.arena, scratch.arena, &font_description, &font);
+    if (!ttf_load(scratch.arena, font_path, &font)) {
+        os_console_print(error_get_error_message());
+    }
+    if (!ttf_get_character_map(scratch.arena, &font, &font_description)) {
+        os_console_print(error_get_error_message());
+    }
 
     U32 glyph_width  = u32_ceil_to_power_of_2((U32) f32_ceil(f32_sqrt(font.internal_glyph_count)));
     U32 glyph_height = u32_ceil_to_power_of_2(font.internal_glyph_count / glyph_width);

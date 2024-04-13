@@ -249,6 +249,7 @@ typedef struct {
     Str8 tables[TTF_Table_COUNT];
 
     B32 is_long_loca_format;
+    Str8 *raw_glyph_data;
 
     U16 glyph_count;
 
@@ -267,7 +268,7 @@ typedef struct {
     U16 lowest_rec_ppem;
 } TTF_Font;
 
-internal B32 ttf_load(Arena *arena, Arena *scratch, FontDescription *font_description, TTF_Font *ttf_font);
-internal B32  ttf_parse_metric_data(TTF_Font *font, Font *result_font);
+internal B32 ttf_load(Arena *arena, Str8 font_path, TTF_Font *ttf_font);
+internal B32 ttf_parse_metric_data(TTF_Font *font, Font *result_font);
 
 #endif // TTF_H
