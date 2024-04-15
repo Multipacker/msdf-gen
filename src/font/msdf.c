@@ -564,7 +564,57 @@ internal Void msdf_convert_to_simple_polygons(Arena *arena, MSDF_Glyph *glyph) {
 }
 
 internal Void msdf_correct_contour_orientation(MSDF_Glyph *glyph) {
-    // NOTE(simon): Figure out if each contour should be kept and if we need to flip it.
+    /*
+    for (MSDF_Contour *contour = glyph->first_contour; contour; contour = contour->next) {
+        contour->local_winding = msdf_contour_calculate_own_winding_number(contour);
+    }
+
+    for (MSDF_Contour *contour = glyph->first_contour; contour; contour = contour->next) {
+        // NOTE(simon): Calculcate global winding number.
+        S32 global_winding = contour->local_winding_number;
+
+        // https://en.wikipedia.org/wiki/Point_in_polygon
+        for (MSDF_Contour *other_contour = glyph->first_contour; other_contour; other_contour = other_contour->next) {
+            if (contour != other_contour) {
+                U32 intersection_count = 0;
+
+                V2F32 test_point = other_contour->first_segment->p0;
+
+                for (MSDF_Segment *segment = other_contour->first_segment; segment; segment = segment->next) {
+                    if (segment->kind == MSDF_SEGMENT_LINE) {
+                        // Line ray intersection
+                        // p0 + u * (p1 - p0) = test_point + v * (1, 0)  u in [0, 1), v in [0, inf)
+                        //   p0.x + u * (p1.x - p0.x) = test_point.x + v
+                        //   p0.y + u * (p1.y - p0.y) = test_point.y
+                        if ((segment->p0 < test_point && test_point <= segment->p1) || (segment->p1 < test_point && test_point <= segment->p0)) {
+                            F32 u = (test_point.y - segment->p0.y) / (segment->p1.y - segment->p0.y);
+                            F32 v = segment->p0.x + u * (segment->p1.x - segment->p0.x) - test_point.x;
+
+                            if (0.0f <= u && u < 1.0f && 0.0f <= v) {
+                                ++intersection;
+                            }
+                        }
+                    } else {
+                        // u^2 * (p2 - 2 * p1 + p0) + u * 2 * (p1 - p0) + p0 = test_point + v * (1, 0)  u in [0, 1), v in [0, inf)
+                    }
+                }
+
+                if (intersection_count % 2 != 0) {
+                    global_winding += other_contour->local_winding_number;
+                }
+            }
+        }
+
+        // NOTE(simon): Determine if each contour should be kept and if we need to flip it.
+        if (-1 <= global_winding && global_winding <= 1) {
+            contour->flags |= MSDF_ContourFlags_Keep;
+        }
+
+        if ((global_winding == 0 && local_winding == 1) || (global_winding != 0 && local_winding == -1)) {
+            contour->flags |= MSDF_ContourFlags_Flip;
+        }
+    }*/
+
     for (MSDF_Contour *contour = glyph->first_contour; contour; contour = contour->next) {
         S32 local_winding = msdf_contour_calculate_own_winding_number(contour);
 
