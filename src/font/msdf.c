@@ -219,41 +219,26 @@ internal U32 msdf_segment_intersect(MSDF_Segment a, MSDF_Segment b, F32 *result_
     return intersection_count;
 }
 
-// https://en.wikipedia.org/wiki/Curve_orientation
-// TODO(simon): Switch to using the shoelace formula for calculating signed
-// area, and thus winding number https://en.wikipedia.org/wiki/Shoelace_formula
+// Shoelace formula for calculating signed area, and thus winding number
+// https://en.wikipedia.org/wiki/Shoelace_formula
 internal S32 msdf_contour_calculate_own_winding_number(MSDF_Contour *contour) {
-    S32 winding = 0;
-    V2F32 top_left = v2f32(f32_infinity(), f32_infinity());
-
-    MSDF_Segment *last_segment = contour->last_segment;
-    V2F32 previous = (last_segment->kind == MSDF_SEGMENT_LINE ? last_segment->p0 : last_segment->p1);
-    V2F32 current  = (last_segment->kind == MSDF_SEGMENT_LINE ? last_segment->p1 : last_segment->p2);
+    F32 double_signed_area = 0.0f;
+    V2F32 previous = (contour->last_segment->kind == MSDF_SEGMENT_LINE ? contour->last_segment->p1 : contour->last_segment->p2);
     for (MSDF_Segment *segment = contour->first_segment; segment; segment = segment->next) {
-        V2F32 next = segment->p1;
-        if (current.x < top_left.x || (current.x <= top_left.x && current.y < top_left.y)) {
-            F32 potential_winding = v2f32_cross(v2f32_subtract(current, previous), v2f32_subtract(next, previous));
-            if (f32_abs(potential_winding) > 0.00001f) {
-                winding = f32_sign(potential_winding);
-                top_left = current;
-            }
-        }
-        previous = current;
-        current = next;
-
-        if (segment->kind == MSDF_SEGMENT_QUADRATIC_BEZIER) {
-            next = segment->p2;
-            if (current.x < top_left.x || (current.x <= top_left.x && current.y < top_left.y)) {
-                F32 potential_winding = v2f32_cross(v2f32_subtract(current, previous), v2f32_subtract(next, previous));
-                if (f32_abs(potential_winding) > 0.00001f) {
-                    winding = f32_sign(potential_winding);
-                    top_left = current;
-                }
-            }
-            previous = current;
-            current = next;
+        if (segment->kind == MSDF_SEGMENT_LINE) {
+            double_signed_area += previous.x    * segment->p0.y - segment->p0.x * previous.y;
+            double_signed_area += segment->p0.x * segment->p1.y - segment->p1.x * segment->p0.y;
+            previous = segment->p1;
+        } else {
+            // TODO(simon): We might want to use the vertex of the curve instead of P1.
+            double_signed_area += previous.x    * segment->p0.y - segment->p0.x * previous.y;
+            double_signed_area += segment->p0.x * segment->p1.y - segment->p1.x * segment->p0.y;
+            double_signed_area += segment->p1.x * segment->p2.y - segment->p2.x * segment->p1.y;
+            previous = segment->p2;
         }
     }
+
+    S32 winding = f32_sign(double_signed_area);
 
     return winding;
 }
