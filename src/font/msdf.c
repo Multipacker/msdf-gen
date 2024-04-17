@@ -564,9 +564,8 @@ internal Void msdf_convert_to_simple_polygons(Arena *arena, MSDF_Glyph *glyph) {
 }
 
 internal Void msdf_correct_contour_orientation(MSDF_Glyph *glyph) {
-    /*
-    for (MSDF_Contour *contour = glyph->first_contour; contour; contour = contour->next) {
-        contour->local_winding = msdf_contour_calculate_own_winding_number(contour);
+    /*for (MSDF_Contour *contour = glyph->first_contour; contour; contour = contour->next) {
+        contour->local_winding_number = msdf_contour_calculate_own_winding_number(contour);
     }
 
     for (MSDF_Contour *contour = glyph->first_contour; contour; contour = contour->next) {
@@ -582,20 +581,48 @@ internal Void msdf_correct_contour_orientation(MSDF_Glyph *glyph) {
 
                 for (MSDF_Segment *segment = other_contour->first_segment; segment; segment = segment->next) {
                     if (segment->kind == MSDF_SEGMENT_LINE) {
-                        // Line ray intersection
+                        // Ray line intersection
                         // p0 + u * (p1 - p0) = test_point + v * (1, 0)  u in [0, 1), v in [0, inf)
                         //   p0.x + u * (p1.x - p0.x) = test_point.x + v
                         //   p0.y + u * (p1.y - p0.y) = test_point.y
-                        if ((segment->p0 < test_point && test_point <= segment->p1) || (segment->p1 < test_point && test_point <= segment->p0)) {
+                        if ((segment->p0.y < test_point.y && test_point.y <= segment->p1.y) || (segment->p1.y < test_point.y && test_point.y <= segment->p0.y)) {
                             F32 u = (test_point.y - segment->p0.y) / (segment->p1.y - segment->p0.y);
                             F32 v = segment->p0.x + u * (segment->p1.x - segment->p0.x) - test_point.x;
 
                             if (0.0f <= u && u < 1.0f && 0.0f <= v) {
-                                ++intersection;
+                                ++intersection_count;
                             }
                         }
                     } else {
-                        // u^2 * (p2 - 2 * p1 + p0) + u * 2 * (p1 - p0) + p0 = test_point + v * (1, 0)  u in [0, 1), v in [0, inf)
+                        // Ray quadratic bezier intersection
+                        // u^2 * (p0 - 2 * p1 + p2) + u * 2 * (p1 - p0) + p0 = test_point + v * (1, 0)  u in [0, 1), v in [0, inf)
+                        //   u^2 * (p0.x - 2 * p1.x + p2.x) + u * 2 * (p1.x - p0.x) + p0.x = test_point.x + v
+                        //   u^2 * (p0.y - 2 * p1.y + p2.y) + u * 2 * (p1.y - p0.y) + p0.y = test_point.y
+
+                        F32 ax = segment->p0.x - 2.0f * segment->p1.x + segment->p2.x;
+                        F32 bx = 2.0f * (segment->p1.x - segment->p0.x);
+                        F32 cx = segment->p0.x - test_point.x;
+
+                        F32 ay = segment->p0.y - 2.0f * segment->p1.y + segment->p2.y;
+                        F32 by = 2.0f * (segment->p1.y - segment->p0.y);
+                        F32 cy = segment->p0.y - test_point.y;
+
+                        F32 discriminant = by * by - 4.0f * ay * cy;
+                        if (-0.0001f <= discriminant) {
+                            F32 u0 = (-by - f32_sqrt(f32_max(0.0f, discriminant))) / (2.0f * ay);
+                            F32 u1 = (-by + f32_sqrt(f32_max(0.0f, discriminant))) / (2.0f * ay);
+
+                            F32 v0 = u0 * u0 * ax + u0 * bx + cx;
+                            F32 v1 = u1 * u1 * ax + u1 * bx + cx;
+
+                            if (0.0f <= u0 && u0 < 1.0f && 0.0f <= v0) {
+                                ++intersection_count;
+                            }
+
+                            if (0.0f <= u1 && u1 < 1.0f && 0.0f <= v1) {
+                                ++intersection_count;
+                            }
+                        }
                     }
                 }
 
@@ -610,7 +637,7 @@ internal Void msdf_correct_contour_orientation(MSDF_Glyph *glyph) {
             contour->flags |= MSDF_ContourFlags_Keep;
         }
 
-        if ((global_winding == 0 && local_winding == 1) || (global_winding != 0 && local_winding == -1)) {
+        if ((global_winding == 0 && contour->local_winding_number == 1) || (global_winding != 0 && contour->local_winding_number == -1)) {
             contour->flags |= MSDF_ContourFlags_Flip;
         }
     }*/
