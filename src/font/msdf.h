@@ -49,7 +49,7 @@ struct MSDF_Contour {
     MSDF_Segment *first_segment;
     MSDF_Segment *last_segment;
     MSDF_ContourFlags flags;
-    S32 local_winding_number;
+    S32 local_winding;
 };
 
 typedef struct MSDF_Glyph MSDF_Glyph;

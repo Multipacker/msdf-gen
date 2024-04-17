@@ -243,51 +243,73 @@ internal S32 msdf_contour_calculate_own_winding_number(MSDF_Contour *contour) {
     return winding;
 }
 
-// FIXME(simon): The technique currently employed here is infringing on a patent
-// from the SLUG paper, switch to a different method.
-internal S32 msdf_contour_calculate_winding_number(MSDF_Contour *contour, V2F32 point) {
-    S32 winding_number = 0;
+internal S32 msdf_contour_calculate_global_winding_number(MSDF_Glyph *glyph, MSDF_Contour *contour) {
+    // NOTE(simon): Calculcate global winding number.
+    S32 global_winding = contour->local_winding;
 
-    for (MSDF_Segment *segment = contour->first_segment; segment; segment = segment->next) {
-        if (segment->kind == MSDF_SEGMENT_LINE) {
-            V2F32 p0 = v2f32_subtract(segment->p0, point);
-            V2F32 p1 = v2f32_subtract(segment->p1, point);
-            F32 discriminant = v2f32_cross(p0, p1);
-            winding_number += (p0.y < 0.0f && 0.0f < p1.y && discriminant >= 0.0f);
-            winding_number -= (p1.y < 0.0f && 0.0f < p0.y && discriminant <= 0.0f);
-        } else if (segment->kind == MSDF_SEGMENT_QUADRATIC_BEZIER) {
-            V2F32 p0 = v2f32_subtract(segment->p0, point);
-            V2F32 p1 = v2f32_subtract(segment->p1, point);
-            V2F32 p2 = v2f32_subtract(segment->p2, point);
+    V2F32 test_point = contour->first_segment->p0;
 
-            F32 a = p0.y - 2.0f * p1.y + p2.y;
-            F32 b = 2.0f * (p1.y - p0.y);
-            F32 c = p0.y;
+    // https://en.wikipedia.org/wiki/Point_in_polygon
+    for (MSDF_Contour *other_contour = glyph->first_contour; other_contour; other_contour = other_contour->next) {
+        if (contour != other_contour) {
+            U32 intersection_count = 0;
 
-            F32 t0 = 0.0f;
-            F32 t1 = 0.0f;
-            // TODO: Choose an appropriate epsilon.
-            if (f32_abs(a) < 0.001f) {
-                t0 = t1 = -c / b;
-            } else {
-                F32 sqrt = f32_sqrt(b * b - 4 * a * c);
-                t0 = (-b - sqrt) / (2.0f * a);
-                t1 = (-b + sqrt) / (2.0f * a);
+            for (MSDF_Segment *segment = other_contour->first_segment; segment; segment = segment->next) {
+                if (segment->kind == MSDF_SEGMENT_LINE) {
+                    // Ray line intersection
+                    // p0 + u * (p1 - p0) = test_point + v * (1, 0)  u in [0, 1), v in [0, inf)
+                    //   p0.x + u * (p1.x - p0.x) = test_point.x + v
+                    //   p0.y + u * (p1.y - p0.y) = test_point.y
+                    if ((segment->p0.y < test_point.y && test_point.y <= segment->p1.y) || (segment->p1.y < test_point.y && test_point.y <= segment->p0.y)) {
+                        F32 u = (test_point.y - segment->p0.y) / (segment->p1.y - segment->p0.y);
+                        F32 v = segment->p0.x + u * (segment->p1.x - segment->p0.x) - test_point.x;
+
+                        if (0.0f <= u && u < 1.0f && 0.0f <= v) {
+                            ++intersection_count;
+                        }
+                    }
+                } else {
+                    // TODO(simon): Properly handle the case where we intersect at a corner, see above.
+
+                    // Ray quadratic bezier intersection
+                    // u^2 * (p0 - 2 * p1 + p2) + u * 2 * (p1 - p0) + p0 = test_point + v * (1, 0)  u in [0, 1), v in [0, inf)
+                    //   u^2 * (p0.x - 2 * p1.x + p2.x) + u * 2 * (p1.x - p0.x) + p0.x = test_point.x + v
+                    //   u^2 * (p0.y - 2 * p1.y + p2.y) + u * 2 * (p1.y - p0.y) + p0.y = test_point.y
+
+                    F32 ax = segment->p0.x - 2.0f * segment->p1.x + segment->p2.x;
+                    F32 bx = 2.0f * (segment->p1.x - segment->p0.x);
+                    F32 cx = segment->p0.x - test_point.x;
+
+                    F32 ay = segment->p0.y - 2.0f * segment->p1.y + segment->p2.y;
+                    F32 by = 2.0f * (segment->p1.y - segment->p0.y);
+                    F32 cy = segment->p0.y - test_point.y;
+
+                    F32 discriminant = by * by - 4.0f * ay * cy;
+                    if (-0.0001f <= discriminant) {
+                        F32 u0 = (-by - f32_sqrt(f32_max(0.0f, discriminant))) / (2.0f * ay);
+                        F32 u1 = (-by + f32_sqrt(f32_max(0.0f, discriminant))) / (2.0f * ay);
+
+                        F32 v0 = u0 * u0 * ax + u0 * bx + cx;
+                        F32 v1 = u1 * u1 * ax + u1 * bx + cx;
+
+                        if (0.0f <= u0 && u0 < 1.0f && 0.0f <= v0) {
+                            ++intersection_count;
+                        }
+
+                        if (0.0f <= u1 && u1 < 1.0f && 0.0f <= v1) {
+                            ++intersection_count;
+                        }
+                    }
+                }
             }
 
-            F32 x0 = p0.x * (1.0f - t0) * (1.0f - t0) + p1.x * 2.0f * t0 * (1.0f - t0) + p2.x * t0 * t0;
-            F32 x1 = p0.x * (1.0f - t1) * (1.0f - t1) + p1.x * 2.0f * t1 * (1.0f - t1) + p2.x * t1 * t1;
-
-            U32 state = (p0.y > 0.0f ? 4 : 0) | (p1.y > 0.0f ? 2 : 0) | (p2.y > 0.0f ? 1 : 0);
-            U8 t0_should = 0x74;
-            U8 t1_should = 0x2E;
-
-            winding_number -= (0.0f <= t0 && t0 < 1.0f && ((t0_should >> state) & 1) && x0 >= 0.0f);
-            winding_number += (0.0f <= t1 && t1 < 1.0f && ((t1_should >> state) & 1) && x1 >= 0.0f);
+            if (intersection_count % 2 != 0) {
+                global_winding += other_contour->local_winding;
+            }
         }
     }
 
-    return winding_number;
+    return global_winding;
 }
 
 internal B32 msdf_is_corner(MSDF_Segment a, MSDF_Segment b, F32 threshold) {
@@ -564,101 +586,19 @@ internal Void msdf_convert_to_simple_polygons(Arena *arena, MSDF_Glyph *glyph) {
 }
 
 internal Void msdf_correct_contour_orientation(MSDF_Glyph *glyph) {
-    /*for (MSDF_Contour *contour = glyph->first_contour; contour; contour = contour->next) {
-        contour->local_winding_number = msdf_contour_calculate_own_winding_number(contour);
+    for (MSDF_Contour *contour = glyph->first_contour; contour; contour = contour->next) {
+        contour->local_winding = msdf_contour_calculate_own_winding_number(contour);
     }
 
     for (MSDF_Contour *contour = glyph->first_contour; contour; contour = contour->next) {
-        // NOTE(simon): Calculcate global winding number.
-        S32 global_winding = contour->local_winding_number;
-
-        // https://en.wikipedia.org/wiki/Point_in_polygon
-        for (MSDF_Contour *other_contour = glyph->first_contour; other_contour; other_contour = other_contour->next) {
-            if (contour != other_contour) {
-                U32 intersection_count = 0;
-
-                V2F32 test_point = other_contour->first_segment->p0;
-
-                for (MSDF_Segment *segment = other_contour->first_segment; segment; segment = segment->next) {
-                    if (segment->kind == MSDF_SEGMENT_LINE) {
-                        // Ray line intersection
-                        // p0 + u * (p1 - p0) = test_point + v * (1, 0)  u in [0, 1), v in [0, inf)
-                        //   p0.x + u * (p1.x - p0.x) = test_point.x + v
-                        //   p0.y + u * (p1.y - p0.y) = test_point.y
-                        if ((segment->p0.y < test_point.y && test_point.y <= segment->p1.y) || (segment->p1.y < test_point.y && test_point.y <= segment->p0.y)) {
-                            F32 u = (test_point.y - segment->p0.y) / (segment->p1.y - segment->p0.y);
-                            F32 v = segment->p0.x + u * (segment->p1.x - segment->p0.x) - test_point.x;
-
-                            if (0.0f <= u && u < 1.0f && 0.0f <= v) {
-                                ++intersection_count;
-                            }
-                        }
-                    } else {
-                        // Ray quadratic bezier intersection
-                        // u^2 * (p0 - 2 * p1 + p2) + u * 2 * (p1 - p0) + p0 = test_point + v * (1, 0)  u in [0, 1), v in [0, inf)
-                        //   u^2 * (p0.x - 2 * p1.x + p2.x) + u * 2 * (p1.x - p0.x) + p0.x = test_point.x + v
-                        //   u^2 * (p0.y - 2 * p1.y + p2.y) + u * 2 * (p1.y - p0.y) + p0.y = test_point.y
-
-                        F32 ax = segment->p0.x - 2.0f * segment->p1.x + segment->p2.x;
-                        F32 bx = 2.0f * (segment->p1.x - segment->p0.x);
-                        F32 cx = segment->p0.x - test_point.x;
-
-                        F32 ay = segment->p0.y - 2.0f * segment->p1.y + segment->p2.y;
-                        F32 by = 2.0f * (segment->p1.y - segment->p0.y);
-                        F32 cy = segment->p0.y - test_point.y;
-
-                        F32 discriminant = by * by - 4.0f * ay * cy;
-                        if (-0.0001f <= discriminant) {
-                            F32 u0 = (-by - f32_sqrt(f32_max(0.0f, discriminant))) / (2.0f * ay);
-                            F32 u1 = (-by + f32_sqrt(f32_max(0.0f, discriminant))) / (2.0f * ay);
-
-                            F32 v0 = u0 * u0 * ax + u0 * bx + cx;
-                            F32 v1 = u1 * u1 * ax + u1 * bx + cx;
-
-                            if (0.0f <= u0 && u0 < 1.0f && 0.0f <= v0) {
-                                ++intersection_count;
-                            }
-
-                            if (0.0f <= u1 && u1 < 1.0f && 0.0f <= v1) {
-                                ++intersection_count;
-                            }
-                        }
-                    }
-                }
-
-                if (intersection_count % 2 != 0) {
-                    global_winding += other_contour->local_winding_number;
-                }
-            }
-        }
+        S32 global_winding = msdf_contour_calculate_global_winding_number(glyph, contour);
 
         // NOTE(simon): Determine if each contour should be kept and if we need to flip it.
         if (-1 <= global_winding && global_winding <= 1) {
             contour->flags |= MSDF_ContourFlags_Keep;
         }
 
-        if ((global_winding == 0 && contour->local_winding_number == 1) || (global_winding != 0 && contour->local_winding_number == -1)) {
-            contour->flags |= MSDF_ContourFlags_Flip;
-        }
-    }*/
-
-    for (MSDF_Contour *contour = glyph->first_contour; contour; contour = contour->next) {
-        S32 local_winding = msdf_contour_calculate_own_winding_number(contour);
-
-        V2F32 test_point = contour->first_segment->p0;
-        test_point.y += 0.0001f;
-        S32 global_winding = local_winding;
-        for (MSDF_Contour *other_contour = glyph->first_contour; other_contour; other_contour = other_contour->next) {
-            if (other_contour != contour) {
-                global_winding += msdf_contour_calculate_winding_number(other_contour, test_point);
-            }
-        }
-
-        if (-1 <= global_winding && global_winding <= 1) {
-            contour->flags |= MSDF_ContourFlags_Keep;
-        }
-
-        if ((global_winding == 0 && local_winding == 1) || (global_winding != 0 && local_winding == -1)) {
+        if ((global_winding == 0 && contour->local_winding == 1) || (global_winding != 0 && contour->local_winding == -1)) {
             contour->flags |= MSDF_ContourFlags_Flip;
         }
     }
