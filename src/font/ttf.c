@@ -646,9 +646,8 @@ internal B32 ttf_get_glyph_outlines(TTF_Font *font, U32 glyph_index, U32 contour
             success = false;
         }
 
-        // NOTE: Any valid ttf-file will have at least one x-coordinate
-        // after the tags, guaranteeing that we have at least two
-        // bytes.
+        // NOTE: Any valid ttf-file will have at least one x-coordinate after
+        // the tags, guaranteeing that we have at least two bytes.
         for (U32 point_index = 0; success && point_index < result_glyph->point_count;) {
             if (glyph_data.size >= read_index + 2 * sizeof(U8)) {
                 U8 flag = glyph_data.data[read_index++];
