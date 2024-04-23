@@ -9,13 +9,13 @@ internal Void msdf_quadratic_bezier_split(MSDF_Segment segment, F32 t, MSDF_Segm
     result_a->p0    = new_points[0];
     result_a->p1    = new_points[1];
     result_a->p2    = new_points[2];
-    result_a->color = segment.color;
+    result_a->flags = segment.flags;
 
     result_b->kind  = MSDF_SEGMENT_QUADRATIC_BEZIER;
     result_b->p0    = new_points[3];
     result_b->p1    = new_points[4];
     result_b->p2    = new_points[5];
-    result_b->color = segment.color;
+    result_b->flags = segment.flags;
 }
 
 internal Void msdf_line_split(MSDF_Segment segment, F32 t, MSDF_Segment *result_a, MSDF_Segment *result_b) {
@@ -24,12 +24,12 @@ internal Void msdf_line_split(MSDF_Segment segment, F32 t, MSDF_Segment *result_
     result_a->kind  = MSDF_SEGMENT_LINE;
     result_a->p0    = segment.p0;
     result_a->p1    = point;
-    result_a->color = segment.color;
+    result_a->flags = segment.flags;
 
     result_b->kind  = MSDF_SEGMENT_LINE;
     result_b->p0    = point;
     result_b->p1    = segment.p1;
-    result_b->color = segment.color;
+    result_b->flags = segment.flags;
 }
 
 internal Void msdf_segment_split(MSDF_Segment segment, F32 t, MSDF_Segment *result_a, MSDF_Segment *result_b) {
@@ -655,35 +655,35 @@ internal Void msdf_color_edges(MSDF_Glyph glyph) {
             current;
             previous = current, current = current->next
         ) {
-            current->color = 0;
+            current->flags = 0;
 
             if (msdf_is_corner(*previous, *current, corner_threshold)) {
                 last_corner_start = current;
                 ++corner_count;
-                current->color  |= MSDF_EDGE_START;
-                previous->color |= MSDF_EDGE_END;
+                current->flags  |= MSDF_EDGE_START;
+                previous->flags |= MSDF_EDGE_END;
             }
         }
 
         if (corner_count == 0) {
             for (MSDF_Segment *segment = contour->first_segment; segment; segment = segment->next) {
-                segment->color = MSDF_COLOR_RED | MSDF_COLOR_GREEN | MSDF_COLOR_BLUE;
+                segment->flags = MSDF_COLOR_RED | MSDF_COLOR_GREEN | MSDF_COLOR_BLUE;
             }
         } if (corner_count == 1) {
             for (MSDF_Segment *segment = contour->first_segment; segment; segment = segment->next) {
-                segment->color = MSDF_COLOR_RED | MSDF_COLOR_BLUE;
+                segment->flags = MSDF_COLOR_RED | MSDF_COLOR_BLUE;
             }
 
             // TODO(simon): More carefully handle how we split edges in this case.
             // NOTE(simon): We need to split the contour into two edges in order to preserve the corner.
-            last_corner_start->color = MSDF_COLOR_RED | MSDF_COLOR_GREEN;
+            last_corner_start->flags = MSDF_COLOR_RED | MSDF_COLOR_GREEN;
         } else {
             MSDF_ColorFlags current_color = MSDF_COLOR_RED | MSDF_COLOR_BLUE;
 
             for (MSDF_Segment *segment = contour->first_segment; segment; segment = segment->next) {
-                segment->color |= current_color;
+                segment->flags |= current_color;
 
-                if (segment->color & MSDF_EDGE_END) {
+                if (segment->flags & MSDF_EDGE_END) {
                     if (current_color == (MSDF_COLOR_RED | MSDF_COLOR_GREEN)) {
                         current_color = MSDF_COLOR_GREEN | MSDF_COLOR_BLUE;
                     } else {
@@ -694,13 +694,13 @@ internal Void msdf_color_edges(MSDF_Glyph glyph) {
 
             // NOTE(simon): The first edge might cross the start and end of the
             // list and would now have two different colors, correct it!
-            if (!(contour->first_segment->color & MSDF_EDGE_START)) {
+            if (!(contour->first_segment->flags & MSDF_EDGE_START)) {
                 for (
                     MSDF_Segment *segment = contour->last_segment;
-                    segment && !(segment->color & MSDF_EDGE_END);
+                    segment && !(segment->flags & MSDF_EDGE_END);
                     segment = segment->previous
                 ) {
-                    segment->color |= MSDF_COLOR_RED | MSDF_COLOR_BLUE;
+                    segment->flags |= MSDF_COLOR_RED | MSDF_COLOR_BLUE;
                 }
             }
         }
@@ -803,15 +803,15 @@ internal Void msdf_generate(MSDF_Glyph glyph, U8 *buffer, U32 stride, U32 x, U32
                 if (red * red >= min_distance || green * green >= min_distance || blue * blue >= min_distance) {
                     MSDF_Distance distance = msdf_line_distance_orthogonality(point, *line);
 
-                    if ((line->color & MSDF_COLOR_RED) && msdf_distance_is_closer(distance, red_distance)) {
+                    if ((line->flags & MSDF_COLOR_RED) && msdf_distance_is_closer(distance, red_distance)) {
                         red_distance = distance;
                         red_segment  = line;
                     }
-                    if ((line->color & MSDF_COLOR_GREEN) && msdf_distance_is_closer(distance, green_distance)) {
+                    if ((line->flags & MSDF_COLOR_GREEN) && msdf_distance_is_closer(distance, green_distance)) {
                         green_distance = distance;
                         green_segment  = line;
                     }
-                    if ((line->color & MSDF_COLOR_BLUE) && msdf_distance_is_closer(distance, blue_distance)) {
+                    if ((line->flags & MSDF_COLOR_BLUE) && msdf_distance_is_closer(distance, blue_distance)) {
                         blue_distance = distance;
                         blue_segment  = line;
                     }
@@ -827,15 +827,15 @@ internal Void msdf_generate(MSDF_Glyph glyph, U8 *buffer, U32 stride, U32 x, U32
                 if (red * red >= min_distance || green * green >= min_distance || blue * blue >= min_distance) {
                     MSDF_Distance distance = msdf_quadratic_bezier_distance_orthogonality(point, *bezier);
 
-                    if ((bezier->color & MSDF_COLOR_RED) && msdf_distance_is_closer(distance, red_distance)) {
+                    if ((bezier->flags & MSDF_COLOR_RED) && msdf_distance_is_closer(distance, red_distance)) {
                         red_distance = distance;
                         red_segment  = bezier;
                     }
-                    if ((bezier->color & MSDF_COLOR_GREEN) && msdf_distance_is_closer(distance, green_distance)) {
+                    if ((bezier->flags & MSDF_COLOR_GREEN) && msdf_distance_is_closer(distance, green_distance)) {
                         green_distance = distance;
                         green_segment  = bezier;
                     }
-                    if ((bezier->color & MSDF_COLOR_BLUE) && msdf_distance_is_closer(distance, blue_distance)) {
+                    if ((bezier->flags & MSDF_COLOR_BLUE) && msdf_distance_is_closer(distance, blue_distance)) {
                         blue_distance = distance;
                         blue_segment  = bezier;
                     }

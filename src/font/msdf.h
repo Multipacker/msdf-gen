@@ -30,7 +30,7 @@ struct MSDF_Segment {
     V2F32 p0;
     V2F32 p1;
     V2F32 p2;
-    MSDF_ColorFlags color;
+    MSDF_ColorFlags flags;
 
     // NOTE(simon): Bounding circle for pruning
     V2F32 circle_center;
