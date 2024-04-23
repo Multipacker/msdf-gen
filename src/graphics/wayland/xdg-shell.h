@@ -1342,6 +1342,9 @@ enum xdg_toplevel_state {
 	 *
 	 * The window is currently in a tiled layout and the left edge is
 	 * considered to be adjacent to another part of the tiling grid.
+	 *
+	 * The client should draw without shadow or other decoration
+	 * outside of the window geometry on the left edge.
 	 * @since 2
 	 */
 	XDG_TOPLEVEL_STATE_TILED_LEFT = 5,
@@ -1350,6 +1353,9 @@ enum xdg_toplevel_state {
 	 *
 	 * The window is currently in a tiled layout and the right edge
 	 * is considered to be adjacent to another part of the tiling grid.
+	 *
+	 * The client should draw without shadow or other decoration
+	 * outside of the window geometry on the right edge.
 	 * @since 2
 	 */
 	XDG_TOPLEVEL_STATE_TILED_RIGHT = 6,
@@ -1358,6 +1364,9 @@ enum xdg_toplevel_state {
 	 *
 	 * The window is currently in a tiled layout and the top edge is
 	 * considered to be adjacent to another part of the tiling grid.
+	 *
+	 * The client should draw without shadow or other decoration
+	 * outside of the window geometry on the top edge.
 	 * @since 2
 	 */
 	XDG_TOPLEVEL_STATE_TILED_TOP = 7,
@@ -1366,6 +1375,9 @@ enum xdg_toplevel_state {
 	 *
 	 * The window is currently in a tiled layout and the bottom edge
 	 * is considered to be adjacent to another part of the tiling grid.
+	 *
+	 * The client should draw without shadow or other decoration
+	 * outside of the window geometry on the bottom edge.
 	 * @since 2
 	 */
 	XDG_TOPLEVEL_STATE_TILED_BOTTOM = 8,
