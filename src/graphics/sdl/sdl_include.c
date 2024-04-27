@@ -165,16 +165,16 @@ internal Gfx_Context *gfx_create(Arena *arena, Str8 title, U32 width, U32 height
             };
             result->program = opengl_create_program(shaders, array_count(shaders));
 
-            result->uniform_projection_location = glGetUniformLocation(backend->program, "uniform_projection");
+            result->uniform_projection_location = glGetUniformLocation(result->program, "uniform_projection");
 
             glCreateBuffers(1, &result->vbo);
             glNamedBufferData(result->vbo, RENDER_BATCH_SIZE * sizeof(Render_Rectangle), 0, GL_DYNAMIC_DRAW);
 
             glCreateVertexArrays(1, &result->vao);
 
-            opengl_vertex_array_instance_attribute(result->vao, 0, 2, GL_FLOAT, false, member_offset(Render_Rectangle, min),   0);
-            opengl_vertex_array_instance_attribute(result->vao, 1, 2, GL_FLOAT, false, member_offset(Render_Rectangle, max),   0);
-            opengl_vertex_array_instance_attribute(result->vao, 2, 4, GL_FLOAT, false, member_offset(Render_Rectangle, color), 0);
+            opengl_vertex_array_instance_attribute(result->vao, 0, 2, GL_FLOAT, GL_FALSE, member_offset(Render_Rectangle, min),   0);
+            opengl_vertex_array_instance_attribute(result->vao, 1, 2, GL_FLOAT, GL_FALSE, member_offset(Render_Rectangle, max),   0);
+            opengl_vertex_array_instance_attribute(result->vao, 2, 4, GL_FLOAT, GL_FALSE, member_offset(Render_Rectangle, color), 0);
 
             glVertexArrayVertexBuffer(result->vao, 0, result->vbo, 0, sizeof(Render_Rectangle));
 
@@ -332,6 +332,9 @@ internal Void render_end(Gfx_Context *gfx) {
     V2U32 client_area = gfx_get_window_client_area(gfx);
 
     glViewport(0, 0, client_area.width, client_area.height);
+
+    M4F32 projection = m4f32_ortho(0.0f, (F32) client_area.width, 0.0f, (F32) client_area.height, 1.0f, -1.0f);
+    glProgramUniformMatrix4fv(gfx->program, gfx->uniform_projection_location, 1, GL_FALSE, &projection.m[0][0]);
 
     glClear(GL_COLOR_BUFFER_BIT);
 

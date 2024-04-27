@@ -39,7 +39,7 @@ struct Gfx_Context {
     GLuint           program;
     GLuint           vao;
     GLuint           vbo;
-    GLint            uniform_projection_location
+    GLint            uniform_projection_location;
 };
 
 typedef enum {

@@ -21,5 +21,5 @@ void main() {
     vec2 position  = center + half_size * verticies[gl_VertexID];
 
     gl_Position = uniform_projection * vec4(position, 0.0, 1.0);
-    vert_color  = vert_color;
+    vert_color  = instance_color;
 }

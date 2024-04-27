@@ -33,7 +33,7 @@ internal S32 os_run(Str8List arguments) {
 
         render_begin(gfx);
 
-        render_rectangle(gfx, v2f32(-0.25, -0.25), v2f32(0.25, 0.25));
+        render_rectangle(gfx, v2f32(10.0, 10.0), v2f32(100.0, 100.0));
 
         render_end(gfx);
     }
