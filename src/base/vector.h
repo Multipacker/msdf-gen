@@ -31,7 +31,8 @@ typedef union {
     };
 } V2F32;
 
-typedef union {
+typedef union V3F32 V3F32;
+union V3F32 {
     struct {
         F32 x;
         F32 y;
@@ -47,9 +48,10 @@ typedef union {
         F32 height;
         F32 depth;
     };
-} V3F32;
+};
 
-typedef union {
+typedef union V4F32 V4F32;
+union V4F32 {
     struct {
         F32 x;
         F32 y;
@@ -62,7 +64,12 @@ typedef union {
         F32 b;
         F32 a;
     };
-} V4F32;
+};
+
+typedef struct M4F32 M4F32;
+struct M4F32 {
+    F32 m[4][4];
+};
 
 internal V2U32 v2u32(U32 x, U32 y);
 
@@ -84,5 +91,7 @@ internal V2F32 v2f32_negate(V2F32 vector);
 internal V2F32 v2f32_perpendicular(V2F32 vector);
 internal V2F32 v2f32_min(V2F32 a, V2F32 b);
 internal V2F32 v2f32_max(V2F32 a, V2F32 b);
+
+internal M4F32 m4f32_ortho(F32 left, F32 right, F32 top, F32 bottom, F32 near, F32 far);
 
 #endif // BASE_VECTOR_H
