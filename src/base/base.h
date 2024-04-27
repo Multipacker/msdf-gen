@@ -127,8 +127,8 @@
 #define array_count(array) (sizeof(array) / (sizeof(*array)))
 
 // NOTE: Doing pointer subtraction with a null pointer is undefined behaviour, hence the convoluted mess that follows.
-#define integer_from_pointer(pointer) ((unsigned long long) ((char *) (pointer) - (char *) 1) + 1)
-#define pointer_from_integer(integer) ((void *) ((char *) 0 + (integer)))
+#define integer_from_pointer(pointer) ((U64) ((uintptr_t) (pointer)))
+#define pointer_from_integer(integer) ((void *) ((uintptr_t) (integer)))
 
 #define member(type, type_member) (((type *) 0)->type_member)
 #define member_offset(type, type_member) integer_from_pointer(&member(type, type_member))
