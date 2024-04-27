@@ -12,6 +12,8 @@ struct Render_Rectangle {
     V2F32 min;
     V2F32 max;
     V4F32 color;
+    V2F32 uv_min;
+    V2F32 uv_max;
 };
 
 typedef struct Render_Batch Render_Batch;
@@ -166,6 +168,8 @@ struct Render_RectangleParams {
     V2F32 min;
     V2F32 max;
     V4F32 color;
+    V2F32 uv_min;
+    V2F32 uv_max;
 };
 #define render_rectangle(gfx, minimum, maximum, ...) render_rectangle_internal(gfx, &(Render_RectangleParams) { .min = minimum, .max = maximum, .color = v4f32(1.0f, 1.0f, 1.0f, 1.0f), __VA_ARGS__ })
 internal Void render_rectangle_internal(Gfx_Context *gfx, Render_RectangleParams *parameters);
