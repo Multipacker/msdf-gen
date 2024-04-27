@@ -1,3 +1,12 @@
+internal V2U32 v2u32(U32 x, U32 y) {
+    V2U32 result;
+
+    result.x = x;
+    result.y = y;
+
+    return result;
+}
+
 internal V2F32 v2f32(F32 x, F32 y) {
     V2F32 result;
 
@@ -13,6 +22,17 @@ internal V3F32 v3f32(F32 x, F32 y, F32 z) {
     result.x = x;
     result.y = y;
     result.z = z;
+
+    return result;
+}
+
+internal V4F32 v4f32(F32 x, F32 y, F32 z, F32 w) {
+    V4F32 result;
+
+    result.x = x;
+    result.y = y;
+    result.z = z;
+    result.w = w;
 
     return result;
 }
