@@ -215,6 +215,7 @@ internal F32 f32_unlerp(F32 a, F32 b, F32 x);
 internal F32 f32_pow(F32 a, F32 b);
 internal F32 f32_floor(F32 x);
 internal F32 f32_ceil(F32 x);
+internal F32 f32_round(F32 x);
 internal U32 f32_round_to_u32(F32 x);
 internal S32 f32_round_to_s32(F32 x);
 internal U32 f32_solve_cubic(F32 a, F32 b, F32 c, F32 d, F32 *result_ts);

@@ -421,6 +421,10 @@ internal F32 f32_ceil(F32 x) {
     return __builtin_ceilf(x);
 }
 
+internal F32 f32_round(F32 x) {
+    return __builtin_roundf(x);
+}
+
 internal U32 f32_round_to_u32(F32 x) {
     return (U32) __builtin_roundf(x);
 }

@@ -42,6 +42,7 @@ internal Str8 str8_cstr(CStr data);
 internal Str8 str8_copy_cstr(Arena *arena, U8 *data);
 
 #define str8_literal(literal) ((Str8) { .data = (U8 *) (literal), .size = sizeof(literal) - 1})
+#define str8_expand(string) (int) (string).size, (char *) (string).data
 
 internal Str8 str8_prefix(Str8 string, U64 size);
 internal Str8 str8_postfix(Str8 string, U64 size);
