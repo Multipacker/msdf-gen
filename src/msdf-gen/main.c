@@ -13,6 +13,34 @@
  * /usr/share/fonts/noto/NotoSerif-Regular.ttf
  */
 internal S32 os_run(Str8List arguments) {
+    Arena arena = arena_create();
+    Gfx_Context *gfx = gfx_create(&arena, str8_literal("MSDF-gen"), 1280, 720);
+    if (!gfx) {
+        os_console_print(error_get_error_message());
+        return -1;
+    }
+
+    B32 running = true;
+    while (running) {
+        Arena_Temporary restore_point = arena_begin_temporary(&arena);
+        Gfx_EventList events = gfx_get_events(&arena, gfx);
+        for (Gfx_Event *event = events.first; event; event = event->next) {
+            if (event->kind == Gfx_EventKind_Quit) {
+                running = false;
+            }
+        }
+        arena_end_temporary(restore_point);
+
+        render_begin(gfx);
+
+        render_rectangle(gfx, v2f32(-0.25, -0.25), v2f32(0.25, 0.25));
+
+        render_end(gfx);
+    }
+
+    return 0;
+
+#if 0
     if (!arguments.first->next) {
         os_console_print(str8_literal("You have to pass a file\n"));
         os_exit(1);
@@ -35,7 +63,7 @@ internal S32 os_run(Str8List arguments) {
 
     U32 glyph_width  = u32_ceil_to_power_of_2((U32) f32_ceil(f32_sqrt(font.internal_glyph_count)));
     U32 glyph_height = u32_ceil_to_power_of_2(font.internal_glyph_count / glyph_width);
-    U32 glyph_size   = 16;
+    U32 glyph_size   = 32;
 
     U32 atlas_width  = glyph_width  * glyph_size;
     U32 atlas_height = glyph_height * glyph_size;
@@ -131,4 +159,5 @@ internal S32 os_run(Str8List arguments) {
 
     graphics_destroy(context);
     return 0;
+#endif
 }

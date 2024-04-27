@@ -3,6 +3,7 @@
 
 #if OS_LINUX
 #  include "wayland/wayland_include.h"
+#  include "sdl/sdl_include.h"
 #else
 # error no backend for graphics_include.c on this operating system
 #endif
