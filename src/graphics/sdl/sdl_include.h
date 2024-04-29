@@ -14,6 +14,7 @@ struct Render_Rectangle {
     V4F32 color;
     V2F32 uv_min;
     V2F32 uv_max;
+    U32   texture_id;
 };
 
 typedef struct Render_Batch Render_Batch;
@@ -21,6 +22,7 @@ struct Render_Batch {
     Render_Batch *next;
     Render_Batch *previous;
 
+    GLuint texture_id;
     U32 size;
     Render_Rectangle rectangles[RENDER_BATCH_SIZE];
 };
@@ -31,12 +33,18 @@ struct Render_BatchList {
     Render_Batch *last;
 };
 
+typedef struct Render_Texture Render_Texture;
+struct Render_Texture {
+    GLuint texture_id;
+};
+
 typedef struct Gfx_Context Gfx_Context;
 struct Gfx_Context {
     Arena            arena;
     Arena_Temporary  frame_restore;
     SDL_Window      *window;
     SDL_GLContext    gl_context;
+
     Render_BatchList batches;
     GLuint           program;
     GLuint           vao;
@@ -165,11 +173,12 @@ internal Void render_end(Gfx_Context *gfx);
 
 typedef struct Render_RectangleParams Render_RectangleParams;
 struct Render_RectangleParams {
-    V2F32 min;
-    V2F32 max;
-    V4F32 color;
-    V2F32 uv_min;
-    V2F32 uv_max;
+    V2F32          min;
+    V2F32          max;
+    V4F32          color;
+    V2F32          uv_min;
+    V2F32          uv_max;
+    Render_Texture texture;
 };
 #define render_rectangle(gfx, minimum, maximum, ...) render_rectangle_internal(gfx, &(Render_RectangleParams) { .min = minimum, .max = maximum, .color = v4f32(1.0f, 1.0f, 1.0f, 1.0f), __VA_ARGS__ })
 internal Void render_rectangle_internal(Gfx_Context *gfx, Render_RectangleParams *parameters);

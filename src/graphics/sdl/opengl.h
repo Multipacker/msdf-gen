@@ -11,6 +11,7 @@
 #define GL_COMPILE_STATUS       0x8B81
 #define GL_DYNAMIC_DRAW         0x88E8
 #define GL_FALSE                0
+#define GL_INT                  0x1404
 #define GL_FLOAT                0x1406
 #define GL_FRAGMENT_SHADER      0x8B30
 #define GL_INFO_LOG_LENGTH      0x8B84

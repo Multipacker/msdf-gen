@@ -172,11 +172,12 @@ internal Gfx_Context *gfx_create(Arena *arena, Str8 title, U32 width, U32 height
 
             glCreateVertexArrays(1, &result->vao);
 
-            opengl_vertex_array_instance_attribute(result->vao, 0, 2, GL_FLOAT, GL_FALSE, member_offset(Render_Rectangle, min),    0);
-            opengl_vertex_array_instance_attribute(result->vao, 1, 2, GL_FLOAT, GL_FALSE, member_offset(Render_Rectangle, max),    0);
-            opengl_vertex_array_instance_attribute(result->vao, 2, 4, GL_FLOAT, GL_FALSE, member_offset(Render_Rectangle, color),  0);
-            opengl_vertex_array_instance_attribute(result->vao, 3, 2, GL_FLOAT, GL_FALSE, member_offset(Render_Rectangle, uv_min), 0);
-            opengl_vertex_array_instance_attribute(result->vao, 4, 2, GL_FLOAT, GL_FALSE, member_offset(Render_Rectangle, uv_max), 0);
+            opengl_vertex_array_instance_attribute(result->vao, 0, 2, GL_FLOAT, GL_FALSE, member_offset(Render_Rectangle, min),        0);
+            opengl_vertex_array_instance_attribute(result->vao, 1, 2, GL_FLOAT, GL_FALSE, member_offset(Render_Rectangle, max),        0);
+            opengl_vertex_array_instance_attribute(result->vao, 2, 4, GL_FLOAT, GL_FALSE, member_offset(Render_Rectangle, color),      0);
+            opengl_vertex_array_instance_attribute(result->vao, 3, 2, GL_FLOAT, GL_FALSE, member_offset(Render_Rectangle, uv_min),     0);
+            opengl_vertex_array_instance_attribute(result->vao, 4, 2, GL_FLOAT, GL_FALSE, member_offset(Render_Rectangle, uv_max),     0);
+            opengl_vertex_array_instance_attribute(result->vao, 5, 2, GL_INT,   GL_FALSE, member_offset(Render_Rectangle, texture_id), 0);
 
             glVertexArrayVertexBuffer(result->vao, 0, result->vbo, 0, sizeof(Render_Rectangle));
 
@@ -314,10 +315,13 @@ internal V2U32 gfx_get_window_client_area(Gfx_Context *gfx) {
 internal Void render_rectangle_internal(Gfx_Context *gfx, Render_RectangleParams *parameters) {
     Render_Batch *batch = gfx->batches.last;
 
-    if (!batch || batch->size >= RENDER_BATCH_SIZE) {
+    if (!batch || batch->size >= RENDER_BATCH_SIZE || (batch->texture_id && batch->texture_id != parameters->texture.texture_id)) {
         batch = arena_push_struct_zero(&gfx->arena, Render_Batch);
         dll_push_back(gfx->batches.first, gfx->batches.last, batch);
     }
+
+    // NOTE(simon): Either it is the same texture id, or there is no texture for this batch.
+    batch->texture_id = parameters->texture.texture_id;
 
     Render_Rectangle *rect = &batch->rectangles[batch->size++];
 
@@ -343,6 +347,7 @@ internal Void render_end(Gfx_Context *gfx) {
     glClear(GL_COLOR_BUFFER_BIT);
 
     for (Render_Batch *batch = gfx->batches.first; batch; batch = batch->next) {
+        glBindTextureUnit(0, batch->texture_id);
         glNamedBufferSubData(gfx->vbo, 0, batch->size * sizeof(Render_Rectangle), batch->rectangles);
         glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, (GLsizei) batch->size);
     }
@@ -352,4 +357,10 @@ internal Void render_end(Gfx_Context *gfx) {
     arena_end_temporary(gfx->frame_restore);
 
     SDL_GL_SwapWindow(gfx->window);
+}
+
+internal Render_Texture render_create_texture(Gfx_Context *gfx, U32 width, U32 height) {
+    Render_Texture result = { 0 };
+
+    return result;
 }
