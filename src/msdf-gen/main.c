@@ -136,7 +136,7 @@ internal S32 os_run(Str8List arguments) {
             .uv_min = v2f32(0, 0), .uv_max = v2f32(1, 1),
             .texture = texture,
             .color = v4f32(1.0, 1.0, 1.0, 1.0),
-            .flags = Render_RectangleFlags_Texture
+            .flags = (render_msdf ? Render_RectangleFlags_MSDF : Render_RectangleFlags_Texture)
         );
 
         render_end(gfx);
