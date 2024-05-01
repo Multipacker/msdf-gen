@@ -14,33 +14,7 @@
  */
 internal S32 os_run(Str8List arguments) {
     Arena arena = arena_create();
-    Gfx_Context *gfx = gfx_create(&arena, str8_literal("MSDF-gen"), 1280, 720);
-    if (!gfx) {
-        os_console_print(error_get_error_message());
-        return -1;
-    }
 
-    B32 running = true;
-    while (running) {
-        Arena_Temporary restore_point = arena_begin_temporary(&arena);
-        Gfx_EventList events = gfx_get_events(&arena, gfx);
-        for (Gfx_Event *event = events.first; event; event = event->next) {
-            if (event->kind == Gfx_EventKind_Quit) {
-                running = false;
-            }
-        }
-        arena_end_temporary(restore_point);
-
-        render_begin(gfx);
-
-        render_rectangle(gfx, v2f32(10.0, 10.0), v2f32(100.0, 100.0), .uv_min = v2f32(0, 0), .uv_max = v2f32(1, 1));
-
-        render_end(gfx);
-    }
-
-    return 0;
-
-#if 0
     if (!arguments.first->next) {
         os_console_print(str8_literal("You have to pass a file\n"));
         os_exit(1);
@@ -51,13 +25,11 @@ internal S32 os_run(Str8List arguments) {
     font_description.codepoint_first = 0;
     font_description.codepoint_last  = 127;
 
-    Arena_Temporary scratch = arena_get_scratch(0, 0);
-
     TTF_Font font = { 0 };
-    if (!ttf_load(scratch.arena, font_path, &font)) {
+    if (!ttf_load(&arena, font_path, &font)) {
         os_console_print(error_get_error_message());
     }
-    if (!ttf_get_character_map(scratch.arena, &font, &font_description)) {
+    if (!ttf_get_character_map(&arena, &font, &font_description)) {
         os_console_print(error_get_error_message());
     }
 
@@ -68,7 +40,7 @@ internal S32 os_run(Str8List arguments) {
     U32 atlas_width  = glyph_width  * glyph_size;
     U32 atlas_height = glyph_height * glyph_size;
 
-    U8 *font_atlas = arena_push_array_zero(scratch.arena, U8, atlas_width * atlas_height * sizeof(U32));
+    U8 *font_atlas = arena_push_array_zero(&arena, U8, atlas_width * atlas_height * sizeof(U32));
     Font msdf_font = { 0 };
     {
         B32 success = true;
@@ -77,14 +49,14 @@ internal S32 os_run(Str8List arguments) {
 
         // Copy over the character map.
         msdf_font.codepoint_count = font.codepoint_count;
-        msdf_font.codepoints      = arena_push_array(scratch.arena, U32, msdf_font.codepoint_count);
-        msdf_font.glyph_indicies  = arena_push_array(scratch.arena, U32, msdf_font.codepoint_count);
+        msdf_font.codepoints      = arena_push_array(&arena, U32, msdf_font.codepoint_count);
+        msdf_font.glyph_indicies  = arena_push_array(&arena, U32, msdf_font.codepoint_count);
         memory_copy(msdf_font.codepoints, font.codepoints, msdf_font.codepoint_count * sizeof(*msdf_font.codepoints));
         memory_copy(msdf_font.glyph_indicies, font.glyph_indicies, msdf_font.codepoint_count * sizeof(*msdf_font.glyph_indicies));
 
         if (success) {
             msdf_font.glyph_count = font.internal_glyph_count;
-            msdf_font.glyphs = arena_push_array(scratch.arena, Font_Glyph, msdf_font.glyph_count);
+            msdf_font.glyphs = arena_push_array(&arena, Font_Glyph, msdf_font.glyph_count);
             success = ttf_parse_metric_data(&font, &msdf_font);
         }
 
@@ -113,51 +85,62 @@ internal S32 os_run(Str8List arguments) {
         }
     }
 
-    Gfx_Image font_image = { .data = (U32 *) font_atlas, .width = atlas_width, .height = atlas_height, };
-    GraphicsContext *context = graphics_create(str8_literal("MSDF-gen"), 1280, 720, font_image);
-    arena_end_temporary(scratch);
-
-    S32 offset_x = 0;
-    S32 offset_y = 0;
-    S32 grab_x   = 0;
-    S32 grab_y   = 0;
-    F32 zoom     = 2.0f;
-    B32 running = true;
-    B32 render_msdf = true;
-    while (running) {
-        graphics_begin_frame(context);
-
-        if (context->is_grabbed) {
-            offset_x += context->x - grab_x;
-            offset_y += context->y - grab_y;
-        }
-        grab_x = context->x;
-        grab_y = context->y;
-
-        if (context->scroll_amount) {
-            F32 old_zoom = zoom;
-
-            zoom *= f32_pow(0.99, -context->scroll_amount);
-
-            offset_x = context->x - old_zoom / zoom * (context->x - offset_x);
-            offset_y = context->y - old_zoom / zoom * (context->y - offset_y);
-        }
-
-        if (context->tab_pressed) {
-            render_msdf = !render_msdf;
-        }
-        graphics_set_render_msdf(context, render_msdf);
-
-        graphics_msdf(context, v2f32(offset_x, offset_y), v2f32(100.0f / zoom, 100.0f / zoom), v3f32(1, 1, 1), v2f32(0, 0), v2f32(1, 1));
-
-        if (context->exit_requested) {
-            running = false;
-        }
-
-        graphics_end_frame(context);
+    Gfx_Context *gfx = gfx_create(&arena, str8_literal("MSDF-gen"), 1280, 720);
+    if (!gfx) {
+        os_console_print(error_get_error_message());
+        return -1;
     }
 
-    graphics_destroy(context);
+    Render_Texture texture = render_texture_create(gfx, v2u32(atlas_width, atlas_height), font_atlas);
+
+    V2F32 offset    = { 0 };
+    F32 zoom        = 2.0f;
+    B32 running     = true;
+    B32 render_msdf = true;
+    V2F32 grab      = { 0 };
+    B32 dragging    = false;
+
+    while (running) {
+        Arena_Temporary restore_point = arena_begin_temporary(&arena);
+        Gfx_EventList events = gfx_get_events(&arena, gfx);
+        V2F32 mouse = gfx_get_mouse_position(gfx);
+        for (Gfx_Event *event = events.first; event; event = event->next) {
+            if (event->kind == Gfx_EventKind_Quit) {
+                running = false;
+            } else if (event->kind == Gfx_EventKind_Scroll) {
+                F32 old_zoom = zoom;
+
+                zoom *= f32_pow(0.99, -event->scroll.y);
+
+                offset.x = mouse.x - old_zoom / zoom * (mouse.x - offset.x);
+                offset.y = mouse.y - old_zoom / zoom * (mouse.y - offset.y);
+            } else if (event->kind == Gfx_EventKind_KeyRelease && event->key == Gfx_Key_Tab) {
+                render_msdf = !render_msdf;
+            } else if (event->kind == Gfx_EventKind_KeyPress && event->key == Gfx_Key_MouseLeft) {
+                dragging = true;
+                grab = v2f32_subtract(offset, mouse);
+            } else if (event->kind == Gfx_EventKind_KeyRelease && event->key == Gfx_Key_MouseLeft) {
+                dragging = false;
+            }
+        }
+        if (dragging) {
+            offset = v2f32_add(grab, mouse);
+        }
+        arena_end_temporary(restore_point);
+
+        render_begin(gfx);
+
+        render_rectangle(
+            gfx,
+            offset, v2f32(offset.x + 100.0 / zoom, offset.y + 100.0 / zoom),
+            .uv_min = v2f32(0, 0), .uv_max = v2f32(1, 1),
+            .texture = texture,
+            .color = v4f32(1.0, 1.0, 1.0, 1.0),
+            .flags = Render_RectangleFlags_Texture
+        );
+
+        render_end(gfx);
+    }
+
     return 0;
-#endif
 }
