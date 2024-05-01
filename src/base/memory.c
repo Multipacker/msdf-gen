@@ -1,14 +1,22 @@
 #define THREAD_SCRATCH_ARENA_POOL_SIZE 2
-thread_local Arena thread_scratch_arenas[THREAD_SCRATCH_ARENA_POOL_SIZE];
+thread_local Arena *thread_scratch_arenas[THREAD_SCRATCH_ARENA_POOL_SIZE];
 
-internal Arena arena_create_reserve(U64 reserve_size) {
-    Arena result    = { 0 };
-    result.memory   = os_memory_reserve(reserve_size);
-    result.capacity = reserve_size;
+internal Arena *arena_create_reserve(U64 reserve_size) {
+    U8 *memory         = os_memory_reserve(reserve_size);
+    U64 initial_commit = u64_max(u64_ceil_to_power_of_2(sizeof(Arena)), ARENA_COMMIT_BLOCK_SIZE);
+    os_memory_commit(memory, initial_commit);
+
+    Arena *result = (Arena *) memory;
+
+    result->memory           = memory;
+    result->capacity         = reserve_size;
+    result->position         = sizeof(Arena);
+    result->commit_position  = initial_commit;
+
     return result;
 }
 
-internal Arena arena_create(Void) {
+internal Arena *arena_create(Void) {
     return arena_create_reserve(ARENA_DEFAULT_RESERVE_SIZE);
 }
 
@@ -95,7 +103,7 @@ internal Void arena_init_scratch(Void) {
 
 internal Void arena_destroy_scratch(Void) {
     for (U32 i = 0; i < array_count(thread_scratch_arenas); ++i) {
-        arena_destroy(&thread_scratch_arenas[i]);
+        arena_destroy(thread_scratch_arenas[i]);
     }
 }
 
@@ -103,7 +111,7 @@ internal Arena_Temporary arena_get_scratch(Arena **conflicts, U32 count) {
     Arena *selected = 0;
 
     for (U32 i = 0; i < array_count(thread_scratch_arenas); ++i) {
-        Arena *arena = &thread_scratch_arenas[i];
+        Arena *arena = thread_scratch_arenas[i];
 
         B32 is_non_conflicting = true;
         for (U32 j = 0; j < count; ++j) {

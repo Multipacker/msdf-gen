@@ -13,7 +13,7 @@
  * /usr/share/fonts/noto/NotoSerif-Regular.ttf
  */
 internal S32 os_run(Str8List arguments) {
-    Arena arena = arena_create();
+    Arena *arena = arena_create();
 
     if (!arguments.first->next) {
         os_console_print(str8_literal("You have to pass a file\n"));
@@ -26,10 +26,10 @@ internal S32 os_run(Str8List arguments) {
     font_description.codepoint_last  = 127;
 
     TTF_Font font = { 0 };
-    if (!ttf_load(&arena, font_path, &font)) {
+    if (!ttf_load(arena, font_path, &font)) {
         os_console_print(error_get_error_message());
     }
-    if (!ttf_get_character_map(&arena, &font, &font_description)) {
+    if (!ttf_get_character_map(arena, &font, &font_description)) {
         os_console_print(error_get_error_message());
     }
 
@@ -40,7 +40,7 @@ internal S32 os_run(Str8List arguments) {
     U32 atlas_width  = glyph_width  * glyph_size;
     U32 atlas_height = glyph_height * glyph_size;
 
-    U8 *font_atlas = arena_push_array_zero(&arena, U8, atlas_width * atlas_height * sizeof(U32));
+    U8 *font_atlas = arena_push_array_zero(arena, U8, atlas_width * atlas_height * sizeof(U32));
     Font msdf_font = { 0 };
     {
         B32 success = true;
@@ -49,14 +49,14 @@ internal S32 os_run(Str8List arguments) {
 
         // Copy over the character map.
         msdf_font.codepoint_count = font.codepoint_count;
-        msdf_font.codepoints      = arena_push_array(&arena, U32, msdf_font.codepoint_count);
-        msdf_font.glyph_indicies  = arena_push_array(&arena, U32, msdf_font.codepoint_count);
+        msdf_font.codepoints      = arena_push_array(arena, U32, msdf_font.codepoint_count);
+        msdf_font.glyph_indicies  = arena_push_array(arena, U32, msdf_font.codepoint_count);
         memory_copy(msdf_font.codepoints, font.codepoints, msdf_font.codepoint_count * sizeof(*msdf_font.codepoints));
         memory_copy(msdf_font.glyph_indicies, font.glyph_indicies, msdf_font.codepoint_count * sizeof(*msdf_font.glyph_indicies));
 
         if (success) {
             msdf_font.glyph_count = font.internal_glyph_count;
-            msdf_font.glyphs = arena_push_array(&arena, Font_Glyph, msdf_font.glyph_count);
+            msdf_font.glyphs = arena_push_array(arena, Font_Glyph, msdf_font.glyph_count);
             success = ttf_parse_metric_data(&font, &msdf_font);
         }
 
@@ -85,7 +85,7 @@ internal S32 os_run(Str8List arguments) {
         }
     }
 
-    Gfx_Context *gfx = gfx_create(&arena, str8_literal("MSDF-gen"), 1280, 720);
+    Gfx_Context *gfx = gfx_create(arena, str8_literal("MSDF-gen"), 1280, 720);
     if (!gfx) {
         os_console_print(error_get_error_message());
         return -1;
@@ -102,8 +102,8 @@ internal S32 os_run(Str8List arguments) {
     B32 dragging    = false;
 
     while (running) {
-        Arena_Temporary restore_point = arena_begin_temporary(&arena);
-        Gfx_EventList events = gfx_get_events(&arena, gfx);
+        Arena_Temporary restore_point = arena_begin_temporary(arena);
+        Gfx_EventList events = gfx_get_events(arena, gfx);
         V2F32 mouse = gfx_get_mouse_position(gfx);
         for (Gfx_Event *event = events.first; event; event = event->next) {
             if (event->kind == Gfx_EventKind_Quit) {

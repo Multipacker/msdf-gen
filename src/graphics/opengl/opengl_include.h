@@ -44,7 +44,7 @@ struct Render_Texture {
 
 typedef struct Render_Context Render_Context;
 struct Render_Context {
-    Arena            arena;
+    Arena           *arena;
     Arena_Temporary  frame_restore;
     Render_BatchList batches;
     GLuint           program;

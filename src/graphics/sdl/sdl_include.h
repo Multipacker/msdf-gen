@@ -5,7 +5,6 @@
 
 typedef struct Gfx_Context Gfx_Context;
 struct Gfx_Context {
-    Arena            arena;
     SDL_Window      *window;
     SDL_GLContext    gl_context;
 };

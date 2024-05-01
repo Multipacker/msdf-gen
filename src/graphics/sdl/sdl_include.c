@@ -3,7 +3,6 @@ global Gfx_Key sdl_to_gfx_keycode[128];
 internal Gfx_Context *gfx_create(Arena *arena, Str8 title, U32 width, U32 height) {
     Arena_Temporary restore_point = arena_begin_temporary(arena);
     Gfx_Context *result = arena_push_struct_zero(arena, Gfx_Context);
-    result->arena = arena_create();
 
     B32 error = 0;
 

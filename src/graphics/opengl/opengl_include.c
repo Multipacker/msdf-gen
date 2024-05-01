@@ -108,7 +108,7 @@ internal Void render_rectangle_internal(Render_Context *gfx, Render_RectanglePar
     Render_Batch *batch = gfx->batches.last;
 
     if (!batch || batch->size >= RENDER_BATCH_SIZE || (batch->texture_id && batch->texture_id != parameters->texture.texture_id)) {
-        batch = arena_push_struct_zero(&gfx->arena, Render_Batch);
+        batch = arena_push_struct_zero(gfx->arena, Render_Batch);
         dll_push_back(gfx->batches.first, gfx->batches.last, batch);
     }
 
@@ -126,7 +126,7 @@ internal Void render_rectangle_internal(Render_Context *gfx, Render_RectanglePar
 }
 
 internal Void render_begin(Render_Context *gfx, V2U32 resolution) {
-    gfx->frame_restore = arena_begin_temporary(&gfx->arena);
+    gfx->frame_restore = arena_begin_temporary(gfx->arena);
 
     glViewport(0, 0, resolution.width, resolution.height);
 
@@ -184,8 +184,8 @@ internal Void render_texture_update(Render_Context *gfx, Render_Texture texture,
 }
 
 internal Render_Context *render_create(Gfx_Context *gfx) {
-    Arena arena = arena_create();
-    Render_Context *result = arena_push_struct_zero(&arena, Render_Context);
+    Arena *arena = arena_create();
+    Render_Context *result = arena_push_struct_zero(arena, Render_Context);
     result->arena = arena;
     result->gfx = gfx;
 

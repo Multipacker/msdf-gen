@@ -13,7 +13,7 @@
 #include <sys/wait.h>
 #include <sys/syscall.h>
 
-global Arena linux_permanent_arena;
+global Arena *linux_permanent_arena;
 global Str8List linux_argument_list;
 
 internal DateTime linux_date_time_from_tm_and_milliseconds(struct tm *time, U16 milliseconds) {
@@ -520,11 +520,11 @@ internal Void os_console_print(Str8 string) {
 
 internal Void os_restart_self(Void) {
     U32   argument_count  = linux_argument_list.node_count + 1;
-    CStr *arguments_array = arena_push_array(&linux_permanent_arena, CStr, argument_count);
+    CStr *arguments_array = arena_push_array(linux_permanent_arena, CStr, argument_count);
 
     U32 argument_index = 0;
     for (Str8Node *node = linux_argument_list.first; node; node = node->next, ++argument_index) {
-            arguments_array[argument_index] = cstr_from_str8(&linux_permanent_arena, node->string);
+            arguments_array[argument_index] = cstr_from_str8(linux_permanent_arena, node->string);
     }
     arguments_array[argument_count - 1] = 0;
 
@@ -545,7 +545,7 @@ int main(int argument_count, char *arguments[]) {
 
     for (int i = 0; i < argument_count; ++i) {
         Str8 argument = str8_cstr(arguments[i]);
-        str8_list_push(&linux_permanent_arena, &linux_argument_list, argument);
+        str8_list_push(linux_permanent_arena, &linux_argument_list, argument);
     }
 
     S32 return_value = os_run(linux_argument_list);
