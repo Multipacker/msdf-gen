@@ -12,18 +12,20 @@
 #define GL_DYNAMIC_DRAW         0x88E8
 #define GL_FALSE                0
 #define GL_INT                  0x1404
+#define GL_UNSIGNED_INT         0x1405
 #define GL_FLOAT                0x1406
 #define GL_FRAGMENT_SHADER      0x8B30
 #define GL_INFO_LOG_LENGTH      0x8B84
 #define GL_LINEAR               0x2601
 #define GL_LINK_STATUS          0x8B82
 #define GL_ONE_MINUS_SRC1_COLOR 0x88FA
+#define GL_SRC_ALPHA            0x0302
 #define GL_ONE_MINUS_SRC_ALPHA  0x0303
 #define GL_RGBA                 0x1908
 #define GL_RGBA8                0x8058
 #define GL_SCISSOR_TEST         0x0C11
 #define GL_SRC1_COLOR           0x88F9
-#define GL_SRC_ALPHA            0x8589
+#define GL_SRC1_ALPHA           0x8589
 #define GL_SRGB8_ALPHA8         0x8C43
 #define GL_TEXTURE_2D           0x0DE1
 #define GL_TEXTURE_MAG_FILTER   0x2800
@@ -59,6 +61,7 @@
 #define GL_DEBUG_SEVERITY_NOTIFICATION    0x826B
 
 #define GL_DEBUG_OUTPUT_SYNCHRONOUS       0x8242
+#define GL_FRAMEBUFFER_SRGB               0x8DB9
 
 typedef char         GLchar;
 typedef float        GLfloat;
@@ -90,6 +93,7 @@ typedef Void   (*PFNGLSCISSORPROC)(GLint x, GLint y, GLsizei width, GLsizei heig
 typedef Void   (*PFNGLATTACHSHADERPROC)(GLuint program, GLuint shader);
 typedef Void   (*PFNGLBINDTEXTUREUNITPROC)(GLuint unit, GLuint texture);
 typedef Void   (*PFNGLBINDVERTEXARRAYPROC)(GLuint array);
+typedef Void   (*PFNGLBLENDFUNCPROC)(GLenum sfactor, GLenum dfactor);
 typedef Void   (*PFNGLBLENDFUNCSEPARATEPROC)(GLenum srcRGB, GLenum dstRGB, GLenum srcAlpha, GLenum dstAlpha);
 typedef Void   (*PFNGLCOMPILESHADERPROC)(GLuint shader);
 typedef Void   (*PFNGLCREATEBUFFERSPROC)(GLsizei n, GLuint *buffers);
@@ -120,6 +124,7 @@ typedef Void   (*PFNGLTEXTURESUBIMAGE2DPROC)(GLuint texture, GLint level, GLint 
 typedef Void   (*PFNGLUSEPROGRAMPROC)(GLuint program);
 typedef Void   (*PFNGLVERTEXARRAYATTRIBBINDINGPROC)(GLuint vaobj, GLuint attribindex, GLuint bindingindex);
 typedef Void   (*PFNGLVERTEXARRAYATTRIBFORMATPROC)(GLuint vaobj, GLuint attribindex, GLint size, GLenum type, GLboolean normalized, GLuint relativeoffset);
+typedef Void   (*PFNGLVERTEXARRAYATTRIBIFORMATPROC)(GLuint vaobj, GLuint attribindex, GLint size, GLenum type, GLuint relativeoffset);
 typedef Void   (*PFNGLVERTEXARRAYBINDINGDIVISORPROC)(GLuint vaobj, GLuint bindingindex, GLuint divisor);
 typedef Void   (*PFNGLVERTEXARRAYVERTEXBUFFERPROC)(GLuint vaobj, GLuint bindingindex, GLuint buffer, GLintptr offset, GLsizei stride);
 typedef Void   (GLDEBUGPROC)(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar *message, const void *userParam);
@@ -133,10 +138,11 @@ X(PFNGLDISABLEPROC,                   glDisable)                   \
 X(PFNGLENABLEPROC,                    glEnable)                    \
 X(PFNGLVIEWPORTPROC,                  glViewport)
 
-#define GL_FUNCTIONS(X)                                              \
+#define GL_FUNCTIONS(X)                                            \
 X(PFNGLATTACHSHADERPROC,              glAttachShader)              \
 X(PFNGLBINDTEXTUREUNITPROC,           glBindTextureUnit)           \
 X(PFNGLBINDVERTEXARRAYPROC,           glBindVertexArray)           \
+X(PFNGLBLENDFUNCPROC,                 glBlendFunc)                 \
 X(PFNGLBLENDFUNCSEPARATEPROC,         glBlendFuncSeparate)         \
 X(PFNGLCOMPILESHADERPROC,             glCompileShader)             \
 X(PFNGLCREATEBUFFERSPROC,             glCreateBuffers)             \
@@ -167,6 +173,7 @@ X(PFNGLTEXTURESUBIMAGE2DPROC,         glTextureSubImage2D)         \
 X(PFNGLUSEPROGRAMPROC,                glUseProgram)                \
 X(PFNGLVERTEXARRAYATTRIBBINDINGPROC,  glVertexArrayAttribBinding)  \
 X(PFNGLVERTEXARRAYATTRIBFORMATPROC,   glVertexArrayAttribFormat)   \
+X(PFNGLVERTEXARRAYATTRIBIFORMATPROC,  glVertexArrayAttribIFormat)  \
 X(PFNGLVERTEXARRAYBINDINGDIVISORPROC, glVertexArrayBindingDivisor) \
 X(PFNGLVERTEXARRAYVERTEXBUFFERPROC,   glVertexArrayVertexBuffer)   \
 X(PFNGLDEBUGMESSAGECALLBACKPROC,      glDebugMessageCallback)
