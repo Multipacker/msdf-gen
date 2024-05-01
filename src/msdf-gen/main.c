@@ -90,8 +90,9 @@ internal S32 os_run(Str8List arguments) {
         os_console_print(error_get_error_message());
         return -1;
     }
+    Render_Context *render = render_create(gfx);
 
-    Render_Texture texture = render_texture_create(gfx, v2u32(atlas_width, atlas_height), font_atlas);
+    Render_Texture texture = render_texture_create(render, v2u32(atlas_width, atlas_height), font_atlas);
 
     V2F32 offset    = { 0 };
     F32 zoom        = 2.0f;
@@ -128,10 +129,11 @@ internal S32 os_run(Str8List arguments) {
         }
         arena_end_temporary(restore_point);
 
-        render_begin(gfx);
+        V2U32 client_area = gfx_get_window_client_area(gfx);
+        render_begin(render, client_area);
 
         render_rectangle(
-            gfx,
+            render,
             offset, v2f32(offset.x + 100.0 / zoom, offset.y + 100.0 / zoom),
             .uv_min = v2f32(0, 0), .uv_max = v2f32(1, 1),
             .texture = texture,
@@ -139,7 +141,7 @@ internal S32 os_run(Str8List arguments) {
             .flags = (render_msdf ? Render_RectangleFlags_MSDF : Render_RectangleFlags_Texture)
         );
 
-        render_end(gfx);
+        render_end(render);
     }
 
     return 0;
