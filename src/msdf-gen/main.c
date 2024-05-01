@@ -111,7 +111,7 @@ internal S32 os_run(Str8List arguments) {
             } else if (event->kind == Gfx_EventKind_Scroll) {
                 F32 old_zoom = zoom;
 
-                zoom *= f32_pow(0.99, -event->scroll.y);
+                zoom *= f32_pow(0.97, event->scroll.y);
 
                 offset.x = mouse.x - old_zoom / zoom * (mouse.x - offset.x);
                 offset.y = mouse.y - old_zoom / zoom * (mouse.y - offset.y);
