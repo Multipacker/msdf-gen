@@ -18,7 +18,7 @@ glslc src/graphics/shaders/sdf.vert -g -o build/sdf.vert.spv
 arguments="-I. -DLINUX_WAYLAND=1"
 libraries="-lm -lwayland-client -lxkbcommon -lvulkan -lSDL2"
 errors="-Werror -Wall -Wextra -pedantic"
-exclude_errors="-Wno-unused-parameter -Wno-unused-variable -Wno-unused-function -Wno-unused-but-set-variable -Wno-extra-semi -Wno-gnu-zero-variadic-macro-arguments"
+exclude_errors="-Wno-unused-parameter -Wno-unused-variable -Wno-unused-function -Wno-unused-but-set-variable -Wno-extra-semi -Wno-gnu-zero-variadic-macro-arguments -Wno-initializer-overrides"
 
 debug_options="-g -DENABLE_ASSERT=1 -DDEBUG_BUILD=1"
 
