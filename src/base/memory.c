@@ -44,6 +44,8 @@ internal Void *arena_push(Arena *arena, U64 size) {
 }
 
 internal Void arena_pop_to(Arena *arena, U64 position) {
+    position = u64_max(sizeof(Arena), position);
+
     if (position < arena->position) {
         arena->position = position;
 
@@ -59,6 +61,10 @@ internal Void arena_pop_to(Arena *arena, U64 position) {
 
 internal Void arena_pop_amount(Arena *arena, U64 amount) {
     arena_pop_to(arena, arena->position - amount);
+}
+
+internal Void arena_reset(Arena *arena) {
+    arena_pop_to(arena, sizeof(Arena));
 }
 
 internal Void *arena_push_zero(Arena *arena, U64 size) {

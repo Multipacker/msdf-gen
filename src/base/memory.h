@@ -24,6 +24,7 @@ internal Void arena_destroy(Arena *arena);
 internal Void *arena_push(Arena *arena, U64 size);
 internal Void  arena_pop_to(Arena *arena, U64 position);
 internal Void  arena_pop_amount(Arena *arena, U64 amount);
+internal Void  arena_reset(Arena *arena);
 
 internal Void *arena_push_zero(Arena *arena, U64 size);
 
