@@ -216,7 +216,7 @@ internal Render_Context *render_create(Gfx_Context *gfx) {
 
     glVertexArrayVertexBuffer(result->vao, 0, result->vbo, 0, sizeof(Render_Rectangle));
 
-    glClearColor(1.0f, 0.0f, 1.0f, 1.0f);
+    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
     glUseProgram(result->program);
     glBindVertexArray(result->vao);
     glEnable(GL_BLEND);
