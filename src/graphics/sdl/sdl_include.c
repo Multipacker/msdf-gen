@@ -131,6 +131,7 @@ internal Gfx_Context *gfx_create(Arena *arena, Str8 title, U32 width, U32 height
         SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
         SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 5);
         SDL_GL_SetAttribute(SDL_GL_FRAMEBUFFER_SRGB_CAPABLE, 1);
+        SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
 
         Arena_Temporary scratch = arena_get_scratch(&arena, 1);
 
@@ -158,6 +159,7 @@ internal Gfx_Context *gfx_create(Arena *arena, Str8 title, U32 width, U32 height
 
             glDebugMessageCallback(&opengl_debug_output, NULL);
             glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
+            glEnable(GL_FRAMEBUFFER_SRGB);
 
             GLuint shaders[] = {
                 opengl_create_shader(str8_literal("src/graphics/sdl/shader.vert"), GL_VERTEX_SHADER),
