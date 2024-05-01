@@ -94,16 +94,18 @@ internal S32 os_run(Str8List arguments) {
 
     Render_Texture texture = render_texture_create(render, v2u32(atlas_width, atlas_height), font_atlas);
 
-    V2F32 offset    = { 0 };
-    F32 zoom        = 2.0f;
-    B32 running     = true;
-    B32 render_msdf = true;
-    V2F32 grab      = { 0 };
-    B32 dragging    = false;
+    V2F32 offset      = { 0 };
+    F32   zoom        = 2.0f;
+    B32   running     = true;
+    B32   render_msdf = true;
+    V2F32 grab        = { 0 };
+    B32   dragging    = false;
+
+    Arena *current_arena  = arena_create();
+    Arena *previous_arena = arena_create();
 
     while (running) {
-        Arena_Temporary restore_point = arena_begin_temporary(arena);
-        Gfx_EventList events = gfx_get_events(arena, gfx);
+        Gfx_EventList events = gfx_get_events(current_arena, gfx);
         V2F32 mouse = gfx_get_mouse_position(gfx);
         for (Gfx_Event *event = events.first; event; event = event->next) {
             if (event->kind == Gfx_EventKind_Quit) {
@@ -113,8 +115,7 @@ internal S32 os_run(Str8List arguments) {
 
                 zoom *= f32_pow(0.97, event->scroll.y);
 
-                offset.x = mouse.x - old_zoom / zoom * (mouse.x - offset.x);
-                offset.y = mouse.y - old_zoom / zoom * (mouse.y - offset.y);
+                offset = v2f32_subtract(mouse, v2f32_scale(v2f32_subtract(mouse, offset), old_zoom / zoom));
             } else if (event->kind == Gfx_EventKind_KeyRelease && event->key == Gfx_Key_Tab) {
                 render_msdf = !render_msdf;
             } else if (event->kind == Gfx_EventKind_KeyPress && event->key == Gfx_Key_MouseLeft) {
@@ -127,14 +128,13 @@ internal S32 os_run(Str8List arguments) {
         if (dragging) {
             offset = v2f32_add(grab, mouse);
         }
-        arena_end_temporary(restore_point);
 
         V2U32 client_area = gfx_get_window_client_area(gfx);
         render_begin(render, client_area);
 
         render_rectangle(
             render,
-            offset, v2f32(offset.x + 100.0 / zoom, offset.y + 100.0 / zoom),
+            offset, v2f32_add(offset, v2f32(atlas_width / zoom, atlas_height / zoom)),
             .uv_min = v2f32(0, 0), .uv_max = v2f32(1, 1),
             .texture = texture,
             .color = v4f32(1.0, 1.0, 1.0, 1.0),
@@ -142,6 +142,9 @@ internal S32 os_run(Str8List arguments) {
         );
 
         render_end(render);
+
+        arena_reset(previous_arena);
+        swap(current_arena, previous_arena, Arena *);
     }
 
     return 0;
