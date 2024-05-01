@@ -175,6 +175,7 @@ internal Gfx_Context *gfx_create(Arena *arena, Str8 title, U32 width, U32 height
             result->program = opengl_create_program(shaders, array_count(shaders));
 
             result->uniform_projection_location = glGetUniformLocation(result->program, "uniform_projection");
+            result->uniform_sampler_location    = glGetUniformLocation(result->program, "uniform_sampler");
 
             glCreateBuffers(1, &result->vbo);
             glNamedBufferData(result->vbo, RENDER_BATCH_SIZE * sizeof(Render_Rectangle), 0, GL_DYNAMIC_DRAW);
@@ -190,9 +191,11 @@ internal Gfx_Context *gfx_create(Arena *arena, Str8 title, U32 width, U32 height
 
             glVertexArrayVertexBuffer(result->vao, 0, result->vbo, 0, sizeof(Render_Rectangle));
 
-            glClearColor(1, 0, 1, 1);
+            glClearColor(1.0f, 0.0f, 1.0f, 1.0f);
             glUseProgram(result->program);
             glBindVertexArray(result->vao);
+            glEnable(GL_BLEND);
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
         } else {
             error_emit(str8_literal("Could not create SDL window."));
             error = true;
@@ -313,12 +316,21 @@ internal Gfx_EventList gfx_get_events(Arena *arena, Gfx_Context *gfx) {
     return events;
 }
 
+internal V2F32 gfx_get_mouse_position(Gfx_Context *gfx) {
+    int x = 0;
+    int y = 0;
+    SDL_GetMouseState(&x, &y);
+
+    V2F32 result = v2f32(x, y);
+    return result;
+}
+
 internal V2U32 gfx_get_window_client_area(Gfx_Context *gfx) {
     int width  = 0;
     int height = 0;
     SDL_GL_GetDrawableSize(gfx->window, &width, &height);
     V2U32 result = v2u32((U32) width, (U32) height);
-    return(result);
+    return result;
 }
 
 internal Void render_rectangle_internal(Gfx_Context *gfx, Render_RectangleParams *parameters) {
@@ -339,6 +351,7 @@ internal Void render_rectangle_internal(Gfx_Context *gfx, Render_RectangleParams
     rect->color  = parameters->color;
     rect->uv_min = parameters->uv_min;
     rect->uv_max = parameters->uv_max;
+    rect->flags  = parameters->flags;
 }
 
 internal Void render_begin(Gfx_Context *gfx) {
@@ -352,6 +365,8 @@ internal Void render_end(Gfx_Context *gfx) {
 
     M4F32 projection = m4f32_ortho(0.0f, (F32) client_area.width, 0.0f, (F32) client_area.height, 1.0f, -1.0f);
     glProgramUniformMatrix4fv(gfx->program, gfx->uniform_projection_location, 1, GL_FALSE, &projection.m[0][0]);
+
+    glProgramUniform1i(gfx->program, gfx->uniform_sampler_location, 0);
 
     glClear(GL_COLOR_BUFFER_BIT);
 
@@ -368,8 +383,33 @@ internal Void render_end(Gfx_Context *gfx) {
     SDL_GL_SwapWindow(gfx->window);
 }
 
-internal Render_Texture render_create_texture(Gfx_Context *gfx, U32 width, U32 height) {
+internal Render_Texture render_texture_create(Gfx_Context *gfx, V2U32 size, U8 *data) {
     Render_Texture result = { 0 };
 
+    glCreateTextures(GL_TEXTURE_2D, 1, &result.texture_id);
+    result.size = size;
+
+    glTextureStorage2D(result.texture_id, 1, GL_RGBA8, (GLsizei) size.width, (GLsizei) size.height);
+    glTextureParameteri(result.texture_id, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTextureParameteri(result.texture_id, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTextureParameteri(result.texture_id, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTextureParameteri(result.texture_id, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTextureSubImage2D(result.texture_id, 0, 0, 0, (GLsizei) size.width, (GLsizei) size.height, GL_RGBA, GL_UNSIGNED_BYTE, data);
+
     return result;
+}
+
+internal Void render_texture_destroy(Gfx_Context *gfx, Render_Texture texture) {
+    glDeleteTextures(1, &texture.texture_id);
+}
+
+internal Void render_texture_update(Gfx_Context *gfx, Render_Texture texture, V2U32 position, V2U32 size, U8 *data) {
+    glTextureSubImage2D(
+        texture.texture_id,
+        0,
+        0, 0,
+        (GLsizei) size.width, (GLsizei) size.height,
+        GL_RGBA, GL_UNSIGNED_BYTE,
+        data
+    );
 }

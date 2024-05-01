@@ -56,6 +56,7 @@ struct Gfx_Context {
     GLuint           vao;
     GLuint           vbo;
     GLint            uniform_projection_location;
+    GLint            uniform_sampler_location;
 };
 
 typedef enum {
