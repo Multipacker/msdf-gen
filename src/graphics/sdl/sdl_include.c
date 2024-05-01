@@ -80,8 +80,15 @@ internal GLuint opengl_create_program(GLuint *shaders, U32 shader_count) {
     return program;
 }
 
-internal Void opengl_vertex_array_instance_attribute(GLuint vaobj, GLuint attribindex, GLint size, GLenum type, GLboolean normalized, GLuint relativeoffset, GLuint bindingindex) {
+internal Void opengl_vertex_array_instance_attribute_float(GLuint vaobj, GLuint attribindex, GLint size, GLenum type, GLboolean normalized, GLuint relativeoffset, GLuint bindingindex) {
     glVertexArrayAttribFormat(vaobj,   attribindex, size, type, normalized, relativeoffset);
+    glVertexArrayAttribBinding(vaobj,  attribindex, bindingindex);
+    glVertexArrayBindingDivisor(vaobj, attribindex, 1);
+    glEnableVertexArrayAttrib(vaobj,   attribindex);
+}
+
+internal Void opengl_vertex_array_instance_attribute_integer(GLuint vaobj, GLuint attribindex, GLint size, GLenum type, GLuint relativeoffset, GLuint bindingindex) {
+    glVertexArrayAttribIFormat(vaobj,  attribindex, size, type, relativeoffset);
     glVertexArrayAttribBinding(vaobj,  attribindex, bindingindex);
     glVertexArrayBindingDivisor(vaobj, attribindex, 1);
     glEnableVertexArrayAttrib(vaobj,   attribindex);
@@ -174,12 +181,12 @@ internal Gfx_Context *gfx_create(Arena *arena, Str8 title, U32 width, U32 height
 
             glCreateVertexArrays(1, &result->vao);
 
-            opengl_vertex_array_instance_attribute(result->vao, 0, 2, GL_FLOAT, GL_FALSE, member_offset(Render_Rectangle, min),        0);
-            opengl_vertex_array_instance_attribute(result->vao, 1, 2, GL_FLOAT, GL_FALSE, member_offset(Render_Rectangle, max),        0);
-            opengl_vertex_array_instance_attribute(result->vao, 2, 4, GL_FLOAT, GL_FALSE, member_offset(Render_Rectangle, color),      0);
-            opengl_vertex_array_instance_attribute(result->vao, 3, 2, GL_FLOAT, GL_FALSE, member_offset(Render_Rectangle, uv_min),     0);
-            opengl_vertex_array_instance_attribute(result->vao, 4, 2, GL_FLOAT, GL_FALSE, member_offset(Render_Rectangle, uv_max),     0);
-            opengl_vertex_array_instance_attribute(result->vao, 5, 2, GL_INT,   GL_FALSE, member_offset(Render_Rectangle, texture_id), 0);
+            opengl_vertex_array_instance_attribute_float(result->vao,   0, 2, GL_FLOAT,        GL_FALSE, member_offset(Render_Rectangle, min),    0);
+            opengl_vertex_array_instance_attribute_float(result->vao,   1, 2, GL_FLOAT,        GL_FALSE, member_offset(Render_Rectangle, max),    0);
+            opengl_vertex_array_instance_attribute_float(result->vao,   2, 4, GL_FLOAT,        GL_FALSE, member_offset(Render_Rectangle, color),  0);
+            opengl_vertex_array_instance_attribute_float(result->vao,   3, 2, GL_FLOAT,        GL_FALSE, member_offset(Render_Rectangle, uv_min), 0);
+            opengl_vertex_array_instance_attribute_float(result->vao,   4, 2, GL_FLOAT,        GL_FALSE, member_offset(Render_Rectangle, uv_max), 0);
+            opengl_vertex_array_instance_attribute_integer(result->vao, 5, 1, GL_UNSIGNED_INT,           member_offset(Render_Rectangle, flags),  0);
 
             glVertexArrayVertexBuffer(result->vao, 0, result->vbo, 0, sizeof(Render_Rectangle));
 
