@@ -107,13 +107,13 @@ internal Void opengl_debug_output(
 internal Void render_rectangle_internal(Render_Context *gfx, Render_RectangleParams *parameters) {
     Render_Batch *batch = gfx->batches.last;
 
-    if (!batch || batch->size >= RENDER_BATCH_SIZE || (batch->texture_id && batch->texture_id != parameters->texture.texture_id)) {
+    if (!batch || batch->size >= RENDER_BATCH_SIZE || (batch->texture_id && batch->texture_id != parameters->texture.u32[0])) {
         batch = arena_push_struct_zero(gfx->arena, Render_Batch);
         dll_push_back(gfx->batches.first, gfx->batches.last, batch);
     }
 
     // NOTE(simon): Either it is the same texture id, or there is no texture for this batch.
-    batch->texture_id = parameters->texture.texture_id;
+    batch->texture_id = parameters->texture.u32[0];
 
     Render_Rectangle *rect = &batch->rectangles[batch->size++];
 
@@ -155,26 +155,34 @@ internal Void render_end(Render_Context *gfx) {
 internal Render_Texture render_texture_create(Render_Context *gfx, V2U32 size, U8 *data) {
     Render_Texture result = { 0 };
 
-    glCreateTextures(GL_TEXTURE_2D, 1, &result.texture_id);
-    result.size = size;
+    glCreateTextures(GL_TEXTURE_2D, 1, &result.u32[0]);
+    result.u32[1] = size.width;
+    result.u32[2] = size.height;
 
-    glTextureStorage2D(result.texture_id, 1, GL_RGBA8, (GLsizei) size.width, (GLsizei) size.height);
-    glTextureParameteri(result.texture_id, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTextureParameteri(result.texture_id, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTextureParameteri(result.texture_id, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTextureParameteri(result.texture_id, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glTextureSubImage2D(result.texture_id, 0, 0, 0, (GLsizei) size.width, (GLsizei) size.height, GL_RGBA, GL_UNSIGNED_BYTE, data);
+    glTextureStorage2D(result.u32[0], 1, GL_RGBA8, (GLsizei) size.width, (GLsizei) size.height);
+    glTextureParameteri(result.u32[0], GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTextureParameteri(result.u32[0], GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTextureParameteri(result.u32[0], GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTextureParameteri(result.u32[0], GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTextureSubImage2D(result.u32[0], 0, 0, 0, (GLsizei) size.width, (GLsizei) size.height, GL_RGBA, GL_UNSIGNED_BYTE, data);
 
     return result;
 }
 
 internal Void render_texture_destroy(Render_Context *gfx, Render_Texture texture) {
-    glDeleteTextures(1, &texture.texture_id);
+    glDeleteTextures(1, &texture.u32[0]);
+}
+
+internal V2U32 render_size_from_texture(Render_Texture texture) {
+    V2U32 result = { 0 };
+    result.width  = texture.u32[1];
+    result.height = texture.u32[2];
+    return result;
 }
 
 internal Void render_texture_update(Render_Context *gfx, Render_Texture texture, V2U32 position, V2U32 size, U8 *data) {
     glTextureSubImage2D(
-        texture.texture_id,
+        texture.u32[0],
         0,
         0, 0,
         (GLsizei) size.width, (GLsizei) size.height,

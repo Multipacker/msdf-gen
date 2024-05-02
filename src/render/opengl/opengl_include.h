@@ -36,12 +36,6 @@ struct Render_BatchList {
     Render_Batch *last;
 };
 
-typedef struct Render_Texture Render_Texture;
-struct Render_Texture {
-    GLuint texture_id;
-    V2U32  size;
-};
-
 struct Render_Context {
     Arena           *arena;
     Arena_Temporary  frame_restore;

@@ -5,11 +5,19 @@
 
 typedef struct Render_Context Render_Context;
 
-typedef struct Render_Texture Render_Texture;
+typedef union Render_Texture Render_Texture;
+union Render_Texture {
+    U32 u32[4];
+};
 
 internal Render_Context *render_create(Gfx_Context *gfx);
 internal Void render_begin(Render_Context *gfx, V2U32 resolution);
 internal Void render_end(Render_Context *gfx);
+
+internal Render_Texture render_texture_create(Render_Context *gfx, V2U32 size, U8 *data);
+internal Void           render_texture_destroy(Render_Context *gfx, Render_Texture texture);
+internal Void           render_texture_update(Render_Context *gfx, Render_Texture texture, V2U32 position, V2U32 size, U8 *data);
+internal V2U32          render_size_from_texture(Render_Texture texture);
 
 typedef struct Render_RectangleParams Render_RectangleParams;
 struct Render_RectangleParams {
