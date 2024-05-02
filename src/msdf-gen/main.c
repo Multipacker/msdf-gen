@@ -1,9 +1,11 @@
 #include "src/base/base_include.h"
 #include "src/graphics/graphics_include.h"
+#include "src/render/render_include.h"
 #include "src/font/font_include.h"
 
 #include "src/base/base_include.c"
 #include "src/graphics/graphics_include.c"
+#include "src/render/render_include.c"
 #include "src/font/font_include.c"
 
 /*

@@ -194,8 +194,8 @@ internal Render_Context *render_create(Gfx_Context *gfx) {
     glEnable(GL_FRAMEBUFFER_SRGB);
 
     GLuint shaders[] = {
-        opengl_create_shader(str8_literal("src/graphics/opengl/shader.vert"), GL_VERTEX_SHADER),
-        opengl_create_shader(str8_literal("src/graphics/opengl/shader.frag"), GL_FRAGMENT_SHADER),
+        opengl_create_shader(str8_literal("src/render/opengl/shader.vert"), GL_VERTEX_SHADER),
+        opengl_create_shader(str8_literal("src/render/opengl/shader.frag"), GL_FRAGMENT_SHADER),
     };
     result->program = opengl_create_program(shaders, array_count(shaders));
 
