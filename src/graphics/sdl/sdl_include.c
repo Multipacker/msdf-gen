@@ -48,7 +48,6 @@ internal Gfx_Context *gfx_create(Arena *arena, Str8 title, U32 width, U32 height
 
         if (result->window) {
             result->gl_context = SDL_GL_CreateContext(result->window);
-            SDL_GL_MakeCurrent(result->window, result->gl_context);
 
 #define X(type, name) name = (type) SDL_GL_GetProcAddress(#name); assert(name);
             GL_LINUX_FUNCTION(X)
