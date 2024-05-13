@@ -1,3 +1,7 @@
+#if COMPILER_CL
+#  include <math.h>
+#endif
+
 internal U8 u8_min(U8 a, U8 b) {
     U8 result = (a < b ? a : b);
     return result;
@@ -357,43 +361,83 @@ internal F32 f32_abs(F32 x) {
 }
 
 internal F32 f32_sqrt(F32 x) {
+#if COMPILER_CL
+    return sqrtf(x);
+#else
     return __builtin_sqrtf(x);
+#endif
 }
 
 internal F32 f32_cbrt(F32 x) {
+#if COMPILER_CL
+    return cbrtf(x);
+#else
     return __builtin_cbrtf(x);
+#endif
 }
 
 internal F32 f32_sin(F32 x) {
+#if COMPILER_CL
+    return sinf(x);
+#else
     return __builtin_sinf(x);
+#endif
 }
 
 internal F32 f32_cos(F32 x) {
+#if COMPILER_CL
+    return cosf(x);
+#else
     return __builtin_cosf(x);
+#endif
 }
 
 internal F32 f32_tan(F32 x) {
+#if COMPILER_CL
+    return tanf(x);
+#else
     return __builtin_tanf(x);
+#endif
 }
 
 internal F32 f32_arctan(F32 x) {
+#if COMPILER_CL
+    return atanf(x);
+#else
     return __builtin_atanf(x);
+#endif
 }
 
 internal F32 f32_arctan2(F32 y, F32 x) {
+#if COMPILER_CL
+    return atan2f(y, x);
+#else
     return __builtin_atan2f(y, x);
+#endif
 }
 
 internal F32 f32_ln(F32 x) {
+#if COMPILER_CL
+    return logf(x);
+#else
     return __builtin_logf(x);
+#endif
 }
 
 internal F32 f32_log2(F32 x) {
+#if COMPILER_CL
+    return log2f(x);
+#else
     return __builtin_log2f(x);
+#endif
 }
 
 internal F32 f32_log(F32 x) {
+#if COMPILER_CL
+    return log10f(x);
+#else
     return __builtin_log10f(x);
+#endif
 }
 
 internal F32 f32_lerp(F32 a, F32 b, F32 t) {
@@ -410,27 +454,51 @@ internal F32 f32_unlerp(F32 a, F32 b, F32 x) {
 }
 
 internal F32 f32_pow(F32 a, F32 b) {
+#if COMPILER_CL
+    return powf(a, b);
+#else
     return __builtin_powf(a, b);
+#endif
 }
 
 internal F32 f32_floor(F32 x) {
+#if COMPILER_CL
+    return floorf(x);
+#else
     return __builtin_floorf(x);
+#endif
 }
 
 internal F32 f32_ceil(F32 x) {
+#if COMPILER_CL
+    return ceilf(x);
+#else
     return __builtin_ceilf(x);
+#endif
 }
 
 internal F32 f32_round(F32 x) {
+#if COMPILER_CL
+    return roundf(x);
+#else
     return __builtin_roundf(x);
+#endif
 }
 
 internal U32 f32_round_to_u32(F32 x) {
+#if COMPILER_CL
+    return (U32) roundf(x);
+#else
     return (U32) __builtin_roundf(x);
+#endif
 }
 
 internal S32 f32_round_to_s32(F32 x) {
+#if COMPILER_CL
+    return (S32) roundf(x);
+#else
     return (S32) __builtin_roundf(x);
+#endif
 }
 
 internal U32 f32_solve_cubic(F32 a, F32 b, F32 c, F32 d, F32 *result_xs) {
@@ -535,27 +603,51 @@ internal F64 f64_abs(F64 x) {
 }
 
 internal F64 f64_sqrt(F64 x) {
+#if COMPILER_CL
+    return sqrt(x);
+#else
     return __builtin_sqrt(x);
+#endif
 }
 
 internal F64 f64_sin(F64 x) {
+#if COMPILER_CL
+    return sin(x);
+#else
     return __builtin_sin(x);
+#endif
 }
 
 internal F64 f64_cos(F64 x) {
+#if COMPILER_CL
+    return cos(x);
+#else
     return __builtin_cos(x);
+#endif
 }
 
 internal F64 f64_tan(F64 x) {
+#if COMPILER_CL
+    return tan(x);
+#else
     return __builtin_tan(x);
+#endif
 }
 
 internal F64 f64_ln(F64 x) {
+#if COMPILER_CL
+    return log(x);
+#else
     return __builtin_log(x);
+#endif
 }
 
 internal F64 f64_lg(F64 x) {
+#if COMPILER_CL
+    return log10(x);
+#else
     return __builtin_log10(x);
+#endif
 }
 
 internal F64 f64_lerp(F64 a, F64 b, F64 t) {
@@ -572,15 +664,27 @@ internal F64 f64_unlerp(F64 a, F64 b, F64 x) {
 }
 
 internal F64 f64_pow(F64 a, F64 b) {
+#if COMPILER_CL
+    return pow(a, b);
+#else
     return __builtin_pow(a, b);
+#endif
 }
 
 internal F64 f64_floor(F64 x) {
+#if COMPILER_CL
+    return floor(x);
+#else
     return __builtin_floor(x);
+#endif
 }
 
 internal F64 f64_ceil(F64 x) {
+#if COMPILER_CL
+    return ceil(x);
+#else
     return __builtin_ceil(x);
+#endif
 }
 
 

@@ -141,7 +141,11 @@
 #define global       static
 #define local        static
 #define internal     static
-#define thread_local _Thread_local
+#if COMPILER_CL
+#  define thread_local __declspec(thread)
+#else
+#  define thread_local _Thread_local
+#endif
 
 #if defined(COMPILER_CLANG)
 # define packed_struct(declaration) struct __attribute__((__packed__)) declaration
@@ -152,11 +156,20 @@
 # define packed_struct(declaration) __pragma(pack(push, 1)) struct declaration __pragman(pack(pop))
 #endif
 
-#define memory_zero(destination, count)         __builtin_memset((destination), 0, (count))
-#define memory_zero_struct(structure)           memory_zero(structure, sizeof(*structure));
-#define memory_move(destination, source, count) __builtin_memmove((destination), (source), (count))
-#define memory_copy(destination, source, count) __builtin_memcpy((destination), (source), (count))
-#define memory_equal(a, b, count)               (__builtin_memcmp((a), (b), (count)) == 0)
+#if COMPILER_CL
+#  include <string.h>
+#  define memory_zero(destination, count)         memset((destination), 0, (count))
+#  define memory_zero_struct(structure)           memory_zero(structure, sizeof(*structure));
+#  define memory_move(destination, source, count) memmove((destination), (source), (count))
+#  define memory_copy(destination, source, count) memcpy((destination), (source), (count))
+#  define memory_equal(a, b, count)               (memcmp((a), (b), (count)) == 0)
+#else
+#  define memory_zero(destination, count)         __builtin_memset((destination), 0, (count))
+#  define memory_zero_struct(structure)           memory_zero(structure, sizeof(*structure));
+#  define memory_move(destination, source, count) __builtin_memmove((destination), (source), (count))
+#  define memory_copy(destination, source, count) __builtin_memcpy((destination), (source), (count))
+#  define memory_equal(a, b, count)               (__builtin_memcmp((a), (b), (count)) == 0)
+#endif
 
 #define dll_insert_next_previous(first, last, p, n, next, previous)                                                      \
     ((first) == 0 ? (((first) = (last) = (n)), (n)->next = (n)->previous = 0) :                                          \
