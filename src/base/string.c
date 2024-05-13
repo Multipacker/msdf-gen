@@ -267,7 +267,7 @@ internal StringDecode string_decode_utf8(U8 *string, U64 size) {
     }
 
     while (bytes_needed != 0) {
-        U8 byte = *string++;
+        byte = *string++;
 
         if (!(lower_boundary <= byte && byte <= upper_boundary)) {
             return result;

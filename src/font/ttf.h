@@ -144,7 +144,7 @@ typedef struct {
     U16 language;
     U16 first_code;
     U16 entry_count;
-    U16 glyph_index_array[];
+    U16 glyph_index_array[1];
 } TTF_CmapFormat6;
 
 typedef struct {
@@ -157,7 +157,7 @@ typedef struct {
         U32 start_char_code;
         U32 end_char_code;
         U32 start_glyph_code;
-    } groups[];
+    } groups[1];
 } TTF_CmapFormat12;
 
 typedef struct {

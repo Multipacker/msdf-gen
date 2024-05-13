@@ -1,7 +1,7 @@
 #ifndef OPENGL_INCLUDE_H
 #define OPENGL_INCLUDE_H
 
-#include "../opengl/opengl_bindings.h"
+#include "opengl_bindings.h"
 
 #define RENDER_BATCH_SIZE 1024
 

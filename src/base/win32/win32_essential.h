@@ -1,0 +1,3 @@
+#ifndef WIN32_ESSENTIAL_H
+#define WIN32_ESSENTIAL_H
+#endif // WIN32_ESSENTIAL_H
