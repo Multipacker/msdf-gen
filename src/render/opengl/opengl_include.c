@@ -164,7 +164,9 @@ internal Render_Texture render_texture_create(Render_Context *gfx, V2U32 size, U
     glTextureParameteri(result.u32[0], GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTextureParameteri(result.u32[0], GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTextureParameteri(result.u32[0], GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glTextureSubImage2D(result.u32[0], 0, 0, 0, (GLsizei) size.width, (GLsizei) size.height, GL_RGBA, GL_UNSIGNED_BYTE, data);
+    if (data) {
+        glTextureSubImage2D(result.u32[0], 0, 0, 0, (GLsizei) size.width, (GLsizei) size.height, GL_RGBA, GL_UNSIGNED_BYTE, data);
+    }
 
     return result;
 }
