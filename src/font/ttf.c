@@ -498,17 +498,19 @@ internal B32 ttf_get_character_map(Arena *arena, TTF_Font *font, FontDescription
                     U32 first_code  = u16_big_to_local_endian(format->first_code);
                     U32 entry_count = u16_big_to_local_endian(format->entry_count);
 
-                    if (subtable_data.size >= sizeof(TTF_CmapFormat6) + entry_count * sizeof(*format->glyph_index_array)) {
-                    font->codepoints      = arena_push_array(arena, U32, entry_count);
-                    font->glyph_indicies  = arena_push_array(arena, U32, entry_count);
-                    font->codepoint_count = 0;
+                    if (subtable_data.size >= sizeof(TTF_CmapFormat6) + entry_count * sizeof(U16)) {
+                        font->codepoints      = arena_push_array(arena, U32, entry_count);
+                        font->glyph_indicies  = arena_push_array(arena, U32, entry_count);
+                        font->codepoint_count = 0;
 
-                    for (U32 i = 0; i < entry_count; ++i) {
-                        if (font_description->codepoint_first <= first_code + i && first_code + i <= font_description->codepoint_last) {
-                            U32 glyph_index = u16_big_to_local_endian(format->glyph_index_array[i]);
-                            ttf_add_codepoint_to_ttf_glyph_mapping(font, first_code + i, glyph_index);
+                        U16 *glyph_index_array = (U16 *) &subtable_data.data[sizeof(*format)];
+
+                        for (U32 i = 0; i < entry_count; ++i) {
+                            if (font_description->codepoint_first <= first_code + i && first_code + i <= font_description->codepoint_last) {
+                                U32 glyph_index = u16_big_to_local_endian(glyph_index_array[i]);
+                                ttf_add_codepoint_to_ttf_glyph_mapping(font, first_code + i, glyph_index);
+                            }
                         }
-                    }
                     } else {
                         error_emit(str8_literal("ERROR(font/ttf): Not enough data for cmap format 6."));
                         success = false;
@@ -536,17 +538,18 @@ internal B32 ttf_get_character_map(Arena *arena, TTF_Font *font, FontDescription
                     if (length <= subtable_data.size) {
                         // Calculate the maxiumum number of code points and allocate space for all of them.
                         U32 code_count = 0;
+                        TTF_CmapFormat12Group *groups = (TTF_CmapFormat12Group *) &subtable_data.data[sizeof(*format)];
                         for (U32 i = 0; i < group_count; ++i) {
-                            code_count += u32_big_to_local_endian(format->groups[i].end_char_code) - u32_big_to_local_endian(format->groups[i].start_char_code) + 1;
+                            code_count += u32_big_to_local_endian(groups[i].end_char_code) - u32_big_to_local_endian(groups[i].start_char_code) + 1;
                         }
                         font->codepoints      = arena_push_array(arena, U32, code_count);
                         font->glyph_indicies  = arena_push_array(arena, U32, code_count);
                         font->codepoint_count = 0;
 
                         for (U32 i = 0; i < group_count; ++i) {
-                            U32 first_codepoint   = u32_big_to_local_endian(format->groups[i].start_char_code);
-                            U32 last_codepoint    = u32_big_to_local_endian(format->groups[i].end_char_code);
-                            U32 first_glyph_index = u32_big_to_local_endian(format->groups[i].start_glyph_code);
+                            U32 first_codepoint   = u32_big_to_local_endian(groups[i].start_char_code);
+                            U32 last_codepoint    = u32_big_to_local_endian(groups[i].end_char_code);
+                            U32 first_glyph_index = u32_big_to_local_endian(groups[i].start_glyph_code);
 
                             for (U32 code = first_codepoint; code <= last_codepoint; ++code) {
                                 if (font_description->codepoint_first <= code && code <= font_description->codepoint_last) {
