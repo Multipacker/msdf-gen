@@ -65,10 +65,6 @@ internal S32 os_run(Str8List arguments) {
         for (U32 i = 0; i < font.internal_glyph_count; ++i) {
             Arena_Temporary scratch = arena_get_scratch(0, 0);
             MSDF_Glyph msdf_glyph = ttf_expand_contours_to_msdf(scratch.arena, &font, font.internal_to_ttf_glyph_indicies[i]);
-            msdf_resolve_contour_overlap(scratch.arena, &msdf_glyph);
-            msdf_convert_to_simple_polygons(scratch.arena, &msdf_glyph);
-            msdf_correct_contour_orientation(&msdf_glyph);
-            msdf_color_edges(msdf_glyph);
 
             Font_Glyph *glyph = &msdf_font.glyphs[i];
 

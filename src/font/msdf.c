@@ -708,6 +708,13 @@ internal Void msdf_color_edges(MSDF_Glyph glyph) {
 }
 
 internal Void msdf_generate(MSDF_Glyph glyph, U8 *buffer, U32 stride, U32 x, U32 y, U32 width, U32 height) {
+    Arena_Temporary scratch = arena_get_scratch(0, 0);
+
+    msdf_resolve_contour_overlap(scratch.arena, &glyph);
+    msdf_convert_to_simple_polygons(scratch.arena, &glyph);
+    msdf_correct_contour_orientation(&glyph);
+    msdf_color_edges(glyph);
+
     // NOTE(simon): We no longer need the segments to be organized in curves or
     // have any order amongst themselves. Separate them by kind to ease
     // processing.
@@ -869,4 +876,6 @@ internal Void msdf_generate(MSDF_Glyph glyph, U8 *buffer, U32 stride, U32 x, U32
         }
         pixel_index += stride * 4;
     }
+
+    arena_end_temporary(scratch);
 }
