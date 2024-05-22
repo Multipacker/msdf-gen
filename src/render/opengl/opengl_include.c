@@ -186,7 +186,7 @@ internal Void render_texture_update(Render_Context *gfx, Render_Texture texture,
     glTextureSubImage2D(
         texture.u32[0],
         0,
-        0, 0,
+        (GLint) position.x, (GLint) position.y,
         (GLsizei) size.width, (GLsizei) size.height,
         GL_RGBA, GL_UNSIGNED_BYTE,
         data
