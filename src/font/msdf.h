@@ -90,6 +90,6 @@ internal Void msdf_resolve_contour_overlap(Arena *arena, MSDF_Glyph *glyph);
 internal Void msdf_convert_to_simple_polygons(Arena *arena, MSDF_Glyph *glyph);
 internal Void msdf_correct_contour_orientation(MSDF_Glyph *glyph);
 
-internal Void msdf_generate(MSDF_Glyph glyph, U8 *buffer, U32 stride, U32 x, U32 y, U32 width, U32 height);
+internal U8 *msdf_generate(Arena *arena, MSDF_Glyph glyph, U32 render_size);
 
 #endif // MSDF_H

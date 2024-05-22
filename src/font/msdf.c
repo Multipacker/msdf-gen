@@ -707,8 +707,8 @@ internal Void msdf_color_edges(MSDF_Glyph glyph) {
     }
 }
 
-internal Void msdf_generate(MSDF_Glyph glyph, U8 *buffer, U32 stride, U32 x, U32 y, U32 width, U32 height) {
-    Arena_Temporary scratch = arena_get_scratch(0, 0);
+internal U8 *msdf_generate(Arena *arena, MSDF_Glyph glyph, U32 render_size) {
+    Arena_Temporary scratch = arena_get_scratch(&arena, 1);
 
     msdf_resolve_contour_overlap(scratch.arena, &glyph);
     msdf_convert_to_simple_polygons(scratch.arena, &glyph);
@@ -745,17 +745,17 @@ internal Void msdf_generate(MSDF_Glyph glyph, U8 *buffer, U32 stride, U32 x, U32
     // for the them.
     U32 padding = 1;
 
-    F32 x_scale = (F32) (width  - 2 * padding) / (F32) (glyph.x_max - glyph.x_min);
-    F32 y_scale = (F32) (height - 2 * padding) / (F32) (glyph.y_max - glyph.y_min);
+    F32 x_scale = (F32) (render_size - 2 * padding) / (F32) (glyph.x_max - glyph.x_min);
+    F32 y_scale = (F32) (render_size - 2 * padding) / (F32) (glyph.y_max - glyph.y_min);
 
     for (MSDF_Segment *line = lines.first; line; line = line->next) {
         line->p0 = v2f32(
-            ((line->p0.x  - glyph.x_min) * x_scale + (F32) padding) / (F32) width,
-            ((glyph.y_max - line->p0.y) * y_scale + (F32) padding) / (F32) height
+            ((line->p0.x  - glyph.x_min) * x_scale + (F32) padding) / (F32) render_size,
+            ((glyph.y_max - line->p0.y)  * y_scale + (F32) padding) / (F32) render_size
         );
         line->p1 = v2f32(
-            ((line->p1.x  - glyph.x_min) * x_scale + (F32) padding) / (F32) width,
-            ((glyph.y_max - line->p1.y) * y_scale + (F32) padding) / (F32) height
+            ((line->p1.x  - glyph.x_min) * x_scale + (F32) padding) / (F32) render_size,
+            ((glyph.y_max - line->p1.y)  * y_scale + (F32) padding) / (F32) render_size
         );
 
         V2F32 min = v2f32_min(line->p0, line->p1);
@@ -767,16 +767,16 @@ internal Void msdf_generate(MSDF_Glyph glyph, U8 *buffer, U32 stride, U32 x, U32
     }
     for (MSDF_Segment *bezier = quad_beziers.first; bezier; bezier = bezier->next) {
         bezier->p0 = v2f32(
-            ((bezier->p0.x - glyph.x_min) * x_scale + (F32) padding) / (F32) width,
-            ((glyph.y_max  - bezier->p0.y) * y_scale + (F32) padding) / (F32) height
+            ((bezier->p0.x - glyph.x_min)  * x_scale + (F32) padding) / (F32) render_size,
+            ((glyph.y_max  - bezier->p0.y) * y_scale + (F32) padding) / (F32) render_size
         );
         bezier->p1 = v2f32(
-            ((bezier->p1.x - glyph.x_min) * x_scale + (F32) padding) / (F32) width,
-            ((glyph.y_max  - bezier->p1.y) * y_scale + (F32) padding) / (F32) height
+            ((bezier->p1.x - glyph.x_min)  * x_scale + (F32) padding) / (F32) render_size,
+            ((glyph.y_max  - bezier->p1.y) * y_scale + (F32) padding) / (F32) render_size
         );
         bezier->p2 = v2f32(
-            ((bezier->p2.x - glyph.x_min) * x_scale + (F32) padding) / (F32) width,
-            ((glyph.y_max  - bezier->p2.y) * y_scale + (F32) padding) / (F32) height
+            ((bezier->p2.x - glyph.x_min)  * x_scale + (F32) padding) / (F32) render_size,
+            ((glyph.y_max  - bezier->p2.y) * y_scale + (F32) padding) / (F32) render_size
         );
 
         V2F32 min = v2f32_min(v2f32_min(bezier->p0, bezier->p1), bezier->p2);
@@ -787,11 +787,11 @@ internal Void msdf_generate(MSDF_Glyph glyph, U8 *buffer, U32 stride, U32 x, U32
         bezier->circle_radius = radius;
     }
 
-    F32 distance_range = 2.0f / f32_min(width, height);
-    U32 pixel_index = (x + y * stride) * 4;
-    for (U32 y = 0; y < height; ++y) {
-        U32 row = pixel_index;
-        for (U32 x = 0; x < width; ++x) {
+    F32 distance_range = 2.0f / render_size;
+    U32 pixel_index = 0;
+    U8 *buffer = arena_push_array(arena, U8, 4 * render_size * render_size);
+    for (U32 y = 0; y < render_size; ++y) {
+        for (U32 x = 0; x < render_size; ++x) {
             MSDF_Segment nil_segment     = { 0 };
             MSDF_Distance red_distance   = { .distance = f32_infinity(), .orthogonality = 0.0f };
             MSDF_Segment *red_segment    = &nil_segment;
@@ -800,7 +800,7 @@ internal Void msdf_generate(MSDF_Glyph glyph, U8 *buffer, U32 stride, U32 x, U32
             MSDF_Distance blue_distance  = { .distance = f32_infinity(), .orthogonality = 0.0f };
             MSDF_Segment *blue_segment   = &nil_segment;
 
-            V2F32 point = v2f32((x + 0.5f) / (F32) width, (y + 0.5f) / (F32) height);
+            V2F32 point = v2f32((x + 0.5f) / (F32) render_size, (y + 0.5f) / (F32) render_size);
             for (MSDF_Segment *line = lines.first; line; line = line->next) {
                 F32 min_distance = v2f32_length_squared(v2f32_subtract(line->circle_center, point));
 
@@ -869,13 +869,14 @@ internal Void msdf_generate(MSDF_Glyph glyph, U8 *buffer, U32 stride, U32 x, U32
             S32 green = s32_min(s32_max(0, f32_round_to_s32((green_distance.distance / distance_range + 0.5f) * 255.0f)), 255);
             S32 blue  = s32_min(s32_max(0, f32_round_to_s32((blue_distance.distance  / distance_range + 0.5f) * 255.0f)), 255);
 
-            buffer[row++] = red;
-            buffer[row++] = green;
-            buffer[row++] = blue;
-            buffer[row++] = 0;
+            buffer[pixel_index++] = red;
+            buffer[pixel_index++] = green;
+            buffer[pixel_index++] = blue;
+            buffer[pixel_index++] = 0;
         }
-        pixel_index += stride * 4;
     }
 
     arena_end_temporary(scratch);
+
+    return buffer;
 }

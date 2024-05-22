@@ -51,7 +51,6 @@ internal S32 os_run(Str8List arguments) {
 
     Render_Texture texture = render_texture_create(render, v2u32(atlas_width, atlas_height), 0);
 
-    U8 *font_atlas = arena_push_array_zero(arena, U8, glyph_size * glyph_size * sizeof(U32));
     Font msdf_font = { 0 };
     {
         B32 success = true;
@@ -86,8 +85,8 @@ internal S32 os_run(Str8List arguments) {
             glyph->y_min = msdf_glyph.y_min - height_adjustment;
             glyph->x_max = msdf_glyph.x_max + width_adjustment;
             glyph->y_max = msdf_glyph.y_max + height_adjustment;
-            msdf_generate(msdf_glyph, font_atlas, glyph_size, 0, 0, glyph_size, glyph_size);
-            render_texture_update(render, texture, v2u32(x, y), v2u32(glyph_size, glyph_size), font_atlas);
+            U8 *glyph_buffer = msdf_generate(scratch.arena, msdf_glyph, glyph_size);
+            render_texture_update(render, texture, v2u32(x, y), v2u32(glyph_size, glyph_size), glyph_buffer);
 
             arena_end_temporary(scratch);
         }
