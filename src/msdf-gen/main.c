@@ -17,6 +17,13 @@
 internal S32 os_run(Str8List arguments) {
     Arena *arena = arena_create();
 
+    Gfx_Context *gfx = gfx_create(arena, str8_literal("MSDF-gen"), 1280, 720);
+    if (!gfx) {
+        os_console_print(error_get_error_message());
+        return -1;
+    }
+    Render_Context *render = render_create(gfx);
+
     if (!arguments.first->next) {
         os_console_print(str8_literal("You have to pass a file\n"));
         os_exit(1);
@@ -42,7 +49,9 @@ internal S32 os_run(Str8List arguments) {
     U32 atlas_width  = glyph_width  * glyph_size;
     U32 atlas_height = glyph_height * glyph_size;
 
-    U8 *font_atlas = arena_push_array_zero(arena, U8, atlas_width * atlas_height * sizeof(U32));
+    Render_Texture texture = render_texture_create(render, v2u32(atlas_width, atlas_height), 0);
+
+    U8 *font_atlas = arena_push_array_zero(arena, U8, glyph_size * glyph_size * sizeof(U32));
     Font msdf_font = { 0 };
     {
         B32 success = true;
@@ -77,20 +86,12 @@ internal S32 os_run(Str8List arguments) {
             glyph->y_min = msdf_glyph.y_min - height_adjustment;
             glyph->x_max = msdf_glyph.x_max + width_adjustment;
             glyph->y_max = msdf_glyph.y_max + height_adjustment;
-            msdf_generate(msdf_glyph, font_atlas, atlas_width, x, y, glyph_size, glyph_size);
+            msdf_generate(msdf_glyph, font_atlas, glyph_size, 0, 0, glyph_size, glyph_size);
+            render_texture_update(render, texture, v2u32(x, y), v2u32(glyph_size, glyph_size), font_atlas);
 
             arena_end_temporary(scratch);
         }
     }
-
-    Gfx_Context *gfx = gfx_create(arena, str8_literal("MSDF-gen"), 1280, 720);
-    if (!gfx) {
-        os_console_print(error_get_error_message());
-        return -1;
-    }
-    Render_Context *render = render_create(gfx);
-
-    Render_Texture texture = render_texture_create(render, v2u32(atlas_width, atlas_height), font_atlas);
 
     V2F32 offset      = { 0 };
     F32   zoom        = 2.0f;
