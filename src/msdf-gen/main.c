@@ -43,28 +43,16 @@ internal S32 os_run(Str8List arguments) {
     }
 
     // Generate glyphs
-    for (U32 i = 0; i < 127; ++i) {
+    for (U32 codepoint = 0; codepoint < 127; ++codepoint) {
         Arena_Temporary scratch = arena_get_scratch(0, 0);
 
-        U32 glyph_index = ttf_get_glyph_index(&font, i);
-        MSDF_Glyph msdf_glyph = ttf_expand_contours_to_msdf(scratch.arena, &font, glyph_index);
-        TTF_HmtxMetrics metrics = ttf_get_metrics(&font, glyph_index);
-
-        Font_Glyph glyph = { 0 };
-
-        F32 width_adjustment  = (F32) (msdf_glyph.x_max - msdf_glyph.x_min) * 0.5f / (F32) (atlas_size - 2);
-        F32 height_adjustment = (F32) (msdf_glyph.y_max - msdf_glyph.y_min) * 0.5f / (F32) (atlas_size - 2);
-        glyph.x_min = msdf_glyph.x_min - width_adjustment;
-        glyph.y_min = msdf_glyph.y_min - height_adjustment;
-        glyph.x_max = msdf_glyph.x_max + width_adjustment;
-        glyph.y_max = msdf_glyph.y_max + height_adjustment;
-        U8 *glyph_buffer = msdf_generate(scratch.arena, msdf_glyph, glyph_size);
+        MSDF_RasterResult raster_result = msdf_generate(scratch.arena, &font, codepoint, glyph_size);
 
         V2U32 atlas_position = v2u32(
-            glyph_size * (i % glyphs_per_row),
-            glyph_size * (i / glyphs_per_row)
+            glyph_size * (codepoint % glyphs_per_row),
+            glyph_size * (codepoint / glyphs_per_row)
         );
-        render_texture_update(render, texture, atlas_position, v2u32(glyph_size, glyph_size), glyph_buffer);
+        render_texture_update(render, texture, atlas_position, v2u32(glyph_size, glyph_size), raster_result.data);
 
         arena_end_temporary(scratch);
     }

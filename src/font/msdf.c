@@ -707,8 +707,21 @@ internal Void msdf_color_edges(MSDF_Glyph glyph) {
     }
 }
 
-internal U8 *msdf_generate(Arena *arena, MSDF_Glyph glyph, U32 render_size) {
+internal MSDF_RasterResult msdf_generate(Arena *arena, TTF_Font *font, U32 codepoint, U32 render_size) {
+    MSDF_RasterResult result = { 0 };
+
     Arena_Temporary scratch = arena_get_scratch(&arena, 1);
+
+    U32 glyph_index = ttf_get_glyph_index(font, codepoint);
+    MSDF_Glyph glyph = ttf_expand_contours_to_msdf(scratch.arena, font, glyph_index);
+    TTF_HmtxMetrics metrics = ttf_get_metrics(font, glyph_index);
+
+    result.x_min             = glyph.x_min;
+    result.y_min             = glyph.y_min;
+    result.x_max             = glyph.x_max;
+    result.y_max             = glyph.y_max;
+    result.advance_width     = metrics.advance_width;
+    result.left_side_bearing = metrics.left_side_bearing;
 
     msdf_resolve_contour_overlap(scratch.arena, &glyph);
     msdf_convert_to_simple_polygons(scratch.arena, &glyph);
@@ -789,7 +802,7 @@ internal U8 *msdf_generate(Arena *arena, MSDF_Glyph glyph, U32 render_size) {
 
     F32 distance_range = 2.0f / render_size;
     U32 pixel_index = 0;
-    U8 *buffer = arena_push_array(arena, U8, 4 * render_size * render_size);
+    result.data = arena_push_array(arena, U8, 4 * render_size * render_size);
     for (U32 y = 0; y < render_size; ++y) {
         for (U32 x = 0; x < render_size; ++x) {
             MSDF_Segment nil_segment     = { 0 };
@@ -869,14 +882,14 @@ internal U8 *msdf_generate(Arena *arena, MSDF_Glyph glyph, U32 render_size) {
             S32 green = s32_min(s32_max(0, f32_round_to_s32((green_distance.distance / distance_range + 0.5f) * 255.0f)), 255);
             S32 blue  = s32_min(s32_max(0, f32_round_to_s32((blue_distance.distance  / distance_range + 0.5f) * 255.0f)), 255);
 
-            buffer[pixel_index++] = red;
-            buffer[pixel_index++] = green;
-            buffer[pixel_index++] = blue;
-            buffer[pixel_index++] = 0;
+            result.data[pixel_index++] = red;
+            result.data[pixel_index++] = green;
+            result.data[pixel_index++] = blue;
+            result.data[pixel_index++] = 0;
         }
     }
 
     arena_end_temporary(scratch);
 
-    return buffer;
+    return result;
 }

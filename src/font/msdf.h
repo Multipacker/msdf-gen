@@ -70,6 +70,18 @@ typedef struct {
     F32 unclamped_t;
 } MSDF_Distance;
 
+typedef struct {
+    S32 x_min;
+    S32 y_min;
+    S32 x_max;
+    S32 y_max;
+
+    TTF_UFWord advance_width;
+    TTF_FWord  left_side_bearing;
+
+    U8 *data;
+} MSDF_RasterResult;
+
 internal B32 msdf_distance_is_closer(MSDF_Distance a, MSDF_Distance b);
 
 internal B32 msdf_is_corner(MSDF_Segment a, MSDF_Segment b, F32 threshold);
@@ -90,6 +102,6 @@ internal Void msdf_resolve_contour_overlap(Arena *arena, MSDF_Glyph *glyph);
 internal Void msdf_convert_to_simple_polygons(Arena *arena, MSDF_Glyph *glyph);
 internal Void msdf_correct_contour_orientation(MSDF_Glyph *glyph);
 
-internal U8 *msdf_generate(Arena *arena, MSDF_Glyph glyph, U32 render_size);
+internal MSDF_RasterResult msdf_generate(Arena *arena, TTF_Font *font, U32 codepoint, U32 render_size);
 
 #endif // MSDF_H
