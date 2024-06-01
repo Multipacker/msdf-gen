@@ -188,16 +188,20 @@ internal B32 ttf_parse_maxp_table(Arena *arena, TTF_Font *font) {
     return success;
 }
 
-internal B32 ttf_parse_metric_data(TTF_Font *font, Font *result_font) {
+internal B32 ttf_validate_metrics(TTF_Font *font) {
     B32 success = true;
 
     TTF_HheaTable *hhea = (TTF_HheaTable *) font->tables[TTF_Table_Hhea].data;
+    Str8 hmtx_data = font->tables[TTF_Table_Hmtx];
+
     if (font->tables[TTF_Table_Hhea].size >= sizeof(TTF_HheaTable)) {
         TTF_Fixed version             = u32_big_to_local_endian(hhea->version);
         S16       caret_slope_rise    = s16_big_to_local_endian(hhea->caret_slope_rise);
         S16       caret_slope_run     = s16_big_to_local_endian(hhea->caret_slope_run);
         S16       metric_data_format  = s16_big_to_local_endian(hhea->metric_data_format);
         U16       advance_width_count = u16_big_to_local_endian(hhea->num_of_long_hor_metrics);
+
+        U32 left_side_bearing_count = font->glyph_count - advance_width_count;
 
         if (success && version != TTF_MAKE_VERSION(1, 0)) {
             error_emit(str8_literal("ERROR(font/ttf): Unsupported version of hhea table."));
@@ -223,44 +227,40 @@ internal B32 ttf_parse_metric_data(TTF_Font *font, Font *result_font) {
             error_emit(str8_literal("ERROR(font/ttf): There must be at least one long-form entry in the hmtx table."));
             success = false;
         }
+
+        if (success && hmtx_data.size < advance_width_count * sizeof(TTF_HmtxMetrics) + left_side_bearing_count * sizeof(TTF_FWord)) {
+            error_emit(str8_literal("ERROR(font/ttf): Not enough data in hmtx table."));
+            success = false;
+        }
     } else {
         error_emit(str8_literal("ERROR(font/ttf): Not enough data in hhea table."));
         success = false;
     }
 
-    if (success) {
-        U32 advance_width_count     = u16_big_to_local_endian(hhea->num_of_long_hor_metrics);
-        U32 left_side_bearing_count = font->glyph_count - advance_width_count;
+    return success;
+}
 
-        Str8 hmtx_data = font->tables[TTF_Table_Hmtx];
-        if (hmtx_data.size >= advance_width_count * sizeof(TTF_HmtxMetrics) + left_side_bearing_count * sizeof(TTF_FWord)) {
-            TTF_HmtxMetrics *metrics            = (TTF_HmtxMetrics *) hmtx_data.data;
-            TTF_FWord       *left_side_bearings = (TTF_FWord *) &hmtx_data.data[advance_width_count * sizeof(TTF_HmtxMetrics)];
+internal TTF_HmtxMetrics ttf_get_metrics(TTF_Font *font, U32 glyph_index) {
+    assert(glyph_index < font->glyph_count);
 
-            TTF_UFWord last_advance_width = 0;
-            for (U32 i = 0; i < advance_width_count; ++i) {
-                last_advance_width = u16_big_to_local_endian(metrics[i].advance_width);
-                if (font->ttf_to_internal_glyph_indicies[i]) {
-                    U32 internal_index = font->ttf_to_internal_glyph_indicies[i] - 1;
-                    result_font->glyphs[internal_index].advance_width     = u16_big_to_local_endian(metrics[i].advance_width);
-                    result_font->glyphs[internal_index].left_side_bearing = s16_big_to_local_endian(metrics[i].left_side_bearing);
-                }
-            }
+    TTF_HheaTable *hhea = (TTF_HheaTable *) font->tables[TTF_Table_Hhea].data;
+    Str8 hmtx_data = font->tables[TTF_Table_Hmtx];
 
-            for (U32 i = 0; i < left_side_bearing_count; ++i) {
-                if (font->ttf_to_internal_glyph_indicies[i]) {
-                    U32 internal_index = font->ttf_to_internal_glyph_indicies[advance_width_count + i] - 1;
-                    result_font->glyphs[internal_index].advance_width     = last_advance_width;
-                    result_font->glyphs[internal_index].left_side_bearing = s16_big_to_local_endian(left_side_bearings[i]);
-                }
-            }
-        } else {
-            error_emit(str8_literal("ERROR(font/ttf): Not enough data in hmtx table."));
-            success = false;
-        }
+    U32 advance_width_count     = u16_big_to_local_endian(hhea->num_of_long_hor_metrics);
+    U32 left_side_bearing_count = font->glyph_count - advance_width_count;
+
+    TTF_HmtxMetrics *metrics            = (TTF_HmtxMetrics *) hmtx_data.data;
+    TTF_FWord       *left_side_bearings = (TTF_FWord *) &hmtx_data.data[advance_width_count * sizeof(TTF_HmtxMetrics)];
+
+    U32 base_metrics_index = u32_min(glyph_index, advance_width_count - 1);
+    TTF_HmtxMetrics result = metrics[base_metrics_index];
+
+    if (glyph_index >= advance_width_count) {
+        U32 left_side_bearing_index = glyph_index - advance_width_count;
+        result.left_side_bearing = left_side_bearings[left_side_bearing_index];
     }
 
-    return success;
+    return result;
 }
 
 internal U32 ttf_rank_subtable(TTF_CmapSubtable *subtable) {
@@ -302,24 +302,114 @@ internal U32 ttf_rank_subtable(TTF_CmapSubtable *subtable) {
     return rank;
 }
 
-internal Void ttf_add_codepoint_to_ttf_glyph_mapping(TTF_Font *font, U32 codepoint, U16 glyph_index) {
-    if (glyph_index) {
-        if (!font->ttf_to_internal_glyph_indicies[glyph_index]) {
-            font->ttf_to_internal_glyph_indicies[glyph_index] = font->internal_glyph_count + 1;
-            font->internal_to_ttf_glyph_indicies[font->internal_glyph_count] = glyph_index;
-            ++font->internal_glyph_count;
-        }
-
-        font->codepoints[font->codepoint_count]     = codepoint;
-        font->glyph_indicies[font->codepoint_count] = font->ttf_to_internal_glyph_indicies[glyph_index] - 1;
-        ++font->codepoint_count;
-    }
-}
-
 // TODO: Ensure that no codepoint is mapped to glyph index 0xFFFF.
 // TODO: Unicode varition sequence subtables.
-// TODO: Allow for loading noncontiguous sets of characters.
-internal B32 ttf_get_character_map(Arena *arena, TTF_Font *font, FontDescription *font_description) {
+internal U32 ttf_get_glyph_index(TTF_Font *font, U32 codepoint) {
+    U32 result = 0;
+
+    Str8 subtable_data = font->character_map;
+
+    switch (font->character_map_format) {
+        case 0: {
+            TTF_CmapFormat0 *format = (TTF_CmapFormat0 *) subtable_data.data;
+
+            if (codepoint < array_count(format->glyph_index_array)) {
+                result = format->glyph_index_array[codepoint];
+            }
+        } break;
+        case 2: {
+            assert(!"Not reached!");
+        } break;
+        case 4: {
+            TTF_CmapFormat4 *format = (TTF_CmapFormat4 *) subtable_data.data;
+
+            U32 segment_count = u16_big_to_local_endian(format->seg_count_x2) / 2;
+
+            U16 *end_code        = (U16 *) (subtable_data.data + sizeof(TTF_CmapFormat4));
+            U16 *start_code      = (U16 *) (subtable_data.data + sizeof(TTF_CmapFormat4) + sizeof(U16) + 1 * segment_count * sizeof(U16));
+            U16 *id_delta        = (U16 *) (subtable_data.data + sizeof(TTF_CmapFormat4) + sizeof(U16) + 2 * segment_count * sizeof(U16));
+            U16 *id_range_offset = (U16 *) (subtable_data.data + sizeof(TTF_CmapFormat4) + sizeof(U16) + 3 * segment_count * sizeof(U16));
+
+            U32 glyph_index_array_count = (subtable_data.size - (sizeof(TTF_CmapFormat4) + (4 * segment_count + 1) * sizeof(U16))) / sizeof(U16);
+
+            for (U32 i = 0; i < segment_count; ++i) {
+                U16 start  = u16_big_to_local_endian(start_code[i]);
+                U16 end    = u16_big_to_local_endian(end_code[i]);
+                U16 offset = u16_big_to_local_endian(id_range_offset[i]) / 2;
+                U16 delta  = u16_big_to_local_endian(id_delta[i]);
+
+                if (start <= codepoint && codepoint <= end) {
+                    // NOTE: This is fine to read without a byteswap.
+                    if (id_range_offset[i] == 0) {
+                        result = (delta + codepoint) % 65536;
+                    } else {
+                        U32 lowest_glyph_index_index  = i + offset + (start - start);
+                        U32 highest_glyph_index_index = i + offset + (end   - start);
+
+                        if (segment_count <= lowest_glyph_index_index && highest_glyph_index_index <= segment_count + glyph_index_array_count) {
+                            U16 raw_glyph_index = u16_big_to_local_endian(id_range_offset[i + offset + (codepoint - start)]);
+
+                            if (raw_glyph_index) {
+                                result = (raw_glyph_index + delta) % 65536;
+                            }
+                        } else {
+                            error_emit(str8_literal("ERROR(font/ttf): Format 4 cmap access data outside of its subtable."));
+                        }
+                    }
+
+                    break;
+                }
+            }
+        } break;
+        case 6: {
+            TTF_CmapFormat6 *format = (TTF_CmapFormat6 *) subtable_data.data;
+
+            U32  first_code        = u16_big_to_local_endian(format->first_code);
+            U32  entry_count       = u16_big_to_local_endian(format->entry_count);
+            U16 *glyph_index_array = (U16 *) &subtable_data.data[sizeof(*format)];
+
+            if (codepoint < first_code + entry_count) {
+                result = u16_big_to_local_endian(glyph_index_array[codepoint - first_code]);
+            }
+        } break;
+        case 8: {
+            assert(!"Not reached!");
+        } break;
+        case 10: {
+            assert(!"Not reached!");
+        } break;
+        case 12: {
+            TTF_CmapFormat12 *format = (TTF_CmapFormat12 *) subtable_data.data;
+
+            U32                    group_count = u32_big_to_local_endian(format->n_groups);
+            TTF_CmapFormat12Group *groups      = (TTF_CmapFormat12Group *) &subtable_data.data[sizeof(*format)];
+
+            for (U32 i = 0; i < group_count; ++i) {
+                U32 first_codepoint   = u32_big_to_local_endian(groups[i].start_char_code);
+                U32 last_codepoint    = u32_big_to_local_endian(groups[i].end_char_code);
+                U32 first_glyph_index = u32_big_to_local_endian(groups[i].start_glyph_code);
+
+                if (first_codepoint <= codepoint && codepoint <= last_codepoint) {
+                    result = first_glyph_index + (codepoint - first_codepoint);
+                    break;
+                }
+            }
+        } break;
+        case 13: {
+            assert(!"Not reached!");
+        } break;
+        case 14: {
+            assert(!"Not reached!");
+        } break;
+        default: {
+            assert(!"Not reached!");
+        } break;
+    }
+
+    return result;
+}
+
+internal B32 ttf_choose_character_map(TTF_Font *font) {
     Str8 cmap_data = font->tables[TTF_Table_Cmap];
 
     B32 success = true;
@@ -376,31 +466,15 @@ internal B32 ttf_get_character_map(Arena *arena, TTF_Font *font, FontDescription
     }
 
     if (success) {
-        font->ttf_to_internal_glyph_indicies = arena_push_array(arena, U16, font->glyph_count); // NOTE: The stored indicies are 1-based.
-        font->internal_to_ttf_glyph_indicies = arena_push_array(arena, U16, font->glyph_count);
-
-        // Internal glyph 0 always maps to ttf glyph 0 and MUST exist.
-        font->internal_glyph_count = 1;
-        font->ttf_to_internal_glyph_indicies[0] = 1;
-
         Str8 subtable_data = str8_skip(cmap_data, u32_big_to_local_endian(subtable->offset));
-        U16  format        = u16_big_to_local_endian(*(U16 *) subtable_data.data);
 
-        switch (format) {
+        font->character_map        = subtable_data;
+        font->character_map_format = u16_big_to_local_endian(*(U16 *) subtable_data.data);
+
+        switch (font->character_map_format) {
             case 0: {
                 // TODO: Should we allow subtables that are larger here? Technically we can load them, but they might be wrong.
-                if (subtable_data.size == sizeof(TTF_CmapFormat0)) {
-                    TTF_CmapFormat0 *format = (TTF_CmapFormat0 *) subtable_data.data;
-                    font->codepoints        = arena_push_array(arena, U32, array_count(format->glyph_index_array));
-                    font->glyph_indicies    = arena_push_array(arena, U32, array_count(format->glyph_index_array));
-                    font->codepoint_count   = 0;
-
-                    for (U32 code = 0; code < array_count(format->glyph_index_array); ++code) {
-                        if (font_description->codepoint_first <= code && code <= font_description->codepoint_last) {
-                            ttf_add_codepoint_to_ttf_glyph_mapping(font, code, format->glyph_index_array[code]);
-                        }
-                    }
-                } else {
+                if (subtable_data.size != sizeof(TTF_CmapFormat0)) {
                     error_emit(str8_literal("ERROR(font/ttf): Not enough data for cmap format 0."));
                     success = false;
                 }
@@ -417,71 +491,6 @@ internal B32 ttf_get_character_map(Arena *arena, TTF_Font *font, FontDescription
                     U32 segment_count = u16_big_to_local_endian(format->seg_count_x2) / 2;
 
                     if (length <= subtable_data.size && length >= sizeof(TTF_CmapFormat4) + (4 * segment_count + 1) * sizeof(U16)) {
-                        U32 offset = sizeof(TTF_CmapFormat4);
-                        U16 *end_code = (U16 *) (subtable_data.data + offset);
-                        offset += segment_count * sizeof(U16);
-                        // Reserved field
-                        offset += sizeof(U16);
-                        U16 *start_code = (U16 *) (subtable_data.data + offset);
-                        offset += segment_count * sizeof(U16);
-                        U16 *id_delta = (U16 *) (subtable_data.data + offset);
-                        offset += segment_count * sizeof(U16);
-                        U16 *id_range_offset = (U16 *) (subtable_data.data + offset);
-                        offset += segment_count * sizeof(U16);
-
-                        U32 glyph_index_array_count = (subtable_data.size - (sizeof(TTF_CmapFormat4) + (4 * segment_count + 1) * sizeof(U16))) / sizeof(U16);
-
-                        // TODO: Maybe warn if the last segment doesn't map 0xFFFF, but still load the font.
-                        // NOTE: Even though it is required by the spec that
-                        // the last segment map 0xFFFF, we don't depend on it
-                        // and work regardless. Therefor, we won't report an
-                        // error in this case.
-
-                        // Calculate the maxiumum number of code points and allocate space for all of them.
-                        U32 code_count = 0;
-                        for (U32 i = 0; i < segment_count; ++i) {
-                            code_count += u16_big_to_local_endian(end_code[i]) - u16_big_to_local_endian(start_code[i]) + 1;
-                        }
-
-                        font->codepoints      = arena_push_array(arena, U32, code_count);
-                        font->glyph_indicies  = arena_push_array(arena, U32, code_count);
-                        font->codepoint_count = 0;
-
-                        for (U32 i = 0; i < segment_count; ++i) {
-                            U16 start  = u16_big_to_local_endian(start_code[i]);
-                            U16 end    = u16_big_to_local_endian(end_code[i]);
-                            U16 offset = u16_big_to_local_endian(id_range_offset[i]) / 2;
-                            U16 delta  = u16_big_to_local_endian(id_delta[i]);
-
-                            // NOTE: This is fine to read without a byteswap.
-                            if (id_range_offset[i] == 0) {
-                                for (U32 code = start; code <= end; ++code) {
-                                    if (font_description->codepoint_first <= code && code <= font_description->codepoint_last) {
-                                        U16 glyph_index = (delta + code) % 65536;
-                                        ttf_add_codepoint_to_ttf_glyph_mapping(font, code, glyph_index);
-                                    }
-                                }
-                            } else {
-                                U32 lowest_glyph_index_index  = i + offset + (start - start);
-                                U32 highest_glyph_index_index = i + offset + (end   - start);
-
-                                if (segment_count <= lowest_glyph_index_index && highest_glyph_index_index <= segment_count + glyph_index_array_count) {
-                                    for (U32 code = start; code <= end; ++code) {
-                                        if (font_description->codepoint_first <= code && code <= font_description->codepoint_last) {
-                                            U16 raw_glyph_index = u16_big_to_local_endian(id_range_offset[i + offset + (code - start)]);
-                                            U16 glyph_index = (raw_glyph_index + delta) % 65536;
-
-                                            if (raw_glyph_index) {
-                                                ttf_add_codepoint_to_ttf_glyph_mapping(font, code, glyph_index);
-                                            }
-                                        }
-                                    }
-                                } else {
-                                    error_emit(str8_literal("ERROR(font/ttf): Format 4 cmap access data outside of its subtable."));
-                                    success = false;
-                                }
-                            }
-                        }
                     } else {
                         error_emit(str8_literal("ERROR(font/ttf): Not enough data for cmap format 4."));
                         success = false;
@@ -495,23 +504,9 @@ internal B32 ttf_get_character_map(Arena *arena, TTF_Font *font, FontDescription
                 if (subtable_data.size >= sizeof(TTF_CmapFormat6)) {
                     TTF_CmapFormat6 *format = (TTF_CmapFormat6 *) subtable_data.data;
 
-                    U32 first_code  = u16_big_to_local_endian(format->first_code);
                     U32 entry_count = u16_big_to_local_endian(format->entry_count);
 
-                    if (subtable_data.size >= sizeof(TTF_CmapFormat6) + entry_count * sizeof(U16)) {
-                        font->codepoints      = arena_push_array(arena, U32, entry_count);
-                        font->glyph_indicies  = arena_push_array(arena, U32, entry_count);
-                        font->codepoint_count = 0;
-
-                        U16 *glyph_index_array = (U16 *) &subtable_data.data[sizeof(*format)];
-
-                        for (U32 i = 0; i < entry_count; ++i) {
-                            if (font_description->codepoint_first <= first_code + i && first_code + i <= font_description->codepoint_last) {
-                                U32 glyph_index = u16_big_to_local_endian(glyph_index_array[i]);
-                                ttf_add_codepoint_to_ttf_glyph_mapping(font, first_code + i, glyph_index);
-                            }
-                        }
-                    } else {
+                    if (subtable_data.size < sizeof(TTF_CmapFormat6) + entry_count * sizeof(U16)) {
                         error_emit(str8_literal("ERROR(font/ttf): Not enough data for cmap format 6."));
                         success = false;
                     }
@@ -535,31 +530,11 @@ internal B32 ttf_get_character_map(Arena *arena, TTF_Font *font, FontDescription
                     U32 length      = u32_big_to_local_endian(format->length);
                     U32 group_count = u32_big_to_local_endian(format->n_groups);
 
-                    if (length <= subtable_data.size) {
-                        // Calculate the maxiumum number of code points and allocate space for all of them.
-                        U32 code_count = 0;
-                        TTF_CmapFormat12Group *groups = (TTF_CmapFormat12Group *) &subtable_data.data[sizeof(*format)];
-                        for (U32 i = 0; i < group_count; ++i) {
-                            code_count += u32_big_to_local_endian(groups[i].end_char_code) - u32_big_to_local_endian(groups[i].start_char_code) + 1;
-                        }
-                        font->codepoints      = arena_push_array(arena, U32, code_count);
-                        font->glyph_indicies  = arena_push_array(arena, U32, code_count);
-                        font->codepoint_count = 0;
-
-                        for (U32 i = 0; i < group_count; ++i) {
-                            U32 first_codepoint   = u32_big_to_local_endian(groups[i].start_char_code);
-                            U32 last_codepoint    = u32_big_to_local_endian(groups[i].end_char_code);
-                            U32 first_glyph_index = u32_big_to_local_endian(groups[i].start_glyph_code);
-
-                            for (U32 code = first_codepoint; code <= last_codepoint; ++code) {
-                                if (font_description->codepoint_first <= code && code <= font_description->codepoint_last) {
-                                    U32 glyph_index = first_glyph_index + (code - first_codepoint);
-                                    ttf_add_codepoint_to_ttf_glyph_mapping(font, code, glyph_index);
-                                }
-                            }
-                        }
-                    } else {
+                    if (length > subtable_data.size) {
                         error_emit(str8_literal("ERROR(font/ttf): Not enough data for cmap format 12."));
+                        success = false;
+                    } else if (sizeof(TTF_CmapFormat12) + group_count * sizeof(TTF_CmapFormat12Group) > subtable_data.size) {
+                        error_emit(str8_literal("ERROR(font/ttf): Not enough data for cmap format 12 groups."));
                         success = false;
                     }
                 } else {
@@ -1032,6 +1007,14 @@ internal B32 ttf_load(Arena *arena, Str8 font_path, TTF_Font *ttf_font) {
 
     if (success) {
         success = ttf_parse_loca_table(arena, ttf_font);
+    }
+
+    if (success) {
+        success = ttf_validate_metrics(ttf_font);
+    }
+
+    if (success) {
+        success = ttf_choose_character_map(ttf_font);
     }
 
     return success;

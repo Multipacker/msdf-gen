@@ -268,9 +268,11 @@ typedef struct {
 
     U16 funits_per_em;
     U16 lowest_rec_ppem;
+
+    Str8 character_map;
+    U32  character_map_format;
 } TTF_Font;
 
 internal B32 ttf_load(Arena *arena, Str8 font_path, TTF_Font *ttf_font);
-internal B32 ttf_parse_metric_data(TTF_Font *font, Font *result_font);
 
 #endif // TTF_H

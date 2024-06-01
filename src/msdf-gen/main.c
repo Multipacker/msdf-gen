@@ -24,72 +24,49 @@ internal S32 os_run(Str8List arguments) {
     }
     Render_Context *render = render_create(gfx);
 
+    U32 glyph_size     = 32;
+    U32 glyphs_per_row = 16;
+    U32 atlas_size     = glyph_size  * glyphs_per_row;
+    Render_Texture texture = render_texture_create(render, v2u32(atlas_size, atlas_size), 0);
+
     if (!arguments.first->next) {
         os_console_print(str8_literal("You have to pass a file\n"));
         os_exit(1);
     }
 
     Str8 font_path = arguments.first->next->string;
-    FontDescription font_description = { 0 };
-    font_description.codepoint_first = 0;
-    font_description.codepoint_last  = 127;
 
     TTF_Font font = { 0 };
     if (!ttf_load(arena, font_path, &font)) {
         os_console_print(error_get_error_message());
-    }
-    if (!ttf_get_character_map(arena, &font, &font_description)) {
-        os_console_print(error_get_error_message());
+        return -1;
     }
 
-    U32 glyph_width  = u32_ceil_to_power_of_2((U32) f32_ceil(f32_sqrt(font.internal_glyph_count)));
-    U32 glyph_height = u32_ceil_to_power_of_2(font.internal_glyph_count / glyph_width);
-    U32 glyph_size   = 32;
+    // Generate glyphs
+    for (U32 i = 0; i < 127; ++i) {
+        Arena_Temporary scratch = arena_get_scratch(0, 0);
 
-    U32 atlas_width  = glyph_width  * glyph_size;
-    U32 atlas_height = glyph_height * glyph_size;
+        U32 glyph_index = ttf_get_glyph_index(&font, i);
+        MSDF_Glyph msdf_glyph = ttf_expand_contours_to_msdf(scratch.arena, &font, glyph_index);
+        TTF_HmtxMetrics metrics = ttf_get_metrics(&font, glyph_index);
 
-    Render_Texture texture = render_texture_create(render, v2u32(atlas_width, atlas_height), 0);
+        Font_Glyph glyph = { 0 };
 
-    Font msdf_font = { 0 };
-    {
-        B32 success = true;
+        F32 width_adjustment  = (F32) (msdf_glyph.x_max - msdf_glyph.x_min) * 0.5f / (F32) (atlas_size - 2);
+        F32 height_adjustment = (F32) (msdf_glyph.y_max - msdf_glyph.y_min) * 0.5f / (F32) (atlas_size - 2);
+        glyph.x_min = msdf_glyph.x_min - width_adjustment;
+        glyph.y_min = msdf_glyph.y_min - height_adjustment;
+        glyph.x_max = msdf_glyph.x_max + width_adjustment;
+        glyph.y_max = msdf_glyph.y_max + height_adjustment;
+        U8 *glyph_buffer = msdf_generate(scratch.arena, msdf_glyph, glyph_size);
 
-        msdf_font.funits_per_em = font.funits_per_em;
+        V2U32 atlas_position = v2u32(
+            glyph_size * (i % glyphs_per_row),
+            glyph_size * (i / glyphs_per_row)
+        );
+        render_texture_update(render, texture, atlas_position, v2u32(glyph_size, glyph_size), glyph_buffer);
 
-        // Copy over the character map.
-        msdf_font.codepoint_count = font.codepoint_count;
-        msdf_font.codepoints      = arena_push_array(arena, U32, msdf_font.codepoint_count);
-        msdf_font.glyph_indicies  = arena_push_array(arena, U32, msdf_font.codepoint_count);
-        memory_copy(msdf_font.codepoints, font.codepoints, msdf_font.codepoint_count * sizeof(*msdf_font.codepoints));
-        memory_copy(msdf_font.glyph_indicies, font.glyph_indicies, msdf_font.codepoint_count * sizeof(*msdf_font.glyph_indicies));
-
-        if (success) {
-            msdf_font.glyph_count = font.internal_glyph_count;
-            msdf_font.glyphs = arena_push_array(arena, Font_Glyph, msdf_font.glyph_count);
-            success = ttf_parse_metric_data(&font, &msdf_font);
-        }
-
-        for (U32 i = 0; i < font.internal_glyph_count; ++i) {
-            Arena_Temporary scratch = arena_get_scratch(0, 0);
-            MSDF_Glyph msdf_glyph = ttf_expand_contours_to_msdf(scratch.arena, &font, font.internal_to_ttf_glyph_indicies[i]);
-
-            Font_Glyph *glyph = &msdf_font.glyphs[i];
-
-            U32 x = glyph_size * (i % glyph_width);
-            U32 y = glyph_size * (i / glyph_width);
-
-            F32 width_adjustment  = (F32) (msdf_glyph.x_max - msdf_glyph.x_min) * 0.5f / (F32) (atlas_width  - 2);
-            F32 height_adjustment = (F32) (msdf_glyph.y_max - msdf_glyph.y_min) * 0.5f / (F32) (atlas_height - 2);
-            glyph->x_min = msdf_glyph.x_min - width_adjustment;
-            glyph->y_min = msdf_glyph.y_min - height_adjustment;
-            glyph->x_max = msdf_glyph.x_max + width_adjustment;
-            glyph->y_max = msdf_glyph.y_max + height_adjustment;
-            U8 *glyph_buffer = msdf_generate(scratch.arena, msdf_glyph, glyph_size);
-            render_texture_update(render, texture, v2u32(x, y), v2u32(glyph_size, glyph_size), glyph_buffer);
-
-            arena_end_temporary(scratch);
-        }
+        arena_end_temporary(scratch);
     }
 
     V2F32 offset      = { 0 };
@@ -132,7 +109,7 @@ internal S32 os_run(Str8List arguments) {
 
         render_rectangle(
             render,
-            offset, v2f32_add(offset, v2f32(atlas_width / zoom, atlas_height / zoom)),
+            offset, v2f32_add(offset, v2f32(atlas_size / zoom, atlas_size / zoom)),
             .uv_min = v2f32(0, 0), .uv_max = v2f32(1, 1),
             .texture = texture,
             .color = v4f32(1.0, 1.0, 1.0, 1.0),
