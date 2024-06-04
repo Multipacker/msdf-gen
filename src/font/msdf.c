@@ -448,9 +448,9 @@ internal Void msdf_resolve_contour_overlap(Arena *arena, MSDF_Glyph *glyph) {
                 for (MSDF_Segment *b_segment = b_contour->first_segment; b_segment; b_segment = b_segment->next) {
                     F32 ats[4] = { 0 };
                     F32 bts[4] = { 0 };
-                    U32 intersection_count = msdf_segment_intersect(*a_segment, *b_segment, ats, bts);
+                    U32 local_intersection_count = msdf_segment_intersect(*a_segment, *b_segment, ats, bts);
                     F32 intersection_epsilon = 0.0001f; // TODO: Move this out and figure out an appropiate value for it.
-                    for (U32 i = 0; i < intersection_count; ++i) {
+                    for (U32 i = 0; i < local_intersection_count; ++i) {
                         if (ats[i] < min_at && intersection_epsilon < ats[i] && ats[i] < 1.0f - intersection_epsilon) {
                             min_at = ats[i];
                             min_bt = bts[i];

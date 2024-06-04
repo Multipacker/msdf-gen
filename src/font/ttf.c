@@ -51,10 +51,10 @@ internal B32 ttf_parse_font_tables(Str8 data, TTF_Font *font) {
 
                 // TODO: Verify the check sum.
 
-                for (U32 i = 0; i < TTF_Table_COUNT && success; ++i) {
-                    if (tag == ttf_table_tags[i]) {
-                        if (!font->tables[i].data) {
-                            font->tables[i] = table_data;
+                for (U32 j = 0; j < TTF_Table_COUNT && success; ++j) {
+                    if (tag == ttf_table_tags[j]) {
+                        if (!font->tables[j].data) {
+                            font->tables[j] = table_data;
                         } else {
                             error_emit(str8_literal("ERROR(font/ttf): Duplicated entry in the table directory."));
                             success = false;
