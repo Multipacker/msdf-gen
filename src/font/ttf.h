@@ -54,7 +54,7 @@ typedef enum {
 } TTF_Tables;
 #undef X
 
-#define X(name, ...) [TTF_Table_##name] = TTF_MAKE_TAG(__VA_ARGS__),
+#define X(name, a, b, c, d) [TTF_Table_##name] = TTF_MAKE_TAG(a, b, c, d),
 global U32 ttf_table_tags[TTF_Table_COUNT] = {
     TTF_TABLES(X)
 };
