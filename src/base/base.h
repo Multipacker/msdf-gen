@@ -26,7 +26,7 @@
 
 #elif defined(_MSC_VER)
 # define COMPILER_CL 1
-# if  defined(_WIN32)
+# if defined(_WIN32)
 #  define OS_WINDOWS 1
 # else
 #  error missing OS detection
@@ -147,13 +147,10 @@
 #  define thread_local _Thread_local
 #endif
 
-#if defined(COMPILER_CLANG)
+#if COMPILER_CLANG || COMPILER_GCC
 # define packed_struct(declaration) struct __attribute__((__packed__)) declaration
-#elif defined(COMPILER_GCC)
-# define packed_struct(declaration) struct __attribute__((__packed__)) declaration
-#elif defined(COMPILER_CL)
-// TODO: Test with CL
-# define packed_struct(declaration) __pragma(pack(push, 1)) struct declaration __pragman(pack(pop))
+#elif COMPILER_CL
+# define packed_struct(declaration) __pragma(pack(push, 1)) struct declaration __pragma(pack(pop))
 #endif
 
 #if COMPILER_CL
