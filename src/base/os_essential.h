@@ -43,7 +43,7 @@ internal DateTime os_universal_time_from_local(DateTime *date_time);
 internal U64  os_now_nanoseconds(Void);
 internal Void os_sleep_milliseconds(U64 time);
 
-internal Void os_get_entopy(Void *data, U64 size);
+internal Void os_get_entropy(Void *data, U64 size);
 
 internal B32  os_console_run(Str8 program, Str8List arguments);
 internal Void os_console_print(Str8 string);

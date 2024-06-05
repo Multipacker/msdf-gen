@@ -460,7 +460,7 @@ internal Void os_sleep_milliseconds(U64 time) {
     }
 }
 
-internal Void os_get_entopy(Void *data, U64 size) {
+internal Void os_get_entropy(Void *data, U64 size) {
     int file_descriptor = open("/dev/urandom", O_RDONLY);
     if (file_descriptor != -1) {
         U8 *ptr = data;
