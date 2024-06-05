@@ -408,6 +408,7 @@ internal Str8 str8_from_str32(Arena *arena, Str32 string) {
 }
 
 internal Str16 str16_from_str8(Arena *arena, Str8 string) {
+    // TODO: Is this atually the upper bound for memory consumption?
     U64 allocated_size = string.size;
     U16 *memory = arena_push_array(arena, U16, allocated_size);
 
@@ -418,7 +419,7 @@ internal Str16 str16_from_str8(Arena *arena, Str8 string) {
     while (ptr < opl) {
         StringDecode decode = string_decode_utf8(ptr, (U64) (opl - ptr));
         U32 encode_size = string_encode_utf16(destination_ptr, decode.codepoint);
-        *destination_ptr = encode_size;
+        destination_ptr += encode_size;
         ptr += decode.size;
     }
 
