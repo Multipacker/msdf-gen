@@ -92,6 +92,6 @@ internal V2F32 v2f32_perpendicular(V2F32 vector);
 internal V2F32 v2f32_min(V2F32 a, V2F32 b);
 internal V2F32 v2f32_max(V2F32 a, V2F32 b);
 
-internal M4F32 m4f32_ortho(F32 left, F32 right, F32 top, F32 bottom, F32 near, F32 far);
+internal M4F32 m4f32_ortho(F32 left, F32 right, F32 top, F32 bottom, F32 near_plane, F32 far_plane);
 
 #endif // BASE_VECTOR_H

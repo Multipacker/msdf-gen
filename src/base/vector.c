@@ -129,7 +129,7 @@ internal V2F32 v2f32_max(V2F32 a, V2F32 b) {
     return result;
 }
 
-internal M4F32 m4f32_ortho(F32 left, F32 right, F32 top, F32 bottom, F32 near, F32 far) {
+internal M4F32 m4f32_ortho(F32 left, F32 right, F32 top, F32 bottom, F32 near_plane, F32 far_plane) {
     M4F32 result = { 0 };
 
     result.m[0][0] = 2 / (right - left);
@@ -144,12 +144,12 @@ internal M4F32 m4f32_ortho(F32 left, F32 right, F32 top, F32 bottom, F32 near, F
 
     result.m[2][0] = 0;
     result.m[2][1] = 0;
-    result.m[2][2] = 1 / (near - far);
+    result.m[2][2] = 1 / (near_plane - far_plane);
     result.m[2][3] = 0;
 
     result.m[3][0] = (left + right) / (left - right);
     result.m[3][1] = (top + bottom) / (bottom - top);
-    result.m[3][2] = near / (near - far);
+    result.m[3][2] = near_plane / (near_plane - far_plane);
     result.m[3][3] = 1;
 
     return result;
