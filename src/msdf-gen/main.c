@@ -76,7 +76,7 @@ internal S32 os_run(Str8List arguments) {
             } else if (event->kind == Gfx_EventKind_Scroll) {
                 F32 old_zoom = zoom;
 
-                zoom *= f32_pow(0.97, event->scroll.y);
+                zoom *= f32_pow(0.97f, event->scroll.y);
 
                 offset = v2f32_subtract(mouse, v2f32_scale(v2f32_subtract(mouse, offset), old_zoom / zoom));
             } else if (event->kind == Gfx_EventKind_KeyRelease && event->key == Gfx_Key_Tab) {
