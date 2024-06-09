@@ -23,6 +23,8 @@ typedef double F64;
 
 typedef void Void;
 typedef char *CStr;
+typedef U16  *CStr16;
+typedef U32  *CStr32;
 typedef Void VoidFunction(Void);
 
 typedef enum {

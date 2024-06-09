@@ -70,6 +70,7 @@ internal Str8  str8_from_str32(Arena *arena, Str32 string);
 internal Str16 str16_from_str8(Arena *arena, Str8  string);
 internal Str8  str8_from_str16(Arena *arena, Str16 string);
 
-internal CStr cstr_from_str8(Arena *arena, Str8 string);
+internal CStr   cstr_from_str8(Arena *arena, Str8 string);
+internal CStr16 cstr16_from_str8(Arena *arena, Str8 string);
 
 #endif // STRING_H
