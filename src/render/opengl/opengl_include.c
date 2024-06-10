@@ -1,3 +1,5 @@
+#include <stdio.h>
+
 internal GLuint opengl_create_shader(Str8 path, GLenum shader_type) {
     GLuint shader = glCreateShader(shader_type);
     Arena_Temporary scratch = arena_get_scratch(0, 0);
@@ -149,7 +151,7 @@ internal Void render_end(Render_Context *gfx) {
     gfx->batches.last  = 0;
     arena_end_temporary(gfx->frame_restore);
 
-    SDL_GL_SwapWindow(gfx->gfx->window);
+    gfx_swap_buffers(gfx->gfx);
 }
 
 internal Render_Texture render_texture_create(Render_Context *gfx, V2U32 size, U8 *data) {

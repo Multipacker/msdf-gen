@@ -191,3 +191,7 @@ internal V2U32 gfx_get_window_client_area(Gfx_Context *gfx) {
     V2U32 result = v2u32((U32) width, (U32) height);
     return result;
 }
+
+internal Void gfx_swap_buffers(Gfx_Context *gfx) {
+    SDL_GL_SwapWindow(gfx->gfx->window);
+}

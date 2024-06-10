@@ -11,21 +11,20 @@
 #define GL_COMPILE_STATUS       0x8B81
 #define GL_DYNAMIC_DRAW         0x88E8
 #define GL_FALSE                0
-#define GL_INT                  0x1404
-#define GL_UNSIGNED_INT         0x1405
 #define GL_FLOAT                0x1406
 #define GL_FRAGMENT_SHADER      0x8B30
 #define GL_INFO_LOG_LENGTH      0x8B84
+#define GL_INT                  0x1404
 #define GL_LINEAR               0x2601
 #define GL_LINK_STATUS          0x8B82
 #define GL_ONE_MINUS_SRC1_COLOR 0x88FA
-#define GL_SRC_ALPHA            0x0302
 #define GL_ONE_MINUS_SRC_ALPHA  0x0303
 #define GL_RGBA                 0x1908
 #define GL_RGBA8                0x8058
 #define GL_SCISSOR_TEST         0x0C11
-#define GL_SRC1_COLOR           0x88F9
 #define GL_SRC1_ALPHA           0x8589
+#define GL_SRC1_COLOR           0x88F9
+#define GL_SRC_ALPHA            0x0302
 #define GL_SRGB8_ALPHA8         0x8C43
 #define GL_TEXTURE_2D           0x0DE1
 #define GL_TEXTURE_MAG_FILTER   0x2800
@@ -33,7 +32,9 @@
 #define GL_TEXTURE_WRAP_S       0x2802
 #define GL_TEXTURE_WRAP_T       0x2803
 #define GL_TRIANGLE_STRIP       0x0005
+#define GL_TRUE                 1
 #define GL_UNSIGNED_BYTE        0x1401
+#define GL_UNSIGNED_INT         0x1405
 #define GL_VERTEX_SHADER        0x8B31
 
 #define GL_DEBUG_SOURCE_API               0x8246
@@ -80,14 +81,12 @@ typedef signed long int GLsizeiptr;
 #endif
 
 #if OS_LINUX
-
-typedef Void   (*PFNGLVIEWPORTPROC)(GLint x, GLint y, GLsizei width, GLsizei height);
-typedef Void   (*PFNGLDISABLEPROC)(GLenum cap);
-typedef Void   (*PFNGLCLEARCOLORPROC)(GLfloat red, GLfloat green, GLfloat blue, GLfloat alpha);
-typedef Void   (*PFNGLCLEARPROC)(GLbitfield mask);
-typedef Void   (*PFNGLENABLEPROC)(GLenum cap);
-typedef Void   (*PFNGLSCISSORPROC)(GLint x, GLint y, GLsizei width, GLsizei height);
-
+typedef Void (*PFNGLVIEWPORTPROC)(GLint x, GLint y, GLsizei width, GLsizei height);
+typedef Void (*PFNGLDISABLEPROC)(GLenum cap);
+typedef Void (*PFNGLCLEARCOLORPROC)(GLfloat red, GLfloat green, GLfloat blue, GLfloat alpha);
+typedef Void (*PFNGLCLEARPROC)(GLbitfield mask);
+typedef Void (*PFNGLENABLEPROC)(GLenum cap);
+typedef Void (*PFNGLSCISSORPROC)(GLint x, GLint y, GLsizei width, GLsizei height);
 #endif
 
 typedef Void   (*PFNGLATTACHSHADERPROC)(GLuint program, GLuint shader);
@@ -136,13 +135,13 @@ X(PFNGLCLEARPROC,                     glClear)                     \
 X(PFNGLCLEARCOLORPROC,                glClearColor)                \
 X(PFNGLDISABLEPROC,                   glDisable)                   \
 X(PFNGLENABLEPROC,                    glEnable)                    \
+X(PFNGLBLENDFUNCPROC,                 glBlendFunc)                 \
 X(PFNGLVIEWPORTPROC,                  glViewport)
 
 #define GL_FUNCTIONS(X)                                            \
 X(PFNGLATTACHSHADERPROC,              glAttachShader)              \
 X(PFNGLBINDTEXTUREUNITPROC,           glBindTextureUnit)           \
 X(PFNGLBINDVERTEXARRAYPROC,           glBindVertexArray)           \
-X(PFNGLBLENDFUNCPROC,                 glBlendFunc)                 \
 X(PFNGLBLENDFUNCSEPARATEPROC,         glBlendFuncSeparate)         \
 X(PFNGLCOMPILESHADERPROC,             glCompileShader)             \
 X(PFNGLCREATEBUFFERSPROC,             glCreateBuffers)             \
@@ -182,6 +181,14 @@ X(PFNGLDEBUGMESSAGECALLBACKPROC,      glDebugMessageCallback)
 
 #if OS_LINUX
 GL_LINUX_FUNCTION(X)
+#else
+void glEnable(GLenum cap);
+void glDisable(GLenum cap);
+void glClearColor(GLfloat red, GLfloat green, GLfloat blue, GLfloat alpha);
+void glViewport(GLint x, GLint y, GLsizei width, GLsizei height);
+void glClear(GLbitfield mask);
+void glScissor(GLint x, GLint y, GLsizei width, GLsizei height);
+void glBlendFunc(GLenum sfactor, GLenum dfactor);
 #endif
 
 GL_FUNCTIONS(X)

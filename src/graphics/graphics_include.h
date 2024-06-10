@@ -119,11 +119,13 @@ struct Gfx_EventList {
 #  include "sdl/sdl_include.h"
 #elif OS_WINDOWS
 #  include "win32/win32_include.h"
+#  include "win32/win32_opengl.h"
 #else
 # error no backend for graphics_include.c on this operating system
 #endif
 
 internal Gfx_EventList gfx_get_events(Arena *arena, Gfx_Context *gfx);
 internal V2F32 gfx_get_mouse_position(Gfx_Context *gfx);
+internal Void gfx_swap_buffers(Gfx_Context *gfx);
 
 #endif // GRAPHICS_INCLUDE_H
