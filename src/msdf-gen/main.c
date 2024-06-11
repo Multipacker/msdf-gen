@@ -39,12 +39,6 @@ internal Render_Texture load_font(Render_Context *render, Str8 font_path) {
     return texture;
 }
 
-/*
- * /usr/share/fonts/TTF/FiraMono-Regular.ttf
- * /usr/share/fonts/TTF/Inconsolata-Regular.ttf
- * /usr/share/fonts/ttf-linux-libertine/LinLibertine_Mah.ttf
- * /usr/share/fonts/noto/NotoSerif-Regular.ttf
- */
 internal S32 os_run(Str8List arguments) {
     if (!arguments.first->next) {
         os_console_print(str8_literal("You have to pass a file\n"));
