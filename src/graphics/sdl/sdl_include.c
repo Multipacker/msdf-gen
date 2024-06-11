@@ -193,5 +193,5 @@ internal V2U32 gfx_get_window_client_area(Gfx_Context *gfx) {
 }
 
 internal Void gfx_swap_buffers(Gfx_Context *gfx) {
-    SDL_GL_SwapWindow(gfx->gfx->window);
+    SDL_GL_SwapWindow(gfx->window);
 }

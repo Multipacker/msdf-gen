@@ -2,6 +2,8 @@
 
 #if OS_WINDOWS
 #include "win32_opengl.c"
+#elif OS_LINUX
+#include "sdl_opengl.c"
 #endif
 
 internal GLuint opengl_create_shader(Str8 path, GLenum shader_type) {
