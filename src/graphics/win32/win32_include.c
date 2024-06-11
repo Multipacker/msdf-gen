@@ -134,6 +134,7 @@ internal Gfx_EventList gfx_get_events(Arena *arena, Gfx_Context *gfx) {
 internal V2F32 gfx_get_mouse_position(Gfx_Context *gfx) {
     POINT point = { 0 };
     GetCursorPos(&point);
+    ScreenToClient(gfx->hwnd, &point);
     V2F32 result = v2f32((F32) point.x, (F32) point.y);
     return result;
 }
