@@ -3,6 +3,10 @@
 
 #include "opengl_bindings.h"
 
+#if OS_WINDOWS
+#include "win32_opengl.h"
+#endif
+
 #define RENDER_BATCH_SIZE 1024
 
 typedef enum {

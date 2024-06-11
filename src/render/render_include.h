@@ -10,7 +10,9 @@ union Render_Texture {
     U32 u32[4];
 };
 
+internal B32             render_init(Void);
 internal Render_Context *render_create(Gfx_Context *gfx);
+
 internal Void render_begin(Render_Context *gfx, V2U32 resolution);
 internal Void render_end(Render_Context *gfx);
 

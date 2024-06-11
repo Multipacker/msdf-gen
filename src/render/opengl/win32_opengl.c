@@ -2,7 +2,8 @@ global PFNWGLCHOOSEPIXELFORMATARBPROC    wglChoosePixelFormatARB;
 global PFNWGLCREATECONTEXTATTRIBSARBPROC wglCreateContextAttribsARB;
 global PFNWGLSWAPINTERVALEXTPROC         wglSwapIntervalEXT;
 
-internal Void win32_get_wgl_functions(Void) {
+internal B32 render_init(Void) {
+    B32 success = false;
     Arena_Temporary scratch = arena_get_scratch(0, 0);
 
     HWND dummy = CreateWindowEx(
@@ -57,7 +58,9 @@ internal Void win32_get_wgl_functions(Void) {
                                 }
                             }
 
-                            if (!wglChoosePixelFormatARB || !wglCreateContextAttribsARB || !wglSwapIntervalEXT) {
+                            if (wglChoosePixelFormatARB && wglCreateContextAttribsARB && wglSwapIntervalEXT) {
+                                success = true;
+                            } else {
                                 // "OpenGL does not support required WGL extensions for modern context!
                             }
 
@@ -87,11 +90,10 @@ internal Void win32_get_wgl_functions(Void) {
     }
 
     arena_end_temporary(scratch);
+    return success;
 }
 
-internal Void win32_init_opengl(Gfx_Context *gfx) {
-    win32_get_wgl_functions();
-
+internal Void opengl_backend_init(Gfx_Context *gfx) {
     S32 pixel_attrib[] = {
         WGL_DRAW_TO_WINDOW_ARB, GL_TRUE,
         WGL_SUPPORT_OPENGL_ARB, GL_TRUE,
@@ -106,8 +108,8 @@ internal Void win32_init_opengl(Gfx_Context *gfx) {
 
     S32 format = 0;
     UINT formats = 0;
-    if (wglChoosePixelFormatARB(gfx->hdc, pixel_attrib, 0, 1, &format, &formats) || formats == 0) {
-        PIXELFORMATDESCRIPTOR desc = { .nSize = sizeof(desc) };
+    if (wglChoosePixelFormatARB(gfx->hdc, pixel_attrib, 0, 1, &format, &formats)) {
+        PIXELFORMATDESCRIPTOR desc = { 0 };
         if (DescribePixelFormat(gfx->hdc, format, sizeof(desc), &desc)) {
             if (SetPixelFormat(gfx->hdc, format, &desc)) {
                 S32 context_attrib[] = {
@@ -133,12 +135,7 @@ internal Void win32_init_opengl(Gfx_Context *gfx) {
         } else {
             // Failed to describe OpenGL pixel format
         }
-
     } else {
         // OpenGL does not support required pixel format!
     }
-}
-
-internal Void gfx_swap_buffers(Gfx_Context *gfx) {
-    SwapBuffers(gfx->hdc);
 }

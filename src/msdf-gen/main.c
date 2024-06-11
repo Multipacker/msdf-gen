@@ -17,6 +17,8 @@
 internal S32 os_run(Str8List arguments) {
     Arena *arena = arena_create();
 
+    render_init();
+
     Gfx_Context *gfx = gfx_create(arena, str8_literal("MSDF-gen"), 1280, 720);
     if (!gfx) {
         os_console_print(error_get_error_message());

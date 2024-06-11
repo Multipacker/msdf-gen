@@ -119,7 +119,6 @@ struct Gfx_EventList {
 #  include "sdl/sdl_include.h"
 #elif OS_WINDOWS
 #  include "win32/win32_include.h"
-#  include "win32/win32_opengl.h"
 #else
 # error no backend for graphics_include.c on this operating system
 #endif

@@ -107,7 +107,6 @@ internal Gfx_Context *gfx_create(Arena *arena, Str8 title, U32 width, U32 height
         if (result->hwnd) {
             result->hdc = GetDC(result->hwnd);
             ShowWindow(result->hwnd, SW_SHOW);
-            win32_init_opengl(result);
         } else {
             // TODO: Error
         }
@@ -144,4 +143,8 @@ internal V2U32 gfx_get_window_client_area(Gfx_Context *gfx) {
     GetClientRect(gfx->hwnd, &rect);
     V2U32 result = v2u32(rect.right - rect.left, rect.bottom - rect.top);
     return result;
+}
+
+internal Void gfx_swap_buffers(Gfx_Context *gfx) {
+    SwapBuffers(gfx->hdc);
 }

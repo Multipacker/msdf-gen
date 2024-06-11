@@ -1,5 +1,9 @@
 #include <stdio.h>
 
+#if OS_WINDOWS
+#include "win32_opengl.c"
+#endif
+
 internal GLuint opengl_create_shader(Str8 path, GLenum shader_type) {
     GLuint shader = glCreateShader(shader_type);
     Arena_Temporary scratch = arena_get_scratch(0, 0);
@@ -200,6 +204,7 @@ internal Render_Context *render_create(Gfx_Context *gfx) {
     Render_Context *result = arena_push_struct_zero(arena, Render_Context);
     result->arena = arena;
     result->gfx = gfx;
+    opengl_backend_init(gfx);
 
     glDebugMessageCallback(&opengl_debug_output, NULL);
     glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
