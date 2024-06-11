@@ -36,6 +36,8 @@ now run the program with `build\msdf-gen <TTF-file>`.
 
 ### Linux
 
+Make sure you have SDL2 installed.
+
 Open a terminal and navigate to the project root. From there, run
 `scripts/build_clang.sh`. You can now run the program with `build/msdf-gen
 <TTF-file>`.
