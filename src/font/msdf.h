@@ -71,13 +71,13 @@ typedef struct {
 } MSDF_Distance;
 
 typedef struct {
-    S32 x_min;
-    S32 y_min;
-    S32 x_max;
-    S32 y_max;
+    F32 x_min;
+    F32 y_min;
+    F32 x_max;
+    F32 y_max;
 
-    TTF_UFWord advance_width;
-    TTF_FWord  left_side_bearing;
+    F32 advance_width;
+    F32 left_side_bearing;
 
     U8 *data;
 } MSDF_RasterResult;

@@ -716,12 +716,12 @@ internal MSDF_RasterResult msdf_generate(Arena *arena, TTF_Font *font, U32 codep
     MSDF_Glyph glyph = ttf_expand_contours_to_msdf(scratch.arena, font, glyph_index);
     TTF_HmtxMetrics metrics = ttf_get_metrics(font, glyph_index);
 
-    result.x_min             = glyph.x_min;
-    result.y_min             = glyph.y_min;
-    result.x_max             = glyph.x_max;
-    result.y_max             = glyph.y_max;
-    result.advance_width     = metrics.advance_width;
-    result.left_side_bearing = metrics.left_side_bearing;
+    result.x_min             = (F32)  glyph.x_min / (F32) font->funits_per_em;
+    result.y_min             = (F32) -glyph.y_max / (F32) font->funits_per_em;
+    result.x_max             = (F32)  glyph.x_max / (F32) font->funits_per_em;
+    result.y_max             = (F32) -glyph.y_min / (F32) font->funits_per_em;
+    result.advance_width     = (F32) metrics.advance_width / (F32) font->funits_per_em;
+    result.left_side_bearing = (F32) metrics.left_side_bearing / (F32) font->funits_per_em;
 
     msdf_resolve_contour_overlap(scratch.arena, &glyph);
     msdf_convert_to_simple_polygons(scratch.arena, &glyph);
