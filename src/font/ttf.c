@@ -260,6 +260,9 @@ internal TTF_HmtxMetrics ttf_get_metrics(TTF_Font *font, U32 glyph_index) {
         result.left_side_bearing = left_side_bearings[left_side_bearing_index];
     }
 
+    result.advance_width     = u16_big_to_local_endian(result.advance_width);
+    result.left_side_bearing = s16_big_to_local_endian(result.left_side_bearing);
+
     return result;
 }
 
