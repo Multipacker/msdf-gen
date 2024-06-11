@@ -1,3 +1,11 @@
+internal B32 points_are_collinear(V2F32 a, V2F32 b, V2F32 c) {
+    F32 epsilon = 0.0001f;
+    V2F32 ba = v2f32_subtract(a, b);
+    V2F32 bc = v2f32_subtract(c, b);
+
+    return (f32_abs(v2f32_cross(ba, bc)) < epsilon);
+}
+
 internal F32 ttf_f2dot14_to_f32(TTF_F2Dot14 x) {
     F32 result = (F32) (x & 0x7FFF) / 16384.0f;
 

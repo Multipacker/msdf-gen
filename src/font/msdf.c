@@ -2,19 +2,21 @@
 // quality of the final MSDF, although it won't be as accurate any more.
 
 internal Void msdf_quadratic_bezier_split(MSDF_Segment segment, F32 t, MSDF_Segment *result_a, MSDF_Segment *result_b) {
-    V2F32 new_points[6] = { 0 };
-    quadratic_bezier_split(segment.p0, segment.p1, segment.p2, t, new_points);
+    // De Casteljau's algorithm.
+    V2F32 a = v2f32_add(segment.p0, v2f32_scale(v2f32_subtract(segment.p1, segment.p0), t));
+    V2F32 b = v2f32_add(segment.p1, v2f32_scale(v2f32_subtract(segment.p2, segment.p1), t));
+    V2F32 c = v2f32_add(a, v2f32_scale(v2f32_subtract(b, a), t));
 
     result_a->kind  = MSDF_SEGMENT_QUADRATIC_BEZIER;
-    result_a->p0    = new_points[0];
-    result_a->p1    = new_points[1];
-    result_a->p2    = new_points[2];
+    result_a->p0    = segment.p0;
+    result_a->p1    = a;
+    result_a->p2    = c;
     result_a->flags = segment.flags;
 
     result_b->kind  = MSDF_SEGMENT_QUADRATIC_BEZIER;
-    result_b->p0    = new_points[3];
-    result_b->p1    = new_points[4];
-    result_b->p2    = new_points[5];
+    result_b->p0    = c;
+    result_b->p1    = b;
+    result_b->p2    = segment.p2;
     result_b->flags = segment.flags;
 }
 
