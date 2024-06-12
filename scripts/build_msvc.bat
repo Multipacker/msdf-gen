@@ -31,6 +31,6 @@ set linker_flags=%linker_flags% %debug_linker_flags%
 if not exist build mkdir build
 pushd build
 
-cl ../src/msdf-gen/main.c %compiler_flags% -link %linker_flags%
+cl ../src/msdf-gen/main.c %compiler_flags% -link %linker_flags% -out:"msdf-gen.exe"
 
 popd
