@@ -357,14 +357,14 @@ internal Str8 os_file_path(Arena *arena, OS_SystemPath path) {
                 }
             }
 
-            Str8 path = str8(buffer, read);
+            Str8 result_path = str8(buffer, read);
 
             U64 index = 0;
-            if (str8_last_index_of(path, '/', &index)) {
-                path = str8_prefix(path, index);
+            if (str8_last_index_of(result_path, '/', &index)) {
+                result_path = str8_prefix(result_path, index);
             }
 
-            result = str8_copy(arena, path);
+            result = str8_copy(arena, result_path);
         } break;
         case OS_SYSTEM_PATH_USER_DATA: {
             struct passwd *user_data = getpwuid(geteuid());
