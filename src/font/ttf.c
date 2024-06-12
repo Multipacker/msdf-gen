@@ -155,7 +155,7 @@ internal B32 ttf_parse_head_table(TTF_Font *font) {
     return success;
 }
 
-internal B32 ttf_parse_maxp_table(Arena *arena, TTF_Font *font) {
+internal B32 ttf_parse_maxp_table(TTF_Font *font) {
     B32 success = true;
 
     if (font->tables[TTF_Table_Maxp].size >= sizeof(TTF_MaxpTable)) {
@@ -1013,7 +1013,7 @@ internal B32 ttf_load(Arena *arena, Str8 font_path, TTF_Font *ttf_font) {
     }
 
     if (success) {
-        success = ttf_parse_maxp_table(arena, ttf_font);
+        success = ttf_parse_maxp_table(ttf_font);
     }
 
     if (success) {
