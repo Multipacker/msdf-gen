@@ -408,7 +408,7 @@ internal F32 msdf_line_signed_pseudo_distance(V2F32 point, MSDF_Segment line) {
     return sign * v2f32_length(distance);
 }
 
-internal F32 msdf_quadratic_bezier_signed_pseudo_distance(V2F32 point, MSDF_Segment bezier, F32 clamped_t) {
+internal F32 msdf_quadratic_bezier_signed_pseudo_distance(V2F32 point, MSDF_Segment bezier, F32 unclamped_t) {
     V2F32 p  = v2f32_subtract(point, bezier.p0);
     V2F32 p1 = v2f32_subtract(bezier.p1, bezier.p0);
     V2F32 p2 = v2f32_add(v2f32_add(bezier.p2, v2f32_scale(bezier.p1, -2)), bezier.p0);
@@ -416,17 +416,17 @@ internal F32 msdf_quadratic_bezier_signed_pseudo_distance(V2F32 point, MSDF_Segm
     V2F32 derivative;
     V2F32 distance;
 
-    if (clamped_t < 0.0f) {
+    if (unclamped_t < 0.0f) {
         derivative = v2f32_subtract(bezier.p1, bezier.p0);
         F32 t = v2f32_dot(v2f32_subtract(point, bezier.p0), derivative) / v2f32_length_squared(derivative);
         distance = v2f32_subtract(v2f32_add(bezier.p0, v2f32_scale(derivative, t)), point);
-    } else if (clamped_t > 1.0f) {
+    } else if (unclamped_t > 1.0f) {
         derivative = v2f32_subtract(bezier.p2, bezier.p1);
         F32 t = v2f32_dot(v2f32_subtract(point, bezier.p1), derivative) / v2f32_length_squared(derivative);
         distance = v2f32_subtract(v2f32_add(bezier.p1, v2f32_scale(derivative, t)), point);
     } else {
-        distance   = v2f32_subtract(v2f32_add(v2f32_add(v2f32_scale(p2, clamped_t * clamped_t), v2f32_scale(p1, 2.0f * clamped_t)), bezier.p0), point);
-        derivative = v2f32_add(v2f32_scale(p2, 2.0f * clamped_t), v2f32_scale(p1, 2.0f));
+        distance   = v2f32_subtract(v2f32_add(v2f32_add(v2f32_scale(p2, unclamped_t * unclamped_t), v2f32_scale(p1, 2.0f * unclamped_t)), bezier.p0), point);
+        derivative = v2f32_add(v2f32_scale(p2, 2.0f * unclamped_t), v2f32_scale(p1, 2.0f));
     }
 
     F32 sign = f32_sign(v2f32_cross(derivative, distance));
