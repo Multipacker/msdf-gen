@@ -6,84 +6,112 @@
 #include "sdl_opengl.c"
 #endif
 
-internal GLuint opengl_create_shader(Str8 path, GLenum shader_type) {
-    GLuint shader = glCreateShader(shader_type);
-    Arena_Temporary scratch = arena_get_scratch(0, 0);
+typedef struct {
+    Str8 source;
+    GLenum kind;
+} OpenGL_ShaderSpecification;
+
+typedef struct {
+    GLuint handle;
+    Str8List errors;
+} OpenGL_Result;
+
+internal OpenGL_Result opengl_create_shader(Arena *arena, Str8 path, GLenum shader_type) {
+    OpenGL_Result result = { 0 };
+
+    result.handle = glCreateShader(shader_type);
+    Arena_Temporary scratch = arena_get_scratch(&arena, 1);
 
     Str8 shader_source = { 0 };
     if (os_file_read(scratch.arena, path, &shader_source)) {
         const GLchar *source_data = (const GLchar *) shader_source.data;
         GLint         source_size = (GLint) shader_source.size;
 
-        glShaderSource(shader, 1, &source_data, &source_size);
+        glShaderSource(result.handle, 1, &source_data, &source_size);
 
-        glCompileShader(shader);
+        glCompileShader(result.handle);
 
         GLint compile_status = 0;
-        glGetShaderiv(shader, GL_COMPILE_STATUS, &compile_status);
+        glGetShaderiv(result.handle, GL_COMPILE_STATUS, &compile_status);
         if (!compile_status) {
             GLint log_length = 0;
-            glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &log_length);
+            glGetShaderiv(result.handle, GL_INFO_LOG_LENGTH, &log_length);
 
             GLchar *raw_log = arena_push_array(scratch.arena, GLchar, (U64) log_length);
-            glGetShaderInfoLog(shader, log_length, 0, raw_log);
+            glGetShaderInfoLog(result.handle, log_length, 0, raw_log);
 
             Str8 log = str8((U8 *) raw_log, (U64) log_length);
 
-            fprintf(stderr, "ERROR: Could not compile shader. Shader log:\n%.*s\n", str8_expand(log));
-            error_emit(str8_literal("Could not compile shader."));
+            str8_list_push(arena, &result.errors, str8_format(arena, "Could not compile shader '%.*s'. Shader log:\n%.*s\n", str8_expand(path), str8_expand(log)));
 
-            glDeleteShader(shader);
-            shader = 0;
+            glDeleteShader(result.handle);
+            result.handle = 0;
         }
     } else {
-        error_emit(str8_literal("Could not compile shader."));
-        glDeleteShader(shader);
-        shader = 0;
+        str8_list_push(arena, &result.errors, str8_format(arena, "Could not read file '%.*s'\n", str8_expand(path)));
+        glDeleteShader(result.handle);
+        result.handle = 0;
     }
 
     arena_end_temporary(scratch);
-
-    return shader;
+    return result;
 }
 
-internal GLuint opengl_create_program(GLuint *shaders, U32 shader_count) {
-    GLuint program = glCreateProgram();
+internal OpenGL_Result opengl_create_program(Arena *arena, OpenGL_ShaderSpecification *shaders, U32 shader_count) {
+    OpenGL_Result result = { 0 };
+    Arena_Temporary scratch = arena_get_scratch(&arena, 1);
+
+    result.handle = glCreateProgram();
+    GLuint *shader_handles = arena_push_array_zero(scratch.arena, GLuint, shader_count);
 
     for (U32 i = 0; i < shader_count; ++i) {
-        glAttachShader(program, shaders[i]);
+        OpenGL_Result compiled_shader = opengl_create_shader(arena, shaders[i].source, shaders[i].kind);
+
+        if (compiled_shader.handle) {
+            glAttachShader(result.handle, compiled_shader.handle);
+            shader_handles[i] = result.handle;
+        } else {
+            str8_list_append(arena, &result.errors, compiled_shader.errors);
+        }
     }
 
-    glLinkProgram(program);
+    if (result.errors.node_count == 0) {
+        glLinkProgram(result.handle);
 
-    for (U32 i = 0; i < shader_count; ++i) {
-        glDetachShader(program, shaders[i]);
-        glDeleteShader(shaders[i]);
+        for (U32 i = 0; i < shader_count; ++i) {
+            glDetachShader(result.handle, shader_handles[i]);
+            glDeleteShader(shader_handles[i]);
+        }
+
+        GLint link_status = 0;
+        glGetProgramiv(result.handle, GL_LINK_STATUS, &link_status);
+        if (!link_status) {
+            GLint log_length = 0;
+            glGetProgramiv(result.handle, GL_INFO_LOG_LENGTH, &log_length);
+
+            GLchar *raw_log = arena_push_array(scratch.arena, GLchar, (U64) log_length);
+            glGetProgramInfoLog(result.handle, log_length, 0, raw_log);
+
+            Str8 log = str8((U8 *) raw_log, (U64) log_length);
+
+            str8_list_push(arena, &result.errors, str8_format(arena, "Could not link program. Program log:\n%.*s\n", str8_expand(log)));
+
+            glDeleteProgram(result.handle);
+            result.handle = 0;
+        }
+    } else {
+        for (U32 i = 0; i < shader_count; ++i) {
+            if (shader_handles[i]) {
+                glDetachShader(result.handle, shader_handles[i]);
+                glDeleteShader(shader_handles[i]);
+            }
+        }
+
+        glDeleteProgram(result.handle);
     }
 
-    GLint link_status = 0;
-    glGetProgramiv(program, GL_LINK_STATUS, &link_status);
-    if (!link_status) {
-        Arena_Temporary scratch = arena_get_scratch(0, 0);
-
-        GLint log_length = 0;
-        glGetProgramiv(program, GL_INFO_LOG_LENGTH, &log_length);
-
-        GLchar *raw_log = arena_push_array(scratch.arena, GLchar, (U64) log_length);
-        glGetProgramInfoLog(program, log_length, 0, raw_log);
-
-        Str8 log = str8((U8 *) raw_log, (U64) log_length);
-
-        fprintf(stderr, "ERROR: Could not link program. Program log:\n%.*s\n", str8_expand(log));
-        error_emit(str8_literal("Could not link program."));
-
-        glDeleteProgram(program);
-        program = 0;
-
-        arena_end_temporary(scratch);
-    }
-
-    return program;
+    arena_end_temporary(scratch);
+    return result;
 }
 
 internal Void opengl_vertex_array_instance_attribute_float(GLuint vaobj, GLuint attribindex, GLint size, GLenum type, GLboolean normalized, GLuint relativeoffset, GLuint bindingindex) {
@@ -212,11 +240,16 @@ internal Render_Context *render_create(Gfx_Context *gfx) {
     glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
     glEnable(GL_FRAMEBUFFER_SRGB);
 
-    GLuint shaders[] = {
-        opengl_create_shader(str8_literal("src/render/opengl/shader.vert"), GL_VERTEX_SHADER),
-        opengl_create_shader(str8_literal("src/render/opengl/shader.frag"), GL_FRAGMENT_SHADER),
+    OpenGL_ShaderSpecification shaders[] = {
+        { str8_literal("src/render/opengl/shader.vert"), GL_VERTEX_SHADER,    },
+        { str8_literal("src/render/opengl/shader.frag"), GL_FRAGMENT_SHADER,  },
     };
-    result->program = opengl_create_program(shaders, array_count(shaders));
+    OpenGL_Result program = opengl_create_program(arena, shaders, array_count(shaders));
+    if (program.errors.node_count) {
+        os_console_print(str8_join(arena, &program.errors));
+    }
+
+    result->program = program.handle;
 
     result->uniform_projection_location = glGetUniformLocation(result->program, "uniform_projection");
     result->uniform_sampler_location    = glGetUniformLocation(result->program, "uniform_sampler");
