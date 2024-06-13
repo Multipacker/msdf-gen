@@ -271,8 +271,10 @@ typedef struct {
 
     Str8 character_map;
     U32  character_map_format;
+
+    Str8List errors;
 } TTF_Font;
 
-internal B32 ttf_load(Arena *arena, Str8 font_path, TTF_Font *ttf_font);
+internal TTF_Font *ttf_load(Arena *arena, Str8 font_path);
 
 #endif // TTF_H

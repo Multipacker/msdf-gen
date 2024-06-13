@@ -28,13 +28,13 @@ internal Void load_font(Render_Context *render, Str8 font_path, Font *result) {
     U32 atlas_size     = glyph_size * glyphs_per_row;
     result->atlas = render_texture_create(render, v2u32(atlas_size, atlas_size), 0);
 
-    TTF_Font font = { 0 };
-    if (ttf_load(scratch.arena, font_path, &font)) {
+    TTF_Font *font = ttf_load(scratch.arena, font_path);
+    if (font->errors.node_count == 0) {
         // Generate glyphs
         for (U32 codepoint = 0; codepoint < 128; ++codepoint) {
             Arena_Temporary glyph_scratch = arena_get_scratch(&scratch.arena, 1);
 
-            MSDF_RasterResult raster_result = msdf_generate(glyph_scratch.arena, &font, codepoint, glyph_size);
+            MSDF_RasterResult raster_result = msdf_generate(glyph_scratch.arena, font, codepoint, glyph_size);
 
             V2U32 atlas_position = v2u32(
                 glyph_size * (codepoint % glyphs_per_row),
@@ -64,7 +64,7 @@ internal Void load_font(Render_Context *render, Str8 font_path, Font *result) {
             arena_end_temporary(glyph_scratch);
         }
     } else {
-        os_console_print(error_get_error_message());
+        os_console_print(str8_join(scratch.arena, &font->errors));
     }
 
     arena_end_temporary(scratch);
