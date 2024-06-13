@@ -81,8 +81,8 @@ internal S32 os_run(Str8List arguments) {
     render_init();
 
     Gfx_Context *gfx = gfx_create(arena, str8_literal("MSDF-gen"), 1280, 720);
-    if (!gfx) {
-        os_console_print(error_get_error_message());
+    if (gfx->errors.node_count) {
+        os_console_print(str8_join(arena, &gfx->errors));
         return -1;
     }
     Render_Context *render = render_create(gfx);

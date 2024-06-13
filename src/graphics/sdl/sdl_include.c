@@ -1,10 +1,7 @@
 global Gfx_Key sdl_to_gfx_keycode[128];
 
 internal Gfx_Context *gfx_create(Arena *arena, Str8 title, U32 width, U32 height) {
-    Arena_Temporary restore_point = arena_begin_temporary(arena);
     Gfx_Context *result = arena_push_struct_zero(arena, Gfx_Context);
-
-    B32 error = 0;
 
     // NOTE(simon): Initialize SDL to gfx keycode table.
     for (SDL_KeyCode key = SDLK_0; key <= SDLK_9; ++key)
@@ -56,21 +53,16 @@ internal Gfx_Context *gfx_create(Arena *arena, Str8 title, U32 width, U32 height
 
             SDL_GL_SetSwapInterval(1);
         } else {
-            error_emit(str8_literal("Could not create SDL window."));
-            error = true;
+            str8_list_push(arena, &result->errors, str8_literal("Could not create SDL window.\n"));
         }
     } else {
-        error_emit(str8_literal("Could not initialize SDL 2.0"));
-        error = true;
+        str8_list_push(arena, &result->errors, str8_literal("Could not initialize SDL 2.0.\n"));
     }
 
-    if (error) {
+    if (result->errors.node_count) {
         if (result->window) {
             SDL_DestroyWindow(result->window);
         }
-
-        arena_end_temporary(restore_point);
-        result = 0;
     }
 
     return result;

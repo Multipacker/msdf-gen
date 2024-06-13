@@ -5,8 +5,9 @@
 
 typedef struct Gfx_Context Gfx_Context;
 struct Gfx_Context {
-    SDL_Window      *window;
-    SDL_GLContext    gl_context;
+    SDL_Window   *window;
+    SDL_GLContext gl_context;
+    Str8List      errors;
 };
 
 #endif // SDL_INCLUDE_H
