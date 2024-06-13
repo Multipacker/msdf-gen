@@ -58,8 +58,8 @@ internal Void str8_list_push_explicit(Str8List *list, Str8 string, Str8Node *nod
 internal Void str8_list_push(Arena *arena, Str8List *list, Str8 string);
 internal Str8 str8_join(Arena *arena, Str8List *list);
 
-internal Str8 str8_format(Arena *arena, CStr *format, ...);
-internal Str8 str8_format_list(Arena *arena, CStr *format, va_list arguments);
+internal Str8 str8_format(Arena *arena, CStr format, ...);
+internal Str8 str8_format_list(Arena *arena, CStr format, va_list arguments);
 
 internal Str8List str8_split_by_codepoints(Arena *arena, Str8 string, Str8 codepoints);
 
