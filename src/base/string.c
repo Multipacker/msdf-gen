@@ -167,6 +167,12 @@ internal B32 str8_last_index_of(Str8 string, U32 codepoint, U64 *result_index) {
     return found;
 }
 
+internal Void str8_list_append(Arena *arena, Str8List *list, Str8List others) {
+    for (Str8Node *node = others.first; node; node = node->next) {
+        str8_list_push(arena, list, node->string);
+    }
+}
+
 internal Void str8_list_push_explicit(Str8List *list, Str8 string, Str8Node *node) {
     node->string = string;
     dll_push_back(list->first, list->last, node);

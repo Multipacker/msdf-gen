@@ -54,6 +54,7 @@ internal B32 str8_equal(Str8 a, Str8 b);
 internal B32 str8_first_index_of(Str8 string, U32 codepoint, U64 *result_index);
 internal B32 str8_last_index_of(Str8 string, U32 codepoint, U64 *result_index);
 
+internal Void str8_list_append(Arena *arena, Str8List *list, Str8List others);
 internal Void str8_list_push_explicit(Str8List *list, Str8 string, Str8Node *node);
 internal Void str8_list_push(Arena *arena, Str8List *list, Str8 string);
 internal Str8 str8_join(Arena *arena, Str8List *list);
