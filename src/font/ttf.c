@@ -504,8 +504,6 @@ internal Void ttf_choose_character_map(Arena *arena, TTF_Font *font) {
 }
 
 internal TTF_Glyph ttf_get_glyph_outlines(Arena *arena, TTF_Font *font, U32 glyph_index, U32 contour_capacity, U32 point_capacity) {
-    B32 success = true;
-
     TTF_Glyph result = { 0 };
     result.contour_end_points = arena_push_array(arena, U16,       font->contour_capacity);
     result.flags              = arena_push_array(arena, U8,        font->point_capacity);
@@ -517,7 +515,7 @@ internal TTF_Glyph ttf_get_glyph_outlines(Arena *arena, TTF_Font *font, U32 glyp
 
     TTF_GlyphHeader *header = 0;
     S16 contour_count       = 0;
-    if (success && glyph_data.size >= read_index + sizeof(TTF_GlyphHeader)) {
+    if (glyph_data.size >= read_index + sizeof(TTF_GlyphHeader)) {
         header = (TTF_GlyphHeader *) &glyph_data.data[read_index];
         read_index += sizeof(TTF_GlyphHeader);
 
@@ -528,54 +526,48 @@ internal TTF_Glyph ttf_get_glyph_outlines(Arena *arena, TTF_Font *font, U32 glyp
 
         contour_count = s16_big_to_local_endian(header->number_of_contours);
     } else {
-        str8_list_push(arena, &result.errors, str8_literal("Not enough data for glyph outlines."));
-        success = false;
+        str8_list_push(arena, &result.errors, str8_literal("Not enough data for glyph outlines.\n"));
     }
 
-    if (success && contour_count > 0) {
-        if ((U32) contour_count > contour_capacity) {
-            str8_list_push(arena, &result.errors, str8_literal("Glyph contains too many contours."));
-            success = false;
-        }
+    if (contour_count > 0) {
+        if ((U32) contour_count < contour_capacity) {
+            if (glyph_data.size >= read_index + contour_count * sizeof(U16)) {
+                result.contour_count = contour_count;
 
-        if (success && glyph_data.size >= read_index + contour_count * sizeof(U16)) {
-            result.contour_count = contour_count;
+                for (S32 i = 0; i < contour_count; ++i) {
+                    result.contour_end_points[i] = u16_big_to_local_endian(*(U16 *) &glyph_data.data[read_index]);
+                    read_index += sizeof(U16);
+                }
 
-            for (S32 i = 0; i < contour_count; ++i) {
-                result.contour_end_points[i] = u16_big_to_local_endian(*(U16 *) &glyph_data.data[read_index]);
-                read_index += sizeof(U16);
+                result.point_count = result.contour_end_points[result.contour_count - 1] + 1;
+            } else {
+                str8_list_push(arena, &result.errors, str8_literal("Not enough data for glyph contours.\n"));
             }
-
-            result.point_count = result.contour_end_points[result.contour_count - 1] + 1;
         } else {
-            str8_list_push(arena, &result.errors, str8_literal("Not enough data for glyph contours."));
-            success = false;
+            str8_list_push(arena, &result.errors, str8_literal("Glyph contains too many contours.\n"));
         }
 
         if (result.point_count > point_capacity) {
-            str8_list_push(arena, &result.errors, str8_literal("Glyph contains too many points."));
-            success = false;
+            str8_list_push(arena, &result.errors, str8_literal("Glyph contains too many points.\n"));
+            result.point_count = 0;
         }
 
         // NOTE: Skip over instructions.
-        if (success && glyph_data.size >= read_index + sizeof(U16)) {
+        if (glyph_data.size >= read_index + sizeof(U16)) {
             U16 instruction_length = u16_big_to_local_endian(*(U16 *) &glyph_data.data[read_index]);
             read_index += sizeof(U16);
 
-            if (glyph_data.size >= read_index + instruction_length * sizeof(U8)) {
-                read_index += instruction_length * sizeof(U8);
-            } else {
-                str8_list_push(arena, &result.errors, str8_literal("Not enough data for glyph instructions."));
-                success = false;
+            read_index += instruction_length * sizeof(U8);
+            if (read_index > glyph_data.size) {
+                str8_list_push(arena, &result.errors, str8_literal("Not enough data for glyph instructions.\n"));
             }
         } else {
-            str8_list_push(arena, &result.errors, str8_literal("Not enough data for glyph instructions."));
-            success = false;
+            str8_list_push(arena, &result.errors, str8_literal("Not enough data for glyph instructions.\n"));
         }
 
         // NOTE: Any valid ttf-file will have at least one x-coordinate after
         // the tags, guaranteeing that we have at least two bytes.
-        for (U32 point_index = 0; success && point_index < result.point_count;) {
+        for (U32 point_index = 0; point_index < result.point_count;) {
             if (glyph_data.size >= read_index + 2 * sizeof(U8)) {
                 U8 flag = glyph_data.data[read_index++];
                 U32 repeat_count = 1;
@@ -589,79 +581,64 @@ internal TTF_Glyph ttf_get_glyph_outlines(Arena *arena, TTF_Font *font, U32 glyp
                         result.flags[point_index++] = flag;
                     }
                 } else {
-                    str8_list_push(arena, &result.errors, str8_literal("Too many glyph point flags."));
-                    success = false;
+                    str8_list_push(arena, &result.errors, str8_literal("Too many glyph point flags.\n"));
+                    break;
                 }
             } else {
-                str8_list_push(arena, &result.errors, str8_literal("Not enough data for glyph point flags."));
-                success = false;
+                str8_list_push(arena, &result.errors, str8_literal("Not enough data for glyph point flags.\n"));
+                break;
             }
         }
 
-        if (success) {
-            TTF_FWord previous = 0;
-            for (U32 point_index = 0; success && point_index < result.point_count; ++point_index) {
-                U8 flag = result.flags[point_index];
-                if (flag & TTF_SIMPLE_GLYPH_FLAGS_SHORT_X) {
-                    if (glyph_data.size >= read_index + sizeof(U8)) {
-                        if (flag & TTF_SIMPLE_GLYPH_FLAGS_SAME_OR_POSITIVE_X) {
-                            previous += glyph_data.data[read_index++];
-                        } else {
-                            previous -= glyph_data.data[read_index++];
-                        }
-                    } else {
-                        str8_list_push(arena, &result.errors, str8_literal("Not enough data for glyph point x-coordinates."));
-                        success = false;
-                    }
-                } else {
-                    if (flag & TTF_SIMPLE_GLYPH_FLAGS_SAME_OR_POSITIVE_X) {
-                        // Nothing to do.
-                    } else {
-                        if (glyph_data.size >= read_index + sizeof(TTF_FWord)) {
-                            previous += s16_big_to_local_endian(*(TTF_FWord *) &glyph_data.data[read_index]);
-                            read_index += sizeof(TTF_FWord);
-                        } else {
-                            str8_list_push(arena, &result.errors, str8_literal("Not enough data for glyph point x-coordinates."));
-                            success = false;
-                        }
-                    }
-                }
-                result.x_coordinates[point_index] = previous;
+        U32 coordinate_size = 0;
+        for (U32 point_index = 0; point_index < result.point_count; ++point_index) {
+            U8 flag = result.flags[point_index];
+            if (flag & TTF_SIMPLE_GLYPH_FLAGS_SHORT_X) {
+                coordinate_size += sizeof(U8);
+            } else if (!(flag & TTF_SIMPLE_GLYPH_FLAGS_SAME_OR_POSITIVE_X)) {
+                coordinate_size += sizeof(TTF_FWord);
+            }
+
+            if (flag & TTF_SIMPLE_GLYPH_FLAGS_SHORT_Y) {
+                coordinate_size += sizeof(U8);
+            } else if (!(flag & TTF_SIMPLE_GLYPH_FLAGS_SAME_OR_POSITIVE_Y)) {
+                coordinate_size += sizeof(TTF_FWord);
             }
         }
 
-        if (success) {
-            TTF_FWord previous = 0;
-            for (U32 point_index = 0; success && point_index < result.point_count; ++point_index) {
-                U8 flag = result.flags[point_index];
-                if (flag & TTF_SIMPLE_GLYPH_FLAGS_SHORT_Y) {
-                    if (glyph_data.size >= read_index + sizeof(U8)) {
-                        if (flag & TTF_SIMPLE_GLYPH_FLAGS_SAME_OR_POSITIVE_Y) {
-                            previous += glyph_data.data[read_index++];
-                        } else {
-                            previous -= glyph_data.data[read_index++];
-                        }
-                    } else {
-                        str8_list_push(arena, &result.errors, str8_literal("Not enough data for glyph point y-coordinates."));
-                        success = false;
-                    }
-                } else {
-                    if (flag & TTF_SIMPLE_GLYPH_FLAGS_SAME_OR_POSITIVE_Y) {
-                        // Nothing to do.
-                    } else {
-                        if (glyph_data.size >= read_index + sizeof(TTF_FWord)) {
-                            previous += s16_big_to_local_endian(*(TTF_FWord *) &glyph_data.data[read_index]);
-                            read_index += sizeof(TTF_FWord);
-                        } else {
-                            str8_list_push(arena, &result.errors, str8_literal("Not enough data for glyph point y-coordinates."));
-                            success = false;
-                        }
-                    }
-                }
-                result.y_coordinates[point_index] = previous;
-            }
+        if (read_index + coordinate_size > glyph_data.size) {
+            str8_list_push(arena, &result.errors, str8_literal("Not enough data for glyph point coordinates.\n"));
+            result.point_count = 0;
         }
-    } else if (success && contour_count < 0) {
+
+        TTF_FWord previous_x = 0;
+        for (U32 point_index = 0; point_index < result.point_count; ++point_index) {
+            U8 flag = result.flags[point_index];
+            if (flag & TTF_SIMPLE_GLYPH_FLAGS_SHORT_X) {
+                U8 delta = glyph_data.data[read_index++];
+                previous_x += (flag & TTF_SIMPLE_GLYPH_FLAGS_SAME_OR_POSITIVE_X ? delta : -delta);
+            } else if (!(flag & TTF_SIMPLE_GLYPH_FLAGS_SAME_OR_POSITIVE_X)) {
+                previous_x += s16_big_to_local_endian(*(TTF_FWord *) &glyph_data.data[read_index]);
+                read_index += sizeof(TTF_FWord);
+            }
+            result.x_coordinates[point_index] = previous_x;
+        }
+
+        TTF_FWord previous_y = 0;
+        for (U32 point_index = 0; point_index < result.point_count; ++point_index) {
+            U8 flag = result.flags[point_index];
+            if (flag & TTF_SIMPLE_GLYPH_FLAGS_SHORT_Y) {
+                U8 delta = glyph_data.data[read_index++];
+                previous_y += (flag & TTF_SIMPLE_GLYPH_FLAGS_SAME_OR_POSITIVE_Y ? delta : -delta);
+            } else if (!(flag & TTF_SIMPLE_GLYPH_FLAGS_SAME_OR_POSITIVE_Y)) {
+                previous_y += s16_big_to_local_endian(*(TTF_FWord *) &glyph_data.data[read_index]);
+                read_index += sizeof(TTF_FWord);
+            }
+            result.y_coordinates[point_index] = previous_y;
+        }
+    } else if (contour_count < 0) {
+        B32 success = true;
+
         B32 has_more_components = true;
         while (success && has_more_components) {
             U16 flags = 0;
@@ -683,16 +660,16 @@ internal TTF_Glyph ttf_get_glyph_outlines(Arena *arena, TTF_Font *font, U32 glyp
 
                 component_glyph = ttf_get_glyph_outlines(arena, font, component_glyph_index, contour_count - result.contour_count, point_capacity - result.point_count);
             } else {
-                str8_list_push(arena, &result.errors, str8_literal("Not enough data for glyph component flags."));
+                str8_list_push(arena, &result.errors, str8_literal("Not enough data for glyph component flags.\n"));
                 success = false;
             }
 
             if (success) {
                 if (flags & TTF_COMPOUND_GLYPH_FLAGS_ARG_1_AND_2_ARE_WORDS && glyph_data.size < read_index + 2 * sizeof(U16)) {
-                    str8_list_push(arena, &result.errors, str8_literal("Not enough data for glyph component arguments."));
+                    str8_list_push(arena, &result.errors, str8_literal("Not enough data for glyph component arguments.\n"));
                     success = false;
                 } else if (glyph_data.size < read_index + 2 * sizeof(U8)) {
-                    str8_list_push(arena, &result.errors, str8_literal("Not enough data for glyph component arguments."));
+                    str8_list_push(arena, &result.errors, str8_literal("Not enough data for glyph component arguments.\n"));
                     success = false;
                 }
             }
@@ -728,7 +705,7 @@ internal TTF_Glyph ttf_get_glyph_outlines(Arena *arena, TTF_Font *font, U32 glyp
                         a = d = ttf_f2dot14_to_f32(u16_big_to_local_endian(*(U16 *) &glyph_data.data[read_index]));
                         read_index += sizeof(TTF_F2Dot14);
                     } else {
-                        str8_list_push(arena, &result.errors, str8_literal("Not enough data for glyph component transform."));
+                        str8_list_push(arena, &result.errors, str8_literal("Not enough data for glyph component transform.\n"));
                         success = false;
                     }
                 } else if (flags & TTF_COMPOUND_GLYPH_FLAGS_WE_HAVE_AN_X_AND_Y_SCALE) {
@@ -738,7 +715,7 @@ internal TTF_Glyph ttf_get_glyph_outlines(Arena *arena, TTF_Font *font, U32 glyp
                         d = ttf_f2dot14_to_f32(u16_big_to_local_endian(*(U16 *) &glyph_data.data[read_index]));
                         read_index += sizeof(TTF_F2Dot14);
                     } else {
-                        str8_list_push(arena, &result.errors, str8_literal("Not enough data for glyph component transform."));
+                        str8_list_push(arena, &result.errors, str8_literal("Not enough data for glyph component transform.\n"));
                         success = false;
                     }
                 } else if (flags & TTF_COMPOUND_GLYPH_FLAGS_WE_HAVE_A_TWO_BY_TWO) {
@@ -752,14 +729,14 @@ internal TTF_Glyph ttf_get_glyph_outlines(Arena *arena, TTF_Font *font, U32 glyp
                         d = ttf_f2dot14_to_f32(u16_big_to_local_endian(*(U16 *) &glyph_data.data[read_index]));
                         read_index += sizeof(TTF_F2Dot14);
                     } else {
-                        str8_list_push(arena, &result.errors, str8_literal("Not enough data for glyph component transform."));
+                        str8_list_push(arena, &result.errors, str8_literal("Not enough data for glyph component transform.\n"));
                         success = false;
                     }
                 }
             }
 
             if (success && !(flags & TTF_COMPOUND_GLYPH_FLAGS_ARGS_ARE_XY_VALUES) && !(compound_point_index < result.point_count && component_point_index < component_glyph.point_count)) {
-                str8_list_push(arena, &result.errors, str8_literal("Phantom points are not supported, glyph component alignemnt indicies are out of range.."));
+                str8_list_push(arena, &result.errors, str8_literal("Phantom points are not supported, glyph component alignemnt indicies are out of range.\n"));
                 success = false;
             }
 
