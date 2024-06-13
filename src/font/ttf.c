@@ -503,8 +503,9 @@ internal Void ttf_choose_character_map(Arena *arena, TTF_Font *font) {
     }
 }
 
-internal TTF_Glyph ttf_get_glyph_outlines(Arena *arena, TTF_Font *font, U32 glyph_index, U32 contour_capacity, U32 point_capacity) {
+internal TTF_Glyph ttf_get_glyph_outlines(Arena *arena, TTF_Font *font, U32 glyph_index) {
     TTF_Glyph result = { 0 };
+
     result.contour_end_points = arena_push_array(arena, U16,       font->contour_capacity);
     result.flags              = arena_push_array(arena, U8,        font->point_capacity);
     result.x_coordinates      = arena_push_array(arena, TTF_FWord, font->point_capacity);
@@ -530,7 +531,7 @@ internal TTF_Glyph ttf_get_glyph_outlines(Arena *arena, TTF_Font *font, U32 glyp
     }
 
     if (contour_count > 0) {
-        if ((U32) contour_count < contour_capacity) {
+        if ((U32) contour_count < font->contour_capacity) {
             if (glyph_data.size >= read_index + contour_count * sizeof(U16)) {
                 result.contour_count = contour_count;
 
@@ -547,7 +548,7 @@ internal TTF_Glyph ttf_get_glyph_outlines(Arena *arena, TTF_Font *font, U32 glyp
             str8_list_push(arena, &result.errors, str8_literal("Glyph contains too many contours.\n"));
         }
 
-        if (result.point_count > point_capacity) {
+        if (result.point_count > font->point_capacity) {
             str8_list_push(arena, &result.errors, str8_literal("Glyph contains too many points.\n"));
             result.point_count = 0;
         }
@@ -656,7 +657,7 @@ internal TTF_Glyph ttf_get_glyph_outlines(Arena *arena, TTF_Font *font, U32 glyp
                 U16 component_glyph_index = u16_big_to_local_endian(*(U16 *) &glyph_data.data[read_index]);
                 read_index += sizeof(U16);
 
-                component_glyph = ttf_get_glyph_outlines(arena, font, component_glyph_index, contour_count - result.contour_count, point_capacity - result.point_count);
+                component_glyph = ttf_get_glyph_outlines(arena, font, component_glyph_index);
             } else {
                 str8_list_push(arena, &result.errors, str8_literal("Not enough data for glyph component flags.\n"));
             }
@@ -756,6 +757,18 @@ internal TTF_Glyph ttf_get_glyph_outlines(Arena *arena, TTF_Font *font, U32 glyp
                 }
             }
 
+            if (result.contour_count + component_glyph.contour_count > font->contour_capacity) {
+                str8_list_push(arena, &result.errors, str8_literal("Compound glyph has too many contours.\n"));
+                component_glyph.contour_count = 0;
+                component_glyph.point_count   = 0;
+            }
+
+            if (result.point_count + component_glyph.point_count > font->point_capacity) {
+                str8_list_push(arena, &result.errors, str8_literal("Compound glyph has too many points.\n"));
+                component_glyph.contour_count = 0;
+                component_glyph.point_count   = 0;
+            }
+
             for (U32 i = 0; i < component_glyph.contour_count; ++i) {
                 result.contour_end_points[result.contour_count] = component_glyph.contour_end_points[i] + result.point_count;
                 ++result.contour_count;
@@ -779,7 +792,10 @@ internal MSDF_Glyph ttf_expand_contours_to_msdf(Arena *arena, TTF_Font *font, U3
     MSDF_Glyph result = { 0 };
     Arena_Temporary scratch = arena_get_scratch(&arena, 1);
 
-    TTF_Glyph glyph = ttf_get_glyph_outlines(scratch.arena, font, glyph_index, font->contour_capacity, font->point_capacity);
+    TTF_Glyph glyph = ttf_get_glyph_outlines(scratch.arena, font, glyph_index);
+    if (glyph.errors.node_count) {
+        os_console_print(str8_join(scratch.arena, &glyph.errors));
+    }
 
     result.x_min = glyph.x_min;
     result.y_min = glyph.y_min;
