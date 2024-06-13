@@ -244,6 +244,7 @@ typedef struct {
     U8        *flags;
     TTF_FWord *x_coordinates;
     TTF_FWord *y_coordinates;
+    Str8List   errors;
 } TTF_Glyph;
 
 // Used ONLY for parsing
