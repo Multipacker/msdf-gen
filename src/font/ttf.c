@@ -515,7 +515,7 @@ internal TTF_Glyph ttf_get_glyph_outlines(Arena *arena, TTF_Font *font, U32 glyp
 
     TTF_GlyphHeader *header = 0;
     S16 contour_count       = 0;
-    if (glyph_data.size >= read_index + sizeof(TTF_GlyphHeader)) {
+    if (read_index + sizeof(TTF_GlyphHeader) <= glyph_data.size) {
         header = (TTF_GlyphHeader *) &glyph_data.data[read_index];
         read_index += sizeof(TTF_GlyphHeader);
 
@@ -525,8 +525,8 @@ internal TTF_Glyph ttf_get_glyph_outlines(Arena *arena, TTF_Font *font, U32 glyp
         result.y_max = s16_big_to_local_endian(header->y_max);
 
         contour_count = s16_big_to_local_endian(header->number_of_contours);
-    } else {
-        str8_list_push(arena, &result.errors, str8_literal("Not enough data for glyph outlines.\n"));
+    } else if (glyph_data.size != 0) {
+        str8_list_push(arena, &result.errors, str8_format(arena, "Not enough data for glyph outlines. Glyph index %u\n", glyph_index));
     }
 
     if (contour_count > 0) {
