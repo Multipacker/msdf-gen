@@ -8,7 +8,6 @@
 #include "string.h"
 #include "context.h"
 #include "hash.h"
-#include "error.h"
 #include "os_include.h"
 
 #endif // BASE_INCLUDE_H

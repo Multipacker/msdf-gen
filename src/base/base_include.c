@@ -4,5 +4,4 @@
 #include "string.c"
 #include "context.c"
 #include "hash.c"
-#include "error.c"
 #include "os_include.c"
