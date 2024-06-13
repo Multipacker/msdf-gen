@@ -192,6 +192,31 @@ internal Str8 str8_join(Arena *arena, Str8List *list) {
     return str8(data, size);
 }
 
+internal Str8 str8_format(Arena *arena, CStr *format, ...) {
+    va_list arguments;
+    va_start(arguments, format);
+    Str8 result = str8_format_list(arena, format, arguments);
+    va_end(arguments);
+    return result;
+}
+
+internal Str8 str8_format_list(Arena *arena, CStr *format, va_list arguments) {
+    Str8 result = { 0 };
+
+    va_list format_arguments;
+    va_copy(format_arguments, arguments);
+
+    U64 needed_size = (U64) vsnprintf(0, 0, (const char *) format, arguments);
+
+    result.data = arena_push_array(arena, U8, needed_size + 1);
+    result.size = needed_size;
+
+    vsnprintf((CStr) result.data, needed_size + 1, (const char *) format, format_arguments);
+
+    va_end(format_arguments);
+    return result;
+}
+
 internal Str8List str8_split_by_codepoints(Arena *arena, Str8 string, Str8 codepoints) {
     Str8List result = { 0 };
 

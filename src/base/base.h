@@ -219,4 +219,6 @@
         (b) = temp##__LINE__;   \
     }
 
+#include <stdarg.h>
+
 #endif // BASE_H
