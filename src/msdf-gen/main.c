@@ -18,7 +18,7 @@ typedef struct {
 
 typedef struct {
     Render_Texture atlas;
-    Glyph glyphs[128];
+    Glyph glyphs[256];
 } Font;
 
 internal Void load_font(Render_Context *render, Str8 font_path, Font *result) {
@@ -31,7 +31,7 @@ internal Void load_font(Render_Context *render, Str8 font_path, Font *result) {
     TTF_Font *font = ttf_load(scratch.arena, font_path);
     if (font->errors.node_count == 0) {
         // Generate glyphs
-        for (U32 codepoint = 0; codepoint < 128; ++codepoint) {
+        for (U32 codepoint = 0; codepoint < 256; ++codepoint) {
             Arena_Temporary glyph_scratch = arena_get_scratch(&scratch.arena, 1);
 
             MSDF_RasterResult raster_result = msdf_generate(glyph_scratch.arena, font, codepoint, glyph_size);
@@ -68,6 +68,27 @@ internal Void load_font(Render_Context *render, Str8 font_path, Font *result) {
     }
 
     arena_end_temporary(scratch);
+}
+
+internal Void draw_text(Render_Context *render, Font *font, V2F32 position, F32 point_size, Str8 text) {
+    V2F32 text_point = position;
+    for (U8 *ptr = text.data, *opl = text.data + text.size; ptr < opl; ) {
+        StringDecode decode = string_decode_utf8(ptr, (U64) (opl - ptr));
+        ptr += decode.size;
+
+        Glyph *glyph = &font->glyphs[decode.codepoint];
+
+        render_rectangle(
+            render,
+            v2f32_add(text_point, v2f32_scale(glyph->min_pt, point_size)), v2f32_add(text_point, v2f32_scale(glyph->max_pt, point_size)),
+            .uv_min = glyph->uv_min, .uv_max = glyph->uv_max,
+            .texture = font->atlas,
+            .color = v4f32(1.0f, 1.0f, 1.0f, 1.0f),
+            .flags = Render_RectangleFlags_MSDF
+        );
+
+        text_point.x += glyph->advance_pt * point_size;
+    }
 }
 
 internal S32 os_run(Str8List arguments) {
@@ -129,35 +150,23 @@ internal S32 os_run(Str8List arguments) {
         render_begin(render, client_area);
 
         V2U32 texture_size = render_size_from_texture(font.atlas);
-        render_rectangle(
-            render,
-            offset, v2f32_add(offset, v2f32((F32) texture_size.width / zoom, (F32) texture_size.height / zoom)),
-            .uv_min = v2f32(0, 0), .uv_max = v2f32(1, 1),
-            .texture = font.atlas,
-            .color = v4f32(1.0f, 1.0f, 1.0f, 1.0f),
-            .flags = (render_msdf ? Render_RectangleFlags_MSDF : Render_RectangleFlags_Texture)
-        );
-
-        Str8 string = str8_literal("MSDF-based text rendering");
-        V2F32 text_point = offset;
-        F32 point_size = 50.0f / zoom;
-        for (U8 *ptr = string.data, *opl = string.data + string.size; ptr < opl; ) {
-            StringDecode decode = string_decode_utf8(ptr, (U64) (opl - ptr));
-            ptr += decode.size;
-
-            Glyph *glyph = &font.glyphs[decode.codepoint];
-
-            render_rectangle(
-                render,
-                v2f32_add(text_point, v2f32_scale(glyph->min_pt, point_size)), v2f32_add(text_point, v2f32_scale(glyph->max_pt, point_size)),
-                .uv_min = glyph->uv_min, .uv_max = glyph->uv_max,
-                .texture = font.atlas,
-                .color = v4f32(1.0f, 1.0f, 1.0f, 1.0f),
-                .flags = (render_msdf ? Render_RectangleFlags_MSDF : Render_RectangleFlags_Texture)
-            );
-
-            text_point.x += glyph->advance_pt * point_size;
+        for (U32 y = 0; y < 16; ++y) {
+            for (U32 x = 0; x < 16; ++x) {
+                U32 codepoint = x + y * 16;
+                Glyph *glyph = &font.glyphs[codepoint];
+                render_rectangle(
+                    render,
+                    v2f32_add(offset, v2f32(40 * x / zoom, 40 * y / zoom)),
+                    v2f32_add(offset, v2f32(40 * (x + 1.0f) / zoom, 40 * (y + 1.0f) / zoom)),
+                    .uv_min = glyph->uv_min, .uv_max = glyph->uv_max,
+                    .texture = font.atlas,
+                    .color = v4f32(1.0f, 1.0f, 1.0f, 1.0f),
+                    .flags = (render_msdf ? Render_RectangleFlags_MSDF : Render_RectangleFlags_Texture)
+                );
+            }
         }
+
+        draw_text(render, &font, offset, 50.0f / zoom, str8_literal("MSDF-based text rendering"));
 
         render_end(render);
 
