@@ -219,6 +219,10 @@
         (b) = temp##__LINE__;   \
     }
 
+#define glue_internal(a, b) a ## b
+#define glue(a, b) glue_internal(a, b)
+#define defer_loop(begin, end) for (U32 glue(defer, __LINE__) = ((begin), 0); !glue(defer, __LINE__); glue(defer, __LINE__)++, (end))
+
 #include <stdarg.h>
 
 #endif // BASE_H
