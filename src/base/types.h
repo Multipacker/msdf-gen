@@ -100,6 +100,14 @@ typedef struct {
     DataAccessFlags access;
 } FileProperties;
 
+typedef enum {
+    Axis2_X,
+    Axis2_Y,
+    Axis2_COUNT,
+} Axis2;
+
+#define axis2_flip(axis) ((Axis2) (1 - (axis)))
+
 global S8  S8_MIN  = 0x80;
 global S16 S16_MIN = 0x8000;
 global S32 S32_MIN = 0x80000000;
