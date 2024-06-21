@@ -31,7 +31,7 @@ struct Render_RectangleParams {
     Render_Texture        texture;
     Render_RectangleFlags flags;
 };
-#define render_rectangle(gfx, minimum, maximum, ...) render_rectangle_internal(gfx, &(Render_RectangleParams) { .min = minimum, .max = maximum, .color = v4f32(1.0f, 1.0f, 1.0f, 1.0f), __VA_ARGS__ })
-internal Void render_rectangle_internal(Render_Context *gfx, Render_RectangleParams *parameters);
+#define render_rectangle(render, minimum, maximum, ...) render_rectangle_internal(render, &(Render_RectangleParams) { .min = minimum, .max = maximum, .color = v4f32(1.0f, 1.0f, 1.0f, 1.0f), __VA_ARGS__ })
+internal Void render_rectangle_internal(Render_Context *render, Render_RectangleParams *parameters);
 
 #endif // RENDER_INCLUDE_H
