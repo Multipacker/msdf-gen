@@ -168,25 +168,25 @@
 #  define memory_equal(a, b, count)               (__builtin_memcmp((a), (b), (count)) == 0)
 #endif
 
-#define dll_insert_next_previous(first, last, p, n, next, previous)                                                      \
-    ((first) == 0 ? (((first) = (last) = (n)), (n)->next = (n)->previous = 0) :                                          \
-    (p) == 0 ? ((n)->previous = 0, (n)->next = (first), ((first) == 0 ? 0 : ((first)->previous = (n))), (first) = (n)) : \
-    (((p)->next == 0 ? 0 : (((p)->next->previous) = (n))), (n)->next = (p)->next, (n)->previous = (p), (p)->next = (n),  \
-    ((p) == (last) ? (last) = (n) : 0)))
-#define dll_push_back(first, last, node)  dll_insert_next_previous(first, last, last, node, next, previous)
-#define dll_push_front(last, first, node) dll_insert_next_previous(last, first, frist, node, previous, next)
-#define dll_remove_next_previous(first, last, node, next, previous) \
-    ((first) == (last) && (first) == (node) ?                       \
-    ((first) = (last) = 0) :                                        \
-    ((first) == (node) ?                                            \
-    ((first) = (first)->next, (first)->previous = 0) :              \
-    ((last) == (node) ?                                             \
-    ((last) = (last)->previous, (last)->next = 0) :                 \
-    ((node)->previous->next = (node)->next,                         \
+#define dll_insert_next_previous_zero(first, last, p, n, next, previous, zero)                                                               \
+    ((first) == (zero) ? (((first) = (last) = (n)), (n)->next = (n)->previous = (zero)) :                                                    \
+    (p) == (zero) ? ((n)->previous = (zero), (n)->next = (first), ((first) == (zero) ? (zero) : ((first)->previous = (n))), (first) = (n)) : \
+    (((p)->next == (zero) ? (zero) : (((p)->next->previous) = (n))), (n)->next = (p)->next, (n)->previous = (p), (p)->next = (n),            \
+    ((p) == (last) ? (last) = (n) : (zero))))
+#define dll_push_back(first, last, node)  dll_insert_next_previous_zero(first, last, last, node, next, previous, 0)
+#define dll_push_front(last, first, node) dll_insert_next_previous_zero(last, first, frist, node, previous, next, 0)
+#define dll_remove_next_previous_zero(first, last, node, next, previous, zero) \
+    ((first) == (last) && (first) == (node) ?                                  \
+    ((first) = (last) = (zero)) :                                              \
+    ((first) == (node) ?                                                       \
+    ((first) = (first)->next, (first)->previous = (zero)) :                    \
+    ((last) == (node) ?                                                        \
+    ((last) = (last)->previous, (last)->next = (zero)) :                       \
+    ((node)->previous->next = (node)->next,                                    \
     (node)->next->previous = (node)->previous))))
 #define dll_remove(first, last, node) dll_remove_next_previous(first, last, node, next, previous)
-#define dll_insert_before(first, last, node, new) dll_insert_next_previous(last, first, node, new, previous, next)
-#define dll_insert_after(first, last, node, new)  dll_insert_next_previous(first, last, node, new, next, previous)
+#define dll_insert_before(first, last, node, new) dll_insert_next_previous_zero(last, first, node, new, previous, next, 0)
+#define dll_insert_after(first, last, node, new)  dll_insert_next_previous_zero(first, last, node, new, next, previous, 0)
 
 #define sll_queue_push(first, last, node)     \
     ((first) == 0 ?                           \
@@ -204,9 +204,8 @@
 
 #define sll_stack_push(first, node)             \
     ((first) == 0 ?                             \
-    (first) = (node) :                          \
-    ((node)->next = (first), (first) = (node)), \
-    (node)->next = 0)
+    ((first) = (node), (node)->next = 0) :      \
+    ((node)->next = (first), (first) = (node)))
 #define sll_stack_pop(first)   \
     ((first) == 0 ?            \
     0 :                        \
