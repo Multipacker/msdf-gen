@@ -92,13 +92,14 @@ typedef enum {
 } FilePropertyFlags;
 
 // NOTE: DenseTime is in universal time by default.
-typedef struct {
+typedef struct FileProperties FileProperties;
+struct FileProperties {
     U64 size;
     FilePropertyFlags flags;
     DenseTime create_time;
     DenseTime modify_time;
     DataAccessFlags access;
-} FileProperties;
+};
 
 typedef enum {
     Axis2_X,

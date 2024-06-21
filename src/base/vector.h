@@ -29,6 +29,7 @@ typedef union {
         F32 width;
         F32 height;
     };
+    F32 values[2];
 } V2F32;
 
 typedef union V3F32 V3F32;
@@ -69,6 +70,12 @@ union V4F32 {
 typedef struct M4F32 M4F32;
 struct M4F32 {
     F32 m[4][4];
+};
+
+typedef struct R2F32 R2F32;
+struct R2F32 {
+    V2F32 min;
+    V2F32 max;
 };
 
 internal V2U32 v2u32(U32 x, U32 y);
