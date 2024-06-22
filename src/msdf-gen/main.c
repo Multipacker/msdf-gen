@@ -2,11 +2,13 @@
 #include "src/graphics/graphics_include.h"
 #include "src/render/render_include.h"
 #include "src/font/font_include.h"
+#include "src/ui/ui_include.h"
 
 #include "src/base/base_include.c"
 #include "src/graphics/graphics_include.c"
 #include "src/render/render_include.c"
 #include "src/font/font_include.c"
+#include "src/ui/ui_include.c"
 
 typedef struct {
     V2F32 min_pt;
@@ -91,6 +93,20 @@ internal Void draw_text(Render_Context *render, Font *font, V2F32 position, F32 
     }
 }
 
+internal Void draw_ui(Render_Context *render, UI_Box *box) {
+    if (box->flags & UI_BoxFlags_DrawBackground) {
+        render_rectangle(
+            render,
+            box->calculated_rectangle.min, box->calculated_rectangle.max,
+            .color = box->color
+        );
+    }
+
+    for (UI_Box *child = box->first; child != &global_ui_null_box; child = child->next) {
+        draw_ui(render, child);
+    }
+}
+
 internal S32 os_run(Str8List arguments) {
     if (!arguments.first->next) {
         os_console_print(str8_literal("You have to pass a file\n"));
@@ -100,6 +116,7 @@ internal S32 os_run(Str8List arguments) {
     Arena *arena = arena_create();
 
     render_init();
+    UI_Context *ui = ui_create();
 
     Gfx_Context *gfx = gfx_create(arena, str8_literal("MSDF-gen"), 1280, 720);
     if (gfx->errors.node_count) {
@@ -167,6 +184,27 @@ internal S32 os_run(Str8List arguments) {
         }
 
         draw_text(render, &font, offset, 50.0f / zoom, str8_literal("MSDF-based text rendering"));
+
+        ui_begin(gfx, ui);
+        ui_width(ui, ui_size_pixels(100))
+        ui_height(ui, ui_size_pixels(100)) {
+            ui_color_next(ui, v4f32(1.0f, 0.0f, 0.0f, 1.0f));
+            ui_layout_axis_next(ui, Axis2_Y);
+            UI_Box *root = ui_box_create(ui, UI_BoxFlags_DrawBackground);
+            ui_width(ui, ui_size_parent_percent(0.9f))
+            ui_parent(ui, root) {
+                ui_height(ui, ui_size_parent_percent(0.25f)) {
+                    ui_color_next(ui, v4f32(0.0f, 1.0f, 0.0f, 1.0f));
+                    UI_Box *child_a = ui_box_create(ui, UI_BoxFlags_DrawBackground);
+
+                    ui_color_next(ui, v4f32(0.0f, 0.0f, 1.0f, 1.0f));
+                    UI_Box *child_b = ui_box_create(ui, UI_BoxFlags_DrawBackground);
+                }
+            }
+        }
+        ui_end(ui);
+
+        draw_ui(render, ui->root);
 
         render_end(render);
 
