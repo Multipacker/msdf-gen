@@ -1,3 +1,8 @@
+internal UI_Size ui_size_fill(Void) {
+    UI_Size result = ui_size_parent_percent(1.0f, 0.0f);
+    return result;
+}
+
 internal UI_Box *ui_spacer(UI_Context *ui) {
     UI_Box *spacer = ui_box_create(ui, 0);
     return spacer;

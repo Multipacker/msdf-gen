@@ -186,20 +186,22 @@ internal S32 os_run(Str8List arguments) {
         draw_text(render, &font, offset, 50.0f / zoom, str8_literal("MSDF-based text rendering"));
 
         ui_begin(gfx, ui);
-        ui_width(ui, ui_size_pixels(100))
-        ui_height(ui, ui_size_pixels(100)) {
+        ui_width(ui, ui_size_pixels(200, 1.0f))
+        ui_height(ui, ui_size_pixels(200, 1.0f)) {
             ui_color_next(ui, v4f32(1.0f, 0.0f, 0.0f, 1.0f));
             ui_layout_axis_next(ui, Axis2_Y);
             UI_Box *root = ui_box_create(ui, UI_BoxFlags_DrawBackground);
-            ui_width(ui, ui_size_parent_percent(0.9f))
+            ui_width(ui, ui_size_parent_percent(0.9f, 1.0f))
             ui_parent(ui, root) {
-                ui_height(ui, ui_size_parent_percent(0.25f)) {
+                ui_spacer_sized(ui, ui_size_fill());
+                ui_height(ui, ui_size_parent_percent(0.25f, 1.0f)) {
                     ui_color_next(ui, v4f32(0.0f, 1.0f, 0.0f, 1.0f));
                     UI_Box *child_a = ui_box_create(ui, UI_BoxFlags_DrawBackground);
 
                     ui_color_next(ui, v4f32(0.0f, 0.0f, 1.0f, 1.0f));
                     UI_Box *child_b = ui_box_create(ui, UI_BoxFlags_DrawBackground);
                 }
+                ui_spacer_sized(ui, ui_size_fill());
             }
         }
         ui_end(ui);

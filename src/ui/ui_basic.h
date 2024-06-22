@@ -1,6 +1,8 @@
 #ifndef UI_BASIC_H
 #define UI_BASIC_H
 
+internal UI_Size ui_size_fill(Void);
+
 internal UI_Box *ui_spacer(UI_Context *ui);
 internal UI_Box *ui_spacer_sized(UI_Context *ui, UI_Size size);
 

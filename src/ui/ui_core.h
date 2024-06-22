@@ -11,6 +11,7 @@ typedef struct UI_Size UI_Size;
 struct UI_Size {
     UI_SizeKind kind;
     F32 value;
+    F32 strictness;
 };
 
 typedef enum {
@@ -98,9 +99,9 @@ struct UI_Context {
     UI_AxisStack  layout_axis_stack;
 };
 
-internal UI_Size ui_size_pixels(F32 pixels);
-internal UI_Size ui_size_parent_percent(F32 percent);
-internal UI_Size ui_size_children_sum(Void);
+internal UI_Size ui_size_pixels(F32 pixels, F32 strictness);
+internal UI_Size ui_size_parent_percent(F32 percent, F32 strictness);
+internal UI_Size ui_size_children_sum(F32 strictness);
 
 internal UI_Context *ui_create(Void);
 
