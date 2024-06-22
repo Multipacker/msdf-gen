@@ -171,7 +171,7 @@ internal Void ui_layout_resolve_violations(UI_Box *box, Axis2 axis) {
             }
 
             F32 violation = total_size - box->calculated_size.values[axis];
-            if (violation > 0.0f) {
+            if (violation > 0.0f && total_adjustable_size > 0.0f) {
                 // NOTE(simon): Adjust children
                 F32 adjust_percent = violation / total_adjustable_size;
                 for (UI_Box *child = box->first; child != &global_ui_null_box; child = child->next) {
