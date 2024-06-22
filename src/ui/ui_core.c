@@ -175,8 +175,10 @@ internal Void ui_layout_resolve_violations(UI_Box *box, Axis2 axis) {
                 // NOTE(simon): Adjust children
                 F32 adjust_percent = violation / total_adjustable_size;
                 for (UI_Box *child = box->first; child != &global_ui_null_box; child = child->next) {
-                    F32 adjustable_size = child->calculated_size.values[axis] * (1.0f - child->size[axis].strictness);
-                    child->calculated_size.values[axis] -= adjustable_size * adjust_percent;
+                    F32 child_size = child->calculated_size.values[axis];
+                    F32 adjustable_size = child_size * (1.0f - child->size[axis].strictness);
+
+                    child->calculated_size.values[axis] -= f32_min(adjustable_size * adjust_percent, child_size);
                 }
             }
         } else {
