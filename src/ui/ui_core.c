@@ -1,3 +1,5 @@
+global UI_Key global_ui_null_key = { 0 };
+
 global UI_Box global_ui_null_box = {
     .parent   = &global_ui_null_box,
     .next     = &global_ui_null_box,
@@ -5,6 +7,20 @@ global UI_Box global_ui_null_box = {
     .first    = &global_ui_null_box,
     .last     = &global_ui_null_box,
 };
+
+internal Arena *ui_frame_arena(UI_Context *ui) {
+    Arena *result = ui->frame_arenas[ui->frame_index % array_count(ui->frame_arenas)];
+    return result;
+}
+
+internal UI_Key ui_key_from_string(Str8 string) {
+    UI_Key result = 6180339887498948482;
+    for (U64 i = 0; i < string.size; ++i) {
+        result ^= string.data[i];
+        result *= 1111111111111111111;
+    }
+    return (result ^ result >> 32) | 1;
+}
 
 internal UI_Size ui_size_pixels(F32 pixels, F32 strictness) {
     UI_Size result = { 0 };
@@ -36,8 +52,12 @@ internal UI_Context *ui_create(Void) {
     UI_Context *ui = arena_push_struct_zero(arena, UI_Context);
 
     ui->permanent_arena = arena;
-    ui->frame_arena = arena_create();
+    for (U32 i = 0; i < array_count(ui->frame_arenas); ++i) {
+        ui->frame_arenas[i] = arena_create();
+    }
     ui->root = &global_ui_null_box;
+
+    ui->box_table = arena_push_array_zero(ui->permanent_arena, UI_BoxList, UI_BOX_TABLE_SIZE);
 
     return ui;
 }
@@ -77,7 +97,7 @@ internal Void ui_begin(Gfx_Context *gfx, UI_Context *ui) {
     V2U32 window_size = gfx_get_window_client_area(gfx);
     ui_width_next(ui, ui_size_pixels(window_size.width, 1.0f));
     ui_height_next(ui, ui_size_pixels(window_size.height, 1.0f));
-    ui->root = ui_box_create(ui, 0);
+    ui->root = ui_create_box(ui, 0);
 
     ui_parent_push(ui, ui->root);
 }
@@ -196,6 +216,19 @@ internal Void ui_layout_resolve_violations(UI_Box *box, Axis2 axis) {
 }
 
 internal Void ui_end(UI_Context *ui) {
+    // NOTE(simon): Remove untouched boxes.
+    for (U32 i = 0; i < UI_BOX_TABLE_SIZE; ++i) {
+        UI_BoxList *boxes = &ui->box_table[i];
+        for (UI_Box *box = boxes->first, *next; box; box = next) {
+            next = box->hash_next;
+
+            if (box->last_used_index != ui->frame_index) {
+                dll_remove_next_previous_zero(boxes->first, boxes->last, box, hash_next, hash_previous, 0);
+                sll_stack_push(ui->box_freelist, box);
+            }
+        }
+    }
+
     // NOTE(simon): Layout
     for (Axis2 axis = 0; axis < Axis2_COUNT; ++axis) {
         ui_layout_independent_sizes(ui->root, axis);
@@ -205,18 +238,54 @@ internal Void ui_end(UI_Context *ui) {
         ui_layout_position(ui->root, axis);
     }
 
-    arena_pop_to(ui->frame_arena, 0);
+    ++ui->frame_index;
+    arena_pop_to(ui_frame_arena(ui), 0);
 }
 
 
 
-internal UI_Box *ui_box_create(UI_Context *ui, UI_BoxFlags flags) {
-    UI_Box *box = arena_push_struct_zero(ui->frame_arena, UI_Box);
+internal UI_Box *ui_box_from_key(UI_Context *ui, UI_Key key) {
+    UI_Box *result = &global_ui_null_box;
+
+    if (key != global_ui_null_key) {
+        UI_BoxList boxes = ui->box_table[key & (UI_BOX_TABLE_SIZE - 1)];
+        for (UI_Box *box = boxes.first; box; box = box->hash_next) {
+            if (box->key == key) {
+                result = box;
+                break;
+            }
+        }
+    }
+
+    return result;
+}
+
+internal UI_Box *ui_create_box_from_key(UI_Context *ui, UI_BoxFlags flags, UI_Key key) {
+    UI_Box *box = ui_box_from_key(ui, key);
+
+    B32 is_transient = key == global_ui_null_key;
+
+    if (box == &global_ui_null_box) {
+        if (is_transient) {
+            box = arena_push_struct_zero(ui_frame_arena(ui), UI_Box);
+        } else {
+            box = ui->box_freelist;
+            if (box) {
+                sll_stack_pop(ui->box_freelist);
+            } else {
+                box = arena_push_struct_zero(ui->permanent_arena, UI_Box);
+            }
+
+            UI_BoxList *boxes = &ui->box_table[key & (UI_BOX_TABLE_SIZE - 1)];
+            dll_insert_next_previous_zero(boxes->first, boxes->last, boxes->last, box, hash_next, hash_previous, 0);
+        }
+
+        box->create_index = ui->frame_index;
+    }
 
     // NOTE(simon): Set links
     box->parent = ui->parent_stack.top->item;
     if (box->parent != &global_ui_null_box) {
-        // TODO: Make macros work with generic zeros
         dll_insert_next_previous_zero(box->parent->first, box->parent->last, box->parent->last, box, next, previous, &global_ui_null_box);
     }
     box->next     = &global_ui_null_box;
@@ -224,12 +293,15 @@ internal UI_Box *ui_box_create(UI_Context *ui, UI_BoxFlags flags) {
     box->first    = &global_ui_null_box;
     box->last     = &global_ui_null_box;
 
+    box->key = key;
     box->size[Axis2_X] = ui_width_top(ui);
     box->size[Axis2_Y] = ui_height_top(ui);
 
     box->flags       = flags | ui_extra_box_flags_top(ui);
     box->color       = ui_color_top(ui);
     box->layout_axis = ui_layout_axis_top(ui);
+
+    box->last_used_index = ui->frame_index;
 
     // NOTE(simon): Handle autopops
     ui_parent_auto_pop(ui);
@@ -240,4 +312,29 @@ internal UI_Box *ui_box_create(UI_Context *ui, UI_BoxFlags flags) {
     ui_extra_box_flags_auto_pop(ui);
 
     return box;
+}
+
+internal UI_Box *ui_create_box(UI_Context *ui, UI_BoxFlags flags) {
+    UI_Box *result = ui_create_box_from_key(ui, flags, global_ui_null_key);
+    return result;
+}
+
+internal UI_Box *ui_create_box_from_string(UI_Context *ui, UI_BoxFlags flags, Str8 string) {
+    UI_Key key = ui_key_from_string(string);
+    UI_Box *result = ui_create_box_from_key(ui, flags, key);
+    return result;
+}
+
+internal UI_Box *ui_create_box_from_string_format(UI_Context *ui, UI_Key key, CStr format, ...) {
+    Arena_Temporary scratch = arena_get_scratch(0, 0);
+
+    va_list arguments;
+    va_start(arguments, format);
+    Str8 string = str8_format_list(scratch.arena, format, arguments);
+    va_end(arguments);
+
+    UI_Box *result = ui_create_box_from_string(ui, key, string);
+
+    arena_end_temporary(scratch);
+    return result;
 }

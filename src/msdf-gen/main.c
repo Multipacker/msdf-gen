@@ -186,23 +186,26 @@ internal S32 os_run(Str8List arguments) {
         draw_text(render, &font, offset, 50.0f / zoom, str8_literal("MSDF-based text rendering"));
 
         ui_begin(gfx, ui);
-        ui_width(ui, ui_size_pixels(200, 1.0f))
-        ui_height(ui, ui_size_pixels(200, 1.0f)) {
-            ui_color_next(ui, v4f32(1.0f, 0.0f, 0.0f, 1.0f));
-            ui_layout_axis_next(ui, Axis2_Y);
-            UI_Box *root = ui_box_create(ui, UI_BoxFlags_DrawBackground);
-            ui_width(ui, ui_size_parent_percent(0.9f, 1.0f))
-            ui_parent(ui, root) {
-                ui_spacer_sized(ui, ui_size_fill());
-                ui_height(ui, ui_size_parent_percent(0.25f, 1.0f)) {
-                    ui_color_next(ui, v4f32(0.0f, 1.0f, 0.0f, 1.0f));
-                    UI_Box *child_a = ui_box_create(ui, UI_BoxFlags_DrawBackground);
-
-                    ui_color_next(ui, v4f32(0.0f, 0.0f, 1.0f, 1.0f));
-                    UI_Box *child_b = ui_box_create(ui, UI_BoxFlags_DrawBackground);
+        ui_spacer_sized(ui, ui_size_fill());
+        ui_width_push(ui, ui_size_parent_percent(0.25f, 1.0f));
+        ui_height_push(ui, ui_size_parent_percent(1.0f, 1.0f));
+        ui_color_push(ui, v4f32(0.4f, 0.4f, 0.4f, 1.0f));
+        ui_extra_box_flags_next(ui, UI_BoxFlags_DrawBackground);
+        ui_row_string(ui, str8_literal("test")) {
+            ui_spacer_sized(ui, ui_size_fill());
+            ui_width_push(ui, ui_size_children_sum(1.0f));
+            ui_height_push(ui, ui_size_parent_percent(1.0f, 1.0f));
+            ui_column(ui) {
+                ui_spacer_sized(ui, ui_size_pixels(25.0f, 1.0f));
+                ui_color_push(ui, v4f32(0.3f, 0.3f, 0.3f, 1.0f));
+                ui_width_push(ui, ui_size_pixels(200.0f, 1.0f));
+                ui_height_push(ui, ui_size_pixels(50.0f, 1.0f));
+                for (U32 i = 0; i < 10; ++i) {
+                    UI_Box *item = ui_create_box(ui, UI_BoxFlags_DrawBackground);
+                    ui_spacer_sized(ui, ui_size_pixels(5.0f, 1.0f));
                 }
-                ui_spacer_sized(ui, ui_size_fill());
             }
+            ui_spacer_sized(ui, ui_size_fill());
         }
         ui_end(ui);
 
