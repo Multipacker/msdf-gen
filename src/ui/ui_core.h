@@ -86,10 +86,11 @@ struct UI_Box {
         }                                                                                                                 \
     }
 
-ui_define_stack(Box,   box,   UI_Box *)
-ui_define_stack(V4F32, v4f32, V4F32)
-ui_define_stack(Size,  size,  UI_Size)
-ui_define_stack(Axis,  axis,  Axis2)
+ui_define_stack(Box,      box,       UI_Box *)
+ui_define_stack(V4F32,    v4f32,     V4F32)
+ui_define_stack(Size,     size,      UI_Size)
+ui_define_stack(Axis,     axis,      Axis2)
+ui_define_stack(BoxFlags, box_flags, UI_BoxFlags)
 
 typedef struct UI_Context UI_Context;
 struct UI_Context {
@@ -98,10 +99,11 @@ struct UI_Context {
 
     UI_Box *root;
 
-    UI_BoxStack   parent_stack;
-    UI_V4F32Stack color_stack;
-    UI_SizeStack  size_stacks[Axis2_COUNT];
-    UI_AxisStack  layout_axis_stack;
+    UI_BoxStack      parent_stack;
+    UI_V4F32Stack    color_stack;
+    UI_SizeStack     size_stacks[Axis2_COUNT];
+    UI_AxisStack     layout_axis_stack;
+    UI_BoxFlagsStack extra_box_flags_stack;
 };
 
 internal UI_Size ui_size_pixels(F32 pixels, F32 strictness);
@@ -155,5 +157,12 @@ internal UI_Box *ui_box_create(UI_Context *ui, UI_BoxFlags flags);
 #define ui_layout_axis_next(ui, axis) ui_axis_stack_push(ui->frame_arena, &ui->layout_axis_stack, axis, true)
 #define ui_layout_axis_auto_pop(ui)   ui_axis_stack_auto_pop(&ui->layout_axis_stack)
 #define ui_layout_axis_top(ui)        (ui->layout_axis_stack.top->item)
+
+#define ui_extra_box_flags_push(ui, flags) ui_box_flags_stack_push(ui->frame_arena, &ui->extra_box_flags_stack, flags, false)
+#define ui_extra_box_flags_pop(ui)        ui_box_flags_stack_pop(&ui->extra_box_flags_stack)
+#define ui_extra_box_flags(ui, flags)      defer_loop(ui_layout_box_flags_push(ui, flags), ui_layout_box_flags_pop(ui))
+#define ui_extra_box_flags_next(ui, flags) ui_box_flags_stack_push(ui->frame_arena, &ui->extra_box_flags_stack, flags, true)
+#define ui_extra_box_flags_auto_pop(ui)   ui_box_flags_stack_auto_pop(&ui->extra_box_flags_stack)
+#define ui_extra_box_flags_top(ui)        (ui->extra_box_flags_stack.top->item)
 
 #endif // UI_CORE_H

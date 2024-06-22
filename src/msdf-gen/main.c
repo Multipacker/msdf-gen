@@ -190,7 +190,7 @@ internal S32 os_run(Str8List arguments) {
         ui_height(ui, ui_size_pixels(200, 1.0f)) {
             ui_color_next(ui, v4f32(1.0f, 0.0f, 0.0f, 1.0f));
             ui_layout_axis_next(ui, Axis2_Y);
-            UI_Box *root = ui_box_create(ui, UI_BoxFlags_DrawBackground | UI_BoxFlags_OverflowY);
+            UI_Box *root = ui_box_create(ui, UI_BoxFlags_DrawBackground);
             ui_width(ui, ui_size_parent_percent(0.9f, 1.0f))
             ui_parent(ui, root) {
                 ui_spacer_sized(ui, ui_size_fill());

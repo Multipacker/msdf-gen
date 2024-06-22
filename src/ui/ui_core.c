@@ -61,6 +61,9 @@ internal Void ui_begin(Gfx_Context *gfx, UI_Context *ui) {
     ui->layout_axis_stack.top      = 0;
     ui->layout_axis_stack.freelist = 0;
     ui->layout_axis_stack.auto_pop = false;
+    ui->extra_box_flags_stack.top      = 0;
+    ui->extra_box_flags_stack.freelist = 0;
+    ui->extra_box_flags_stack.auto_pop = false;
 
     // NOTE(simon): Give default values to all stacks
     ui_parent_next(ui, &global_ui_null_box);
@@ -68,6 +71,7 @@ internal Void ui_begin(Gfx_Context *gfx, UI_Context *ui) {
     ui_width_push(ui, ui_size_pixels(0.0f, 0.0f));
     ui_height_push(ui, ui_size_pixels(0.0f, 0.0f));
     ui_layout_axis_push(ui, Axis2_X);
+    ui_extra_box_flags_push(ui, 0);
 
     // NOTE(simon): Build root
     V2U32 window_size = gfx_get_window_client_area(gfx);
@@ -218,12 +222,12 @@ internal UI_Box *ui_box_create(UI_Context *ui, UI_BoxFlags flags) {
     box->first    = &global_ui_null_box;
     box->last     = &global_ui_null_box;
 
-    box->size[Axis2_X] = ui->size_stacks[Axis2_X].top->item;
-    box->size[Axis2_Y] = ui->size_stacks[Axis2_Y].top->item;
+    box->size[Axis2_X] = ui_width_top(ui);
+    box->size[Axis2_Y] = ui_height_top(ui);
 
-    box->flags       = flags;
-    box->color       = ui->color_stack.top->item;
-    box->layout_axis = ui->layout_axis_stack.top->item;
+    box->flags       = flags | ui_extra_box_flags_top(ui);
+    box->color       = ui_color_top(ui);
+    box->layout_axis = ui_layout_axis_top(ui);
 
     // NOTE(simon): Handle autopops
     ui_parent_auto_pop(ui);
@@ -231,6 +235,7 @@ internal UI_Box *ui_box_create(UI_Context *ui, UI_BoxFlags flags) {
     ui_width_auto_pop(ui);
     ui_height_auto_pop(ui);
     ui_layout_axis_auto_pop(ui);
+    ui_extra_box_flags_auto_pop(ui);
 
     return box;
 }
