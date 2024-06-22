@@ -153,27 +153,33 @@ internal Void ui_layout_position(UI_Box *box, Axis2 axis) {
 }
 
 internal Void ui_layout_resolve_violations(UI_Box *box, Axis2 axis) {
-    if (axis == box->layout_axis) {
-        F32 total_size = 0.0f;
-        F32 total_adjustable_size = 0.0f;
+    if (box->flags & (UI_BoxFlags_OverflowX << axis)) {
         for (UI_Box *child = box->first; child != &global_ui_null_box; child = child->next) {
-            total_size += child->calculated_size.values[axis];
-            total_adjustable_size += child->calculated_size.values[axis] * (1.0f - child->size[axis].strictness);
-        }
-
-        F32 violation = total_size - box->calculated_size.values[axis];
-        if (violation > 0.0f) {
-            // NOTE(simon): Adjust children
-            F32 adjust_percent = violation / total_adjustable_size;
-            for (UI_Box *child = box->first; child != &global_ui_null_box; child = child->next) {
-                F32 adjustable_size = child->calculated_size.values[axis] * (1.0f - child->size[axis].strictness);
-                child->calculated_size.values[axis] -= adjustable_size * adjust_percent;
-            }
+            ui_layout_upwards_dependent_sizes_no_recurse(child, axis);
         }
     } else {
-        for (UI_Box *child = box->first; child != &global_ui_null_box; child = child->next) {
-            F32 violation = f32_max(0.0f, child->calculated_size.values[axis] - box->calculated_size.values[axis]);
-            child->calculated_size.values[axis] -= violation;
+        if (axis == box->layout_axis) {
+            F32 total_size = 0.0f;
+            F32 total_adjustable_size = 0.0f;
+            for (UI_Box *child = box->first; child != &global_ui_null_box; child = child->next) {
+                total_size += child->calculated_size.values[axis];
+                total_adjustable_size += child->calculated_size.values[axis] * (1.0f - child->size[axis].strictness);
+            }
+
+            F32 violation = total_size - box->calculated_size.values[axis];
+            if (violation > 0.0f) {
+                // NOTE(simon): Adjust children
+                F32 adjust_percent = violation / total_adjustable_size;
+                for (UI_Box *child = box->first; child != &global_ui_null_box; child = child->next) {
+                    F32 adjustable_size = child->calculated_size.values[axis] * (1.0f - child->size[axis].strictness);
+                    child->calculated_size.values[axis] -= adjustable_size * adjust_percent;
+                }
+            }
+        } else {
+            for (UI_Box *child = box->first; child != &global_ui_null_box; child = child->next) {
+                F32 violation = f32_max(0.0f, child->calculated_size.values[axis] - box->calculated_size.values[axis]);
+                child->calculated_size.values[axis] -= violation;
+            }
         }
     }
 

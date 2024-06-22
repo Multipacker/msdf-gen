@@ -16,6 +16,11 @@ struct UI_Size {
 
 typedef enum {
     UI_BoxFlags_DrawBackground = 1 << 0,
+    UI_BoxFlags_OverflowX      = 1 << 1,
+    UI_BoxFlags_OverflowY      = 1 << 2,
+
+    // NOTE(simon): Convenient combinations
+    UI_BoxFlags_Overflow = UI_BoxFlags_OverflowX | UI_BoxFlags_OverflowY,
 } UI_BoxFlags;
 
 typedef struct UI_Box UI_Box;
