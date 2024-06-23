@@ -64,7 +64,7 @@ internal UI_Context *ui_create(Void) {
 
 
 
-internal Void ui_begin(Gfx_Context *gfx, UI_Context *ui) {
+internal Void ui_begin(Gfx_Context *gfx, UI_Context *ui, F32 dt) {
     // NOTE(simon): Reset stacks
     ui->parent_stack.top      = 0;
     ui->parent_stack.freelist = 0;
@@ -84,6 +84,14 @@ internal Void ui_begin(Gfx_Context *gfx, UI_Context *ui) {
     ui->extra_box_flags_stack.top      = 0;
     ui->extra_box_flags_stack.freelist = 0;
     ui->extra_box_flags_stack.auto_pop = false;
+    ui->fixed_x_stack.top      = 0;
+    ui->fixed_x_stack.freelist = 0;
+    ui->fixed_x_stack.auto_pop = false;
+    ui->fixed_y_stack.top      = 0;
+    ui->fixed_y_stack.freelist = 0;
+    ui->fixed_y_stack.auto_pop = false;
+
+    ui->dt = dt;
 
     // NOTE(simon): Give default values to all stacks
     ui_parent_next(ui, &global_ui_null_box);
@@ -140,11 +148,15 @@ internal Void ui_layout_downwards_dependent_sizes(UI_Box *box, Axis2 axis) {
         F32 sum = 0.0f;
         if (axis == box->layout_axis) {
             for (UI_Box *child = box->first; child != &global_ui_null_box; child = child->next) {
-                sum += child->calculated_size.values[axis];
+                if (!(child->flags & (UI_BoxFlags_FloatingX << axis))) {
+                    sum += child->calculated_size.values[axis];
+                }
             }
         } else {
             for (UI_Box *child = box->first; child != &global_ui_null_box; child = child->next) {
-                sum = f32_max(sum, child->calculated_size.values[axis]);
+                if (!(child->flags & (UI_BoxFlags_FloatingX << axis))) {
+                    sum = f32_max(sum, child->calculated_size.values[axis]);
+                }
             }
         }
 
@@ -154,7 +166,7 @@ internal Void ui_layout_downwards_dependent_sizes(UI_Box *box, Axis2 axis) {
 
 internal Void ui_layout_position(UI_Box *box, Axis2 axis) {
     // NOTE(simon): Calculate final rectangle
-    if (box->flags & (UI_BoxFlags_AnimatePositionX << axis)) {
+    if (box->flags & (UI_BoxFlags_AnimateX << axis)) {
         if (box->create_index == box->last_used_index) {
             box->animated_position.values[axis] = box->calculated_position.values[axis];
         }
@@ -170,12 +182,16 @@ internal Void ui_layout_position(UI_Box *box, Axis2 axis) {
     if (axis == box->layout_axis) {
         F32 position = 0.0f;
         for (UI_Box *child = box->first; child != &global_ui_null_box; child = child->next) {
-            child->calculated_position.values[axis] = position;
-            position += child->calculated_size.values[axis];
+            if (!(child->flags & (UI_BoxFlags_FloatingX << axis))) {
+                child->calculated_position.values[axis] = position;
+                position += child->calculated_size.values[axis];
+            }
         }
     } else {
         for (UI_Box *child = box->first; child != &global_ui_null_box; child = child->next) {
-            child->calculated_position.values[axis] = 0.0f;
+            if (!(child->flags & (UI_BoxFlags_FloatingX << axis))) {
+                child->calculated_position.values[axis] = 0.0f;
+            }
         }
     }
 
@@ -195,8 +211,10 @@ internal Void ui_layout_resolve_violations(UI_Box *box, Axis2 axis) {
             F32 total_size = 0.0f;
             F32 total_adjustable_size = 0.0f;
             for (UI_Box *child = box->first; child != &global_ui_null_box; child = child->next) {
-                total_size += child->calculated_size.values[axis];
-                total_adjustable_size += child->calculated_size.values[axis] * (1.0f - child->size[axis].strictness);
+                if (!(child->flags & (UI_BoxFlags_FloatingX << axis))) {
+                    total_size += child->calculated_size.values[axis];
+                    total_adjustable_size += child->calculated_size.values[axis] * (1.0f - child->size[axis].strictness);
+                }
             }
 
             F32 violation = total_size - box->calculated_size.values[axis];
@@ -204,16 +222,20 @@ internal Void ui_layout_resolve_violations(UI_Box *box, Axis2 axis) {
                 // NOTE(simon): Adjust children
                 F32 adjust_percent = violation / total_adjustable_size;
                 for (UI_Box *child = box->first; child != &global_ui_null_box; child = child->next) {
-                    F32 child_size = child->calculated_size.values[axis];
-                    F32 adjustable_size = child_size * (1.0f - child->size[axis].strictness);
+                    if (!(child->flags & (UI_BoxFlags_FloatingX << axis))) {
+                        F32 child_size = child->calculated_size.values[axis];
+                        F32 adjustable_size = child_size * (1.0f - child->size[axis].strictness);
 
-                    child->calculated_size.values[axis] -= f32_min(adjustable_size * adjust_percent, child_size);
+                        child->calculated_size.values[axis] -= f32_min(adjustable_size * adjust_percent, child_size);
+                    }
                 }
             }
         } else {
             for (UI_Box *child = box->first; child != &global_ui_null_box; child = child->next) {
-                F32 violation = f32_max(0.0f, child->calculated_size.values[axis] - box->calculated_size.values[axis]);
-                child->calculated_size.values[axis] -= violation;
+                if (!(child->flags & (UI_BoxFlags_FloatingX << axis))) {
+                    F32 violation = f32_max(0.0f, child->calculated_size.values[axis] - box->calculated_size.values[axis]);
+                    child->calculated_size.values[axis] -= violation;
+                }
             }
         }
     }
@@ -248,10 +270,11 @@ internal Void ui_end(UI_Context *ui) {
     }
 
     // NOTE(simon): Animate
+    F32 rate = 1.0f - f32_pow(2, -ui->dt / (1.0f / 60.0f));
+
     for (U32 i = 0; i < UI_BOX_TABLE_SIZE; ++i) {
         UI_BoxList boxes = ui->box_table[i];
         for (UI_Box *box = boxes.first; box; box = box->hash_next) {
-            F32 rate = 10.0f / 60.0f;
             box->animated_position.x += (box->calculated_position.x - box->animated_position.x) * rate;
             box->animated_position.y += (box->calculated_position.y - box->animated_position.y) * rate;
             if (f32_abs(box->calculated_position.x - box->animated_position.x) < 1.0f) {
@@ -321,10 +344,18 @@ internal UI_Box *ui_create_box_from_key(UI_Context *ui, UI_BoxFlags flags, UI_Ke
     box->key = key;
     box->size[Axis2_X] = ui_width_top(ui);
     box->size[Axis2_Y] = ui_height_top(ui);
+    box->flags         = flags | ui_extra_box_flags_top(ui);
+    box->color         = ui_color_top(ui);
+    box->layout_axis   = ui_layout_axis_top(ui);
 
-    box->flags       = flags | ui_extra_box_flags_top(ui);
-    box->color       = ui_color_top(ui);
-    box->layout_axis = ui_layout_axis_top(ui);
+    if (ui->fixed_x_stack.top) {
+        box->flags |= UI_BoxFlags_FloatingX;
+        box->calculated_position.x = ui_fixed_x_top(ui);
+    }
+    if (ui->fixed_y_stack.top) {
+        box->flags |= UI_BoxFlags_FloatingY;
+        box->calculated_position.y = ui_fixed_y_top(ui);
+    }
 
     box->last_used_index = ui->frame_index;
 
@@ -335,6 +366,8 @@ internal UI_Box *ui_create_box_from_key(UI_Context *ui, UI_BoxFlags flags, UI_Ke
     ui_height_auto_pop(ui);
     ui_layout_axis_auto_pop(ui);
     ui_extra_box_flags_auto_pop(ui);
+    ui_fixed_x_auto_pop(ui);
+    ui_fixed_y_auto_pop(ui);
 
     return box;
 }

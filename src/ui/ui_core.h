@@ -17,15 +17,18 @@ struct UI_Size {
 typedef U64 UI_Key;
 
 typedef enum {
-    UI_BoxFlags_DrawBackground   = 1 << 0,
-    UI_BoxFlags_OverflowX        = 1 << 1,
-    UI_BoxFlags_OverflowY        = 1 << 2,
-    UI_BoxFlags_AnimatePositionX = 1 << 3,
-    UI_BoxFlags_AnimatePositionY = 1 << 4,
+    UI_BoxFlags_DrawBackground = 1 << 0,
+    UI_BoxFlags_OverflowX      = 1 << 1,
+    UI_BoxFlags_OverflowY      = 1 << 2,
+    UI_BoxFlags_AnimateX       = 1 << 3,
+    UI_BoxFlags_AnimateY       = 1 << 4,
+    UI_BoxFlags_FloatingX      = 1 << 5,
+    UI_BoxFlags_FloatingY      = 1 << 6,
 
     // NOTE(simon): Convenient combinations
-    UI_BoxFlags_Overflow        = UI_BoxFlags_OverflowX | UI_BoxFlags_OverflowY,
-    UI_BoxFlags_AnimatePosition = UI_BoxFlags_AnimatePositionX | UI_BoxFlags_AnimatePositionY,
+    UI_BoxFlags_Overflow         = UI_BoxFlags_OverflowX | UI_BoxFlags_OverflowY,
+    UI_BoxFlags_AnimatePosition  = UI_BoxFlags_AnimateX | UI_BoxFlags_AnimateY,
+    UI_BoxFlags_FloatingPosition = UI_BoxFlags_FloatingX | UI_BoxFlags_FloatingY,
 } UI_BoxFlags;
 
 typedef struct UI_Box UI_Box;
@@ -106,6 +109,7 @@ ui_define_stack(V4F32,    v4f32,     V4F32)
 ui_define_stack(Size,     size,      UI_Size)
 ui_define_stack(Axis,     axis,      Axis2)
 ui_define_stack(BoxFlags, box_flags, UI_BoxFlags)
+ui_define_stack(F32,      f32,       F32)
 
 typedef struct UI_BoxList UI_BoxList;
 struct UI_BoxList {
@@ -126,11 +130,15 @@ struct UI_Context {
 
     UI_Box *root;
 
+    F32 dt;
+
     UI_BoxStack      parent_stack;
     UI_V4F32Stack    color_stack;
     UI_SizeStack     size_stacks[Axis2_COUNT];
     UI_AxisStack     layout_axis_stack;
     UI_BoxFlagsStack extra_box_flags_stack;
+    UI_F32Stack      fixed_x_stack;
+    UI_F32Stack      fixed_y_stack;
 };
 
 internal Arena *ui_frame_arena(UI_Context *ui);
@@ -143,7 +151,7 @@ internal UI_Size ui_size_children_sum(F32 strictness);
 
 internal UI_Context *ui_create(Void);
 
-internal Void ui_begin(Gfx_Context *gfx, UI_Context *ui);
+internal Void ui_begin(Gfx_Context *gfx, UI_Context *ui, F32 dt);
 internal Void ui_end(UI_Context *ui);
 
 internal UI_Box **ui_box_reference_from_key(UI_Context *ui, UI_Key key);
@@ -201,5 +209,26 @@ internal UI_Box *ui_create_box_from_string_format(UI_Context *ui, UI_Key key, CS
 #define ui_extra_box_flags_next(ui, flags) ui_box_flags_stack_push(ui_frame_arena(ui), &ui->extra_box_flags_stack, flags, true)
 #define ui_extra_box_flags_auto_pop(ui)    ui_box_flags_stack_auto_pop(&ui->extra_box_flags_stack)
 #define ui_extra_box_flags_top(ui)         (ui->extra_box_flags_stack.top->item)
+
+#define ui_fixed_x_push(ui, x)  ui_f32_stack_push(ui_frame_arena(ui), &ui->fixed_x_stack, x, false)
+#define ui_fixed_x_pop(ui)      ui_f32_stack_pop(&ui->fixed_x_stack)
+#define ui_fixed_x(ui, x)       defer_loop(ui_fixed_x_push(ui, x), ui_fixed_x_pop(ui))
+#define ui_fixed_x_next(ui, x)  ui_f32_stack_push(ui_frame_arena(ui), &ui->fixed_x_stack, x, true)
+#define ui_fixed_x_auto_pop(ui) ui_f32_stack_auto_pop(&ui->fixed_x_stack)
+#define ui_fixed_x_top(ui)      (ui->fixed_x_stack.top->item)
+
+#define ui_fixed_y_push(ui, y)  ui_f32_stack_push(ui_frame_arena(ui), &ui->fixed_y_stack, y, false)
+#define ui_fixed_y_pop(ui)      ui_f32_stack_pop(&ui->fixed_y_stack)
+#define ui_fixed_y(ui, y)       defer_loop(ui_fixed_y_push(ui, y), ui_fixed_y_pop(ui))
+#define ui_fixed_y_next(ui, y)  ui_f32_stack_push(ui_frame_arena(ui), &ui->fixed_y_stack, y, true)
+#define ui_fixed_y_auto_pop(ui) ui_f32_stack_auto_pop(&ui->fixed_y_stack)
+#define ui_fixed_y_top(ui)      (ui->fixed_y_stack.top->item)
+
+#define ui_fixed_position_push(ui, position) (ui_fixed_x_push(ui, position.x), ui_fixed_y_push(ui, position.y))
+#define ui_fixed_position_pop(ui)            (ui_fixed_x_pop(ui), ui_fixed_y_pop(ui))
+#define ui_fixed_position(ui, position)      defer_loop(ui_fixed_position_push(ui, position), ui_fixed_position_pop(ui))
+#define ui_fixed_position_next(ui, position) (ui_fixed_x_next(ui, position.x), ui_fixed_y_next(ui, position.y))
+#define ui_fixed_position_auto_pop(ui)       (ui_fixed_x_auto_pop(ui), ui_fixed_y_auto_pop(ui))
+#define ui_fixed_position_top(ui)            v2f32(ui_fixed_x_top(ui), ui_fixed_y_top(ui))
 
 #endif // UI_CORE_H
