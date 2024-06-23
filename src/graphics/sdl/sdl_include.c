@@ -106,8 +106,10 @@ internal Gfx_EventList gfx_get_events(Arena *arena, Gfx_Context *gfx) {
                     default: {
                         if (SDLK_F1 <= sdl_keycode && sdl_keycode <= SDLK_F12) {
                             event->key = (Gfx_Key) (Gfx_Key_F1 + (sdl_keycode - SDLK_F1));
-                        } else {
+                        } else if (sdl_keycode < (SDL_Keycode) array_count(sdl_to_gfx_keycode)) {
                             event->key = sdl_to_gfx_keycode[sdl_keycode];
+                        } else {
+                            event->kind = Gfx_EventKind_Null;
                         }
                     } break;
                 }
