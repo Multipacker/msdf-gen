@@ -154,19 +154,28 @@ internal Void ui_layout_downwards_dependent_sizes(UI_Box *box, Axis2 axis) {
 
 internal Void ui_layout_position(UI_Box *box, Axis2 axis) {
     // NOTE(simon): Calculate final rectangle
-    box->calculated_rectangle.min.values[axis] = f32_floor(box->calculated_position.values[axis]);
-    box->calculated_rectangle.max.values[axis] = f32_floor(box->calculated_position.values[axis] + box->calculated_size.values[axis]);
+    if (box->flags & (UI_BoxFlags_AnimatePositionX << axis)) {
+        if (box->create_index == box->last_used_index) {
+            box->animated_position.values[axis] = box->calculated_position.values[axis];
+        }
+        box->calculated_rectangle.min.values[axis] = box->parent->calculated_rectangle.min.values[axis] + box->animated_position.values[axis];
+    } else {
+        box->calculated_rectangle.min.values[axis] = box->parent->calculated_rectangle.min.values[axis] + box->calculated_position.values[axis];
+    }
+    box->calculated_rectangle.max.values[axis] = box->calculated_rectangle.min.values[axis] + box->calculated_size.values[axis];
+    box->calculated_rectangle.min.values[axis] = f32_floor(box->calculated_rectangle.min.values[axis]);
+    box->calculated_rectangle.max.values[axis] = f32_floor(box->calculated_rectangle.max.values[axis]);
 
     // NOTE(simon): Position children
     if (axis == box->layout_axis) {
-        F32 position = box->calculated_position.values[axis];
+        F32 position = 0.0f;
         for (UI_Box *child = box->first; child != &global_ui_null_box; child = child->next) {
             child->calculated_position.values[axis] = position;
             position += child->calculated_size.values[axis];
         }
     } else {
         for (UI_Box *child = box->first; child != &global_ui_null_box; child = child->next) {
-            child->calculated_position.values[axis] = box->calculated_position.values[axis];
+            child->calculated_position.values[axis] = 0.0f;
         }
     }
 
@@ -236,6 +245,22 @@ internal Void ui_end(UI_Context *ui) {
         ui_layout_downwards_dependent_sizes(ui->root, axis);
         ui_layout_resolve_violations(ui->root, axis);
         ui_layout_position(ui->root, axis);
+    }
+
+    // NOTE(simon): Animate
+    for (U32 i = 0; i < UI_BOX_TABLE_SIZE; ++i) {
+        UI_BoxList boxes = ui->box_table[i];
+        for (UI_Box *box = boxes.first; box; box = box->hash_next) {
+            F32 rate = 10.0f / 60.0f;
+            box->animated_position.x += (box->calculated_position.x - box->animated_position.x) * rate;
+            box->animated_position.y += (box->calculated_position.y - box->animated_position.y) * rate;
+            if (f32_abs(box->calculated_position.x - box->animated_position.x) < 1.0f) {
+                box->animated_position.x = box->calculated_position.x;
+            }
+            if (f32_abs(box->calculated_position.y - box->animated_position.y) < 1.0f) {
+                box->animated_position.y = box->calculated_position.y;
+            }
+        }
     }
 
     ++ui->frame_index;
