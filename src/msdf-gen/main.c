@@ -102,6 +102,24 @@ internal Void draw_ui(Render_Context *render, UI_Box *box) {
         );
     }
 
+    // TODO(simno): Switch to using gradients
+    if (box->flags & UI_BoxFlags_DrawHot && box->hot_t > 0.0f) {
+        render_rectangle(
+            render,
+            box->calculated_rectangle.min, box->calculated_rectangle.max,
+            .color = v4f32(1.0f, 1.0f, 1.0f, 0.5f * box->hot_t)
+        );
+    }
+
+    // TODO(simno): Switch to using gradients
+    if (box->flags & UI_BoxFlags_DrawActive && box->active_t > 0.0f) {
+        render_rectangle(
+            render,
+            box->calculated_rectangle.min, box->calculated_rectangle.max,
+            .color = v4f32(0.0f, 0.0f, 0.0f, 0.5f * box->active_t)
+        );
+    }
+
     for (UI_Box *child = box->first; child != &global_ui_null_box; child = child->next) {
         draw_ui(render, child);
     }

@@ -8,6 +8,14 @@ global UI_Box global_ui_null_box = {
     .last     = &global_ui_null_box,
 };
 
+internal B32 ui_keys_match(UI_Key a, UI_Key b) {
+    B32 result = a == b;
+    if (a == global_ui_null_key || b == global_ui_null_key) {
+        result = false;
+    }
+    return result;
+}
+
 internal Arena *ui_frame_arena(UI_Context *ui) {
     Arena *result = ui->frame_arenas[ui->frame_index % array_count(ui->frame_arenas)];
     return result;
@@ -270,19 +278,26 @@ internal Void ui_end(UI_Context *ui) {
     }
 
     // NOTE(simon): Animate
-    F32 rate = 1.0f - f32_pow(2, -ui->dt / (1.0f / 60.0f));
+    F32 fast_rate = 1.0f - f32_pow(2, -ui->dt / (1.0f / 60.0f));
+    F32 slow_rate = 1.0f - f32_pow(2, -ui->dt / (1.0f / 30.0f));
 
     for (U32 i = 0; i < UI_BOX_TABLE_SIZE; ++i) {
         UI_BoxList boxes = ui->box_table[i];
         for (UI_Box *box = boxes.first; box; box = box->hash_next) {
-            box->animated_position.x += (box->calculated_position.x - box->animated_position.x) * rate;
-            box->animated_position.y += (box->calculated_position.y - box->animated_position.y) * rate;
+            B32 is_hot    = ui_keys_match(ui->hot_key,    box->key);
+            B32 is_active = ui_keys_match(ui->active_key, box->key);
+
+            box->animated_position.x += (box->calculated_position.x - box->animated_position.x) * fast_rate;
+            box->animated_position.y += (box->calculated_position.y - box->animated_position.y) * fast_rate;
             if (f32_abs(box->calculated_position.x - box->animated_position.x) < 1.0f) {
                 box->animated_position.x = box->calculated_position.x;
             }
             if (f32_abs(box->calculated_position.y - box->animated_position.y) < 1.0f) {
                 box->animated_position.y = box->calculated_position.y;
             }
+
+            box->hot_t    += (is_hot    - box->hot_t)    * fast_rate;
+            box->active_t += (is_active - box->active_t) * fast_rate;
         }
     }
 
