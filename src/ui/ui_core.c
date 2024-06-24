@@ -10,9 +10,6 @@ global UI_Box global_ui_null_box = {
 
 internal B32 ui_keys_match(UI_Key a, UI_Key b) {
     B32 result = a == b;
-    if (a == global_ui_null_key || b == global_ui_null_key) {
-        result = false;
-    }
     return result;
 }
 
@@ -313,7 +310,7 @@ internal UI_Box *ui_box_from_key(UI_Context *ui, UI_Key key) {
     if (key != global_ui_null_key) {
         UI_BoxList boxes = ui->box_table[key & (UI_BOX_TABLE_SIZE - 1)];
         for (UI_Box *box = boxes.first; box; box = box->hash_next) {
-            if (box->key == key) {
+            if (ui_keys_match(box->key, key)) {
                 result = box;
                 break;
             }
@@ -326,7 +323,7 @@ internal UI_Box *ui_box_from_key(UI_Context *ui, UI_Key key) {
 internal UI_Box *ui_create_box_from_key(UI_Context *ui, UI_BoxFlags flags, UI_Key key) {
     UI_Box *box = ui_box_from_key(ui, key);
 
-    B32 is_transient = key == global_ui_null_key;
+    B32 is_transient = ui_keys_match(key, global_ui_null_key);
 
     if (box == &global_ui_null_box) {
         if (is_transient) {
