@@ -17,18 +17,21 @@ struct UI_Size {
 typedef U64 UI_Key;
 
 typedef enum {
+    // NOTE(simon): Interaction
+    UI_BoxFlags_Disabled       = 1 << 0,
+
     // NOTE(simon): Layout
-    UI_BoxFlags_OverflowX      = 1 << 0,
-    UI_BoxFlags_OverflowY      = 1 << 1,
-    UI_BoxFlags_AnimateX       = 1 << 2,
-    UI_BoxFlags_AnimateY       = 1 << 3,
-    UI_BoxFlags_FloatingX      = 1 << 4,
-    UI_BoxFlags_FloatingY      = 1 << 5,
+    UI_BoxFlags_OverflowX      = 1 << 1,
+    UI_BoxFlags_OverflowY      = 1 << 2,
+    UI_BoxFlags_FloatingX      = 1 << 3,
+    UI_BoxFlags_FloatingY      = 1 << 4,
 
     // NOTE(simon): Appearance
-    UI_BoxFlags_DrawBackground = 1 << 6,
-    UI_BoxFlags_DrawHot        = 1 << 7,
-    UI_BoxFlags_DrawActive     = 1 << 8,
+    UI_BoxFlags_AnimateX       = 1 << 5,
+    UI_BoxFlags_AnimateY       = 1 << 6,
+    UI_BoxFlags_DrawBackground = 1 << 7,
+    UI_BoxFlags_DrawHot        = 1 << 8,
+    UI_BoxFlags_DrawActive     = 1 << 9,
 
     // NOTE(simon): Convenient combinations
     UI_BoxFlags_Overflow         = UI_BoxFlags_OverflowX | UI_BoxFlags_OverflowY,
@@ -66,6 +69,7 @@ struct UI_Box {
 
     F32 hot_t;
     F32 active_t;
+    F32 disabled_t;
 };
 
 #define ui_define_stack(type_name, variable_name, type)                                                                   \

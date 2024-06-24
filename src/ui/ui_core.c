@@ -281,8 +281,9 @@ internal Void ui_end(UI_Context *ui) {
     for (U32 i = 0; i < UI_BOX_TABLE_SIZE; ++i) {
         UI_BoxList boxes = ui->box_table[i];
         for (UI_Box *box = boxes.first; box; box = box->hash_next) {
-            B32 is_hot    = ui_keys_match(ui->hot_key,    box->key);
-            B32 is_active = ui_keys_match(ui->active_key, box->key);
+            B32 is_hot      = ui_keys_match(ui->hot_key,    box->key);
+            B32 is_active   = ui_keys_match(ui->active_key, box->key);
+            B32 is_disabled = box->flags & UI_BoxFlags_Disabled;
 
             box->animated_position.x += (box->calculated_position.x - box->animated_position.x) * fast_rate;
             box->animated_position.y += (box->calculated_position.y - box->animated_position.y) * fast_rate;
@@ -293,8 +294,9 @@ internal Void ui_end(UI_Context *ui) {
                 box->animated_position.y = box->calculated_position.y;
             }
 
-            box->hot_t    += (is_hot    - box->hot_t)    * fast_rate;
-            box->active_t += (is_active - box->active_t) * fast_rate;
+            box->hot_t      += (is_hot    - box->hot_t)        * fast_rate;
+            box->active_t   += (is_active - box->active_t)     * fast_rate;
+            box->disabled_t += (is_disabled - box->disabled_t) * slow_rate;
         }
     }
 
