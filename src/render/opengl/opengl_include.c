@@ -140,7 +140,7 @@ internal Void opengl_debug_output(
     printf("%s\n", message);
 }
 
-internal Void render_rectangle_internal(Render_Context *gfx, Render_RectangleParams *parameters) {
+internal Render_Rectangle *render_rectangle_internal(Render_Context *gfx, Render_RectangleParams *parameters) {
     Render_Batch *batch = gfx->batches.last;
 
     if (!batch || batch->size >= RENDER_BATCH_SIZE || (batch->texture_id && batch->texture_id != parameters->texture.u32[0])) {
@@ -153,12 +153,17 @@ internal Void render_rectangle_internal(Render_Context *gfx, Render_RectanglePar
 
     Render_Rectangle *rect = &batch->rectangles[batch->size++];
 
-    rect->min    = v2f32(parameters->min.x, parameters->min.y);
-    rect->max    = v2f32(parameters->max.x, parameters->max.y);
-    rect->color  = parameters->color;
-    rect->uv_min = parameters->uv_min;
-    rect->uv_max = parameters->uv_max;
-    rect->flags  = parameters->flags;
+    rect->min       = v2f32(parameters->min.x, parameters->min.y);
+    rect->max       = v2f32(parameters->max.x, parameters->max.y);
+    rect->colors[0] = parameters->color;
+    rect->colors[1] = parameters->color;
+    rect->colors[2] = parameters->color;
+    rect->colors[3] = parameters->color;
+    rect->uv_min    = parameters->uv_min;
+    rect->uv_max    = parameters->uv_max;
+    rect->flags     = parameters->flags;
+
+    return rect;
 }
 
 internal Void render_begin(Render_Context *gfx, V2U32 resolution) {
@@ -259,12 +264,15 @@ internal Render_Context *render_create(Gfx_Context *gfx) {
 
     glCreateVertexArrays(1, &result->vao);
 
-    opengl_vertex_array_instance_attribute_float(result->vao,   0, 2, GL_FLOAT,        GL_FALSE, member_offset(Render_Rectangle, min),    0);
-    opengl_vertex_array_instance_attribute_float(result->vao,   1, 2, GL_FLOAT,        GL_FALSE, member_offset(Render_Rectangle, max),    0);
-    opengl_vertex_array_instance_attribute_float(result->vao,   2, 4, GL_FLOAT,        GL_FALSE, member_offset(Render_Rectangle, color),  0);
-    opengl_vertex_array_instance_attribute_float(result->vao,   3, 2, GL_FLOAT,        GL_FALSE, member_offset(Render_Rectangle, uv_min), 0);
-    opengl_vertex_array_instance_attribute_float(result->vao,   4, 2, GL_FLOAT,        GL_FALSE, member_offset(Render_Rectangle, uv_max), 0);
-    opengl_vertex_array_instance_attribute_integer(result->vao, 5, 1, GL_UNSIGNED_INT,           member_offset(Render_Rectangle, flags),  0);
+    opengl_vertex_array_instance_attribute_float(result->vao,   0, 2, GL_FLOAT,        GL_FALSE, member_offset(Render_Rectangle, min),        0);
+    opengl_vertex_array_instance_attribute_float(result->vao,   1, 2, GL_FLOAT,        GL_FALSE, member_offset(Render_Rectangle, max),        0);
+    opengl_vertex_array_instance_attribute_float(result->vao,   2, 4, GL_FLOAT,        GL_FALSE, member_offset(Render_Rectangle, colors[0]),  0);
+    opengl_vertex_array_instance_attribute_float(result->vao,   3, 4, GL_FLOAT,        GL_FALSE, member_offset(Render_Rectangle, colors[1]),  0);
+    opengl_vertex_array_instance_attribute_float(result->vao,   4, 4, GL_FLOAT,        GL_FALSE, member_offset(Render_Rectangle, colors[2]),  0);
+    opengl_vertex_array_instance_attribute_float(result->vao,   5, 4, GL_FLOAT,        GL_FALSE, member_offset(Render_Rectangle, colors[3]),  0);
+    opengl_vertex_array_instance_attribute_float(result->vao,   6, 2, GL_FLOAT,        GL_FALSE, member_offset(Render_Rectangle, uv_min),     0);
+    opengl_vertex_array_instance_attribute_float(result->vao,   7, 2, GL_FLOAT,        GL_FALSE, member_offset(Render_Rectangle, uv_max),     0);
+    opengl_vertex_array_instance_attribute_integer(result->vao, 8, 1, GL_UNSIGNED_INT,           member_offset(Render_Rectangle, flags),      0);
 
     glVertexArrayVertexBuffer(result->vao, 0, result->vbo, 0, sizeof(Render_Rectangle));
 

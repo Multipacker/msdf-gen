@@ -18,7 +18,7 @@ typedef struct Render_Rectangle Render_Rectangle;
 struct Render_Rectangle {
     V2F32 min;
     V2F32 max;
-    V4F32 color;
+    V4F32 colors[4];
     V2F32 uv_min;
     V2F32 uv_max;
     U32   flags;
