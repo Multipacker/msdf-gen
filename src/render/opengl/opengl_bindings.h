@@ -19,6 +19,8 @@
 #define GL_LINK_STATUS          0x8B82
 #define GL_ONE_MINUS_SRC1_COLOR 0x88FA
 #define GL_ONE_MINUS_SRC_ALPHA  0x0303
+#define GL_R8                   0x8229
+#define GL_RED                  0x1903
 #define GL_RGBA                 0x1908
 #define GL_RGBA8                0x8058
 #define GL_SCISSOR_TEST         0x0C11

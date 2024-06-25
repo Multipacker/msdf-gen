@@ -193,20 +193,34 @@ internal Void render_end(Render_Context *gfx) {
     gfx_swap_buffers(gfx->gfx);
 }
 
-internal Render_Texture render_texture_create(Render_Context *gfx, V2U32 size, U8 *data) {
+internal Render_Texture render_texture_create(Render_Context *gfx, V2U32 size, Render_TextureFormat format, U8 *data) {
     Render_Texture result = { 0 };
 
     glCreateTextures(GL_TEXTURE_2D, 1, &result.u32[0]);
     result.u32[1] = size.width;
     result.u32[2] = size.height;
+    result.u32[3] = format;
 
-    glTextureStorage2D(result.u32[0], 1, GL_RGBA8, (GLsizei) size.width, (GLsizei) size.height);
+    GLenum gl_internal_format = 0;
+    GLenum gl_format = 0;
+    switch (format) {
+        case Render_TextureFormat_R8: {
+            gl_internal_format = GL_R8;
+            gl_format          = GL_RED;
+        } break;
+        case Render_TextureFormat_RGBA8: {
+            gl_internal_format = GL_RGBA8;
+            gl_format          = GL_RGBA;
+        } break;
+    }
+
+    glTextureStorage2D(result.u32[0], 1, gl_internal_format, (GLsizei) size.width, (GLsizei) size.height);
     glTextureParameteri(result.u32[0], GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTextureParameteri(result.u32[0], GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTextureParameteri(result.u32[0], GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTextureParameteri(result.u32[0], GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     if (data) {
-        glTextureSubImage2D(result.u32[0], 0, 0, 0, (GLsizei) size.width, (GLsizei) size.height, GL_RGBA, GL_UNSIGNED_BYTE, data);
+        glTextureSubImage2D(result.u32[0], 0, 0, 0, (GLsizei) size.width, (GLsizei) size.height, gl_format, GL_UNSIGNED_BYTE, data);
     }
 
     return result;
@@ -224,12 +238,24 @@ internal V2U32 render_size_from_texture(Render_Texture texture) {
 }
 
 internal Void render_texture_update(Render_Context *gfx, Render_Texture texture, V2U32 position, V2U32 size, U8 *data) {
+    Render_TextureFormat format = (Render_TextureFormat) texture.u32[3];
+
+    GLenum gl_format = 0;
+    switch (format) {
+        case Render_TextureFormat_R8: {
+            gl_format = GL_RED;
+        } break;
+        case Render_TextureFormat_RGBA8: {
+            gl_format = GL_RGBA;
+        } break;
+    }
+
     glTextureSubImage2D(
         texture.u32[0],
         0,
         (GLint) position.x, (GLint) position.y,
         (GLsizei) size.width, (GLsizei) size.height,
-        GL_RGBA, GL_UNSIGNED_BYTE,
+        gl_format, GL_UNSIGNED_BYTE,
         data
     );
 }

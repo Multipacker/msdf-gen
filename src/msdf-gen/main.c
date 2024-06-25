@@ -28,7 +28,7 @@ internal Void load_font(Render_Context *render, Str8 font_path, Font *result) {
     U32 glyph_size     = 32;
     U32 glyphs_per_row = 16;
     U32 atlas_size     = glyph_size * glyphs_per_row;
-    result->atlas = render_texture_create(render, v2u32(atlas_size, atlas_size), 0);
+    result->atlas = render_texture_create(render, v2u32(atlas_size, atlas_size), Render_TextureFormat_RGBA8, 0);
 
     TTF_Font *font = ttf_load(scratch.arena, font_path);
     if (font->errors.node_count == 0) {
