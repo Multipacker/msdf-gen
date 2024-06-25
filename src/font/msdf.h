@@ -70,7 +70,8 @@ typedef struct {
     F32 unclamped_t;
 } MSDF_Distance;
 
-typedef struct {
+typedef struct MSDF_RasterResult MSDF_RasterResult;
+struct MSDF_RasterResult {
     F32 x_min;
     F32 y_min;
     F32 x_max;
@@ -80,7 +81,7 @@ typedef struct {
     F32 left_side_bearing;
 
     U8 *data;
-} MSDF_RasterResult;
+};
 
 internal B32 msdf_distance_is_closer(MSDF_Distance a, MSDF_Distance b);
 
