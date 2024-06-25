@@ -10,8 +10,9 @@
 #define RENDER_BATCH_SIZE 1024
 
 typedef enum {
-    Render_RectangleFlags_Texture = 1 << 0,
-    Render_RectangleFlags_MSDF    = 1 << 1,
+    Render_RectangleFlags_Texture   = 1 << 0,
+    Render_RectangleFlags_MSDF      = 1 << 1,
+    Render_RectangleFlags_AlphaMask = 1 << 2,
 } Render_RectangleFlags;
 
 typedef struct Render_Rectangle Render_Rectangle;

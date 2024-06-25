@@ -1,7 +1,8 @@
 #version 450 core
 
-#define Render_RectangleFlags_Texture (1 << 0)
-#define Render_RectangleFlags_MSDF    (1 << 1)
+#define Render_RectangleFlags_Texture   (1 << 0)
+#define Render_RectangleFlags_MSDF      (1 << 1)
+#define Render_RectangleFlags_AlphaMask (1 << 2)
 
 in      vec4 vert_color;
 in      vec2 vert_uv;
@@ -27,6 +28,8 @@ void main() {
         float distance = median_of_3(msdf_sample.r, msdf_sample.g, msdf_sample.b) - 0.5;
 
         alpha = clamp(distance / fwidth(distance) + 0.5, 0.0, 1.0);
+    } else if ((vert_flags & Render_RectangleFlags_AlphaMask) != 0) {
+        alpha = texture(uniform_sampler, vert_uv).r;
     }
 
     frag_color = texture_sample * vert_color * vec4(1.0, 1.0, 1.0, alpha);
