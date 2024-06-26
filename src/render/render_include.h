@@ -1,42 +1,8 @@
 #ifndef RENDER_INCLUDE_H
 #define RENDER_INCLUDE_H
 
+#include "render_core.h"
+
 #include "opengl/opengl_include.h"
-
-typedef struct Render_Context Render_Context;
-
-typedef enum {
-    Render_TextureFormat_R8,
-    Render_TextureFormat_RGBA8,
-} Render_TextureFormat;
-
-typedef union Render_Texture Render_Texture;
-union Render_Texture {
-    U32 u32[4];
-};
-
-internal B32             render_init(Void);
-internal Render_Context *render_create(Gfx_Context *gfx);
-
-internal Void render_begin(Render_Context *gfx, V2U32 resolution);
-internal Void render_end(Render_Context *gfx);
-
-internal Render_Texture render_texture_create(Render_Context *gfx, V2U32 size, Render_TextureFormat format, U8 *data);
-internal Void           render_texture_destroy(Render_Context *gfx, Render_Texture texture);
-internal Void           render_texture_update(Render_Context *gfx, Render_Texture texture, V2U32 position, V2U32 size, U8 *data);
-internal V2U32          render_size_from_texture(Render_Texture texture);
-
-typedef struct Render_RectangleParams Render_RectangleParams;
-struct Render_RectangleParams {
-    V2F32                 min;
-    V2F32                 max;
-    V4F32                 color;
-    V2F32                 uv_min;
-    V2F32                 uv_max;
-    Render_Texture        texture;
-    Render_RectangleFlags flags;
-};
-#define render_rectangle(render, minimum, maximum, ...) render_rectangle_internal(render, &(Render_RectangleParams) { .min = minimum, .max = maximum, .color = v4f32(1.0f, 1.0f, 1.0f, 1.0f), __VA_ARGS__ })
-internal Render_Rectangle *render_rectangle_internal(Render_Context *render, Render_RectangleParams *parameters);
 
 #endif // RENDER_INCLUDE_H
