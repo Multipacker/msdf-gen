@@ -8,7 +8,6 @@
 #include <Windows.h>
 #pragma warning(pop)
 
-typedef struct Gfx_Context Gfx_Context;
 struct Gfx_Context {
     HWND hwnd;
     HDC  hdc;
