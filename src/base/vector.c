@@ -154,3 +154,110 @@ internal M4F32 m4f32_ortho(F32 left, F32 right, F32 top, F32 bottom, F32 near_pl
 
     return result;
 }
+
+internal R2U8 r2u8(U8 min_x, U8 min_y, U8 max_x, U8 max_y) {
+    R2U8 result = { 0 };
+
+    result.min.x = min_x;
+    result.min.y = min_y;
+    result.max.x = max_x;
+    result.max.y = max_y;
+
+    return result;
+}
+
+internal R2U16 r2u16(U16 min_x, U16 min_y, U16 max_x, U16 max_y) {
+    R2U16 result = { 0 };
+
+    result.min.x = min_x;
+    result.min.y = min_y;
+    result.max.x = max_x;
+    result.max.y = max_y;
+
+    return result;
+}
+
+internal R2U32 r2u32(U32 min_x, U32 min_y, U32 max_x, U32 max_y) {
+    R2U32 result = { 0 };
+
+    result.min.x = min_x;
+    result.min.y = min_y;
+    result.max.x = max_x;
+    result.max.y = max_y;
+
+    return result;
+}
+
+internal R2U32 r2u32_from_position_size(V2U32 position, V2U32 size) {
+    R2U32 result = { 0 };
+
+    result.min = position;
+    result.max = v2u32(
+        position.x + size.x,
+        position.y + size.y
+    );
+
+    return result;
+}
+
+internal B32 r2u32_contains_r2u32(R2U32 a, R2U32 b) {
+    B32 contains_x = a.min.x <= b.min.x && b.max.x <= a.max.x;
+    B32 contains_y = a.min.y <= b.min.y && b.max.y <= a.max.y;
+    B32 contains = contains_x && contains_y;
+    return contains;
+}
+
+internal R2U64 r2u64(U64 min_x, U64 min_y, U64 max_x, U64 max_y) {
+    R2U64 result = { 0 };
+
+    result.min.x = min_x;
+    result.min.y = min_y;
+    result.max.x = max_x;
+    result.max.y = max_y;
+
+    return result;
+}
+
+internal R2S8 r2s8(S8 min_x, S8 min_y, S8 max_x, S8 max_y) {
+    R2S8 result = { 0 };
+
+    result.min.x = min_x;
+    result.min.y = min_y;
+    result.max.x = max_x;
+    result.max.y = max_y;
+
+    return result;
+}
+
+internal R2S16 r2s16(S16 min_x, S16 min_y, S16 max_x, S16 max_y) {
+    R2S16 result = { 0 };
+
+    result.min.x = min_x;
+    result.min.y = min_y;
+    result.max.x = max_x;
+    result.max.y = max_y;
+
+    return result;
+}
+
+internal R2S32 r2s32(S32 min_x, S32 min_y, S32 max_x, S32 max_y) {
+    R2S32 result = { 0 };
+
+    result.min.x = min_x;
+    result.min.y = min_y;
+    result.max.x = max_x;
+    result.max.y = max_y;
+
+    return result;
+}
+
+internal R2S64 r2s64(S64 min_x, S64 min_y, S64 max_x, S64 max_y) {
+    R2S64 result = { 0 };
+
+    result.min.x = min_x;
+    result.min.y = min_y;
+    result.max.x = max_x;
+    result.max.y = max_y;
+
+    return result;
+}
