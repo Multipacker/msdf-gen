@@ -16,6 +16,50 @@ typedef struct {
     Str8List errors;
 } OpenGL_Result;
 
+internal Void opengl_debug_output(GLenum source, GLenum type, U32 id, GLenum severity, GLsizei length, const char *message, const Void *userParam) {
+    Str8 source_string = { 0 };
+    switch (source) {
+        case GL_DEBUG_SOURCE_API:             source_string = str8_literal("API");             break;
+        case GL_DEBUG_SOURCE_WINDOW_SYSTEM:   source_string = str8_literal("Window System");   break;
+        case GL_DEBUG_SOURCE_SHADER_COMPILER: source_string = str8_literal("Shader Compiler"); break;
+        case GL_DEBUG_SOURCE_THIRD_PARTY:     source_string = str8_literal("Third Party");     break;
+        case GL_DEBUG_SOURCE_APPLICATION:     source_string = str8_literal("Application");     break;
+        case GL_DEBUG_SOURCE_OTHER:           source_string = str8_literal("Other");           break;
+    }
+
+    Str8 type_string = { 0 };
+    switch (type) {
+        case GL_DEBUG_TYPE_ERROR:               type_string = str8_literal("Error");                break;
+        case GL_DEBUG_TYPE_DEPRECATED_BEHAVIOR: type_string = str8_literal("Deprecated Behaviour"); break;
+        case GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR:  type_string = str8_literal("Undefined Behaviour");  break;
+        case GL_DEBUG_TYPE_PORTABILITY:         type_string = str8_literal("Portability");          break;
+        case GL_DEBUG_TYPE_PERFORMANCE:         type_string = str8_literal("Performance");          break;
+        case GL_DEBUG_TYPE_MARKER:              type_string = str8_literal("Marker");               break;
+        case GL_DEBUG_TYPE_PUSH_GROUP:          type_string = str8_literal("Push Group");           break;
+        case GL_DEBUG_TYPE_POP_GROUP:           type_string = str8_literal("Pop Group");            break;
+        case GL_DEBUG_TYPE_OTHER:               type_string = str8_literal("Other");                break;
+    }
+
+    Str8 severity_string = { 0 };
+    switch (severity) {
+        case GL_DEBUG_SEVERITY_HIGH:         severity_string = str8_literal("High");         break;
+        case GL_DEBUG_SEVERITY_MEDIUM:       severity_string = str8_literal("Medium");       break;
+        case GL_DEBUG_SEVERITY_LOW:          severity_string = str8_literal("Low");          break;
+        case GL_DEBUG_SEVERITY_NOTIFICATION: severity_string = str8_literal("Notification"); break;
+    }
+
+    Arena_Temporary scratch = arena_get_scratch(0, 0);
+    Str8 final_message = str8_format(
+        scratch.arena,
+        "OpenGL: Debug message (%d): %s. Source: %.*s, Type: %.*s, Severity: %.*s\n", id, message,
+        str8_expand(source_string),
+        str8_expand(type_string),
+        str8_expand(severity_string)
+    );
+    os_console_print(final_message);
+    arena_end_temporary(scratch);
+}
+
 internal OpenGL_Result opengl_create_shader(Arena *arena, Str8 path, GLenum shader_type) {
     OpenGL_Result result = { 0 };
 
@@ -126,18 +170,6 @@ internal Void opengl_vertex_array_instance_attribute_integer(GLuint vaobj, GLuin
     glVertexArrayAttribBinding(vaobj,  attribindex, bindingindex);
     glVertexArrayBindingDivisor(vaobj, attribindex, 1);
     glEnableVertexArrayAttrib(vaobj,   attribindex);
-}
-
-internal Void opengl_debug_output(
-    GLenum source,
-    GLenum type,
-    U32 id,
-    GLenum severity,
-    GLsizei length,
-    const char *message,
-    const Void *userParam
-) {
-    printf("%s\n", message);
 }
 
 internal Render_Rectangle *render_rectangle_internal(Render_Context *gfx, Render_RectangleParams *parameters) {
