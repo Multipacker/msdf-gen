@@ -20,6 +20,7 @@ internal Gfx_Context *gfx_create(Arena *arena, Str8 title, U32 width, U32 height
     sdl_to_gfx_keycode[SDLK_DELETE]    = Gfx_Key_Delete;
 
     if (SDL_Init(SDL_INIT_VIDEO) == 0) {
+        SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_DEBUG_FLAG);
         SDL_GL_SetAttribute(SDL_GL_RED_SIZE, 8);
         SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE, 8);
         SDL_GL_SetAttribute(SDL_GL_BLUE_SIZE, 8);
