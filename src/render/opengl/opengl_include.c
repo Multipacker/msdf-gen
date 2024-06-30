@@ -69,7 +69,7 @@ internal OpenGL_Result opengl_create_program(Arena *arena, OpenGL_ShaderSpecific
 
         if (compiled_shader.handle) {
             glAttachShader(result.handle, compiled_shader.handle);
-            shader_handles[i] = result.handle;
+            shader_handles[i] = compiled_shader.handle;
         } else {
             str8_list_append(arena, &result.errors, compiled_shader.errors);
         }
