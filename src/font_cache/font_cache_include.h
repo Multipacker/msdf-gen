@@ -12,15 +12,76 @@ struct FontCache_Region {
 
 typedef struct FontCache_Atlas FontCache_Atlas;
 struct FontCache_Atlas {
+    FontCache_Atlas *next;
+    FontCache_Atlas *previous;
+
     Render_Texture texture;
 
     FontCache_Region *root;
     V2U32             root_size;
 };
 
+typedef struct FontCache_Font FontCache_Font;
+struct FontCache_Font {
+    FontCache_Font *hash_next;
+    FontCache_Font *hash_previous;
+
+    Str8 path;
+    Font_Raster *font;
+};
+
+typedef struct FontCache_FontList FontCache_FontList;
+struct FontCache_FontList {
+    FontCache_Font *first;
+    FontCache_Font *last;
+};
+
+typedef struct FontCache_Glyph FontCache_Glyph;
+struct FontCache_Glyph {
+    FontCache_Glyph *hash_next;
+    FontCache_Glyph *hash_previous;
+
+    // NOTE(simon): Lookup information
+    U64 hash;
+    FontCache_Font *font;
+    U32 codepoint;
+    U32 size;
+
+    R2U32 region;
+    Render_Texture texture;
+
+    // TODO(simon): Metrics
+};
+
+typedef struct FontCache_GlyphList FontCache_GlyphList;
+struct FontCache_GlyphList {
+    FontCache_Glyph *first;
+    FontCache_Glyph *last;
+};
+
+typedef struct FontCache_State FontCache_State;
+struct FontCache_State {
+    Arena *arena;
+
+    FontCache_Atlas *first_atlas;
+    FontCache_Atlas *last_atlas;
+
+    FontCache_FontList *font_table;
+    U32                 font_table_size;
+
+    FontCache_GlyphList *glyph_table;
+    U32                  glyph_table_size;
+};
+
 // NOTE(simon): Atlas manipulation
 internal FontCache_Atlas *font_cache_atlas_create(Arena *arena, Render_Context *render, V2U32 size);
 internal R2U32            font_cache_atlas_allocate(Arena *arena, FontCache_Atlas *atlas, V2U32 minimum_size);
 internal Void             font_cache_atlas_free(FontCache_Atlas *atlas, R2U32 size);
+
+// NOTE(simon): Cache lookups
+internal FontCache_Font  *font_cache_font_from_path(FontCache_State *state, Str8 path);
+internal FontCache_Glyph *font_cache_glyph_from_font_codepoint_size(FontCache_State *state, Render_Context *render, FontCache_Font *font, U32 codepoint, U32 size);
+
+internal FontCache_State *font_cache_create(Void);
 
 #endif // FONT_CACHE_INCLUDE_H

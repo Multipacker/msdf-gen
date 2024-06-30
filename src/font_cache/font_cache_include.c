@@ -146,3 +146,96 @@ internal Void font_cache_atlas_free(FontCache_Atlas *atlas, R2U32 rectangle) {
         }
     }
 }
+
+
+
+internal FontCache_Font *font_cache_font_from_path(FontCache_State *state, Str8 path) {
+    FontCache_Font *result = 0;
+
+    // NOTE(simon): Lookup the font from the path.
+    U64 hash = str8_hash(path);
+    FontCache_FontList *fonts = &state->font_table[hash % state->font_table_size];
+    for (FontCache_Font *font = fonts->first; font; font = font->hash_next) {
+        if (str8_equal(path, font->path)) {
+            result = font;
+            break;
+        }
+    }
+
+    // NOTE(simon): Load the font if it doesn't exist yet.
+    if (!result) {
+        result = arena_push_struct_zero(state->arena, FontCache_Font);
+
+        result->path = str8_copy(state->arena, path);
+        result->font = raster_load(state->arena, path);
+
+        dll_insert_next_previous_zero(fonts->first, fonts->last, fonts->last, result, hash_next, hash_previous, 0);
+    }
+
+    return result;
+}
+
+internal FontCache_Glyph *font_cache_glyph_from_font_codepoint_size(FontCache_State *state, Render_Context *render, FontCache_Font *font, U32 codepoint, U32 size) {
+    FontCache_Glyph *result = 0;
+
+    // NOTE(simon): Lookup the glyph from the font and codepoint.
+    U64 hash = hash_combine(hash_combine(str8_hash(font->path), u64_hash(codepoint)), u64_hash(size));
+    FontCache_GlyphList *glyphs = &state->glyph_table[hash % state->glyph_table_size];
+    for (FontCache_Glyph *glyph = glyphs->first; glyph; glyph = glyph->hash_next) {
+        if (glyph->font == font && glyph->codepoint == codepoint && glyph->size == size) {
+            result = glyph;
+            break;
+        }
+    }
+
+    // NOTE(simon): Generate the glyph if it doesn't exist yet.
+    if (!result) {
+        Arena_Temporary scratch = arena_get_scratch(&state->arena, 1);
+        MSDF_RasterResult raster_result = raster_generate(scratch.arena, font->font, codepoint, size);
+
+        // NOTE(simon): Select glyph atlas.
+        FontCache_Atlas *selected_atlas = 0;
+        for (FontCache_Atlas *atlas = state->first_atlas; atlas; atlas = atlas->next ) {
+            V2U32 max_availible_size = atlas->root->max_availible_size;
+            if (max_availible_size.x >= raster_result.size.x && max_availible_size.y >= raster_result.size.y) {
+                selected_atlas = atlas;
+                break;
+            }
+        }
+
+        // NOTE(simon): Allocate a new atlas if we couldn't find one with enough space.
+        if (!selected_atlas) {
+            V2U32 default_size = v2u32(2048, 2048);
+            selected_atlas = font_cache_atlas_create(state->arena, render, default_size);
+            dll_push_back(state->first_atlas, state->last_atlas, selected_atlas);
+        }
+
+        // NOTE(simon): Insert into atlas.
+        result = arena_push_struct_zero(state->arena, FontCache_Glyph);
+        result->font      = font;
+        result->codepoint = codepoint;
+        result->size      = size;
+        result->region    = font_cache_atlas_allocate(state->arena, selected_atlas, raster_result.size);
+        result->texture   = selected_atlas->texture;
+        render_texture_update(render, result->texture, result->region.min, raster_result.size, raster_result.data);
+
+        dll_insert_next_previous_zero(glyphs->first, glyphs->last, glyphs->last, result, hash_next, hash_previous, 0);
+        arena_end_temporary(scratch);
+    }
+
+    return result;
+}
+
+
+
+internal FontCache_State *font_cache_create(Void) {
+    Arena *arena = arena_create();
+    FontCache_State *result = arena_push_struct_zero(arena, FontCache_State);
+    result->arena = arena;
+    result->font_table_size = 32;
+    result->font_table      = arena_push_array_zero(result->arena, FontCache_FontList, result->font_table_size);
+    result->glyph_table_size = 1024;
+    result->glyph_table      = arena_push_array_zero(result->arena, FontCache_GlyphList, result->glyph_table_size);
+
+    return result;
+}
