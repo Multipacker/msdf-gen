@@ -261,3 +261,14 @@ internal R2S64 r2s64(S64 min_x, S64 min_y, S64 max_x, S64 max_y) {
 
     return result;
 }
+
+internal R2F32 r2f32(F32 min_x, F32 min_y, F32 max_x, F32 max_y) {
+    R2F32 result = { 0 };
+
+    result.min.x = min_x;
+    result.min.y = min_y;
+    result.max.x = max_x;
+    result.max.y = max_y;
+
+    return result;
+}
