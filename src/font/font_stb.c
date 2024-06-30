@@ -18,14 +18,20 @@ internal Font_Raster *raster_load(Arena *arena, Str8 path) {
     return result;
 }
 
-// TODO(simon): Which units do we return this in?
-internal Void raster_get_font_metrics(Font_Raster *font) {
+internal Font_Metrics raster_get_font_metrics(Font_Raster *font) {
+    Font_Metrics result = { 0 };
     if (font->initialized) {
         int ascent = 0;
         int descent = 0;
         int line_gap = 0;
         stbtt_GetFontVMetrics(&font->font_info, &ascent, &descent, &line_gap);
+
+        result.ascent       = ascent;
+        result.descent      = descent;
+        result.units_per_em = (U32) (1.0f / stbtt_ScaleForMappingEmToPixels(&font->font_info, 1));
     }
+
+    return result;
 }
 
 internal MSDF_RasterResult raster_generate(Arena *arena, Font_Raster *font, U32 codepoint, U32 size) {
