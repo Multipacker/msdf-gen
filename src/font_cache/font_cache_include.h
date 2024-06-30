@@ -82,9 +82,6 @@ struct FontCache_State {
 
 typedef struct FontCache_Letter FontCache_Letter;
 struct FontCache_Letter {
-    FontCache_Letter *next;
-    FontCache_Letter *previous;
-
     Render_Texture texture;
     V2F32          offset;
     V2F32          size;
@@ -94,8 +91,8 @@ struct FontCache_Letter {
 
 typedef struct FontCache_Text FontCache_Text;
 struct FontCache_Text {
-    FontCache_Letter *first_letter;
-    FontCache_Letter *last_letter;
+    FontCache_Letter *letters;
+    U64               letter_count;
 
     V2F32 size;
     F32   ascent;

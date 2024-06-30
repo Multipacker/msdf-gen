@@ -250,6 +250,8 @@ internal FontCache_Glyph *font_cache_glyph_from_font_codepoint_size(FontCache_St
 internal FontCache_Text font_cache_text(Arena *arena, FontCache_State *state, Render_Context *render, FontCache_Font *font, Str8 text, U32 size) {
     FontCache_Text result = { 0 };
 
+    result.letters = arena_push_array_zero(arena, FontCache_Letter, text.size);
+
     // TODO(simon): I don't like that we compute the exakt sizes here, can it be moved to the font implementation instead?
     result.ascent  = font->ascent  * size * 72.0f / (72.0f * font->units_per_em);
     result.descent = font->descent * size * 72.0f / (72.0f * font->units_per_em);
@@ -263,7 +265,7 @@ internal FontCache_Text font_cache_text(Arena *arena, FontCache_State *state, Re
 
         FontCache_Glyph *glyph = font_cache_glyph_from_font_codepoint_size(state, render, font, decode.codepoint, size);
 
-        FontCache_Letter *letter = arena_push_struct_zero(arena, FontCache_Letter);
+        FontCache_Letter *letter = &result.letters[result.letter_count++];
         letter->texture = glyph->texture;
         letter->offset  = v2f32_add(glyph->offset, v2f32(glyph->left_side_bearing, result.ascent));
         letter->size    = glyph->size;
@@ -271,9 +273,9 @@ internal FontCache_Text font_cache_text(Arena *arena, FontCache_State *state, Re
         letter->advance = glyph->advance_width;
 
         result.size.width += glyph->advance_width;
-
-        dll_push_back(result.first_letter, result.last_letter, letter);
     }
+
+    arena_pop_amount(arena, (text.size - result.letter_count) * sizeof(FontCache_Letter));
 
     return result;
 }
