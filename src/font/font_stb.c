@@ -11,7 +11,7 @@ internal Font_Raster *raster_load(Arena *arena, Str8 path) {
 
     Str8 buffer = { 0 };
     if (os_file_read(arena, path, &buffer)) {
-        int loaded = stbtt_InitFont(&result->font_info, buffer.data, 0);
+        int loaded = stbtt_InitFont(&result->font_info, buffer.data, stbtt_GetFontOffsetForIndex(buffer.data, 0));
         result->initialized = loaded != 0;
     }
 
