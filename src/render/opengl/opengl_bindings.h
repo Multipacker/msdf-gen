@@ -38,6 +38,7 @@
 #define GL_UNSIGNED_BYTE        0x1401
 #define GL_UNSIGNED_INT         0x1405
 #define GL_VERTEX_SHADER        0x8B31
+#define GL_UNPACK_ALIGNMENT     0x0CF5
 
 #define GL_DEBUG_SOURCE_API               0x8246
 #define GL_DEBUG_SOURCE_WINDOW_SYSTEM     0x8247
@@ -91,6 +92,11 @@ typedef Void (*PFNGLENABLEPROC)(GLenum cap);
 typedef Void (*PFNGLSCISSORPROC)(GLint x, GLint y, GLsizei width, GLsizei height);
 #endif
 
+typedef Void   (GLDEBUGPROC)(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar *message, const void *userParam);
+
+typedef GLint  (*PFNGLGETUNIFORMLOCATIONPROC)(GLuint program, const GLchar *name);
+typedef GLuint (*PFNGLCREATEPROGRAMPROC)(Void);
+typedef GLuint (*PFNGLCREATESHADERPROC)(GLenum shaderType);
 typedef Void   (*PFNGLATTACHSHADERPROC)(GLuint program, GLuint shader);
 typedef Void   (*PFNGLBINDTEXTUREUNITPROC)(GLuint unit, GLuint texture);
 typedef Void   (*PFNGLBINDVERTEXARRAYPROC)(GLuint array);
@@ -98,10 +104,9 @@ typedef Void   (*PFNGLBLENDFUNCPROC)(GLenum sfactor, GLenum dfactor);
 typedef Void   (*PFNGLBLENDFUNCSEPARATEPROC)(GLenum srcRGB, GLenum dstRGB, GLenum srcAlpha, GLenum dstAlpha);
 typedef Void   (*PFNGLCOMPILESHADERPROC)(GLuint shader);
 typedef Void   (*PFNGLCREATEBUFFERSPROC)(GLsizei n, GLuint *buffers);
-typedef GLuint (*PFNGLCREATEPROGRAMPROC)(Void);
-typedef GLuint (*PFNGLCREATESHADERPROC)(GLenum shaderType);
 typedef Void   (*PFNGLCREATETEXTURESPROC)(GLenum target, GLsizei n, GLuint *textures);
 typedef Void   (*PFNGLCREATEVERTEXARRAYSPROC)(GLsizei n, GLuint *arrays);
+typedef Void   (*PFNGLDEBUGMESSAGECALLBACKPROC) (GLDEBUGPROC *callback, const void *userParam);
 typedef Void   (*PFNGLDELETEPROGRAMPROC)(GLuint program);
 typedef Void   (*PFNGLDELETESHADERPROC)(GLuint shader);
 typedef Void   (*PFNGLDELETETEXTURESPROC)(GLsizei n, const GLuint *textures);
@@ -112,10 +117,10 @@ typedef Void   (*PFNGLGETPROGRAMINFOLOGPROC)(GLuint program, GLsizei maxLength, 
 typedef Void   (*PFNGLGETPROGRAMIVPROC)(GLuint program, GLenum pname, GLint *params);
 typedef Void   (*PFNGLGETSHADERINFOLOGPROC)(GLuint shader, GLsizei maxLength, GLsizei *length, GLchar *infoLog);
 typedef Void   (*PFNGLGETSHADERIVPROC)(GLuint shader, GLenum pname, GLint *params);
-typedef GLint  (*PFNGLGETUNIFORMLOCATIONPROC)(GLuint program, const GLchar *name);
 typedef Void   (*PFNGLLINKPROGRAMPROC)(GLuint program);
 typedef Void   (*PFNGLNAMEDBUFFERDATAPROC)(GLuint buffer, GLsizeiptr size, const Void *data, GLenum usage);
 typedef Void   (*PFNGLNAMEDBUFFERSUBDATAPROC)(GLuint buffer, GLintptr offset, GLsizeiptr size, const Void *data);
+typedef Void   (*PFNGLPIXELSTOREI)(GLenum pname, GLint param);
 typedef Void   (*PFNGLPROGRAMUNIFORM1IPROC)(GLuint program, GLint location, GLint v0);
 typedef Void   (*PFNGLPROGRAMUNIFORMMATRIX4FVPROC)(GLuint program, GLint location, GLsizei count, GLboolean transpose, const GLfloat *value);
 typedef Void   (*PFNGLSHADERSOURCEPROC)(GLuint shader, GLsizei count, const GLchar **string, const GLint *length);
@@ -128,8 +133,6 @@ typedef Void   (*PFNGLVERTEXARRAYATTRIBFORMATPROC)(GLuint vaobj, GLuint attribin
 typedef Void   (*PFNGLVERTEXARRAYATTRIBIFORMATPROC)(GLuint vaobj, GLuint attribindex, GLint size, GLenum type, GLuint relativeoffset);
 typedef Void   (*PFNGLVERTEXARRAYBINDINGDIVISORPROC)(GLuint vaobj, GLuint bindingindex, GLuint divisor);
 typedef Void   (*PFNGLVERTEXARRAYVERTEXBUFFERPROC)(GLuint vaobj, GLuint bindingindex, GLuint buffer, GLintptr offset, GLsizei stride);
-typedef Void   (GLDEBUGPROC)(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar *message, const void *userParam);
-typedef Void   (*PFNGLDEBUGMESSAGECALLBACKPROC) (GLDEBUGPROC *callback, const void *userParam);
 
 #define GL_LINUX_FUNCTION(X) \
 X(PFNGLSCISSORPROC,                   glScissor)                   \
@@ -151,6 +154,7 @@ X(PFNGLCREATEPROGRAMPROC,             glCreateProgram)             \
 X(PFNGLCREATESHADERPROC,              glCreateShader)              \
 X(PFNGLCREATETEXTURESPROC,            glCreateTextures)            \
 X(PFNGLCREATEVERTEXARRAYSPROC,        glCreateVertexArrays)        \
+X(PFNGLDEBUGMESSAGECALLBACKPROC,      glDebugMessageCallback)      \
 X(PFNGLDELETEPROGRAMPROC,             glDeleteProgram)             \
 X(PFNGLDELETESHADERPROC,              glDeleteShader)              \
 X(PFNGLDELETETEXTURESPROC,            glDeleteTextures)            \
@@ -165,6 +169,7 @@ X(PFNGLGETUNIFORMLOCATIONPROC,        glGetUniformLocation)        \
 X(PFNGLLINKPROGRAMPROC,               glLinkProgram)               \
 X(PFNGLNAMEDBUFFERDATAPROC,           glNamedBufferData)           \
 X(PFNGLNAMEDBUFFERSUBDATAPROC,        glNamedBufferSubData)        \
+X(PFNGLPIXELSTOREI,                   glPixelStorei)               \
 X(PFNGLPROGRAMUNIFORM1IPROC,          glProgramUniform1i)          \
 X(PFNGLPROGRAMUNIFORMMATRIX4FVPROC,   glProgramUniformMatrix4fv)   \
 X(PFNGLSHADERSOURCEPROC,              glShaderSource)              \
@@ -176,21 +181,20 @@ X(PFNGLVERTEXARRAYATTRIBBINDINGPROC,  glVertexArrayAttribBinding)  \
 X(PFNGLVERTEXARRAYATTRIBFORMATPROC,   glVertexArrayAttribFormat)   \
 X(PFNGLVERTEXARRAYATTRIBIFORMATPROC,  glVertexArrayAttribIFormat)  \
 X(PFNGLVERTEXARRAYBINDINGDIVISORPROC, glVertexArrayBindingDivisor) \
-X(PFNGLVERTEXARRAYVERTEXBUFFERPROC,   glVertexArrayVertexBuffer)   \
-X(PFNGLDEBUGMESSAGECALLBACKPROC,      glDebugMessageCallback)
+X(PFNGLVERTEXARRAYVERTEXBUFFERPROC,   glVertexArrayVertexBuffer)
 
 #define X(type, name) global type name;
 
 #if OS_LINUX
 GL_LINUX_FUNCTION(X)
 #else
-void glEnable(GLenum cap);
-void glDisable(GLenum cap);
-void glClearColor(GLfloat red, GLfloat green, GLfloat blue, GLfloat alpha);
-void glViewport(GLint x, GLint y, GLsizei width, GLsizei height);
-void glClear(GLbitfield mask);
-void glScissor(GLint x, GLint y, GLsizei width, GLsizei height);
 void glBlendFunc(GLenum sfactor, GLenum dfactor);
+void glClear(GLbitfield mask);
+void glClearColor(GLfloat red, GLfloat green, GLfloat blue, GLfloat alpha);
+void glDisable(GLenum cap);
+void glEnable(GLenum cap);
+void glScissor(GLint x, GLint y, GLsizei width, GLsizei height);
+void glViewport(GLint x, GLint y, GLsizei width, GLsizei height);
 #endif
 
 GL_FUNCTIONS(X)

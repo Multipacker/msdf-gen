@@ -252,7 +252,15 @@ internal Render_Texture render_texture_create(Render_Context *gfx, V2U32 size, R
     glTextureParameteri(result.u32[0], GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTextureParameteri(result.u32[0], GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     if (data) {
+        if (format == Render_TextureFormat_R8) {
+            glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+        }
+
         glTextureSubImage2D(result.u32[0], 0, 0, 0, (GLsizei) size.width, (GLsizei) size.height, gl_format, GL_UNSIGNED_BYTE, data);
+
+        if (format == Render_TextureFormat_R8) {
+            glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
+        }
     }
 
     return result;
@@ -276,6 +284,7 @@ internal Void render_texture_update(Render_Context *gfx, Render_Texture texture,
     switch (format) {
         case Render_TextureFormat_R8: {
             gl_format = GL_RED;
+            glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
         } break;
         case Render_TextureFormat_RGBA8: {
             gl_format = GL_RGBA;
@@ -290,6 +299,10 @@ internal Void render_texture_update(Render_Context *gfx, Render_Texture texture,
         gl_format, GL_UNSIGNED_BYTE,
         data
     );
+
+    if (format == Render_TextureFormat_R8) {
+        glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
+    }
 }
 
 internal Render_Context *render_create(Gfx_Context *gfx) {
