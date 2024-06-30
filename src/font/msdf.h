@@ -80,6 +80,7 @@ struct MSDF_RasterResult {
     F32 advance_width;
     F32 left_side_bearing;
 
+    V2U32 size;
     U8 *data;
 };
 
