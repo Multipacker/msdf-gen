@@ -169,6 +169,12 @@ internal FontCache_Font *font_cache_font_from_path(FontCache_State *state, Str8 
         result->path = str8_copy(state->arena, path);
         result->font = raster_load(state->arena, path);
 
+        Font_Metrics metrics = raster_get_font_metrics(result->font);
+
+        result->ascent       = metrics.ascent;
+        result->descent      = metrics.descent;
+        result->units_per_em = metrics.units_per_em;
+
         dll_insert_next_previous_zero(fonts->first, fonts->last, fonts->last, result, hash_next, hash_previous, 0);
     }
 
@@ -182,7 +188,7 @@ internal FontCache_Glyph *font_cache_glyph_from_font_codepoint_size(FontCache_St
     U64 hash = hash_combine(hash_combine(str8_hash(font->path), u64_hash(codepoint)), u64_hash(size));
     FontCache_GlyphList *glyphs = &state->glyph_table[hash % state->glyph_table_size];
     for (FontCache_Glyph *glyph = glyphs->first; glyph; glyph = glyph->hash_next) {
-        if (glyph->font == font && glyph->codepoint == codepoint && glyph->size == size) {
+        if (glyph->font == font && glyph->codepoint == codepoint && glyph->point_size == size) {
             result = glyph;
             break;
         }
@@ -205,22 +211,68 @@ internal FontCache_Glyph *font_cache_glyph_from_font_codepoint_size(FontCache_St
 
         // NOTE(simon): Allocate a new atlas if we couldn't find one with enough space.
         if (!selected_atlas) {
-            V2U32 default_size = v2u32(2048, 2048);
+            V2U32 default_size = v2u32(1024, 1024);
             selected_atlas = font_cache_atlas_create(state->arena, render, default_size);
             dll_push_back(state->first_atlas, state->last_atlas, selected_atlas);
         }
 
-        // NOTE(simon): Insert into atlas.
+        // NOTE(simon): Create glyph.
+        V2U32 atlas_size = render_size_from_texture(selected_atlas->texture);
         result = arena_push_struct_zero(state->arena, FontCache_Glyph);
-        result->font      = font;
-        result->codepoint = codepoint;
-        result->size      = size;
-        result->region    = font_cache_atlas_allocate(state->arena, selected_atlas, raster_result.size);
-        result->texture   = selected_atlas->texture;
+        result->font       = font;
+        result->codepoint  = codepoint;
+        result->point_size = size;
+        result->region     = font_cache_atlas_allocate(state->arena, selected_atlas, raster_result.size);
+        result->uvs        = r2f32(
+            (F32) result->region.min.x / (F32) atlas_size.x,
+            (F32) result->region.min.y / (F32) atlas_size.y,
+            (F32) (result->region.min.x + raster_result.size.x) / (F32) atlas_size.x,
+            (F32) (result->region.min.y + raster_result.size.y) / (F32) atlas_size.y
+        );
+        result->texture           = selected_atlas->texture;
+        result->offset            = v2f32((F32) raster_result.x_min, (F32) raster_result.y_min);
+        result->size              = v2f32((F32) raster_result.size.width, (F32) raster_result.size.height);
+        result->advance_width     = raster_result.advance_width;
+        result->left_side_bearing = raster_result.left_side_bearing;
+
+        // NOTE(simon): Insert into atlas.
         render_texture_update(render, result->texture, result->region.min, raster_result.size, raster_result.data);
 
         dll_insert_next_previous_zero(glyphs->first, glyphs->last, glyphs->last, result, hash_next, hash_previous, 0);
         arena_end_temporary(scratch);
+    }
+
+    return result;
+}
+
+
+
+internal FontCache_Text font_cache_text(Arena *arena, FontCache_State *state, Render_Context *render, FontCache_Font *font, Str8 text, U32 size) {
+    FontCache_Text result = { 0 };
+
+    // TODO(simon): I don't like that we compute the exakt sizes here, can it be moved to the font implementation instead?
+    result.ascent  = font->ascent  * size * 72.0f / (72.0f * font->units_per_em);
+    result.descent = font->descent * size * 72.0f / (72.0f * font->units_per_em);
+    result.size.height = result.ascent - result.descent;
+
+    U8 *ptr = text.data;
+    U8 *opl = text.data + text.size;
+    while (ptr < opl) {
+        StringDecode decode = string_decode_utf8(ptr, (U64) (opl - ptr));
+        ptr += decode.size;
+
+        FontCache_Glyph *glyph = font_cache_glyph_from_font_codepoint_size(state, render, font, decode.codepoint, size);
+
+        FontCache_Letter *letter = arena_push_struct_zero(arena, FontCache_Letter);
+        letter->texture = glyph->texture;
+        letter->offset  = v2f32_add(glyph->offset, v2f32(glyph->left_side_bearing, result.ascent));
+        letter->size    = glyph->size;
+        letter->uvs     = glyph->uvs;
+        letter->advance = glyph->advance_width;
+
+        result.size.width += glyph->advance_width;
+
+        dll_push_back(result.first_letter, result.last_letter, letter);
     }
 
     return result;
