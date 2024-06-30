@@ -33,3 +33,8 @@ internal U64 str8_hash(Str8 string) {
 
     return hash;
 }
+
+internal U64 hash_combine(U64 a, U64 b) {
+    U64 result = a ^ (b + 0x9e3779b9 + (a << 6) + (a >> 2));
+    return result;
+}
