@@ -100,16 +100,16 @@ struct FontCache_Text {
 };
 
 // NOTE(simon): Atlas manipulation
-internal FontCache_Atlas *font_cache_atlas_create(Arena *arena, Render_Context *render, V2U32 size);
+internal FontCache_Atlas *font_cache_atlas_create(Arena *arena, V2U32 size);
 internal R2U32            font_cache_atlas_allocate(Arena *arena, FontCache_Atlas *atlas, V2U32 minimum_size);
 internal Void             font_cache_atlas_free(FontCache_Atlas *atlas, R2U32 size);
 
 // NOTE(simon): Cache lookups
 internal FontCache_Font  *font_cache_font_from_path(FontCache_State *state, Str8 path);
-internal FontCache_Glyph *font_cache_glyph_from_font_codepoint_size(FontCache_State *state, Render_Context *render, FontCache_Font *font, U32 codepoint, U32 size);
+internal FontCache_Glyph *font_cache_glyph_from_font_codepoint_size(FontCache_State *state, FontCache_Font *font, U32 codepoint, U32 size);
 
 // NOTE(simon): Layout
-internal FontCache_Text font_cache_text(Arena *arena, FontCache_State *state, Render_Context *render, FontCache_Font *font, Str8 text, U32 size);
+internal FontCache_Text font_cache_text(Arena *arena, FontCache_State *state, FontCache_Font *font, Str8 text, U32 size);
 
 internal FontCache_State *font_cache_create(Void);
 

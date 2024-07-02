@@ -1,0 +1,1 @@
+global Render_Context global_render_context;

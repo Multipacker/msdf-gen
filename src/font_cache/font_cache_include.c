@@ -1,14 +1,14 @@
 // TODO(simon): Introduce a freelist for FontCache_Region, that way they can be
 // reused instead of overallocating them.
 
-internal FontCache_Atlas *font_cache_atlas_create(Arena *arena, Render_Context *render, V2U32 size) {
+internal FontCache_Atlas *font_cache_atlas_create(Arena *arena, V2U32 size) {
     FontCache_Atlas *atlas = arena_push_struct_zero(arena, FontCache_Atlas);
 
     V2U32 ceiled_size = v2u32(
             u32_ceil_to_power_of_2(size.width),
             u32_ceil_to_power_of_2(size.height)
     );
-    atlas->texture   = render_texture_create(render, ceiled_size, Render_TextureFormat_R8, 0);
+    atlas->texture   = render_texture_create(ceiled_size, Render_TextureFormat_R8, 0);
     atlas->root      = arena_push_struct_zero(arena, FontCache_Region);
     atlas->root_size = ceiled_size;
 
@@ -181,7 +181,7 @@ internal FontCache_Font *font_cache_font_from_path(FontCache_State *state, Str8 
     return result;
 }
 
-internal FontCache_Glyph *font_cache_glyph_from_font_codepoint_size(FontCache_State *state, Render_Context *render, FontCache_Font *font, U32 codepoint, U32 size) {
+internal FontCache_Glyph *font_cache_glyph_from_font_codepoint_size(FontCache_State *state, FontCache_Font *font, U32 codepoint, U32 size) {
     FontCache_Glyph *result = 0;
 
     // NOTE(simon): Lookup the glyph from the font and codepoint.
@@ -212,7 +212,7 @@ internal FontCache_Glyph *font_cache_glyph_from_font_codepoint_size(FontCache_St
         // NOTE(simon): Allocate a new atlas if we couldn't find one with enough space.
         if (!selected_atlas) {
             V2U32 default_size = v2u32(1024, 1024);
-            selected_atlas = font_cache_atlas_create(state->arena, render, default_size);
+            selected_atlas = font_cache_atlas_create(state->arena, default_size);
             dll_push_back(state->first_atlas, state->last_atlas, selected_atlas);
         }
 
@@ -236,7 +236,7 @@ internal FontCache_Glyph *font_cache_glyph_from_font_codepoint_size(FontCache_St
         result->left_side_bearing = raster_result.left_side_bearing;
 
         // NOTE(simon): Insert into atlas.
-        render_texture_update(render, result->texture, result->region.min, raster_result.size, raster_result.data);
+        render_texture_update(result->texture, result->region.min, raster_result.size, raster_result.data);
 
         dll_insert_next_previous_zero(glyphs->first, glyphs->last, glyphs->last, result, hash_next, hash_previous, 0);
         arena_end_temporary(scratch);
@@ -247,7 +247,7 @@ internal FontCache_Glyph *font_cache_glyph_from_font_codepoint_size(FontCache_St
 
 
 
-internal FontCache_Text font_cache_text(Arena *arena, FontCache_State *state, Render_Context *render, FontCache_Font *font, Str8 text, U32 size) {
+internal FontCache_Text font_cache_text(Arena *arena, FontCache_State *state, FontCache_Font *font, Str8 text, U32 size) {
     FontCache_Text result = { 0 };
 
     result.letters = arena_push_array_zero(arena, FontCache_Letter, text.size);
@@ -263,7 +263,7 @@ internal FontCache_Text font_cache_text(Arena *arena, FontCache_State *state, Re
         StringDecode decode = string_decode_utf8(ptr, (U64) (opl - ptr));
         ptr += decode.size;
 
-        FontCache_Glyph *glyph = font_cache_glyph_from_font_codepoint_size(state, render, font, decode.codepoint, size);
+        FontCache_Glyph *glyph = font_cache_glyph_from_font_codepoint_size(state, font, decode.codepoint, size);
 
         FontCache_Letter *letter = &result.letters[result.letter_count++];
         letter->texture = glyph->texture;

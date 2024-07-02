@@ -172,7 +172,9 @@ internal Void opengl_vertex_array_instance_attribute_integer(GLuint vaobj, GLuin
     glEnableVertexArrayAttrib(vaobj,   attribindex);
 }
 
-internal Render_Rectangle *render_rectangle_internal(Render_Context *gfx, Render_RectangleParams *parameters) {
+internal Render_Rectangle *render_rectangle_internal(Render_RectangleParams *parameters) {
+    Render_Context *gfx = &global_render_context;
+
     Render_Batch *batch = gfx->batches.last;
 
     if (!batch || batch->size >= RENDER_BATCH_SIZE || (batch->texture_id && batch->texture_id != parameters->texture.u32[0])) {
@@ -198,7 +200,9 @@ internal Render_Rectangle *render_rectangle_internal(Render_Context *gfx, Render
     return rect;
 }
 
-internal Void render_begin(Render_Context *gfx, V2U32 resolution) {
+internal Void render_begin(V2U32 resolution) {
+    Render_Context *gfx = &global_render_context;
+
     gfx->frame_restore = arena_begin_temporary(gfx->arena);
 
     glViewport(0, 0, resolution.width, resolution.height);
@@ -207,7 +211,9 @@ internal Void render_begin(Render_Context *gfx, V2U32 resolution) {
     glProgramUniformMatrix4fv(gfx->program, gfx->uniform_projection_location, 1, GL_FALSE, &projection.m[0][0]);
 }
 
-internal Void render_end(Render_Context *gfx) {
+internal Void render_end(Void) {
+    Render_Context *gfx = &global_render_context;
+
     glProgramUniform1i(gfx->program, gfx->uniform_sampler_location, 0);
 
     glClear(GL_COLOR_BUFFER_BIT);
@@ -225,7 +231,7 @@ internal Void render_end(Render_Context *gfx) {
     gfx_swap_buffers(gfx->gfx);
 }
 
-internal Render_Texture render_texture_create(Render_Context *gfx, V2U32 size, Render_TextureFormat format, U8 *data) {
+internal Render_Texture render_texture_create(V2U32 size, Render_TextureFormat format, U8 *data) {
     Render_Texture result = { 0 };
 
     glCreateTextures(GL_TEXTURE_2D, 1, &result.u32[0]);
@@ -266,7 +272,7 @@ internal Render_Texture render_texture_create(Render_Context *gfx, V2U32 size, R
     return result;
 }
 
-internal Void render_texture_destroy(Render_Context *gfx, Render_Texture texture) {
+internal Void render_texture_destroy(Render_Texture texture) {
     glDeleteTextures(1, &texture.u32[0]);
 }
 
@@ -277,7 +283,7 @@ internal V2U32 render_size_from_texture(Render_Texture texture) {
     return result;
 }
 
-internal Void render_texture_update(Render_Context *gfx, Render_Texture texture, V2U32 position, V2U32 size, U8 *data) {
+internal Void render_texture_update(Render_Texture texture, V2U32 position, V2U32 size, U8 *data) {
     Render_TextureFormat format = (Render_TextureFormat) texture.u32[3];
 
     GLenum gl_format = 0;
@@ -305,9 +311,10 @@ internal Void render_texture_update(Render_Context *gfx, Render_Texture texture,
     }
 }
 
-internal Render_Context *render_create(Gfx_Context *gfx) {
+internal Void render_create(Gfx_Context *gfx) {
+    Render_Context *result = &global_render_context;
+
     Arena *arena = arena_create();
-    Render_Context *result = arena_push_struct_zero(arena, Render_Context);
     result->arena = arena;
     result->gfx = gfx;
     opengl_backend_init(gfx);
@@ -352,6 +359,4 @@ internal Render_Context *render_create(Gfx_Context *gfx) {
     glBindVertexArray(result->vao);
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
-    return result;
 }
