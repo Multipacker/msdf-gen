@@ -94,9 +94,9 @@ internal Void draw_text_msdf(Font *font, V2F32 position, F32 point_size, Str8 te
     }
 }
 
-internal Void draw_text(FontCache_State *font_cache, FontCache_Font *font, V2F32 origin, Str8 string, U32 size) {
+internal Void draw_text(FontCache_Font *font, V2F32 origin, Str8 string, U32 size) {
     Arena_Temporary scratch = arena_get_scratch(0, 0);
-    FontCache_Text text = font_cache_text(scratch.arena, font_cache, font, string, size);
+    FontCache_Text text = font_cache_text(scratch.arena, font, string, size);
 
     F32 advance = 0.0f;
     for (U64 i = 0; i < text.letter_count; ++i) {
@@ -181,7 +181,7 @@ internal S32 os_run(Str8List arguments) {
     Font font = { 0 };
     load_font(arguments.first->next->string, &font);
 
-    FontCache_State *font_cache = font_cache_create();
+    font_cache_create();
 
     V2F32 offset      = { 0 };
     F32   zoom        = 2.0f;
@@ -239,14 +239,14 @@ internal S32 os_run(Str8List arguments) {
             }
         }*/
 
-        FontCache_Font *test_font = font_cache_font_from_path(font_cache, str8_literal("/usr/share/fonts/noto/NotoSerif-Regular.ttf"));
-        FontCache_Text text = font_cache_text(current_arena, font_cache, test_font, str8_literal("Text Örendering!"), 50);
+        FontCache_Font *test_font = font_cache_font_from_path(str8_literal("/usr/share/fonts/noto/NotoSerif-Regular.ttf"));
+        FontCache_Text text = font_cache_text(current_arena, test_font, str8_literal("Text Örendering!"), 50);
         render_rectangle(
             offset,
             v2f32_add(offset, text.size),
             .color = v4f32(1, 0, 0, 1)
         );
-        draw_text(font_cache, test_font, offset, str8_literal("Text Örendering!"), 50);
+        draw_text(test_font, offset, str8_literal("Text Örendering!"), 50);
 
         //draw_text_msdf(&font, offset, 50.0f / zoom, str8_literal("MSDF-based text rendering"));
 

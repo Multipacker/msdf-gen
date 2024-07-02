@@ -1,6 +1,8 @@
 // TODO(simon): Introduce a freelist for FontCache_Region, that way they can be
 // reused instead of overallocating them.
 
+global FontCache_State global_font_cache_state;
+
 internal FontCache_Atlas *font_cache_atlas_create(Arena *arena, V2U32 size) {
     FontCache_Atlas *atlas = arena_push_struct_zero(arena, FontCache_Atlas);
 
@@ -149,7 +151,9 @@ internal Void font_cache_atlas_free(FontCache_Atlas *atlas, R2U32 rectangle) {
 
 
 
-internal FontCache_Font *font_cache_font_from_path(FontCache_State *state, Str8 path) {
+internal FontCache_Font *font_cache_font_from_path(Str8 path) {
+    FontCache_State *state = &global_font_cache_state;
+
     FontCache_Font *result = 0;
 
     // NOTE(simon): Lookup the font from the path.
@@ -181,7 +185,9 @@ internal FontCache_Font *font_cache_font_from_path(FontCache_State *state, Str8 
     return result;
 }
 
-internal FontCache_Glyph *font_cache_glyph_from_font_codepoint_size(FontCache_State *state, FontCache_Font *font, U32 codepoint, U32 size) {
+internal FontCache_Glyph *font_cache_glyph_from_font_codepoint_size(FontCache_Font *font, U32 codepoint, U32 size) {
+    FontCache_State *state = &global_font_cache_state;
+
     FontCache_Glyph *result = 0;
 
     // NOTE(simon): Lookup the glyph from the font and codepoint.
@@ -247,7 +253,9 @@ internal FontCache_Glyph *font_cache_glyph_from_font_codepoint_size(FontCache_St
 
 
 
-internal FontCache_Text font_cache_text(Arena *arena, FontCache_State *state, FontCache_Font *font, Str8 text, U32 size) {
+internal FontCache_Text font_cache_text(Arena *arena, FontCache_Font *font, Str8 text, U32 size) {
+    FontCache_State *state = &global_font_cache_state;
+
     FontCache_Text result = { 0 };
 
     result.letters = arena_push_array_zero(arena, FontCache_Letter, text.size);
@@ -263,7 +271,7 @@ internal FontCache_Text font_cache_text(Arena *arena, FontCache_State *state, Fo
         StringDecode decode = string_decode_utf8(ptr, (U64) (opl - ptr));
         ptr += decode.size;
 
-        FontCache_Glyph *glyph = font_cache_glyph_from_font_codepoint_size(state, font, decode.codepoint, size);
+        FontCache_Glyph *glyph = font_cache_glyph_from_font_codepoint_size(font, decode.codepoint, size);
 
         FontCache_Letter *letter = &result.letters[result.letter_count++];
         letter->texture = glyph->texture;
@@ -282,14 +290,13 @@ internal FontCache_Text font_cache_text(Arena *arena, FontCache_State *state, Fo
 
 
 
-internal FontCache_State *font_cache_create(Void) {
+internal Void font_cache_create(Void) {
+    FontCache_State *result = &global_font_cache_state;
+
     Arena *arena = arena_create();
-    FontCache_State *result = arena_push_struct_zero(arena, FontCache_State);
     result->arena = arena;
     result->font_table_size = 32;
     result->font_table      = arena_push_array_zero(result->arena, FontCache_FontList, result->font_table_size);
     result->glyph_table_size = 1024;
     result->glyph_table      = arena_push_array_zero(result->arena, FontCache_GlyphList, result->glyph_table_size);
-
-    return result;
 }
