@@ -1,5 +1,6 @@
 // TODO(simon): Introduce a freelist for FontCache_Region, that way they can be
 // reused instead of overallocating them.
+// TODO(simon): Cleanup
 
 global FontCache_State global_font_cache_state;
 

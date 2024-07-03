@@ -5,6 +5,7 @@ typedef enum {
     UI_Size_Pixels,
     UI_Size_ChildrenSum,
     UI_Size_ParentPercent,
+    UI_Size_TextContent,
 } UI_SizeKind;
 
 typedef struct UI_Size UI_Size;
@@ -30,8 +31,9 @@ typedef enum {
     UI_BoxFlags_AnimateX       = 1 << 5,
     UI_BoxFlags_AnimateY       = 1 << 6,
     UI_BoxFlags_DrawBackground = 1 << 7,
-    UI_BoxFlags_DrawHot        = 1 << 8,
-    UI_BoxFlags_DrawActive     = 1 << 9,
+    UI_BoxFlags_DrawText       = 1 << 8,
+    UI_BoxFlags_DrawHot        = 1 << 9,
+    UI_BoxFlags_DrawActive     = 1 << 10,
 
     // NOTE(simon): Convenient combinations
     UI_BoxFlags_Overflow         = UI_BoxFlags_OverflowX | UI_BoxFlags_OverflowY,
@@ -54,10 +56,15 @@ struct UI_Box {
 
     UI_Size size[Axis2_COUNT];
 
-    UI_BoxFlags flags;
-    V4F32       color;
-    Axis2       layout_axis;
+    UI_BoxFlags     flags;
+    V4F32           color;
+    Axis2           layout_axis;
+    Str8            string;
+    FontCache_Font *font;
+    U32             font_size;
+    F32             text_padding;
 
+    FontCache_Text text;
     V2F32 calculated_size;
     V2F32 calculated_position;
     R2F32 calculated_rectangle;
@@ -122,6 +129,8 @@ ui_define_stack(Size,     size,      UI_Size)
 ui_define_stack(Axis,     axis,      Axis2)
 ui_define_stack(BoxFlags, box_flags, UI_BoxFlags)
 ui_define_stack(F32,      f32,       F32)
+ui_define_stack(U32,      u32,       U32)
+ui_define_stack(Str8,     str8,      Str8)
 
 typedef struct UI_BoxList UI_BoxList;
 struct UI_BoxList {
@@ -153,6 +162,8 @@ struct UI_Context {
     UI_BoxFlagsStack extra_box_flags_stack;
     UI_F32Stack      fixed_x_stack;
     UI_F32Stack      fixed_y_stack;
+    UI_Str8Stack     font_stack;
+    UI_U32Stack      font_size_stack;
 };
 
 internal Arena *ui_frame_arena(UI_Context *ui);
@@ -162,6 +173,7 @@ internal UI_Key ui_key_from_string(Str8 string);
 internal UI_Size ui_size_pixels(F32 pixels, F32 strictness);
 internal UI_Size ui_size_parent_percent(F32 percent, F32 strictness);
 internal UI_Size ui_size_children_sum(F32 strictness);
+internal UI_Size ui_size_text_content(F32 padding, F32 strictness);
 
 internal UI_Context *ui_create(Void);
 
@@ -175,6 +187,8 @@ internal UI_Box *ui_create_box_from_key(UI_Context *ui, UI_BoxFlags flags, UI_Ke
 internal UI_Box *ui_create_box(UI_Context *ui, UI_BoxFlags flags);
 internal UI_Box *ui_create_box_from_string(UI_Context *ui, UI_BoxFlags flags, Str8 string);
 internal UI_Box *ui_create_box_from_string_format(UI_Context *ui, UI_Key key, CStr format, ...);
+
+internal Void ui_box_set_string(UI_Context *ui, UI_Box *box, Str8 string);
 
 #define ui_parent_push(ui, parent) ui_box_stack_push(ui_frame_arena(ui), &ui->parent_stack, parent, false)
 #define ui_parent_pop(ui)          ui_box_stack_pop(&ui->parent_stack)
@@ -219,7 +233,7 @@ internal UI_Box *ui_create_box_from_string_format(UI_Context *ui, UI_Key key, CS
 
 #define ui_extra_box_flags_push(ui, flags) ui_box_flags_stack_push(ui_frame_arena(ui), &ui->extra_box_flags_stack, flags, false)
 #define ui_extra_box_flags_pop(ui)         ui_box_flags_stack_pop(&ui->extra_box_flags_stack)
-#define ui_extra_box_flags(ui, flags)      defer_loop(ui_layout_box_flags_push(ui, flags), ui_layout_box_flags_pop(ui))
+#define ui_extra_box_flags(ui, flags)      defer_loop(ui_extra_box_flags_push(ui, flags), ui_extra_box_flags_pop(ui))
 #define ui_extra_box_flags_next(ui, flags) ui_box_flags_stack_push(ui_frame_arena(ui), &ui->extra_box_flags_stack, flags, true)
 #define ui_extra_box_flags_auto_pop(ui)    ui_box_flags_stack_auto_pop(&ui->extra_box_flags_stack)
 #define ui_extra_box_flags_top(ui)         (ui->extra_box_flags_stack.top->item)
@@ -244,5 +258,20 @@ internal UI_Box *ui_create_box_from_string_format(UI_Context *ui, UI_Key key, CS
 #define ui_fixed_position_next(ui, position) (ui_fixed_x_next(ui, position.x), ui_fixed_y_next(ui, position.y))
 #define ui_fixed_position_auto_pop(ui)       (ui_fixed_x_auto_pop(ui), ui_fixed_y_auto_pop(ui))
 #define ui_fixed_position_top(ui)            v2f32(ui_fixed_x_top(ui), ui_fixed_y_top(ui))
+
+#define ui_font_push(ui, font) ui_str8_stack_push(ui_frame_arena(ui), &ui->font_stack, font, false)
+#define ui_font_pop(ui)        ui_str8_stack_pop(&ui->font_stack)
+#define ui_font(ui, font)      defer_loop(ui_font_push(ui, flags), ui_font_pop(ui))
+#define ui_font_next(ui, font) ui_str8_stack_push(ui_frame_arena(ui), &ui->font_stack, font, true)
+#define ui_font_auto_pop(ui)   ui_str8_stack_auto_pop(&ui->font_stack)
+#define ui_font_top(ui)        (ui->font_stack.top->item)
+
+// NOTE(simon): These are in points.
+#define ui_font_size_push(ui, size) ui_u32_stack_push(ui_frame_arena(ui), &ui->font_size_stack, size, false)
+#define ui_font_size_pop(ui)        ui_u32_stack_pop(&ui->font_size_stack)
+#define ui_font_size(ui, size)      defer_loop(ui_font_size_push(ui, size), ui_font_size_pop(ui))
+#define ui_font_size_next(ui, size) ui_u32_stack_push(ui_frame_arena(ui), &ui->font_size_stack, size, true)
+#define ui_font_size_auto_pop(ui)   ui_u32_stack_auto_pop(&ui->font_size_stack)
+#define ui_font_size_top(ui)        (ui->font_size_stack.top->item)
 
 #endif // UI_CORE_H

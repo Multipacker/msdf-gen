@@ -128,6 +128,31 @@ internal Void draw_ui(UI_Box *box) {
         );
     }
 
+    if (box->flags & UI_BoxFlags_DrawText) {
+        V2F32 origin = v2f32(
+            box->calculated_rectangle.min.x + box->size[Axis2_X].value,
+            box->calculated_rectangle.min.y + box->size[Axis2_Y].value
+        );
+        F32 advance = 0.0f;
+        for (U64 i = 0; i < box->text.letter_count; ++i) {
+            FontCache_Letter *letter = &box->text.letters[i];
+            render_rectangle(
+                v2f32(
+                    origin.x + letter->offset.x + advance,
+                    origin.y + letter->offset.y
+                ),
+                v2f32(
+                    origin.x + letter->offset.x + advance + letter->size.x,
+                    origin.y + letter->offset.y + letter->size.y
+                ),
+                .uv_min = letter->uvs.min, .uv_max = letter->uvs.max,
+                .texture = letter->texture,
+                .flags = Render_RectangleFlags_AlphaMask
+            );
+            advance += letter->advance;
+        }
+    }
+
     if (box->flags & UI_BoxFlags_DrawHot && box->hot_t > 0.0f) {
         Render_Rectangle *rect = render_rectangle(
             box->calculated_rectangle.min, box->calculated_rectangle.max
@@ -263,8 +288,8 @@ internal S32 os_run(Str8List arguments) {
             ui_column(ui) {
                 ui_spacer_sized(ui, ui_size_pixels(25.0f, 1.0f));
                 ui_color_push(ui, v4f32(0.3f, 0.3f, 0.3f, 1.0f));
-                ui_width_push(ui, ui_size_pixels(200.0f, 1.0f));
-                ui_height_push(ui, ui_size_pixels(50.0f, 1.0f));
+                ui_width_push(ui, ui_size_text_content(5.0f, 1.0f));
+                ui_height_push(ui, ui_size_text_content(5.0f, 1.0f));
                 for (U32 i = 0; i < 10; ++i) {
                     if (i == test) {
                         //Arena_Temporary scratch = arena_get_scratch(0, 0);
@@ -272,7 +297,8 @@ internal S32 os_run(Str8List arguments) {
                         //arena_end_temporary(scratch);
                         ui_extra_box_flags_next(ui, UI_BoxFlags_Disabled);
                     }
-                    UI_Box *item = ui_create_box_from_string_format(ui, UI_BoxFlags_DrawBackground | UI_BoxFlags_DrawHot | UI_BoxFlags_DrawActive, "%u", i);
+                    UI_Box *item = ui_create_box_from_string_format(ui, UI_BoxFlags_DrawBackground | UI_BoxFlags_DrawText | UI_BoxFlags_DrawHot | UI_BoxFlags_DrawActive, "%u", i);
+                    ui_box_set_string(ui, item, str8_literal("Hello"));
                     ui_spacer_sized(ui, ui_size_pixels(5.0f, 1.0f));
                 }
             }

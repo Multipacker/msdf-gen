@@ -1,3 +1,6 @@
+// TODO(simon): Allow specifying fonts directly from `FontCache_Font`s.
+// TODO(simon): Allow padding for text.
+
 global UI_Key global_ui_null_key = { 0 };
 
 global UI_Box global_ui_null_box = {
@@ -50,6 +53,14 @@ internal UI_Size ui_size_children_sum(F32 strictness) {
     return result;
 }
 
+internal UI_Size ui_size_text_content(F32 padding, F32 strictness) {
+    UI_Size result = { 0 };
+    result.kind = UI_Size_TextContent;
+    result.value = padding;
+    result.strictness = strictness;
+    return result;
+}
+
 
 
 internal UI_Context *ui_create(Void) {
@@ -95,6 +106,12 @@ internal Void ui_begin(Gfx_Context *gfx, UI_Context *ui, F32 dt) {
     ui->fixed_y_stack.top      = 0;
     ui->fixed_y_stack.freelist = 0;
     ui->fixed_y_stack.auto_pop = false;
+    ui->font_stack.top      = 0;
+    ui->font_stack.freelist = 0;
+    ui->font_stack.auto_pop = false;
+    ui->font_size_stack.top      = 0;
+    ui->font_size_stack.freelist = 0;
+    ui->font_size_stack.auto_pop = false;
 
     ui->dt = dt;
 
@@ -105,6 +122,8 @@ internal Void ui_begin(Gfx_Context *gfx, UI_Context *ui, F32 dt) {
     ui_height_push(ui, ui_size_pixels(0.0f, 0.0f));
     ui_layout_axis_push(ui, Axis2_X);
     ui_extra_box_flags_push(ui, 0);
+    ui_font_push(ui, str8_literal("data/NotoSans-Regular.ttf"));
+    ui_font_size_push(ui, 14);
 
     // NOTE(simon): Build root
     V2U32 window_size = gfx_get_window_client_area(gfx);
@@ -118,6 +137,8 @@ internal Void ui_begin(Gfx_Context *gfx, UI_Context *ui, F32 dt) {
 internal Void ui_layout_independent_sizes(UI_Box *box, Axis2 axis) {
     if (box->size[axis].kind == UI_Size_Pixels) {
         box->calculated_size.values[axis] = box->size[axis].value;
+    } else if (box->size[axis].kind == UI_Size_TextContent) {
+        box->calculated_size.values[axis] = box->text.size.values[axis] + 2.0f * box->size[axis].value;
     }
 
     for (UI_Box *child = box->first; child != &global_ui_null_box; child = child->next) {
@@ -361,6 +382,8 @@ internal UI_Box *ui_create_box_from_key(UI_Context *ui, UI_BoxFlags flags, UI_Ke
     box->flags         = flags | ui_extra_box_flags_top(ui);
     box->color         = ui_color_top(ui);
     box->layout_axis   = ui_layout_axis_top(ui);
+    box->font          = font_cache_font_from_path(ui_font_top(ui));
+    box->font_size     = ui_font_size_top(ui);
 
     if (ui->fixed_x_stack.top) {
         box->flags |= UI_BoxFlags_FloatingX;
@@ -382,6 +405,8 @@ internal UI_Box *ui_create_box_from_key(UI_Context *ui, UI_BoxFlags flags, UI_Ke
     ui_extra_box_flags_auto_pop(ui);
     ui_fixed_x_auto_pop(ui);
     ui_fixed_y_auto_pop(ui);
+    ui_font_auto_pop(ui);
+    ui_font_size_auto_pop(ui);
 
     return box;
 }
@@ -394,6 +419,7 @@ internal UI_Box *ui_create_box(UI_Context *ui, UI_BoxFlags flags) {
 internal UI_Box *ui_create_box_from_string(UI_Context *ui, UI_BoxFlags flags, Str8 string) {
     UI_Key key = ui_key_from_string(string);
     UI_Box *result = ui_create_box_from_key(ui, flags, key);
+    ui_box_set_string(ui, result, string);
     return result;
 }
 
@@ -409,4 +435,11 @@ internal UI_Box *ui_create_box_from_string_format(UI_Context *ui, UI_Key key, CS
 
     arena_end_temporary(scratch);
     return result;
+}
+
+internal Void ui_box_set_string(UI_Context *ui, UI_Box *box, Str8 string) {
+    box->string = str8_copy(ui_frame_arena(ui), string);
+    if (box->flags & UI_BoxFlags_DrawText) {
+        box->text = font_cache_text(ui_frame_arena(ui), box->font, box->string, box->font_size);
+    }
 }
