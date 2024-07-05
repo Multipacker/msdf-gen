@@ -40,7 +40,7 @@ internal MSDF_RasterResult raster_generate(Arena *arena, Font_Raster *font, U32 
     if (font->initialized) {
         int glyph_index = stbtt_FindGlyphIndex(&font->font_info, (int) codepoint);
 
-        F32 resolution = 72.0f;
+        F32 resolution = 96.0f;
         F32 scale = stbtt_ScaleForMappingEmToPixels(&font->font_info, (F32) size * resolution / 72.0f);
         int x_min = 0;
         int y_min = 0;
