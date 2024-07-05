@@ -264,15 +264,6 @@ internal S32 os_run(Str8List arguments) {
             }
         }*/
 
-        FontCache_Font *test_font = font_cache_font_from_path(str8_literal("/usr/share/fonts/noto/NotoSerif-Regular.ttf"));
-        FontCache_Text text = font_cache_text(current_arena, test_font, str8_literal("Text Örendering!"), 50);
-        render_rectangle(
-            offset,
-            v2f32_add(offset, text.size),
-            .color = v4f32(1, 0, 0, 1)
-        );
-        draw_text(test_font, offset, str8_literal("Text Örendering!"), 50);
-
         //draw_text_msdf(&font, offset, 50.0f / zoom, str8_literal("MSDF-based text rendering"));
 
         ui_begin(gfx, ui, 1.0f / 60.0f);
