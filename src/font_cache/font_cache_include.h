@@ -57,7 +57,6 @@ struct FontCache_Glyph {
     V2F32 offset;
     V2F32 size;
     F32   advance_width;
-    F32   left_side_bearing;
 };
 
 typedef struct FontCache_GlyphList FontCache_GlyphList;

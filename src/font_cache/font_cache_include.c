@@ -237,10 +237,9 @@ internal FontCache_Glyph *font_cache_glyph_from_font_codepoint_size(FontCache_Fo
             (F32) (result->region.min.y + raster_result.size.y) / (F32) atlas_size.y
         );
         result->texture           = selected_atlas->texture;
-        result->offset            = v2f32((F32) raster_result.x_min, (F32) raster_result.y_min);
+        result->offset            = v2f32((F32) raster_result.left_side_bearing, (F32) raster_result.y_min);
         result->size              = v2f32((F32) raster_result.size.width, (F32) raster_result.size.height);
         result->advance_width     = raster_result.advance_width;
-        result->left_side_bearing = raster_result.left_side_bearing;
 
         // NOTE(simon): Insert into atlas.
         render_texture_update(result->texture, result->region.min, raster_result.size, raster_result.data);
@@ -261,7 +260,7 @@ internal FontCache_Text font_cache_text(Arena *arena, FontCache_Font *font, Str8
 
     result.letters = arena_push_array_zero(arena, FontCache_Letter, text.size);
 
-    // TODO(simon): I don't like that we compute the exakt sizes here, can it be moved to the font implementation instead?
+    // TODO(simon): I don't like that we compute the exact sizes here, can it be moved to the font implementation instead?
     result.ascent  = font->ascent  * size * 72.0f / (72.0f * font->units_per_em);
     result.descent = font->descent * size * 72.0f / (72.0f * font->units_per_em);
     result.size.height = result.ascent - result.descent;
@@ -276,7 +275,7 @@ internal FontCache_Text font_cache_text(Arena *arena, FontCache_Font *font, Str8
 
         FontCache_Letter *letter = &result.letters[result.letter_count++];
         letter->texture = glyph->texture;
-        letter->offset  = v2f32_add(glyph->offset, v2f32(glyph->left_side_bearing, result.ascent));
+        letter->offset  = v2f32_add(glyph->offset, v2f32(0, result.ascent));
         letter->size    = glyph->size;
         letter->uvs     = glyph->uvs;
         letter->advance = glyph->advance_width;
