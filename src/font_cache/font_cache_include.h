@@ -105,7 +105,6 @@ internal Void             font_cache_atlas_free(FontCache_Atlas *atlas, R2U32 si
 
 // NOTE(simon): Cache lookups
 internal FontCache_Font  *font_cache_font_from_path(Str8 path);
-internal FontCache_Glyph *font_cache_glyph_from_font_codepoint_size(FontCache_Font *font, U32 codepoint, U32 size);
 
 // NOTE(simon): Layout
 internal FontCache_Text font_cache_text(Arena *arena, FontCache_Font *font, Str8 text, U32 size);
