@@ -58,6 +58,7 @@ struct UI_Box {
 
     UI_BoxFlags     flags;
     V4F32           color;
+    V4F32           text_color;
     Axis2           layout_axis;
     Str8            string;
     FontCache_Font *font;
@@ -157,6 +158,7 @@ struct UI_Context {
 
     UI_BoxStack      parent_stack;
     UI_V4F32Stack    color_stack;
+    UI_V4F32Stack    text_color_stack;
     UI_SizeStack     size_stacks[Axis2_COUNT];
     UI_AxisStack     layout_axis_stack;
     UI_BoxFlagsStack extra_box_flags_stack;
@@ -203,6 +205,13 @@ internal Void ui_box_set_string(UI_Context *ui, UI_Box *box, Str8 string);
 #define ui_color_next(ui, color) ui_v4f32_stack_push(ui_frame_arena(ui), &ui->color_stack, color, true)
 #define ui_color_auto_pop(ui)    ui_v4f32_stack_auto_pop(&ui->color_stack)
 #define ui_color_top(ui)         (ui->color_stack.top->item)
+
+#define ui_text_color_push(ui, color) ui_v4f32_stack_push(ui_frame_arena(ui), &ui->text_color_stack, color, false)
+#define ui_text_color_pop(ui)         ui_v4f32_stack_pop(&ui->text_color_stack)
+#define ui_text_color(ui, color)      defer_loop(ui_text_color_push(ui, color), ui_text_color_pop(ui))
+#define ui_text_color_next(ui, color) ui_v4f32_stack_push(ui_frame_arena(ui), &ui->text_color_stack, color, true)
+#define ui_text_color_auto_pop(ui)    ui_v4f32_stack_auto_pop(&ui->text_color_stack)
+#define ui_text_color_top(ui)         (ui->text_color_stack.top->item)
 
 #define ui_width_push(ui, size) ui_size_stack_push(ui_frame_arena(ui), &ui->size_stacks[Axis2_X], size, false)
 #define ui_width_pop(ui)        ui_size_stack_pop(&ui->size_stacks[Axis2_X])

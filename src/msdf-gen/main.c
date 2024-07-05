@@ -145,6 +145,7 @@ internal Void draw_ui(UI_Box *box) {
                     origin.x + letter->offset.x + advance + letter->size.x,
                     origin.y + letter->offset.y + letter->size.y
                 ),
+                .color = box->text_color,
                 .uv_min = letter->uvs.min, .uv_max = letter->uvs.max,
                 .texture = letter->texture,
                 .flags = Render_RectangleFlags_AlphaMask
