@@ -222,11 +222,14 @@ internal S32 os_run(Str8List arguments) {
     while (running) {
         Gfx_EventList events = gfx_get_events(current_arena, gfx);
         V2F32 mouse = gfx_get_mouse_position(gfx);
-        local U32 test = 0;
-        for (Gfx_Event *event = events.first; event; event = event->next) {
+        for (Gfx_Event *event = events.first, *next; event; event = next) {
+            next = event->next;
+            B32 consumed = false;
+
             if (event->kind == Gfx_EventKind_Quit) {
                 running = false;
-            } else if (event->kind == Gfx_EventKind_Scroll) {
+                consumed = true;
+            /*} else if (event->kind == Gfx_EventKind_Scroll) {
                 F32 old_zoom = zoom;
 
                 zoom *= f32_pow(0.97f, event->scroll.y);
@@ -234,13 +237,15 @@ internal S32 os_run(Str8List arguments) {
                 offset = v2f32_subtract(mouse, v2f32_scale(v2f32_subtract(mouse, offset), old_zoom / zoom));
             } else if (event->kind == Gfx_EventKind_KeyRelease && event->key == Gfx_Key_Tab) {
                 render_msdf = !render_msdf;
-            } else if (event->kind == Gfx_EventKind_KeyRelease && event->key == Gfx_Key_A) {
-                test = (test + 1) % 10;
             } else if (event->kind == Gfx_EventKind_KeyPress && event->key == Gfx_Key_MouseLeft) {
                 dragging = true;
                 grab = v2f32_subtract(offset, mouse);
             } else if (event->kind == Gfx_EventKind_KeyRelease && event->key == Gfx_Key_MouseLeft) {
-                dragging = false;
+                dragging = false;*/
+            }
+
+            if (consumed) {
+                dll_remove(events.first, events.last, event);
             }
         }
         if (dragging) {
@@ -267,7 +272,7 @@ internal S32 os_run(Str8List arguments) {
 
         //draw_text_msdf(&font, offset, 50.0f / zoom, str8_literal("MSDF-based text rendering"));
 
-        ui_begin(gfx, ui, 1.0f / 60.0f);
+        ui_begin(gfx, ui, &events, 1.0f / 60.0f);
         ui_spacer_sized(ui, ui_size_fill());
         ui_width_push(ui, ui_size_parent_percent(render_msdf ? 0.25f : 0.0f, 1.0f));
         ui_height_push(ui, ui_size_parent_percent(1.0f, 1.0f));
@@ -283,14 +288,8 @@ internal S32 os_run(Str8List arguments) {
                 ui_width_push(ui, ui_size_text_content(5.0f, 1.0f));
                 ui_height_push(ui, ui_size_text_content(5.0f, 1.0f));
                 for (U32 i = 0; i < 10; ++i) {
-                    if (i == test) {
-                        //Arena_Temporary scratch = arena_get_scratch(0, 0);
-                        //ui->active_key = ui_key_from_string(str8_format(scratch.arena, "%u", i));
-                        //arena_end_temporary(scratch);
-                        ui_extra_box_flags_next(ui, UI_BoxFlags_Disabled);
-                    }
-                    UI_Box *item = ui_create_box_from_string_format(ui, UI_BoxFlags_DrawBackground | UI_BoxFlags_DrawText | UI_BoxFlags_DrawHot | UI_BoxFlags_DrawActive, "%u", i);
-                    ui_box_set_string(ui, item, str8_literal("Hello"));
+                    UI_Box *item = ui_create_box_from_string_format(ui, UI_BoxFlags_DrawBackground | UI_BoxFlags_DrawText | UI_BoxFlags_DrawHot | UI_BoxFlags_DrawActive, "Hello %u", i);
+                    UI_Input input = ui_input_from_box(ui, item);
                     ui_spacer_sized(ui, ui_size_pixels(5.0f, 1.0f));
                 }
             }

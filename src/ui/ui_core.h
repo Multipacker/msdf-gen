@@ -2,6 +2,13 @@
 #define UI_CORE_H
 
 typedef enum {
+    UI_MouseButtonKind_Left,
+    UI_MouseButtonKind_Middle,
+    UI_MouseButtonKind_Right,
+    UI_MouseButtonKind_COUNT,
+} UI_MouseButtonKind;
+
+typedef enum {
     UI_Size_Pixels,
     UI_Size_ChildrenSum,
     UI_Size_ParentPercent,
@@ -139,6 +146,37 @@ struct UI_BoxList {
     UI_Box *last;
 };
 
+typedef enum {
+    // NOTE(simon): Pressed while hovering.
+    UI_InputFlag_LeftPressed    = 1 << 0,
+    UI_InputFlag_MiddlePressed  = 1 << 1,
+    UI_InputFlag_RightPressed   = 1 << 2,
+
+    // NOTE(simon): Previously pressed and now user released the button.
+    UI_InputFlag_LeftReleased   = 1 << 3,
+    UI_InputFlag_MiddleReleased = 1 << 4,
+    UI_InputFlag_RightReleased  = 1 << 5,
+
+    // NOTE(simon): Previously pressed and released in bounds.
+    UI_InputFlag_LeftClicked    = 1 << 6,
+    UI_InputFlag_MiddleClicked  = 1 << 7,
+    UI_InputFlag_RightClicked   = 1 << 8,
+
+    // NOTE(simon): Mouse is over this box.
+    UI_InputFlag_Hovering       = 1 << 9,
+
+    // NOTE(simon): Convenient combinations
+    UI_InputFlag_Pressed  = UI_InputFlag_LeftPressed | UI_InputFlag_MiddlePressed | UI_InputFlag_RightPressed,
+    UI_InputFlag_Released = UI_InputFlag_LeftReleased | UI_InputFlag_MiddleReleased | UI_InputFlag_RightReleased,
+    UI_InputFlag_Clicked  = UI_InputFlag_LeftClicked | UI_InputFlag_MiddleClicked | UI_InputFlag_RightClicked,
+} UI_InputFlag;
+
+typedef struct UI_Input UI_Input;
+struct UI_Input {
+    UI_Box *box;
+    UI_InputFlag input_flags;
+};
+
 #define UI_BOX_TABLE_SIZE (1 << 12)
 
 typedef struct UI_Context UI_Context;
@@ -151,6 +189,9 @@ struct UI_Context {
     U64    frame_index;
 
     UI_Box *root;
+
+    Gfx_EventList *events;
+    V2F32          mouse;
 
     F32 dt;
     UI_Key hot_key;
@@ -179,7 +220,7 @@ internal UI_Size ui_size_text_content(F32 padding, F32 strictness);
 
 internal UI_Context *ui_create(Void);
 
-internal Void ui_begin(Gfx_Context *gfx, UI_Context *ui, F32 dt);
+internal Void ui_begin(Gfx_Context *gfx, UI_Context *ui, Gfx_EventList *events, F32 dt);
 internal Void ui_end(UI_Context *ui);
 
 internal UI_Box **ui_box_reference_from_key(UI_Context *ui, UI_Key key);
@@ -190,7 +231,8 @@ internal UI_Box *ui_create_box(UI_Context *ui, UI_BoxFlags flags);
 internal UI_Box *ui_create_box_from_string(UI_Context *ui, UI_BoxFlags flags, Str8 string);
 internal UI_Box *ui_create_box_from_string_format(UI_Context *ui, UI_Key key, CStr format, ...);
 
-internal Void ui_box_set_string(UI_Context *ui, UI_Box *box, Str8 string);
+internal Void     ui_box_set_string(UI_Context *ui, UI_Box *box, Str8 string);
+internal UI_Input ui_input_from_box(UI_Context *ui, UI_Box *box);
 
 #define ui_parent_push(ui, parent) ui_box_stack_push(ui_frame_arena(ui), &ui->parent_stack, parent, false)
 #define ui_parent_pop(ui)          ui_box_stack_pop(&ui->parent_stack)

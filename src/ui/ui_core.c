@@ -80,7 +80,7 @@ internal UI_Context *ui_create(Void) {
 
 
 
-internal Void ui_begin(Gfx_Context *gfx, UI_Context *ui, F32 dt) {
+internal Void ui_begin(Gfx_Context *gfx, UI_Context *ui, Gfx_EventList *events, F32 dt) {
     // NOTE(simon): Reset stacks
     ui->parent_stack.top      = 0;
     ui->parent_stack.freelist = 0;
@@ -116,6 +116,8 @@ internal Void ui_begin(Gfx_Context *gfx, UI_Context *ui, F32 dt) {
     ui->font_size_stack.freelist = 0;
     ui->font_size_stack.auto_pop = false;
 
+    ui->mouse = gfx_get_mouse_position(gfx);
+    ui->events = events;
     ui->dt = dt;
 
     // NOTE(simon): Give default values to all stacks
@@ -136,6 +138,19 @@ internal Void ui_begin(Gfx_Context *gfx, UI_Context *ui, F32 dt) {
     ui->root = ui_create_box(ui, 0);
 
     ui_parent_push(ui, ui->root);
+
+    // NOTE(simon): Reset active key if the active box is disabled or pruned.
+    if (!ui_keys_match(ui->active_key, global_ui_null_key)) {
+        UI_Box *box = ui_box_from_key(ui, ui->active_key);
+        if (box == &global_ui_null_box || box->flags & UI_BoxFlags_Disabled) {
+            ui->active_key = global_ui_null_key;
+        }
+    }
+
+    // NOTE(simon): Reset hot key if there is no active key.
+    if (ui_keys_match(ui->active_key, global_ui_null_key)) {
+        ui->hot_key = global_ui_null_key;
+    }
 }
 
 internal Void ui_layout_independent_sizes(UI_Box *box, Axis2 axis) {
@@ -448,4 +463,65 @@ internal Void ui_box_set_string(UI_Context *ui, UI_Box *box, Str8 string) {
     if (box->flags & UI_BoxFlags_DrawText) {
         box->text = font_cache_text(ui_frame_arena(ui), box->font, box->string, box->font_size);
     }
+}
+
+internal UI_Input ui_input_from_box(UI_Context *ui, UI_Box *box) {
+    UI_Input result = { 0 };
+    result.box = box;
+
+    R2F32 bounds = box->calculated_rectangle;
+
+    for (Gfx_Event *event = ui->events->first, *next; event; event = next) {
+        next = event->next;
+        B32 consumed = false;
+
+        B32 is_in_bounds = r2f32_contains(bounds, event->position);
+        UI_MouseButtonKind mouse_key = UI_MouseButtonKind_Left;
+        B32 is_mouse_key = false;
+        switch (event->key) {
+            case Gfx_Key_MouseLeft:   is_mouse_key = true; mouse_key = UI_MouseButtonKind_Left;   break;
+            case Gfx_Key_MouseMiddle: is_mouse_key = true; mouse_key = UI_MouseButtonKind_Middle; break;
+            case Gfx_Key_MouseRight:  is_mouse_key = true; mouse_key = UI_MouseButtonKind_Right;  break;
+            default:                  is_mouse_key = false;                                       break;
+        }
+
+        // NOTE(simon): Clicked in bounds.
+        if (is_mouse_key && event->kind == Gfx_EventKind_KeyPress && is_in_bounds) {
+            result.input_flags |= UI_InputFlag_LeftPressed << mouse_key;
+            ui->active_key = box->key;
+            ui->hot_key = box->key;
+            consumed = true;
+        }
+
+        // NOTE(simon): Release in bounds of active box.
+        if (is_mouse_key && event->kind == Gfx_EventKind_KeyRelease && is_in_bounds && ui_keys_match(ui->active_key, box->key)) {
+            result.input_flags |= UI_InputFlag_LeftReleased << mouse_key;
+            result.input_flags |= UI_InputFlag_LeftClicked << mouse_key;
+            ui->active_key = global_ui_null_key;
+            consumed = true;
+        }
+
+        // NOTE(simon): Release out of bounds of active box.
+        if (is_mouse_key && event->kind == Gfx_EventKind_KeyRelease && !is_in_bounds && ui_keys_match(ui->active_key, box->key)) {
+            result.input_flags |= UI_InputFlag_LeftReleased << mouse_key;
+            ui->active_key = global_ui_null_key;
+            ui->hot_key = global_ui_null_key;
+            consumed = true;
+        }
+
+        if (consumed) {
+            dll_remove(ui->events->first, ui->events->last, event);
+        }
+    }
+
+    if (
+        r2f32_contains(bounds, ui->mouse) &&
+        (ui_keys_match(ui->hot_key, global_ui_null_key) || ui_keys_match(ui->hot_key, box->key)) &&
+        (ui_keys_match(ui->active_key, global_ui_null_key) || ui_keys_match(ui->active_key, box->key))
+    ) {
+        ui->hot_key = box->key;
+        result.input_flags |= UI_InputFlag_Hovering;
+    }
+
+    return result;
 }
