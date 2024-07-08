@@ -93,9 +93,6 @@ typedef enum {
     Gfx_Key_MouseLeft,
     Gfx_Key_MouseRight,
     Gfx_Key_MouseMiddle,
-    Gfx_Key_MouseLeftDouble,
-    Gfx_Key_MouseRightDouble,
-    Gfx_Key_MouseMiddleDouble,
 } Gfx_Key;
 
 typedef struct Gfx_Event Gfx_Event;
@@ -107,6 +104,7 @@ struct Gfx_Event {
     Gfx_Key         key;
     Gfx_KeyModifier key_modifiers;
     V2F32           scroll;
+    V2F32           position;
 };
 
 typedef struct Gfx_EventList Gfx_EventList;

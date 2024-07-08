@@ -130,35 +130,21 @@ internal Gfx_EventList gfx_get_events(Arena *arena, Gfx_Context *gfx) {
                     event->kind = Gfx_EventKind_KeyRelease;
                 }
 
+                event->position.x = sdl_event.button.x;
+                event->position.y = sdl_event.button.y;
+
                 switch (sdl_event.button.button) {
-                    case SDL_BUTTON_LEFT: {
-                        if (sdl_event.button.clicks == 1) {
-                            event->key = Gfx_Key_MouseLeft;
-                        } else {
-                            event->key = Gfx_Key_MouseLeftDouble;
-                        }
-                    } break;
-                    case SDL_BUTTON_MIDDLE: {
-                        if (sdl_event.button.clicks == 1) {
-                            event->key = Gfx_Key_MouseMiddle;
-                        } else {
-                            event->key = Gfx_Key_MouseMiddleDouble;
-                        }
-                    } break;
-                    case SDL_BUTTON_RIGHT: {
-                        if (sdl_event.button.clicks == 1) {
-                            event->key = Gfx_Key_MouseRight;
-                        } else {
-                            event->key = Gfx_Key_MouseRightDouble;
-                        }
-                    } break;
-                    default: {
-                    } break;
+                    case SDL_BUTTON_LEFT:   event->key = Gfx_Key_MouseLeft;   break;
+                    case SDL_BUTTON_MIDDLE: event->key = Gfx_Key_MouseMiddle; break;
+                    case SDL_BUTTON_RIGHT:  event->key = Gfx_Key_MouseRight;  break;
+                    default:                                                  break;
                 }
             } break;
             case SDL_MOUSEWHEEL: {
                 event->kind   = Gfx_EventKind_Scroll;
                 event->scroll = v2f32(-sdl_event.wheel.preciseX, sdl_event.wheel.preciseY);
+                event->position.x = sdl_event.wheel.mouseX;
+                event->position.y = sdl_event.wheel.mouseY;
             } break;
         }
 

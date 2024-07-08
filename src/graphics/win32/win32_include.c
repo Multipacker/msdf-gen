@@ -17,42 +17,38 @@ internal LRESULT CALLBACK win32_window_proc(HWND hwnd, UINT message, WPARAM wpar
             case WM_MOUSEWHEEL: {
                 event->kind = Gfx_EventKind_Scroll;
                 event->scroll.y = (F32) (GET_WHEEL_DELTA_WPARAM(wparam) / WHEEL_DELTA);
+                event->position.x = GET_X_LPARAM(lparam);
+                event->position.y = GET_Y_LPARAM(lparam);
             } break;
-            case WM_LBUTTONDBLCLK: {
-                event->kind = Gfx_EventKind_KeyPress;
-                event->key = Gfx_Key_MouseLeftDouble;
-                event->key_modifiers |= (GetAsyncKeyState(VK_SHIFT)   & 0x8000) ? Gfx_KeyModifier_Shift   : 0;
-                event->key_modifiers |= (GetAsyncKeyState(VK_CONTROL) & 0x8000) ? Gfx_KeyModifier_Control : 0;
-            } break;
-            case WM_MBUTTONDBLCLK: {
-                event->kind = Gfx_EventKind_KeyPress;
-                event->key = Gfx_Key_MouseMiddleDouble;
-                event->key_modifiers |= (GetAsyncKeyState(VK_SHIFT)   & 0x8000) ? Gfx_KeyModifier_Shift   : 0;
-                event->key_modifiers |= (GetAsyncKeyState(VK_CONTROL) & 0x8000) ? Gfx_KeyModifier_Control : 0;
-            } break;
-            case WM_RBUTTONDBLCLK: {
-                event->kind = Gfx_EventKind_KeyPress;
-                event->key = Gfx_Key_MouseRightDouble;
-                event->key_modifiers |= (GetAsyncKeyState(VK_SHIFT)   & 0x8000) ? Gfx_KeyModifier_Shift   : 0;
-                event->key_modifiers |= (GetAsyncKeyState(VK_CONTROL) & 0x8000) ? Gfx_KeyModifier_Control : 0;
+            case WM_MOUSEHWHEEL: {
+                event->kind = Gfx_EventKind_Scroll;
+                event->scroll.x = (F32) (GET_WHEEL_DELTA_WPARAM(wparam) / WHEEL_DELTA);
+                event->position.x = GET_X_LPARAM(lparam);
+                event->position.y = GET_Y_LPARAM(lparam);
             } break;
             case WM_LBUTTONUP: case WM_LBUTTONDOWN: {
                 event->kind = message == WM_LBUTTONUP ? Gfx_EventKind_KeyRelease : Gfx_EventKind_KeyPress;
                 event->key = Gfx_Key_MouseLeft;
                 event->key_modifiers |= (GetAsyncKeyState(VK_SHIFT)   & 0x8000) ? Gfx_KeyModifier_Shift   : 0;
                 event->key_modifiers |= (GetAsyncKeyState(VK_CONTROL) & 0x8000) ? Gfx_KeyModifier_Control : 0;
+                event->position.x = GET_X_LPARAM(lparam);
+                event->position.y = GET_Y_LPARAM(lparam);
             } break;
             case WM_MBUTTONUP: case WM_MBUTTONDOWN: {
                 event->kind = message == WM_MBUTTONUP ? Gfx_EventKind_KeyRelease : Gfx_EventKind_KeyPress;
                 event->key = Gfx_Key_MouseMiddle;
                 event->key_modifiers |= (GetAsyncKeyState(VK_SHIFT)   & 0x8000) ? Gfx_KeyModifier_Shift   : 0;
                 event->key_modifiers |= (GetAsyncKeyState(VK_CONTROL) & 0x8000) ? Gfx_KeyModifier_Control : 0;
+                event->position.x = GET_X_LPARAM(lparam);
+                event->position.y = GET_Y_LPARAM(lparam);
             } break;
             case WM_RBUTTONUP: case WM_RBUTTONDOWN: {
                 event->kind = message == WM_RBUTTONUP ? Gfx_EventKind_KeyRelease : Gfx_EventKind_KeyPress;
                 event->key = Gfx_Key_MouseRight;
                 event->key_modifiers |= (GetAsyncKeyState(VK_SHIFT)   & 0x8000) ? Gfx_KeyModifier_Shift   : 0;
                 event->key_modifiers |= (GetAsyncKeyState(VK_CONTROL) & 0x8000) ? Gfx_KeyModifier_Control : 0;
+                event->position.x = GET_X_LPARAM(lparam);
+                event->position.y = GET_Y_LPARAM(lparam);
             } break;
             case WM_SYSKEYUP: case WM_SYSKEYDOWN: case WM_KEYUP: case WM_KEYDOWN: {
                 U32 vk_code = (U32) wparam;
