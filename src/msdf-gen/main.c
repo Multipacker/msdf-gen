@@ -221,58 +221,8 @@ internal S32 os_run(Str8List arguments) {
 
     while (running) {
         Gfx_EventList events = gfx_get_events(current_arena, gfx);
-        V2F32 mouse = gfx_get_mouse_position(gfx);
-        for (Gfx_Event *event = events.first, *next; event; event = next) {
-            next = event->next;
-            B32 consumed = false;
-
-            if (event->kind == Gfx_EventKind_Quit) {
-                running = false;
-                consumed = true;
-            /*} else if (event->kind == Gfx_EventKind_Scroll) {
-                F32 old_zoom = zoom;
-
-                zoom *= f32_pow(0.97f, event->scroll.y);
-
-                offset = v2f32_subtract(mouse, v2f32_scale(v2f32_subtract(mouse, offset), old_zoom / zoom));
-            } else if (event->kind == Gfx_EventKind_KeyRelease && event->key == Gfx_Key_Tab) {
-                render_msdf = !render_msdf;
-            } else if (event->kind == Gfx_EventKind_KeyPress && event->key == Gfx_Key_MouseLeft) {
-                dragging = true;
-                grab = v2f32_subtract(offset, mouse);
-            } else if (event->kind == Gfx_EventKind_KeyRelease && event->key == Gfx_Key_MouseLeft) {
-                dragging = false;*/
-            }
-
-            if (consumed) {
-                dll_remove(events.first, events.last, event);
-            }
-        }
-        if (dragging) {
-            offset = v2f32_add(grab, mouse);
-        }
-
-        V2U32 client_area = gfx_get_window_client_area(gfx);
-        render_begin(client_area);
-
-        V2U32 texture_size = render_size_from_texture(font.atlas);
-        /*for (U32 y = 0; y < 16; ++y) {
-            for (U32 x = 0; x < 16; ++x) {
-                U32 codepoint = x + y * 16;
-                Glyph *glyph = &font.glyphs[codepoint];
-                render_rectangle(
-                    v2f32_add(offset, v2f32(40 * x / zoom, 40 * y / zoom)),
-                    v2f32_add(offset, v2f32(40 * (x + 1.0f) / zoom, 40 * (y + 1.0f) / zoom)),
-                    .uv_min = glyph->uv_min, .uv_max = glyph->uv_max,
-                    .texture = font.atlas,
-                    .flags = (render_msdf ? Render_RectangleFlags_MSDF : Render_RectangleFlags_Texture)
-                );
-            }
-        }*/
-
-        //draw_text_msdf(&font, offset, 50.0f / zoom, str8_literal("MSDF-based text rendering"));
-
         ui_begin(gfx, ui, &events, 1.0f / 60.0f);
+
         ui_spacer_sized(ui, ui_size_fill());
         ui_width_push(ui, ui_size_parent_percent(render_msdf ? 0.25f : 0.0f, 1.0f));
         ui_height_push(ui, ui_size_parent_percent(1.0f, 1.0f));
@@ -295,10 +245,61 @@ internal S32 os_run(Str8List arguments) {
             }
             ui_spacer_sized(ui, ui_size_fill());
         }
+
         ui_end(ui);
 
-        draw_ui(ui->root);
+        V2F32 mouse = gfx_get_mouse_position(gfx);
+        for (Gfx_Event *event = events.first, *next; event; event = next) {
+            next = event->next;
+            B32 consumed = false;
 
+            if (event->kind == Gfx_EventKind_Quit) {
+                running = false;
+                consumed = true;
+            } else if (event->kind == Gfx_EventKind_Scroll) {
+                F32 old_zoom = zoom;
+
+                zoom *= f32_pow(0.97f, event->scroll.y);
+
+                offset = v2f32_subtract(mouse, v2f32_scale(v2f32_subtract(mouse, offset), old_zoom / zoom));
+            } else if (event->kind == Gfx_EventKind_KeyRelease && event->key == Gfx_Key_Tab) {
+                render_msdf = !render_msdf;
+            } else if (event->kind == Gfx_EventKind_KeyPress && event->key == Gfx_Key_MouseLeft) {
+                dragging = true;
+                grab = v2f32_subtract(offset, mouse);
+            } else if (event->kind == Gfx_EventKind_KeyRelease && event->key == Gfx_Key_MouseLeft) {
+                dragging = false;
+            }
+
+            if (consumed) {
+                dll_remove(events.first, events.last, event);
+            }
+        }
+        if (dragging) {
+            offset = v2f32_add(grab, mouse);
+        }
+
+        V2U32 client_area = gfx_get_window_client_area(gfx);
+        render_begin(client_area);
+
+        V2U32 texture_size = render_size_from_texture(font.atlas);
+        for (U32 y = 0; y < 16; ++y) {
+            for (U32 x = 0; x < 16; ++x) {
+                U32 codepoint = x + y * 16;
+                Glyph *glyph = &font.glyphs[codepoint];
+                render_rectangle(
+                    v2f32_add(offset, v2f32(40 * x / zoom, 40 * y / zoom)),
+                    v2f32_add(offset, v2f32(40 * (x + 1.0f) / zoom, 40 * (y + 1.0f) / zoom)),
+                    .uv_min = glyph->uv_min, .uv_max = glyph->uv_max,
+                    .texture = font.atlas,
+                    .flags = (render_msdf ? Render_RectangleFlags_MSDF : Render_RectangleFlags_Texture)
+                );
+            }
+        }
+
+        draw_text_msdf(&font, offset, 50.0f / zoom, str8_literal("MSDF-based text rendering"));
+
+        draw_ui(ui->root);
         render_end();
 
         arena_reset(previous_arena);
