@@ -227,8 +227,9 @@ internal S32 os_run(Str8List arguments) {
         ui_width_push(ui, ui_size_parent_percent(render_msdf ? 0.25f : 0.0f, 1.0f));
         ui_height_push(ui, ui_size_parent_percent(1.0f, 1.0f));
         ui_color_push(ui, v4f32(0.4f, 0.4f, 0.4f, 1.0f));
-        ui_extra_box_flags_next(ui, UI_BoxFlags_DrawBackground | UI_BoxFlags_AnimatePosition);
-        ui_row_string(ui, str8_literal("test")) {
+        ui_extra_box_flags_next(ui, UI_BoxFlags_DrawBackground | UI_BoxFlags_AnimatePosition | UI_BoxFlags_Clickable | UI_BoxFlags_Scrollable);
+        UI_Box *row = ui_row_string_begin(ui, str8_literal("test"));
+        {
             ui_spacer_sized(ui, ui_size_fill());
             ui_width_push(ui, ui_size_children_sum(1.0f));
             ui_height_push(ui, ui_size_parent_percent(1.0f, 1.0f));
@@ -238,13 +239,15 @@ internal S32 os_run(Str8List arguments) {
                 ui_width_push(ui, ui_size_text_content(5.0f, 1.0f));
                 ui_height_push(ui, ui_size_text_content(5.0f, 1.0f));
                 for (U32 i = 0; i < 10; ++i) {
-                    UI_Box *item = ui_create_box_from_string_format(ui, UI_BoxFlags_DrawBackground | UI_BoxFlags_DrawText | UI_BoxFlags_DrawHot | UI_BoxFlags_DrawActive, "Hello %u", i);
+                    UI_Box *item = ui_create_box_from_string_format(ui, UI_BoxFlags_DrawBackground | UI_BoxFlags_DrawText | UI_BoxFlags_DrawHot | UI_BoxFlags_DrawActive | UI_BoxFlags_Clickable, "Hello %u", i);
                     UI_Input input = ui_input_from_box(ui, item);
                     ui_spacer_sized(ui, ui_size_pixels(5.0f, 1.0f));
                 }
             }
             ui_spacer_sized(ui, ui_size_fill());
         }
+        ui_input_from_box(ui, row);
+        ui_row_end(ui);
 
         ui_end(ui);
 
@@ -262,13 +265,17 @@ internal S32 os_run(Str8List arguments) {
                 zoom *= f32_pow(0.97f, event->scroll.y);
 
                 offset = v2f32_subtract(mouse, v2f32_scale(v2f32_subtract(mouse, offset), old_zoom / zoom));
+                consumed = true;
             } else if (event->kind == Gfx_EventKind_KeyRelease && event->key == Gfx_Key_Tab) {
                 render_msdf = !render_msdf;
+                consumed = true;
             } else if (event->kind == Gfx_EventKind_KeyPress && event->key == Gfx_Key_MouseLeft) {
                 dragging = true;
                 grab = v2f32_subtract(offset, mouse);
+                consumed = true;
             } else if (event->kind == Gfx_EventKind_KeyRelease && event->key == Gfx_Key_MouseLeft) {
                 dragging = false;
+                consumed = true;
             }
 
             if (consumed) {
