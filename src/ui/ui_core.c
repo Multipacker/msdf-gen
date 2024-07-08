@@ -486,7 +486,7 @@ internal UI_Input ui_input_from_box(UI_Context *ui, UI_Box *box) {
         }
 
         // NOTE(simon): Clicked in bounds.
-        if (is_mouse_key && event->kind == Gfx_EventKind_KeyPress && is_in_bounds) {
+        if (box->flags & UI_BoxFlags_Clickable && is_mouse_key && event->kind == Gfx_EventKind_KeyPress && is_in_bounds) {
             result.input_flags |= UI_InputFlag_LeftPressed << mouse_key;
             ui->active_key = box->key;
             ui->hot_key = box->key;
@@ -494,7 +494,7 @@ internal UI_Input ui_input_from_box(UI_Context *ui, UI_Box *box) {
         }
 
         // NOTE(simon): Release in bounds of active box.
-        if (is_mouse_key && event->kind == Gfx_EventKind_KeyRelease && is_in_bounds && ui_keys_match(ui->active_key, box->key)) {
+        if (box->flags & UI_BoxFlags_Clickable && is_mouse_key && event->kind == Gfx_EventKind_KeyRelease && is_in_bounds && ui_keys_match(ui->active_key, box->key)) {
             result.input_flags |= UI_InputFlag_LeftReleased << mouse_key;
             result.input_flags |= UI_InputFlag_LeftClicked << mouse_key;
             ui->active_key = global_ui_null_key;
@@ -502,10 +502,14 @@ internal UI_Input ui_input_from_box(UI_Context *ui, UI_Box *box) {
         }
 
         // NOTE(simon): Release out of bounds of active box.
-        if (is_mouse_key && event->kind == Gfx_EventKind_KeyRelease && !is_in_bounds && ui_keys_match(ui->active_key, box->key)) {
+        if (box->flags & UI_BoxFlags_Clickable && is_mouse_key && event->kind == Gfx_EventKind_KeyRelease && !is_in_bounds && ui_keys_match(ui->active_key, box->key)) {
             result.input_flags |= UI_InputFlag_LeftReleased << mouse_key;
             ui->active_key = global_ui_null_key;
             ui->hot_key = global_ui_null_key;
+            consumed = true;
+        }
+
+        if (box->flags & UI_BoxFlags_Scrollable && event->kind == Gfx_EventKind_Scroll && is_in_bounds) {
             consumed = true;
         }
 
@@ -516,6 +520,7 @@ internal UI_Input ui_input_from_box(UI_Context *ui, UI_Box *box) {
 
     if (
         r2f32_contains(bounds, ui->mouse) &&
+        box->flags & UI_BoxFlags_Clickable &&
         (ui_keys_match(ui->hot_key, global_ui_null_key) || ui_keys_match(ui->hot_key, box->key)) &&
         (ui_keys_match(ui->active_key, global_ui_null_key) || ui_keys_match(ui->active_key, box->key))
     ) {
