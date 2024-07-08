@@ -272,3 +272,21 @@ internal R2F32 r2f32(F32 min_x, F32 min_y, F32 max_x, F32 max_y) {
 
     return result;
 }
+
+internal R2F32 r2f32_intersect(R2F32 a, R2F32 b) {
+    R2F32 result = { 0 };
+
+    result.min.x = f32_max(a.min.x, b.min.x);
+    result.min.y = f32_max(a.min.y, b.min.y);
+    result.max.x = f32_min(a.max.x, b.max.x);
+    result.max.y = f32_min(a.max.y, b.max.y);
+
+    return result;
+}
+
+internal B32 r2f32_contains(R2F32 bounds, V2F32 point) {
+    B32 contains_x = bounds.min.x <= point.x && point.x < bounds.max.x;
+    B32 contains_y = bounds.min.y <= point.y && point.y < bounds.max.y;
+    B32 result     = contains_x && contains_y;
+    return result;
+}
