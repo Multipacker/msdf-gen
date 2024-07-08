@@ -184,7 +184,7 @@
     ((last) = (last)->previous, (last)->next = (zero)) :                       \
     ((node)->previous->next = (node)->next,                                    \
     (node)->next->previous = (node)->previous))))
-#define dll_remove(first, last, node) dll_remove_next_previous(first, last, node, next, previous)
+#define dll_remove(first, last, node) dll_remove_next_previous_zero(first, last, node, next, previous, 0)
 #define dll_insert_before(first, last, node, new) dll_insert_next_previous_zero(last, first, node, new, previous, next, 0)
 #define dll_insert_after(first, last, node, new)  dll_insert_next_previous_zero(first, last, node, new, next, previous, 0)
 
