@@ -126,6 +126,26 @@ internal Void draw_ui(UI_Box *box) {
             box->calculated_rectangle.min, box->calculated_rectangle.max,
             .color = box->color
         );
+
+        if (box->flags & UI_BoxFlags_DrawHot && box->hot_t > 0.0f) {
+            Render_Rectangle *rect = render_rectangle(
+                box->calculated_rectangle.min, box->calculated_rectangle.max
+            );
+            rect->colors[0] = v4f32(1.0f, 1.0f, 1.0f, 0.5f * box->hot_t);
+            rect->colors[1] = v4f32(1.0f, 1.0f, 1.0f, 0.5f * box->hot_t);
+            rect->colors[2] = v4f32(0.0f, 0.0f, 0.0f, 0.0f);
+            rect->colors[3] = v4f32(0.0f, 0.0f, 0.0f, 0.0f);
+        }
+
+        if (box->flags & UI_BoxFlags_DrawActive && box->active_t > 0.0f) {
+            Render_Rectangle *rect = render_rectangle(
+                box->calculated_rectangle.min, box->calculated_rectangle.max
+            );
+            rect->colors[0] = v4f32(0.0f, 0.0f, 0.0f, 0.0f);
+            rect->colors[1] = v4f32(0.0f, 0.0f, 0.0f, 0.0f);
+            rect->colors[2] = v4f32(0.0f, 0.0f, 0.0f, 0.5f * box->active_t);
+            rect->colors[3] = v4f32(0.0f, 0.0f, 0.0f, 0.5f * box->active_t);
+        }
     }
 
     if (box->flags & UI_BoxFlags_DrawText) {
@@ -152,26 +172,6 @@ internal Void draw_ui(UI_Box *box) {
             );
             advance += letter->advance;
         }
-    }
-
-    if (box->flags & UI_BoxFlags_DrawHot && box->hot_t > 0.0f) {
-        Render_Rectangle *rect = render_rectangle(
-            box->calculated_rectangle.min, box->calculated_rectangle.max
-        );
-        rect->colors[0] = v4f32(1.0f, 1.0f, 1.0f, 0.5f * box->hot_t);
-        rect->colors[1] = v4f32(1.0f, 1.0f, 1.0f, 0.5f * box->hot_t);
-        rect->colors[2] = v4f32(0.0f, 0.0f, 0.0f, 0.0f);
-        rect->colors[3] = v4f32(0.0f, 0.0f, 0.0f, 0.0f);
-    }
-
-    if (box->flags & UI_BoxFlags_DrawActive && box->active_t > 0.0f) {
-        Render_Rectangle *rect = render_rectangle(
-            box->calculated_rectangle.min, box->calculated_rectangle.max
-        );
-        rect->colors[0] = v4f32(0.0f, 0.0f, 0.0f, 0.0f);
-        rect->colors[1] = v4f32(0.0f, 0.0f, 0.0f, 0.0f);
-        rect->colors[2] = v4f32(0.0f, 0.0f, 0.0f, 0.5f * box->active_t);
-        rect->colors[3] = v4f32(0.0f, 0.0f, 0.0f, 0.5f * box->active_t);
     }
 
     if (box->flags & UI_BoxFlags_Disabled) {
