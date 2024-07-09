@@ -17,6 +17,9 @@ struct Render_Rectangle {
     V2F32 uv_min;
     V2F32 uv_max;
     U32   flags;
+    F32   thickness;
+    F32   softness;
+    V4F32 radies;
 };
 
 typedef enum {
@@ -49,8 +52,21 @@ struct Render_RectangleParams {
     V2F32                 uv_max;
     Render_Texture        texture;
     Render_RectangleFlags flags;
+    F32                   thickness;
+    F32                   softness;
+    V4F32                 radies;
 };
-#define render_rectangle(minimum, maximum, ...) render_rectangle_internal(&(Render_RectangleParams) { .min = minimum, .max = maximum, .color = v4f32(1.0f, 1.0f, 1.0f, 1.0f), __VA_ARGS__ })
+// NOTE(simon): Default thickness to a _large_ value, giving the effect of the
+// shape being solid.
+#define render_rectangle(minimum, maximum, ...) render_rectangle_internal( \
+    &(Render_RectangleParams) {                                            \
+        .min = minimum,                                                    \
+        .max = maximum,                                                    \
+        .color = v4f32(1.0f, 1.0f, 1.0f, 1.0f),                            \
+        .thickness = 10000.0f,                                             \
+        .softness = 1.0f,                                                  \
+        __VA_ARGS__                                                        \
+    })
 internal Render_Rectangle *render_rectangle_internal(Render_RectangleParams *parameters);
 
 #endif // RENDER_CORE_H
