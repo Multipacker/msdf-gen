@@ -124,7 +124,8 @@ internal Void draw_ui(UI_Box *box) {
     if (box->flags & UI_BoxFlags_DrawBackground) {
         render_rectangle(
             box->calculated_rectangle.min, box->calculated_rectangle.max,
-            .color = box->color
+            .color = box->color,
+            .softness = 1.0f
         );
 
         if (box->flags & UI_BoxFlags_DrawHot && box->hot_t > 0.0f) {
@@ -172,6 +173,15 @@ internal Void draw_ui(UI_Box *box) {
             );
             advance += letter->advance;
         }
+    }
+
+    if (box->flags & UI_BoxFlags_DrawBorder) {
+        render_rectangle(
+            box->calculated_rectangle.min, box->calculated_rectangle.max,
+            .color = box->border_color,
+            .thickness = 1.0f,
+            .softness = 1.0f
+        );
     }
 
     if (box->flags & UI_BoxFlags_Disabled) {
@@ -227,6 +237,7 @@ internal S32 os_run(Str8List arguments) {
         ui_width_push(ui, ui_size_parent_percent(render_msdf ? 0.25f : 0.0f, 1.0f));
         ui_height_push(ui, ui_size_parent_percent(1.0f, 1.0f));
         ui_color_push(ui, v4f32(0.4f, 0.4f, 0.4f, 1.0f));
+        ui_border_color_push(ui, v4f32(0.2f, 0.2f, 0.2f, 1.0f));
         ui_extra_box_flags_next(ui, UI_BoxFlags_DrawBackground | UI_BoxFlags_AnimatePosition | UI_BoxFlags_Clickable | UI_BoxFlags_Scrollable);
         UI_Box *row = ui_row_string_begin(ui, str8_literal("test"));
         {
@@ -239,7 +250,7 @@ internal S32 os_run(Str8List arguments) {
                 ui_width_push(ui, ui_size_text_content(5.0f, 1.0f));
                 ui_height_push(ui, ui_size_text_content(5.0f, 1.0f));
                 for (U32 i = 0; i < 10; ++i) {
-                    UI_Box *item = ui_create_box_from_string_format(ui, UI_BoxFlags_DrawBackground | UI_BoxFlags_DrawText | UI_BoxFlags_DrawHot | UI_BoxFlags_DrawActive | UI_BoxFlags_Clickable, "Hello %u", i);
+                    UI_Box *item = ui_create_box_from_string_format(ui, UI_BoxFlags_DrawBackground | UI_BoxFlags_DrawText | UI_BoxFlags_DrawBorder | UI_BoxFlags_DrawHot | UI_BoxFlags_DrawActive | UI_BoxFlags_Clickable, "Hello %u", i);
                     UI_Input input = ui_input_from_box(ui, item);
                     ui_spacer_sized(ui, ui_size_pixels(5.0f, 1.0f));
                 }

@@ -88,6 +88,9 @@ internal Void ui_begin(Gfx_Context *gfx, UI_Context *ui, Gfx_EventList *events, 
     ui->color_stack.top      = 0;
     ui->color_stack.freelist = 0;
     ui->color_stack.auto_pop = false;
+    ui->border_color_stack.top      = 0;
+    ui->border_color_stack.freelist = 0;
+    ui->border_color_stack.auto_pop = false;
     ui->text_color_stack.top      = 0;
     ui->text_color_stack.freelist = 0;
     ui->text_color_stack.auto_pop = false;
@@ -123,6 +126,7 @@ internal Void ui_begin(Gfx_Context *gfx, UI_Context *ui, Gfx_EventList *events, 
     // NOTE(simon): Give default values to all stacks
     ui_parent_next(ui, &global_ui_null_box);
     ui_color_push(ui, v4f32(0.0f, 0.0f, 0.0f, 0.0f));
+    ui_border_color_push(ui, v4f32(0.0f, 0.0f, 0.0f, 0.0f));
     ui_text_color_push(ui, v4f32(1.0f, 1.0f, 1.0f, 1.0f));
     ui_width_push(ui, ui_size_pixels(0.0f, 0.0f));
     ui_height_push(ui, ui_size_pixels(0.0f, 0.0f));
@@ -400,6 +404,7 @@ internal UI_Box *ui_create_box_from_key(UI_Context *ui, UI_BoxFlags flags, UI_Ke
     box->size[Axis2_Y] = ui_height_top(ui);
     box->flags         = flags | ui_extra_box_flags_top(ui);
     box->color         = ui_color_top(ui);
+    box->border_color  = ui_border_color_top(ui);
     box->text_color    = ui_text_color_top(ui);
     box->layout_axis   = ui_layout_axis_top(ui);
     box->font          = font_cache_font_from_path(ui_font_top(ui));
@@ -419,6 +424,7 @@ internal UI_Box *ui_create_box_from_key(UI_Context *ui, UI_BoxFlags flags, UI_Ke
     // NOTE(simon): Handle autopops
     ui_parent_auto_pop(ui);
     ui_color_auto_pop(ui);
+    ui_border_color_auto_pop(ui);
     ui_text_color_auto_pop(ui);
     ui_width_auto_pop(ui);
     ui_height_auto_pop(ui);

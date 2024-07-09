@@ -40,9 +40,10 @@ typedef enum {
     UI_BoxFlags_AnimateX       = 1 << 7,
     UI_BoxFlags_AnimateY       = 1 << 8,
     UI_BoxFlags_DrawBackground = 1 << 9,
-    UI_BoxFlags_DrawText       = 1 << 10,
-    UI_BoxFlags_DrawHot        = 1 << 11,
-    UI_BoxFlags_DrawActive     = 1 << 12,
+    UI_BoxFlags_DrawBorder     = 1 << 10,
+    UI_BoxFlags_DrawText       = 1 << 11,
+    UI_BoxFlags_DrawHot        = 1 << 12,
+    UI_BoxFlags_DrawActive     = 1 << 13,
 
     // NOTE(simon): Convenient combinations
     UI_BoxFlags_Overflow         = UI_BoxFlags_OverflowX | UI_BoxFlags_OverflowY,
@@ -67,6 +68,7 @@ struct UI_Box {
 
     UI_BoxFlags     flags;
     V4F32           color;
+    V4F32           border_color;
     V4F32           text_color;
     Axis2           layout_axis;
     Str8            string;
@@ -201,6 +203,7 @@ struct UI_Context {
 
     UI_BoxStack      parent_stack;
     UI_V4F32Stack    color_stack;
+    UI_V4F32Stack    border_color_stack;
     UI_V4F32Stack    text_color_stack;
     UI_SizeStack     size_stacks[Axis2_COUNT];
     UI_AxisStack     layout_axis_stack;
@@ -249,6 +252,13 @@ internal UI_Input ui_input_from_box(UI_Context *ui, UI_Box *box);
 #define ui_color_next(ui, color) ui_v4f32_stack_push(ui_frame_arena(ui), &ui->color_stack, color, true)
 #define ui_color_auto_pop(ui)    ui_v4f32_stack_auto_pop(&ui->color_stack)
 #define ui_color_top(ui)         (ui->color_stack.top->item)
+
+#define ui_border_color_push(ui, color) ui_v4f32_stack_push(ui_frame_arena(ui), &ui->border_color_stack, color, false)
+#define ui_border_color_pop(ui)         ui_v4f32_stack_pop(&ui->border_color_stack)
+#define ui_border_color(ui, color)      defer_loop(ui_border_color_push(ui, color), ui_border_color_pop(ui))
+#define ui_border_color_next(ui, color) ui_v4f32_stack_push(ui_frame_arena(ui), &ui->border_color_stack, color, true)
+#define ui_border_color_auto_pop(ui)    ui_v4f32_stack_auto_pop(&ui->border_color_stack)
+#define ui_border_color_top(ui)         (ui->border_color_stack.top->item)
 
 #define ui_text_color_push(ui, color) ui_v4f32_stack_push(ui_frame_arena(ui), &ui->text_color_stack, color, false)
 #define ui_text_color_pop(ui)         ui_v4f32_stack_pop(&ui->text_color_stack)

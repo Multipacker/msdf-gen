@@ -64,7 +64,6 @@ struct Render_RectangleParams {
         .max = maximum,                                                    \
         .color = v4f32(1.0f, 1.0f, 1.0f, 1.0f),                            \
         .thickness = 10000.0f,                                             \
-        .softness = 1.0f,                                                  \
         __VA_ARGS__                                                        \
     })
 internal Render_Rectangle *render_rectangle_internal(Render_RectangleParams *parameters);
