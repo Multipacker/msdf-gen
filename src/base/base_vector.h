@@ -243,5 +243,6 @@ internal R2S64 r2s64(S64 min_x, S64 min_y, S64 max_x, S64 max_y);
 internal R2F32 r2f32(F32 min_x, F32 min_y, F32 max_x, F32 max_y);
 internal R2F32 r2f32_intersect(R2F32 a, R2F32 b);
 internal B32   r2f32_contains(R2F32 bounds, V2F32 point);
+internal R2F32 r2f32_pad(R2F32 range, F32 pad);
 
 #endif // BASE_VECTOR_H

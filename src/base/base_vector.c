@@ -290,3 +290,14 @@ internal B32 r2f32_contains(R2F32 bounds, V2F32 point) {
     B32 result     = contains_x && contains_y;
     return result;
 }
+
+internal R2F32 r2f32_pad(R2F32 range, F32 pad) {
+    R2F32 result = { 0 };
+
+    result.min.x = range.min.x - pad;
+    result.min.y = range.min.y - pad;
+    result.max.x = range.max.x + pad;
+    result.max.y = range.max.y + pad;
+
+    return result;
+}
