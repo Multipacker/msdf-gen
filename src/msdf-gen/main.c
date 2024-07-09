@@ -233,32 +233,28 @@ internal S32 os_run(Str8List arguments) {
         Gfx_EventList events = gfx_get_events(current_arena, gfx);
         ui_begin(gfx, ui, &events, 1.0f / 60.0f);
 
-        ui_spacer_sized(ui, ui_size_fill());
         ui_width_push(ui, ui_size_parent_percent(render_msdf ? 0.25f : 0.0f, 1.0f));
-        ui_height_push(ui, ui_size_parent_percent(1.0f, 1.0f));
+        ui_height_push(ui, ui_size_children_sum(1.0f));
         ui_color_push(ui, v4f32(0.4f, 0.4f, 0.4f, 1.0f));
         ui_border_color_push(ui, v4f32(0.2f, 0.2f, 0.2f, 1.0f));
         ui_extra_box_flags_next(ui, UI_BoxFlags_DrawBackground | UI_BoxFlags_AnimatePosition | UI_BoxFlags_Clickable | UI_BoxFlags_Scrollable);
-        UI_Box *row = ui_row_string_begin(ui, str8_literal("test"));
+        UI_Box *column = ui_column_string_begin(ui, str8_literal("test"));
         {
-            ui_spacer_sized(ui, ui_size_fill());
-            ui_width_push(ui, ui_size_children_sum(1.0f));
-            ui_height_push(ui, ui_size_parent_percent(1.0f, 1.0f));
-            ui_column(ui) {
-                ui_spacer_sized(ui, ui_size_pixels(25.0f, 1.0f));
-                ui_color_push(ui, v4f32(0.3f, 0.3f, 0.3f, 1.0f));
-                ui_width_push(ui, ui_size_text_content(5.0f, 1.0f));
-                ui_height_push(ui, ui_size_text_content(5.0f, 1.0f));
-                for (U32 i = 0; i < 10; ++i) {
-                    UI_Box *item = ui_create_box_from_string_format(ui, UI_BoxFlags_DrawBackground | UI_BoxFlags_DrawText | UI_BoxFlags_DrawBorder | UI_BoxFlags_DrawHot | UI_BoxFlags_DrawActive | UI_BoxFlags_Clickable, "Hello %u", i);
-                    UI_Input input = ui_input_from_box(ui, item);
-                    ui_spacer_sized(ui, ui_size_pixels(5.0f, 1.0f));
+            ui_color_push(ui, v4f32(0.3f, 0.3f, 0.3f, 1.0f));
+            ui_width_push(ui, ui_size_parent_percent(1.0f, 1.0f));
+            ui_height_push(ui, ui_size_text_content(5.0f, 1.0f));
+            ui_label(ui, str8_literal("testing"));
+            for (U32 i = 0; i < 10; ++i) {
+                UI_Input input = ui_button_format(ui, "Hello %u", i);
+                if (input.input_flags & UI_InputFlag_Clicked) {
+                    Arena_Temporary scratch = arena_get_scratch(0, 0);
+                    os_console_print(str8_format(scratch.arena, "Hello, world %u!\n", i));
+                    arena_end_temporary(scratch);
                 }
             }
-            ui_spacer_sized(ui, ui_size_fill());
         }
-        ui_input_from_box(ui, row);
-        ui_row_end(ui);
+        ui_input_from_box(ui, column);
+        ui_column_end(ui);
 
         ui_end(ui);
 

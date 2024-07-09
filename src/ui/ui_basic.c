@@ -52,3 +52,48 @@ internal UI_Box *ui_column_end(UI_Context *ui) {
     UI_Box *result = ui_parent_pop(ui);
     return result;
 }
+
+
+
+internal Void ui_label(UI_Context *ui, Str8 string) {
+    ui_create_box_from_string(ui, UI_BoxFlags_DrawText, string);
+}
+
+internal Void ui_label_format(UI_Context *ui, CStr format, ...) {
+    Arena_Temporary scratch = arena_get_scratch(0, 0);
+    va_list arguments;
+    va_start(arguments, format);
+    Str8 string = str8_format_list(scratch.arena, format, arguments);
+    va_end(arguments);
+
+    ui_label(ui, string);
+
+    arena_end_temporary(scratch);
+}
+
+
+
+internal UI_Input ui_button(UI_Context *ui, Str8 string) {
+    UI_Box *box = ui_create_box_from_string(
+        ui,
+        UI_BoxFlags_DrawBackground | UI_BoxFlags_DrawText | UI_BoxFlags_DrawBorder |
+        UI_BoxFlags_DrawHot | UI_BoxFlags_DrawActive |
+        UI_BoxFlags_Clickable,
+        string
+    );
+    UI_Input result = ui_input_from_box(ui, box);
+    return result;
+}
+
+internal UI_Input ui_button_format(UI_Context *ui, CStr format, ...) {
+    Arena_Temporary scratch = arena_get_scratch(0, 0);
+    va_list arguments;
+    va_start(arguments, format);
+    Str8 string = str8_format_list(scratch.arena, format, arguments);
+    va_end(arguments);
+
+    UI_Input result = ui_button(ui, string);
+
+    arena_end_temporary(scratch);
+    return result;
+}

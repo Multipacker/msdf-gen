@@ -18,4 +18,10 @@ internal UI_Box *ui_column_end(UI_Context *ui);
 #define ui_column(ui) defer_loop(ui_column_begin(ui), ui_column_end(ui))
 #define ui_column_string(ui, string) defer_loop(ui_column_string_begin(ui, string), ui_column_end(ui))
 
+internal Void ui_label(UI_Context *ui, Str8 string);
+internal Void ui_label_format(UI_Context *ui, CStr format, ...);
+
+internal UI_Input ui_button(UI_Context *ui, Str8 string);
+internal UI_Input ui_button_format(UI_Context *ui, CStr format, ...);
+
 #endif //UI_BASIC_H
