@@ -113,6 +113,18 @@ struct Gfx_EventList {
     Gfx_Event *last;
 };
 
+typedef enum {
+    Gfx_Cursor_Pointer,
+    Gfx_Cursor_Hand,
+    Gfx_Cursor_Beam,
+    Gfx_Cursor_SizeNWSE,
+    Gfx_Cursor_SizeNESW,
+    Gfx_Cursor_SizeWE,
+    Gfx_Cursor_SizeNS,
+    Gfx_Cursor_SizeAll,
+    Gfx_Cursor_COUNT,
+} Gfx_Cursor;
+
 typedef struct Gfx_Context Gfx_Context;
 
 internal Gfx_Context  *gfx_create(Arena *arena, Str8 title, U32 width, U32 height);
@@ -120,5 +132,6 @@ internal V2U32         gfx_get_window_client_area(Gfx_Context *gfx);
 internal Gfx_EventList gfx_get_events(Arena *arena, Gfx_Context *gfx);
 internal V2F32         gfx_get_mouse_position(Gfx_Context *gfx);
 internal Void          gfx_swap_buffers(Gfx_Context *gfx);
+internal Void          gfx_set_cursor(Gfx_Context *gfx, Gfx_Cursor cursor);
 
 #endif // GRAPHICS_CORE_H

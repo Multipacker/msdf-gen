@@ -176,3 +176,37 @@ internal V2U32 gfx_get_window_client_area(Gfx_Context *gfx) {
 internal Void gfx_swap_buffers(Gfx_Context *gfx) {
     SDL_GL_SwapWindow(gfx->window);
 }
+
+internal Void gfx_set_cursor(Gfx_Context *gfx, Gfx_Cursor cursor) {
+    SDL_Cursor *selected_cursor = 0;
+
+#define sdl_cursor_list(X) \
+    X(Pointer,  ARROW)     \
+    X(Hand,     HAND)      \
+    X(Beam,     IBEAM)     \
+    X(SizeNWSE, SIZENWSE)  \
+    X(SizeNESW, SIZENESW)  \
+    X(SizeWE,   SIZEWE)    \
+    X(SizeNS,   SIZENS)    \
+    X(SizeAll,  SIZEALL)
+#define sdl_load_cursor(gfx_kind, sdl_kind)                                    \
+    case Gfx_Cursor_##gfx_kind: {                                              \
+        local SDL_Cursor *sdl_cursor = 0;                                      \
+        if (!sdl_cursor) {                                                     \
+            sdl_cursor = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_##sdl_kind); \
+        }                                                                      \
+        selected_cursor = sdl_cursor;                                          \
+    } break;
+
+    switch (cursor) {
+        sdl_cursor_list(sdl_load_cursor)
+        case Gfx_Cursor_COUNT: break;
+    }
+
+#undef sdl_load_cursor
+#undef sdl_cursor_list
+
+    if (selected_cursor) {
+        SDL_SetCursor(selected_cursor);
+    }
+}
