@@ -10,7 +10,7 @@ internal F32 f32_srgb_to_linear(F32 srgb) {
     return linear;
 }
 
-internal V4F32 color_from_srgb_u8(U8 red, U8 green, U8 blue, U8 alpha) {
+internal V4F32 color_from_srgba_u8(U8 red, U8 green, U8 blue, U8 alpha) {
     V4F32 result = v4f32(
         f32_srgb_to_linear((F32) red   / 255.0f),
         f32_srgb_to_linear((F32) green / 255.0f),
@@ -21,8 +21,8 @@ internal V4F32 color_from_srgb_u8(U8 red, U8 green, U8 blue, U8 alpha) {
     return result;
 }
 
-internal V4F32 color_from_srgb_u32(U32 rgba) {
-    V4F32 result = color_from_srgb_u8(
+internal V4F32 color_from_srgba_u32(U32 rgba) {
+    V4F32 result = color_from_srgba_u8(
         (rgba >> 24) & 0xFF,
         (rgba >> 16) & 0xFF,
         (rgba >>  8) & 0xFF,
