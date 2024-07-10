@@ -8,6 +8,7 @@
 #include "base_string.h"
 #include "base_context.h"
 #include "base_hash.h"
+#include "base_color.h"
 #include "os_include.h"
 
 #endif // BASE_INCLUDE_H
