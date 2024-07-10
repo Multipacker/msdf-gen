@@ -74,7 +74,7 @@ struct UI_Box {
     Str8            string;
     FontCache_Font *font;
     U32             font_size;
-    F32             text_padding;
+    Gfx_Cursor      hover_cursor;
 
     FontCache_Text text;
     V2F32 calculated_size;
@@ -143,6 +143,7 @@ ui_define_stack(BoxFlags, box_flags, UI_BoxFlags)
 ui_define_stack(F32,      f32,       F32)
 ui_define_stack(U32,      u32,       U32)
 ui_define_stack(Str8,     str8,      Str8)
+ui_define_stack(Cursor,   cursor,    Gfx_Cursor)
 
 typedef struct UI_BoxList UI_BoxList;
 struct UI_BoxList {
@@ -212,6 +213,7 @@ struct UI_Context {
     UI_F32Stack      fixed_y_stack;
     UI_Str8Stack     font_stack;
     UI_U32Stack      font_size_stack;
+    UI_CursorStack   hover_cursor_stack;
 };
 
 internal Arena *ui_frame_arena(UI_Context *ui);
@@ -226,7 +228,7 @@ internal UI_Size ui_size_text_content(F32 padding, F32 strictness);
 internal UI_Context *ui_create(Void);
 
 internal Void ui_begin(Gfx_Context *gfx, UI_Context *ui, Gfx_EventList *events, F32 dt);
-internal Void ui_end(UI_Context *ui);
+internal Void ui_end(Gfx_Context *gfx, UI_Context *ui);
 
 internal UI_Box **ui_box_reference_from_key(UI_Context *ui, UI_Key key);
 internal UI_Box *ui_box_from_key(UI_Context *ui, UI_Key key);
@@ -336,5 +338,12 @@ internal UI_Input ui_input_from_box(UI_Context *ui, UI_Box *box);
 #define ui_font_size_next(ui, size) ui_u32_stack_push(ui_frame_arena(ui), &ui->font_size_stack, size, true)
 #define ui_font_size_auto_pop(ui)   ui_u32_stack_auto_pop(&ui->font_size_stack)
 #define ui_font_size_top(ui)        (ui->font_size_stack.top->item)
+
+#define ui_hover_cursor_push(ui, cursor) ui_cursor_stack_push(ui_frame_arena(ui), &ui->hover_cursor_stack, cursor, false)
+#define ui_hover_cursor_pop(ui)          ui_cursor_stack_pop(&ui->hover_cursor_stack)
+#define ui_hover_cursor(ui, cursor)      defer_loop(ui_hover_cursor_push(ui, cursor), ui_hover_cursor_pop(ui))
+#define ui_hover_cursor_next(ui, cursor) ui_cursor_stack_push(ui_frame_arena(ui), &ui->hover_cursor_stack, cursor, true)
+#define ui_hover_cursor_auto_pop(ui)     ui_cursor_stack_auto_pop(&ui->hover_cursor_stack)
+#define ui_hover_cursor_top(ui)          (ui->hover_cursor_stack.top->item)
 
 #endif // UI_CORE_H

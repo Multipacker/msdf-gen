@@ -118,6 +118,9 @@ internal Void ui_begin(Gfx_Context *gfx, UI_Context *ui, Gfx_EventList *events, 
     ui->font_size_stack.top      = 0;
     ui->font_size_stack.freelist = 0;
     ui->font_size_stack.auto_pop = false;
+    ui->hover_cursor_stack.top      = 0;
+    ui->hover_cursor_stack.freelist = 0;
+    ui->hover_cursor_stack.auto_pop = false;
 
     ui->mouse = gfx_get_mouse_position(gfx);
     ui->events = events;
@@ -134,6 +137,7 @@ internal Void ui_begin(Gfx_Context *gfx, UI_Context *ui, Gfx_EventList *events, 
     ui_extra_box_flags_push(ui, 0);
     ui_font_push(ui, str8_literal("data/NotoSans-Regular.ttf"));
     ui_font_size_push(ui, 14);
+    ui_hover_cursor_push(ui, Gfx_Cursor_Pointer);
 
     // NOTE(simon): Build root
     V2U32 window_size = gfx_get_window_client_area(gfx);
@@ -295,7 +299,7 @@ internal Void ui_layout_resolve_violations(UI_Box *box, Axis2 axis) {
     }
 }
 
-internal Void ui_end(UI_Context *ui) {
+internal Void ui_end(Gfx_Context *gfx, UI_Context *ui) {
     // NOTE(simon): Remove untouched boxes.
     for (U32 i = 0; i < UI_BOX_TABLE_SIZE; ++i) {
         UI_BoxList *boxes = &ui->box_table[i];
@@ -342,6 +346,13 @@ internal Void ui_end(UI_Context *ui) {
             box->active_t   += (is_active - box->active_t)     * fast_rate;
             box->disabled_t += (is_disabled - box->disabled_t) * slow_rate;
         }
+    }
+
+    // NOTE(simon): Update cursor
+    {
+        UI_Box *hot = ui_box_from_key(ui, ui->hot_key);
+        Gfx_Cursor cursor = hot->hover_cursor;
+        gfx_set_cursor(gfx, cursor);
     }
 
     ++ui->frame_index;
@@ -409,6 +420,7 @@ internal UI_Box *ui_create_box_from_key(UI_Context *ui, UI_BoxFlags flags, UI_Ke
     box->layout_axis   = ui_layout_axis_top(ui);
     box->font          = font_cache_font_from_path(ui_font_top(ui));
     box->font_size     = ui_font_size_top(ui);
+    box->hover_cursor  = ui_hover_cursor_top(ui);
 
     if (ui->fixed_x_stack.top) {
         box->flags |= UI_BoxFlags_FloatingX;

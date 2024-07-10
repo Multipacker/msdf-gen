@@ -74,6 +74,7 @@ internal Void ui_label_format(UI_Context *ui, CStr format, ...) {
 
 
 internal UI_Input ui_button(UI_Context *ui, Str8 string) {
+    ui_hover_cursor_next(ui, Gfx_Cursor_Hand);
     UI_Box *box = ui_create_box_from_string(
         ui,
         UI_BoxFlags_DrawBackground | UI_BoxFlags_DrawText | UI_BoxFlags_DrawBorder |

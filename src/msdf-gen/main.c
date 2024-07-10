@@ -283,7 +283,7 @@ internal S32 os_run(Str8List arguments) {
         ui_input_from_box(ui, column);
         ui_column_end(ui);
 
-        ui_end(ui);
+        ui_end(gfx, ui);
 
         V2F32 mouse = gfx_get_mouse_position(gfx);
         for (Gfx_Event *event = events.first, *next; event; event = next) {
