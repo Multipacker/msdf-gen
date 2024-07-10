@@ -141,6 +141,7 @@ global U32 F64_BIAS    = 1023;
 
 internal U8 u8_min(U8 a, U8 b);
 internal U8 u8_max(U8 a, U8 b);
+internal U8 u8_clamp(U8 x, U8 min, U8 max);
 internal U8 u8_round_down_to_power_of_2(U8 value, U8 power);
 internal U8 u8_round_up_to_power_of_2(U8 value, U8 power);
 internal U8 u8_floor_to_power_of_2(U8 value);
@@ -151,6 +152,7 @@ internal U8 u8_reverse(U8 x);
 
 internal U16 u16_min(U16 a, U16 b);
 internal U16 u16_max(U16 a, U16 b);
+internal U16 u16_clamp(U16 x, U16 min, U16 max);
 internal U16 u16_round_down_to_power_of_2(U16 value, U16 power);
 internal U16 u16_round_up_to_power_of_2(U16 value, U16 power);
 internal U16 u16_floor_to_power_of_2(U16 value);
@@ -162,6 +164,7 @@ internal U16 u16_big_to_local_endian(U16 x);
 
 internal U32 u32_min(U32 a, U32 b);
 internal U32 u32_max(U32 a, U32 b);
+internal U32 u32_clamp(U32 x, U32 min, U32 max);
 internal U32 u32_round_down_to_power_of_2(U32 value, U32 power);
 internal U32 u32_round_up_to_power_of_2(U32 value, U32 power);
 internal U32 u32_floor_to_power_of_2(U32 value);
@@ -173,6 +176,7 @@ internal U32 u32_big_to_local_endian(U32 x);
 
 internal U64 u64_min(U64 a, U64 b);
 internal U64 u64_max(U64 a, U64 b);
+internal U64 u64_clamp(U64 x, U64 min, U64 max);
 internal U64 u64_round_down_to_power_of_2(U64 value, U64 power);
 internal U64 u64_round_up_to_power_of_2(U64 value, U64 power);
 internal U64 u64_floor_to_power_of_2(U64 value);
@@ -184,20 +188,24 @@ internal U64 u64_big_to_local_endian(U64 x);
 
 internal S8 s8_min(S8 a, S8 B);
 internal S8 s8_max(S8 a, S8 B);
+internal S8 s8_clamp(S8 x, S8 min, S8 max);
 internal S8 s8_abs(S8 x);
 
 internal S16 s16_min(S16 a, S16 b);
 internal S16 s16_max(S16 a, S16 b);
+internal S16 s16_clamp(S16 x, S16 min, S16 max);
 internal S16 s16_abs(S16 x);
 internal S16 s16_big_to_local_endian(S16 x);
 
 internal S32 s32_min(S32 a, S32 b);
 internal S32 s32_max(S32 a, S32 b);
+internal S32 s32_clamp(S32 x, S32 min, S32 max);
 internal S32 s32_abs(S32 x);
 internal S32 s32_big_to_local_endian(S32 x);
 
 internal S64 s64_min(S64 a, S64 b);
 internal S64 s64_max(S64 a, S64 b);
+internal S64 s64_clamp(S64 x, S64 min, S64 max);
 internal S64 s64_abs(S64 x);
 internal S64 s64_big_to_local_endian(S64 x);
 
@@ -209,6 +217,7 @@ internal F64 f64_negative_infinity(Void);
 
 internal F32 f32_min(F32 a, F32 b);
 internal F32 f32_max(F32 a, F32 b);
+internal F32 f32_clamp(F32 x, F32 min, F32 max);
 internal F32 f32_sign(F32 x);
 internal F32 f32_abs(F32 x);
 internal F32 f32_sqrt(F32 x);
@@ -233,6 +242,7 @@ internal U32 f32_solve_cubic(F32 a, F32 b, F32 c, F32 d, F32 *result_ts);
 
 internal F64 f64_min(F64 a, F64 b);
 internal F64 f64_max(F64 a, F64 b);
+internal F64 f64_clamp(F64 x, F64 min, F64 max);
 internal F64 f64_abs(F64 x);
 internal F64 f64_sqrt(F64 x);
 internal F64 f64_sin(F64 x);

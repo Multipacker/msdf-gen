@@ -13,6 +13,11 @@ internal U8 u8_max(U8 a, U8 b) {
     return result;
 }
 
+internal U8 u8_clamp(U8 x, U8 min, U8 max) {
+    U8 result = u8_min(u8_max(min, x), max);
+    return result;
+}
+
 internal U8 u8_round_down_to_power_of_2(U8 value, U8 power) {
     U8 result = value & ~(power - 1);
     return result;
@@ -54,6 +59,8 @@ internal U8 u8_reverse(U8 x) {
     return x;
 }
 
+
+
 internal U16 u16_min(U16 a, U16 b) {
     U16 result = (a < b ? a : b);
     return result;
@@ -61,6 +68,11 @@ internal U16 u16_min(U16 a, U16 b) {
 
 internal U16 u16_max(U16 a, U16 b) {
     U16 result = (a > b ? a : b);
+    return result;
+}
+
+internal U16 u16_clamp(U16 x, U16 min, U16 max) {
+    U16 result = u16_min(u16_max(min, x), max);
     return result;
 }
 
@@ -118,6 +130,8 @@ internal U16 u16_big_to_local_endian(U16 x) {
 #endif
 }
 
+
+
 internal U32 u32_min(U32 a, U32 b) {
     U32 result = (a < b ? a : b);
     return result;
@@ -125,6 +139,11 @@ internal U32 u32_min(U32 a, U32 b) {
 
 internal U32 u32_max(U32 a, U32 b) {
     U32 result = (a > b ? a : b);
+    return result;
+}
+
+internal U32 u32_clamp(U32 x, U32 min, U32 max) {
+    U32 result = u32_min(u32_max(min, x), max);
     return result;
 }
 
@@ -185,6 +204,8 @@ internal U32 u32_big_to_local_endian(U32 x) {
 #endif
 }
 
+
+
 internal U64 u64_min(U64 a, U64 b) {
     U64 result = (a < b ? a : b);
     return result;
@@ -192,6 +213,11 @@ internal U64 u64_min(U64 a, U64 b) {
 
 internal U64 u64_max(U64 a, U64 b) {
     U64 result = (a > b ? a : b);
+    return result;
+}
+
+internal U64 u64_clamp(U64 x, U64 min, U64 max) {
+    U64 result = u64_min(u64_max(min, x), max);
     return result;
 }
 
@@ -255,6 +281,8 @@ internal U64 u64_big_to_local_endian(U64 x) {
 #endif
 }
 
+
+
 internal S8 s8_min(S8 a, S8 b) {
     S8 result = (a < b ? a : b);
     return result;
@@ -265,10 +293,17 @@ internal S8 s8_max(S8 a, S8 b) {
     return result;
 }
 
+internal S8 s8_clamp(S8 x, S8 min, S8 max) {
+    S8 result = s8_min(s8_max(min, x), max);
+    return result;
+}
+
 internal S8 s8_abs(S8 x) {
     S8 result = (x < 0 ? -x : x);
     return result;
 }
+
+
 
 internal S16 s16_min(S16 a, S16 b) {
     S16 result = (a < b ? a : b);
@@ -277,6 +312,11 @@ internal S16 s16_min(S16 a, S16 b) {
 
 internal S16 s16_max(S16 a, S16 b) {
     S16 result = (a > b ? a : b);
+    return result;
+}
+
+internal S16 s16_clamp(S16 x, S16 min, S16 max) {
+    S16 result = s16_min(s16_max(min, x), max);
     return result;
 }
 
@@ -296,6 +336,8 @@ internal S16 s16_big_to_local_endian(S16 x) {
     return *(S16 *) &swapped;
 }
 
+
+
 internal S32 s32_min(S32 a, S32 b) {
     S32 result = (a < b ? a : b);
     return result;
@@ -303,6 +345,11 @@ internal S32 s32_min(S32 a, S32 b) {
 
 internal S32 s32_max(S32 a, S32 b) {
     S32 result = (a > b ? a : b);
+    return result;
+}
+
+internal S32 s32_clamp(S32 x, S32 min, S32 max) {
+    S32 result = s32_min(s32_max(min, x), max);
     return result;
 }
 
@@ -322,6 +369,8 @@ internal S32 s32_big_to_local_endian(S32 x) {
     return *(S32 *) &swapped;
 }
 
+
+
 internal S64 s64_min(S64 a, S64 b) {
     S64 result = (a < b ? a : b);
     return result;
@@ -329,6 +378,11 @@ internal S64 s64_min(S64 a, S64 b) {
 
 internal S64 s64_max(S64 a, S64 b) {
     S64 result = (a > b ? a : b);
+    return result;
+}
+
+internal S64 s64_clamp(S64 x, S64 min, S64 max) {
+    S64 result = s64_min(s64_max(min, x), max);
     return result;
 }
 
@@ -348,6 +402,8 @@ internal S64 s64_big_to_local_endian(S64 x) {
 
     return *(S64 *) &swapped;
 }
+
+
 
 internal F32 f32_infinity(Void) {
     union {F32 f; U32 u; } result;
@@ -380,6 +436,11 @@ internal F32 f32_min(F32 a, F32 b) {
 
 internal F32 f32_max(F32 a, F32 b) {
     F32 result = (a > b ? a : b);
+    return result;
+}
+
+internal F32 f32_clamp(F32 x, F32 min, F32 max) {
+    F32 result = f32_min(f32_max(min, x), max);
     return result;
 }
 
@@ -623,6 +684,8 @@ internal U32 f32_solve_cubic(F32 a, F32 b, F32 c, F32 d, F32 *result_xs) {
     return n;
 }
 
+
+
 internal F64 f64_min(F64 a, F64 b) {
     F64 result = (a < b ? a : b);
     return result;
@@ -630,6 +693,11 @@ internal F64 f64_min(F64 a, F64 b) {
 
 internal F64 f64_max(F64 a, F64 b) {
     F64 result = (a > b ? a : b);
+    return result;
+}
+
+internal F64 f64_clamp(F64 x, F64 min, F64 max) {
+    F64 result = f64_min(f64_max(min, x), max);
     return result;
 }
 
@@ -724,6 +792,7 @@ internal F64 f64_ceil(F64 x) {
     return __builtin_ceil(x);
 #endif
 }
+
 
 
 internal DenseTime dense_time_from_date_time(DateTime *date_time) {
