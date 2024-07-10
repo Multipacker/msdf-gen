@@ -13,6 +13,16 @@
 #include "src/ui/ui_include.c"
 
 typedef struct {
+    Str8 name;
+    V4F32 background_color;
+    V4F32 element_color;
+    V4F32 border_color;
+    V4F32 text_color;
+} Theme;
+
+global Theme global_themes[2];
+
+typedef struct {
     V2F32 min_pt;
     V2F32 max_pt;
     F32   advance_pt;
@@ -204,6 +214,21 @@ internal S32 os_run(Str8List arguments) {
 
     Arena *arena = arena_create();
 
+    // NOTE(simon): Themes
+    {
+        global_themes[0].name = str8_literal("Light theme");
+        global_themes[0].background_color = color_from_srgba_u32(0xF8F9FAFF); // OC Gray 0
+        global_themes[0].element_color    = color_from_srgba_u32(0xE9ECEFFF); // OC Gray 2
+        global_themes[0].border_color     = color_from_srgba_u32(0xCED4DAFF); // OC Gray 4
+        global_themes[0].text_color       = color_from_srgba_u32(0x495057FF); // OC Gray 7
+
+        global_themes[1].name = str8_literal("Dark theme"),
+        global_themes[1].background_color = color_from_srgba_u32(0x212529FF); // OC Gray 9
+        global_themes[1].element_color    = color_from_srgba_u32(0x343A40FF); // OC Gray 8
+        global_themes[1].border_color     = color_from_srgba_u32(0x495057FF); // OC Gray 7
+        global_themes[1].text_color       = color_from_srgba_u32(0xF8F9FAFF); // OC Gray 0
+    }
+
     render_init();
     UI_Context *ui = ui_create();
 
@@ -233,14 +258,16 @@ internal S32 os_run(Str8List arguments) {
         Gfx_EventList events = gfx_get_events(current_arena, gfx);
         ui_begin(gfx, ui, &events, 1.0f / 60.0f);
 
-        ui_width_push(ui, ui_size_parent_percent(render_msdf ? 0.25f : 0.0f, 1.0f));
+        Theme *theme = &global_themes[1];
+        ui_width_push(ui, ui_size_parent_percent(0.25f, 1.0f));
         ui_height_push(ui, ui_size_children_sum(1.0f));
-        ui_color_push(ui, v4f32(0.4f, 0.4f, 0.4f, 1.0f));
-        ui_border_color_push(ui, v4f32(0.2f, 0.2f, 0.2f, 1.0f));
+        ui_color_push(ui, theme->background_color);
+        ui_border_color_push(ui, theme->border_color);
+        ui_text_color_push(ui, theme->text_color);
         ui_extra_box_flags_next(ui, UI_BoxFlags_DrawBackground | UI_BoxFlags_AnimatePosition | UI_BoxFlags_Clickable | UI_BoxFlags_Scrollable);
         UI_Box *column = ui_column_string_begin(ui, str8_literal("test"));
         {
-            ui_color_push(ui, v4f32(0.3f, 0.3f, 0.3f, 1.0f));
+            ui_color_push(ui, theme->element_color);
             ui_width_push(ui, ui_size_parent_percent(1.0f, 1.0f));
             ui_height_push(ui, ui_size_text_content(5.0f, 1.0f));
             ui_label(ui, str8_literal("testing"));
