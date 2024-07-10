@@ -188,7 +188,8 @@ internal Void gfx_set_cursor(Gfx_Context *gfx, Gfx_Cursor cursor) {
     X(SizeNESW, SIZENESW)  \
     X(SizeWE,   SIZEWE)    \
     X(SizeNS,   SIZENS)    \
-    X(SizeAll,  SIZEALL)
+    X(SizeAll,  SIZEALL)   \
+    X(Disabled, NO)
 #define sdl_load_cursor(gfx_kind, sdl_kind)                                    \
     case Gfx_Cursor_##gfx_kind: {                                              \
         local SDL_Cursor *sdl_cursor = 0;                                      \

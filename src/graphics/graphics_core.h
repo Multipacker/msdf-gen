@@ -122,6 +122,7 @@ typedef enum {
     Gfx_Cursor_SizeWE,
     Gfx_Cursor_SizeNS,
     Gfx_Cursor_SizeAll,
+    Gfx_Cursor_Disabled,
     Gfx_Cursor_COUNT,
 } Gfx_Cursor;
 

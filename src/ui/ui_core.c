@@ -352,6 +352,9 @@ internal Void ui_end(Gfx_Context *gfx, UI_Context *ui) {
     {
         UI_Box *hot = ui_box_from_key(ui, ui->hot_key);
         Gfx_Cursor cursor = hot->hover_cursor;
+        if (hot->flags & UI_BoxFlags_Disabled) {
+            cursor = Gfx_Cursor_Disabled;
+        }
         gfx_set_cursor(gfx, cursor);
     }
 
