@@ -405,15 +405,17 @@ internal UI_Box *ui_create_box_from_key(UI_Context *ui, UI_BoxFlags flags, UI_Ke
         box->create_index = ui->frame_index;
     }
 
+    // NOTE(simon): Clear state
+    box->next     = &global_ui_null_box;
+    box->previous = &global_ui_null_box;
+    box->first    = &global_ui_null_box;
+    box->last     = &global_ui_null_box;
+
     // NOTE(simon): Set links
     box->parent = ui->parent_stack.top->item;
     if (box->parent != &global_ui_null_box) {
         dll_insert_next_previous_zero(box->parent->first, box->parent->last, box->parent->last, box, next, previous, &global_ui_null_box);
     }
-    box->next     = &global_ui_null_box;
-    box->previous = &global_ui_null_box;
-    box->first    = &global_ui_null_box;
-    box->last     = &global_ui_null_box;
 
     box->key = key;
     box->size[Axis2_X] = ui_width_top(ui);
