@@ -218,7 +218,7 @@ internal Void ui_layout_downwards_dependent_sizes(UI_Box *box, Axis2 axis) {
 }
 
 internal Void ui_layout_position(UI_Box *box, Axis2 axis) {
-    // NOTE(simon): Calculate final rectangle
+    // NOTE(simon): Calculate final rectangle.
     if (box->flags & (UI_BoxFlags_AnimateX << axis)) {
         if (box->create_index == box->last_used_index) {
             box->animated_position.values[axis] = box->calculated_position.values[axis];
@@ -228,8 +228,6 @@ internal Void ui_layout_position(UI_Box *box, Axis2 axis) {
         box->calculated_rectangle.min.values[axis] = box->parent->calculated_rectangle.min.values[axis] + box->calculated_position.values[axis];
     }
     box->calculated_rectangle.max.values[axis] = box->calculated_rectangle.min.values[axis] + box->calculated_size.values[axis];
-    box->calculated_rectangle.min.values[axis] = f32_floor(box->calculated_rectangle.min.values[axis]);
-    box->calculated_rectangle.max.values[axis] = f32_floor(box->calculated_rectangle.max.values[axis]);
 
     // NOTE(simon): Position children
     if (axis == box->layout_axis) {
@@ -252,6 +250,10 @@ internal Void ui_layout_position(UI_Box *box, Axis2 axis) {
     for (UI_Box *child = box->first; child != &global_ui_null_box; child = child->next) {
         ui_layout_position(child, axis);
     }
+
+    // NOTE(simon): Truncate to integer coordinates.
+    box->calculated_rectangle.min.values[axis] = f32_floor(box->calculated_rectangle.min.values[axis]);
+    box->calculated_rectangle.max.values[axis] = f32_floor(box->calculated_rectangle.max.values[axis]);
 }
 
 internal Void ui_layout_resolve_violations(UI_Box *box, Axis2 axis) {
