@@ -169,12 +169,12 @@ internal Void draw_ui(UI_Box *box) {
             FontCache_Letter *letter = &box->text.letters[i];
             render_rectangle(
                 v2f32(
-                    origin.x + letter->offset.x + advance,
-                    origin.y + letter->offset.y
+                    f32_floor(origin.x + letter->offset.x + advance),
+                    f32_floor(origin.y + letter->offset.y)
                 ),
                 v2f32(
-                    origin.x + letter->offset.x + advance + letter->size.x,
-                    origin.y + letter->offset.y + letter->size.y
+                    f32_floor(origin.x + letter->offset.x + advance + letter->size.x),
+                    f32_floor(origin.y + letter->offset.y + letter->size.y)
                 ),
                 .color = box->text_color,
                 .uv_min = letter->uvs.min, .uv_max = letter->uvs.max,
