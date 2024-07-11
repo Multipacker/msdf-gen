@@ -168,11 +168,11 @@
 #  define memory_equal(a, b, count)               (__builtin_memcmp((a), (b), (count)) == 0)
 #endif
 
-#define dll_insert_next_previous_zero(first, last, p, n, next, previous, zero)                                                               \
-    ((first) == (zero) ? (((first) = (last) = (n)), (n)->next = (n)->previous = (zero)) :                                                    \
-    (p) == (zero) ? ((n)->previous = (zero), (n)->next = (first), ((first) == (zero) ? (zero) : ((first)->previous = (n))), (first) = (n)) : \
-    (((p)->next == (zero) ? (zero) : (((p)->next->previous) = (n))), (n)->next = (p)->next, (n)->previous = (p), (p)->next = (n),            \
-    ((p) == (last) ? (last) = (n) : (zero))))
+#define dll_insert_next_previous_zero(first, last, p, node, next, previous, zero)                                         \
+    (((first) == (zero)) ? ((first) = (last) = (node), (node)->previous = (node)->next = (zero)) :                        \
+    ((p) == (zero)) ? ((node)->next = (first), (node)->previous = (zero), (first)->previous = (node), (first) = (node)) : \
+    ((p) == (last)) ? ((node)->next = (zero), (node)->previous = (last), (last)->next = (node), (last) = (node)) :        \
+    ((node)->previous = (p), (node)->next = (p)->next, (p)->next->previous = (node), (p)->next = (node)))
 #define dll_push_back(first, last, node)  dll_insert_next_previous_zero(first, last, last, node, next, previous, 0)
 #define dll_push_front(last, first, node) dll_insert_next_previous_zero(last, first, frist, node, previous, next, 0)
 #define dll_remove_next_previous_zero(first, last, node, next, previous, zero) \
