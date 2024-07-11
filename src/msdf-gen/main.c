@@ -201,7 +201,7 @@ internal Void draw_ui(UI_Box *box) {
         );
     }
 
-    for (UI_Box *child = box->first; child != &global_ui_null_box; child = child->next) {
+    for (UI_Box *child = box->last; child != &global_ui_null_box; child = child->previous) {
         draw_ui(child);
     }
 }
