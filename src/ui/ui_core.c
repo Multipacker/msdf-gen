@@ -140,12 +140,24 @@ internal Void ui_begin(Gfx_Context *gfx, UI_Context *ui, Gfx_EventList *events, 
     ui_hover_cursor_push(ui, Gfx_Cursor_Pointer);
 
     // NOTE(simon): Build root
-    V2U32 window_size = gfx_get_window_client_area(gfx);
-    ui_width_next(ui, ui_size_pixels(window_size.width, 1.0f));
-    ui_height_next(ui, ui_size_pixels(window_size.height, 1.0f));
-    ui->root = ui_create_box(ui, 0);
+    {
+        V2U32 window_size = gfx_get_window_client_area(gfx);
+        ui_width_next(ui, ui_size_pixels(window_size.width, 1.0f));
+        ui_height_next(ui, ui_size_pixels(window_size.height, 1.0f));
+        ui->root = ui_create_box(ui, 0);
+        ui_parent_push(ui, ui->root);
+    }
 
-    ui_parent_push(ui, ui->root);
+    // NOTE(simon): Build tooltip root
+    {
+        ui_fixed_x_next(ui, ui->mouse.x + 5.0f);
+        ui_fixed_y_next(ui, ui->mouse.y + 5.0f);
+        ui_width_next(ui, ui_size_children_sum(1.0f));
+        ui_height_next(ui, ui_size_children_sum(1.0f));
+        ui_layout_axis_next(ui, Axis2_Y);
+        ui->tooltip_root = ui_create_box_from_string(ui, UI_BoxFlags_FloatingPosition, str8_literal("tooltip"));
+    }
+
 
     // NOTE(simon): Reset active key if the active box is disabled or pruned.
     if (!ui_keys_match(ui->active_key, global_ui_null_key)) {
@@ -321,6 +333,20 @@ internal Void ui_end(Gfx_Context *gfx, UI_Context *ui) {
         ui_layout_upwards_dependent_sizes(ui->root, axis);
         ui_layout_downwards_dependent_sizes(ui->root, axis);
         ui_layout_resolve_violations(ui->root, axis);
+
+        // NOTE(simon): Move the tooltip to always be on screen.
+        {
+            UI_Box *tooltip = ui->tooltip_root;
+            F32 max_coordinate = ui->root->calculated_size.values[axis];
+            F32 size = tooltip->calculated_size.values[axis];
+            if (tooltip->calculated_position.values[axis] + size > max_coordinate) {
+                tooltip->calculated_position.values[axis] = max_coordinate - size;
+            }
+            if (tooltip->calculated_position.values[axis] < 0.0f) {
+                tooltip->calculated_position.values[axis] = 0.0f;
+            }
+        }
+
         ui_layout_position(ui->root, axis);
     }
 
@@ -554,4 +580,12 @@ internal UI_Input ui_input_from_box(UI_Context *ui, UI_Box *box) {
     }
 
     return result;
+}
+
+internal Void ui_tooltip_begin(UI_Context *ui) {
+    ui_parent_push(ui, ui->tooltip_root);
+}
+
+internal Void ui_tooltip_end(UI_Context *ui) {
+    ui_parent_pop(ui);
 }

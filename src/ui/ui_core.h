@@ -194,6 +194,7 @@ struct UI_Context {
     U64    frame_index;
 
     UI_Box *root;
+    UI_Box *tooltip_root;
 
     Gfx_EventList *events;
     V2F32          mouse;
@@ -240,6 +241,10 @@ internal UI_Box *ui_create_box_from_string_format(UI_Context *ui, UI_Key key, CS
 
 internal Void     ui_box_set_string(UI_Context *ui, UI_Box *box, Str8 string);
 internal UI_Input ui_input_from_box(UI_Context *ui, UI_Box *box);
+
+internal Void ui_tooltip_begin(UI_Context *ui);
+internal Void ui_tooltip_end(UI_Context *ui);
+#define ui_tooltip(ui) defer_loop(ui_tooltip_begin(ui), ui_tooltip_end(ui))
 
 #define ui_parent_push(ui, parent) ui_box_stack_push(ui_frame_arena(ui), &ui->parent_stack, parent, false)
 #define ui_parent_pop(ui)          ui_box_stack_pop(&ui->parent_stack)
