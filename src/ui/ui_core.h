@@ -196,13 +196,17 @@ struct UI_Context {
     UI_Box *root;
     UI_Box *tooltip_root;
 
+    // NOTE(simon): Per frame input.
     Gfx_EventList *events;
     V2F32          mouse;
-
     F32 dt;
+
     UI_Key hot_key;
     UI_Key active_key;
+    F32 tooltip_t;
+    B32 is_tooltip_active;
 
+    // NOTE(simon): Style stacks.
     UI_BoxStack      parent_stack;
     UI_V4F32Stack    color_stack;
     UI_V4F32Stack    border_color_stack;

@@ -126,6 +126,8 @@ internal Void ui_begin(Gfx_Context *gfx, UI_Context *ui, Gfx_EventList *events, 
     ui->events = events;
     ui->dt = dt;
 
+    ui->is_tooltip_active = false;
+
     // NOTE(simon): Give default values to all stacks
     ui_parent_next(ui, &global_ui_null_box);
     ui_color_push(ui, v4f32(0.0f, 0.0f, 0.0f, 0.0f));
@@ -375,6 +377,7 @@ internal Void ui_end(Gfx_Context *gfx, UI_Context *ui) {
             box->disabled_t += (is_disabled - box->disabled_t) * slow_rate;
         }
     }
+    ui->tooltip_t += ((F32) ui->is_tooltip_active - ui->tooltip_t) * fast_rate;
 
     // NOTE(simon): Update cursor
     {
@@ -583,6 +586,7 @@ internal UI_Input ui_input_from_box(UI_Context *ui, UI_Box *box) {
 }
 
 internal Void ui_tooltip_begin(UI_Context *ui) {
+    ui->is_tooltip_active = true;
     ui_parent_push(ui, ui->tooltip_root);
 }
 
