@@ -21,6 +21,34 @@ internal Arena *ui_frame_arena(UI_Context *ui) {
     return result;
 }
 
+// NOTE(simon): Either everything is hashed or only the part after '###'.
+internal Str8 ui_hash_part_from_string(Str8 string) {
+    Str8 result = string;
+
+    for (U64 i = 0; i < string.size - 2; ++i) {
+        if (string.data[i] == '#' && string.data[i + 1] == '#' && string.data[i + 2] == '#') {
+            result = str8_skip(string, i + 3);
+            break;
+        }
+    }
+
+    return result;
+}
+
+// NOTE(simon): Either everything is displayed or only the part before '##'.
+internal Str8 ui_display_part_from_string(Str8 string) {
+    Str8 result = string;
+
+    for (U64 i = 0; i < string.size - 1; ++i) {
+        if (string.data[i] == '#' && string.data[i + 1] == '#') {
+            result = str8_prefix(string, i);
+            break;
+        }
+    }
+
+    return result;
+}
+
 internal UI_Key ui_key_from_string(Str8 string) {
     UI_Key result = 6180339887498948482;
     for (U64 i = 0; i < string.size; ++i) {
@@ -563,9 +591,9 @@ internal UI_Box *ui_create_box(UI_Context *ui, UI_BoxFlags flags) {
 }
 
 internal UI_Box *ui_create_box_from_string(UI_Context *ui, UI_BoxFlags flags, Str8 string) {
-    UI_Key key = ui_key_from_string(string);
+    UI_Key key = ui_key_from_string(ui_hash_part_from_string(string));
     UI_Box *result = ui_create_box_from_key(ui, flags, key);
-    ui_box_set_string(ui, result, string);
+    ui_box_set_string(ui, result, ui_display_part_from_string(string));
     return result;
 }
 

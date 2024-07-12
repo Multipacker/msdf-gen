@@ -235,6 +235,9 @@ struct UI_Context {
 
 internal Arena *ui_frame_arena(UI_Context *ui);
 
+internal Str8 ui_hash_part_from_string(Str8 string);
+internal Str8 ui_display_part_from_string(Str8 string);
+
 internal UI_Key ui_key_from_string(Str8 string);
 internal UI_Key ui_key_from_string_format(CStr format, ...);
 
