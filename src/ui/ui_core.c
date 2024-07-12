@@ -30,6 +30,20 @@ internal UI_Key ui_key_from_string(Str8 string) {
     return (result ^ result >> 32) | 1;
 }
 
+internal UI_Key ui_key_from_string_format(CStr format, ...) {
+    Arena_Temporary scratch = arena_get_scratch(0, 0);
+
+    va_list arguments;
+    va_start(arguments, format);
+    Str8 string = str8_format_list(scratch.arena, format, arguments);
+    va_end(arguments);
+
+    UI_Key result = ui_key_from_string(string);
+
+    arena_end_temporary(scratch);
+    return result;
+}
+
 internal UI_Size ui_size_pixels(F32 pixels, F32 strictness) {
     UI_Size result = { 0 };
     result.kind = UI_Size_Pixels;

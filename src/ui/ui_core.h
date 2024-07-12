@@ -224,6 +224,7 @@ struct UI_Context {
 internal Arena *ui_frame_arena(UI_Context *ui);
 
 internal UI_Key ui_key_from_string(Str8 string);
+internal UI_Key ui_key_from_string_format(CStr format, ...);
 
 internal UI_Size ui_size_pixels(F32 pixels, F32 strictness);
 internal UI_Size ui_size_parent_percent(F32 percent, F32 strictness);
