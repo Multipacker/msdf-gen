@@ -195,6 +195,7 @@ struct UI_Context {
 
     UI_Box *root;
     UI_Box *tooltip_root;
+    UI_Box *context_menu_root;
 
     // NOTE(simon): Per frame input.
     Gfx_EventList *events;
@@ -203,8 +204,19 @@ struct UI_Context {
 
     UI_Key hot_key;
     UI_Key active_key;
+
+    // NOTE(simon): Tooltip state.
     F32 tooltip_t;
     B32 is_tooltip_active;
+
+    // NOTE(simon): Context menu state.
+    UI_Key context_menu_key;
+    UI_Key context_menu_anchor_key;
+    V2F32  context_menu_anchor_offset;
+    UI_Key context_menu_key_next;
+    UI_Key context_menu_anchor_key_next;
+    V2F32  context_menu_anchor_offset_next;
+    B32    context_menu_used_this_frame;
 
     // NOTE(simon): Style stacks.
     UI_BoxStack      parent_stack;
@@ -250,6 +262,17 @@ internal UI_Input ui_input_from_box(UI_Context *ui, UI_Box *box);
 internal Void ui_tooltip_begin(UI_Context *ui);
 internal Void ui_tooltip_end(UI_Context *ui);
 #define ui_tooltip(ui) defer_loop(ui_tooltip_begin(ui), ui_tooltip_end(ui))
+
+internal Void ui_context_menu_open(UI_Context *ui, UI_Key context_key, UI_Key anchor_key, V2F32 anchor_offset);
+internal Void ui_context_menu_close(UI_Context *ui);
+internal B32  ui_context_menu_begin(UI_Context *ui, UI_Key context_key);
+internal Void ui_context_menu_end(UI_Context *ui);
+#define ui_context_menu(ui, context_key)                                      \
+    for (                                                                     \
+        B32 glue(is_open, __LINE__) = ui_context_menu_begin(ui, context_key); \
+        glue(is_open, __LINE__) ? 1 : (ui_context_menu_end(ui), 0);           \
+        glue(is_open, __LINE__) = false                                       \
+    )
 
 #define ui_parent_push(ui, parent) ui_box_stack_push(ui_frame_arena(ui), &ui->parent_stack, parent, false)
 #define ui_parent_pop(ui)          ui_box_stack_pop(&ui->parent_stack)

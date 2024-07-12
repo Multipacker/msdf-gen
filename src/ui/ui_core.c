@@ -141,6 +141,7 @@ internal Void ui_begin(Gfx_Context *gfx, UI_Context *ui, Gfx_EventList *events, 
     ui->dt = dt;
 
     ui->is_tooltip_active = false;
+    ui->context_menu_used_this_frame = false;
 
     // NOTE(simon): Give default values to all stacks
     ui_parent_next(ui, &global_ui_null_box);
@@ -174,6 +175,16 @@ internal Void ui_begin(Gfx_Context *gfx, UI_Context *ui, Gfx_EventList *events, 
         ui->tooltip_root = ui_create_box_from_string(ui, UI_BoxFlags_FloatingPosition, str8_literal("tooltip"));
     }
 
+    // NOTE(simon): Build context menu root
+    {
+        ui->context_menu_key           = ui->context_menu_key_next;
+        ui->context_menu_anchor_key    = ui->context_menu_anchor_key_next;
+        ui->context_menu_anchor_offset = ui->context_menu_anchor_offset_next;
+        ui_width_next(ui, ui_size_children_sum(1.0f));
+        ui_height_next(ui, ui_size_children_sum(1.0f));
+        ui_layout_axis_next(ui, Axis2_Y);
+        ui->context_menu_root = ui_create_box_from_string(ui, UI_BoxFlags_DrawBackground | UI_BoxFlags_DrawBorder | UI_BoxFlags_Clickable | UI_BoxFlags_Scrollable | UI_BoxFlags_FloatingPosition, str8_literal("context_menu"));
+    }
 
     // NOTE(simon): Reset active key if the active box is disabled or pruned.
     if (!ui_keys_match(ui->active_key, global_ui_null_key)) {
@@ -343,27 +354,55 @@ internal Void ui_end(Gfx_Context *gfx, UI_Context *ui) {
         }
     }
 
+    if (!ui->context_menu_used_this_frame) {
+        ui_context_menu_close(ui);
+    }
+
     // NOTE(simon): Layout
     for (Axis2 axis = 0; axis < Axis2_COUNT; ++axis) {
         ui_layout_independent_sizes(ui->root, axis);
         ui_layout_upwards_dependent_sizes(ui->root, axis);
         ui_layout_downwards_dependent_sizes(ui->root, axis);
         ui_layout_resolve_violations(ui->root, axis);
+        ui_layout_position(ui->root, axis);
+    }
 
-        // NOTE(simon): Move the tooltip to always be on screen.
-        {
-            UI_Box *tooltip = ui->tooltip_root;
-            F32 max_coordinate = ui->root->calculated_size.values[axis];
-            F32 size = tooltip->calculated_size.values[axis];
-            if (tooltip->calculated_position.values[axis] + size > max_coordinate) {
-                tooltip->calculated_position.values[axis] = max_coordinate - size;
-            }
-            if (tooltip->calculated_position.values[axis] < 0.0f) {
-                tooltip->calculated_position.values[axis] = 0.0f;
+    // NOTE(simon): Move context menu to anchor.
+    if (!ui_keys_match(ui->context_menu_key, global_ui_null_key)) {
+        if (ui_keys_match(ui->context_menu_anchor_key, global_ui_null_key)) {
+            ui->context_menu_root->calculated_position = ui->context_menu_anchor_offset;
+        } else {
+            UI_Box *anchor = ui_box_from_key(ui, ui->context_menu_anchor_key);
+            V2F32 offset = v2f32(0.0f, anchor->calculated_size.height);
+            ui->context_menu_root->calculated_position = v2f32_add(anchor->calculated_position, offset);
+        }
+    }
+
+    // NOTE(simon): Redo layout for tooltip and context menu.
+    {
+        UI_Box *update_roots[] = { ui->tooltip_root, ui->context_menu_root, };
+        for (U32 i = 0; i < array_count(update_roots); ++i) {
+            UI_Box *root = update_roots[i];
+
+            for (Axis2 axis = 0; axis < Axis2_COUNT; ++axis) {
+                // NOTE(simon): Move the root to always be on screen.
+                F32 max_coordinate = ui->root->calculated_size.values[axis];
+                F32 size = root->calculated_size.values[axis];
+                if (root->calculated_position.values[axis] + size > max_coordinate) {
+                    root->calculated_position.values[axis] = max_coordinate - size;
+                }
+                if (root->calculated_position.values[axis] < 0.0f) {
+                    root->calculated_position.values[axis] = 0.0f;
+                }
+
+                // NOTE(simon): Redo layout.
+                ui_layout_independent_sizes(root, axis);
+                ui_layout_upwards_dependent_sizes(root, axis);
+                ui_layout_downwards_dependent_sizes(root, axis);
+                ui_layout_resolve_violations(root, axis);
+                ui_layout_position(root, axis);
             }
         }
-
-        ui_layout_position(ui->root, axis);
     }
 
     // NOTE(simon): Animate
@@ -392,6 +431,24 @@ internal Void ui_end(Gfx_Context *gfx, UI_Context *ui) {
         }
     }
     ui->tooltip_t += ((F32) ui->is_tooltip_active - ui->tooltip_t) * fast_rate;
+
+    // NOTE(simon): Make sure events don't go through the context menu.
+    if (!ui_keys_match(ui->context_menu_anchor_key, global_ui_null_key)) {
+        ui_input_from_box(ui, ui->context_menu_root);
+    }
+
+    // NOTE(simon): Close the context menu if there were unconsumed click events.
+    for (Gfx_Event *event = ui->events->first; event; event = event->next) {
+        if (
+            event->kind == Gfx_EventKind_KeyPress && (
+                event->key == Gfx_Key_MouseLeft ||
+                event->key == Gfx_Key_MouseMiddle ||
+                event->key == Gfx_Key_MouseRight
+            )
+        ) {
+            ui_context_menu_close(ui);
+        }
+    }
 
     // NOTE(simon): Update cursor
     {
@@ -539,11 +596,25 @@ internal UI_Input ui_input_from_box(UI_Context *ui, UI_Box *box) {
 
     R2F32 bounds = box->calculated_rectangle;
 
+    // NOTE(simon): Are we part of the context menu?
+    B32 is_context_menu = false;
+    for (UI_Box *parent = box; parent != &global_ui_null_box; parent = parent->parent) {
+        if (parent == ui->context_menu_root) {
+            is_context_menu = true;
+            break;
+        }
+    }
+
+    R2F32 exclude_bounds = { 0 };
+    if (!is_context_menu && !ui_keys_match(ui->context_menu_key, global_ui_null_key)) {
+        exclude_bounds = ui->context_menu_root->calculated_rectangle;
+    }
+
     for (Gfx_Event *event = ui->events->first, *next; event; event = next) {
         next = event->next;
         B32 consumed = false;
 
-        B32 is_in_bounds = r2f32_contains(bounds, event->position);
+        B32 is_in_bounds = r2f32_contains(bounds, event->position) && !r2f32_contains(exclude_bounds, event->position);
         UI_MouseButtonKind mouse_key = UI_MouseButtonKind_Left;
         B32 is_mouse_key = false;
         switch (event->key) {
@@ -562,7 +633,13 @@ internal UI_Input ui_input_from_box(UI_Context *ui, UI_Box *box) {
         }
 
         // NOTE(simon): Release in bounds of active box.
-        if (box->flags & UI_BoxFlags_Clickable && is_mouse_key && event->kind == Gfx_EventKind_KeyRelease && is_in_bounds && ui_keys_match(ui->active_key, box->key)) {
+        if (
+            box->flags & UI_BoxFlags_Clickable &&
+            is_mouse_key &&
+            event->kind == Gfx_EventKind_KeyRelease &&
+            is_in_bounds &&
+            ui_keys_match(ui->active_key, box->key)
+        ) {
             result.input_flags |= UI_InputFlag_LeftReleased << mouse_key;
             result.input_flags |= UI_InputFlag_LeftClicked << mouse_key;
             ui->active_key = global_ui_null_key;
@@ -570,7 +647,13 @@ internal UI_Input ui_input_from_box(UI_Context *ui, UI_Box *box) {
         }
 
         // NOTE(simon): Release out of bounds of active box.
-        if (box->flags & UI_BoxFlags_Clickable && is_mouse_key && event->kind == Gfx_EventKind_KeyRelease && !is_in_bounds && ui_keys_match(ui->active_key, box->key)) {
+        if (
+            box->flags & UI_BoxFlags_Clickable &&
+            is_mouse_key &&
+            event->kind == Gfx_EventKind_KeyRelease &&
+            !is_in_bounds &&
+            ui_keys_match(ui->active_key, box->key)
+        ) {
             result.input_flags |= UI_InputFlag_LeftReleased << mouse_key;
             ui->active_key = global_ui_null_key;
             ui->hot_key = global_ui_null_key;
@@ -588,12 +671,18 @@ internal UI_Input ui_input_from_box(UI_Context *ui, UI_Box *box) {
 
     if (
         r2f32_contains(bounds, ui->mouse) &&
+        !r2f32_contains(exclude_bounds, ui->mouse) &&
         box->flags & UI_BoxFlags_Clickable &&
         (ui_keys_match(ui->hot_key, global_ui_null_key) || ui_keys_match(ui->hot_key, box->key)) &&
         (ui_keys_match(ui->active_key, global_ui_null_key) || ui_keys_match(ui->active_key, box->key))
     ) {
         ui->hot_key = box->key;
         result.input_flags |= UI_InputFlag_Hovering;
+    }
+
+    // NOTE(simon): Pressing on something that isn't the context menu closes it.
+    if (!is_context_menu && result.input_flags & UI_InputFlag_Pressed) {
+        ui_context_menu_close(ui);
     }
 
     return result;
@@ -605,5 +694,31 @@ internal Void ui_tooltip_begin(UI_Context *ui) {
 }
 
 internal Void ui_tooltip_end(UI_Context *ui) {
+    ui_parent_pop(ui);
+}
+
+internal Void ui_context_menu_open(UI_Context *ui, UI_Key context_key, UI_Key anchor_key, V2F32 anchor_offset) {
+    ui->context_menu_key_next           = context_key;
+    ui->context_menu_anchor_key_next    = anchor_key;
+    ui->context_menu_anchor_offset_next = anchor_offset;
+    ui->context_menu_used_this_frame    = true;
+}
+
+internal Void ui_context_menu_close(UI_Context *ui) {
+    ui->context_menu_key_next = global_ui_null_key;
+}
+
+internal B32 ui_context_menu_begin(UI_Context *ui, UI_Key context_key) {
+    ui_parent_push(ui, ui->context_menu_root);
+    B32 result = ui_keys_match(context_key, ui->context_menu_key);
+    if (result) {
+        ui->context_menu_root->color        = ui_color_top(ui);
+        ui->context_menu_root->border_color = ui_border_color_top(ui);
+        ui->context_menu_used_this_frame    = true;
+    }
+    return result;
+}
+
+internal Void ui_context_menu_end(UI_Context *ui) {
     ui_parent_pop(ui);
 }
