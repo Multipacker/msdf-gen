@@ -517,6 +517,12 @@ internal UI_Box *ui_box_from_key(UI_Context *ui, UI_Key key) {
 internal UI_Box *ui_create_box_from_key(UI_Context *ui, UI_BoxFlags flags, UI_Key key) {
     UI_Box *box = ui_box_from_key(ui, key);
 
+    // NOTE(simon): Zero the box if it was already used this frame.
+    if (box != &global_ui_null_box && box->last_used_index == ui->frame_index) {
+        box = &global_ui_null_box;
+        key = global_ui_null_key;
+    }
+
     B32 is_transient = ui_keys_match(key, global_ui_null_key);
 
     if (box == &global_ui_null_box) {
