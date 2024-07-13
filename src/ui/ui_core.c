@@ -167,6 +167,12 @@ internal Void ui_begin(Gfx_Context *gfx, UI_Context *ui, Gfx_EventList *events, 
     ui->hover_cursor_stack.top      = 0;
     ui->hover_cursor_stack.freelist = 0;
     ui->hover_cursor_stack.auto_pop = false;
+    ui->draw_function_stack.top      = 0;
+    ui->draw_function_stack.freelist = 0;
+    ui->draw_function_stack.auto_pop = false;
+    ui->draw_data_stack.top      = 0;
+    ui->draw_data_stack.freelist = 0;
+    ui->draw_data_stack.auto_pop = false;
 
     ui->mouse = gfx_get_mouse_position(gfx);
     ui->events = events;
@@ -187,6 +193,8 @@ internal Void ui_begin(Gfx_Context *gfx, UI_Context *ui, Gfx_EventList *events, 
     ui_font_push(ui, str8_literal("data/NotoSans-Regular.ttf"));
     ui_font_size_push(ui, 14);
     ui_hover_cursor_push(ui, Gfx_Cursor_Pointer);
+    ui_draw_function_push(ui, 0);
+    ui_draw_data_push(ui, 0);
 
     // NOTE(simon): Build root
     {
@@ -566,6 +574,8 @@ internal UI_Box *ui_create_box_from_key(UI_Context *ui, UI_BoxFlags flags, UI_Ke
     box->font          = font_cache_font_from_path(ui_font_top(ui));
     box->font_size     = ui_font_size_top(ui);
     box->hover_cursor  = ui_hover_cursor_top(ui);
+    box->draw_function = ui_draw_function_top(ui);
+    box->draw_data     = ui_draw_data_top(ui);
 
     if (ui->fixed_x_stack.top) {
         box->flags |= UI_BoxFlags_FloatingX;
@@ -591,6 +601,9 @@ internal UI_Box *ui_create_box_from_key(UI_Context *ui, UI_BoxFlags flags, UI_Ke
     ui_fixed_y_auto_pop(ui);
     ui_font_auto_pop(ui);
     ui_font_size_auto_pop(ui);
+    ui_hover_cursor_auto_pop(ui);
+    ui_draw_function_auto_pop(ui);
+    ui_draw_data_auto_pop(ui);
 
     return box;
 }

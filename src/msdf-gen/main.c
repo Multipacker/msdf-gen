@@ -185,6 +185,10 @@ internal Void draw_ui(UI_Box *box) {
         }
     }
 
+    if (box->draw_function) {
+        box->draw_function(box, box->draw_data);
+    }
+
     if (box->flags & UI_BoxFlags_DrawBorder) {
         render_rectangle(
             box->calculated_rectangle.min, box->calculated_rectangle.max,

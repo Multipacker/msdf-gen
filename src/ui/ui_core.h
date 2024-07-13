@@ -52,6 +52,10 @@ typedef enum {
 } UI_BoxFlags;
 
 typedef struct UI_Box UI_Box;
+
+#define UI_BOX_DRAW_FUNCTION(name) Void name(UI_Box *box, Void *data)
+typedef UI_BOX_DRAW_FUNCTION(UI_BoxDrawFunction);
+
 struct UI_Box {
     UI_Box *parent;
     UI_Box *next;
@@ -66,15 +70,17 @@ struct UI_Box {
 
     UI_Size size[Axis2_COUNT];
 
-    UI_BoxFlags     flags;
-    V4F32           color;
-    V4F32           border_color;
-    V4F32           text_color;
-    Axis2           layout_axis;
-    Str8            string;
-    FontCache_Font *font;
-    U32             font_size;
-    Gfx_Cursor      hover_cursor;
+    UI_BoxFlags         flags;
+    V4F32               color;
+    V4F32               border_color;
+    V4F32               text_color;
+    Axis2               layout_axis;
+    Str8                string;
+    FontCache_Font     *font;
+    U32                 font_size;
+    Gfx_Cursor          hover_cursor;
+    UI_BoxDrawFunction *draw_function;
+    Void               *draw_data;
 
     FontCache_Text text;
     V2F32 calculated_size;
@@ -135,15 +141,17 @@ struct UI_Box {
         }                                                                                                                 \
     }
 
-ui_define_stack(Box,      box,       UI_Box *)
-ui_define_stack(V4F32,    v4f32,     V4F32)
-ui_define_stack(Size,     size,      UI_Size)
-ui_define_stack(Axis,     axis,      Axis2)
-ui_define_stack(BoxFlags, box_flags, UI_BoxFlags)
-ui_define_stack(F32,      f32,       F32)
-ui_define_stack(U32,      u32,       U32)
-ui_define_stack(Str8,     str8,      Str8)
-ui_define_stack(Cursor,   cursor,    Gfx_Cursor)
+ui_define_stack(Box,             box,               UI_Box *)
+ui_define_stack(V4F32,           v4f32,             V4F32)
+ui_define_stack(Size,            size,              UI_Size)
+ui_define_stack(Axis,            axis,              Axis2)
+ui_define_stack(BoxFlags,        box_flags,         UI_BoxFlags)
+ui_define_stack(F32,             f32,               F32)
+ui_define_stack(U32,             u32,               U32)
+ui_define_stack(Str8,            str8,              Str8)
+ui_define_stack(Cursor,          cursor,            Gfx_Cursor)
+ui_define_stack(BoxDrawFunction, box_draw_function, UI_BoxDrawFunction *)
+ui_define_stack(Pointer,         pointer,           Void *)
 
 typedef struct UI_BoxList UI_BoxList;
 struct UI_BoxList {
@@ -219,18 +227,20 @@ struct UI_Context {
     B32    context_menu_used_this_frame;
 
     // NOTE(simon): Style stacks.
-    UI_BoxStack      parent_stack;
-    UI_V4F32Stack    color_stack;
-    UI_V4F32Stack    border_color_stack;
-    UI_V4F32Stack    text_color_stack;
-    UI_SizeStack     size_stacks[Axis2_COUNT];
-    UI_AxisStack     layout_axis_stack;
-    UI_BoxFlagsStack extra_box_flags_stack;
-    UI_F32Stack      fixed_x_stack;
-    UI_F32Stack      fixed_y_stack;
-    UI_Str8Stack     font_stack;
-    UI_U32Stack      font_size_stack;
-    UI_CursorStack   hover_cursor_stack;
+    UI_BoxStack             parent_stack;
+    UI_V4F32Stack           color_stack;
+    UI_V4F32Stack           border_color_stack;
+    UI_V4F32Stack           text_color_stack;
+    UI_SizeStack            size_stacks[Axis2_COUNT];
+    UI_AxisStack            layout_axis_stack;
+    UI_BoxFlagsStack        extra_box_flags_stack;
+    UI_F32Stack             fixed_x_stack;
+    UI_F32Stack             fixed_y_stack;
+    UI_Str8Stack            font_stack;
+    UI_U32Stack             font_size_stack;
+    UI_CursorStack          hover_cursor_stack;
+    UI_BoxDrawFunctionStack draw_function_stack;
+    UI_PointerStack         draw_data_stack;
 };
 
 internal Arena *ui_frame_arena(UI_Context *ui);
@@ -381,5 +391,19 @@ internal Void ui_context_menu_end(UI_Context *ui);
 #define ui_hover_cursor_next(ui, cursor) ui_cursor_stack_push(ui_frame_arena(ui), &ui->hover_cursor_stack, cursor, true)
 #define ui_hover_cursor_auto_pop(ui)     ui_cursor_stack_auto_pop(&ui->hover_cursor_stack)
 #define ui_hover_cursor_top(ui)          (ui->hover_cursor_stack.top->item)
+
+#define ui_draw_function_push(ui, function) ui_box_draw_function_stack_push(ui_frame_arena(ui), &ui->draw_function_stack, function, false)
+#define ui_draw_function_pop(ui)            ui_box_draw_function_stack_pop(&ui->draw_function_stack)
+#define ui_draw_function(ui, function)      defer_loop(ui_draw_function_push(ui, function), ui_draw_function_pop(ui))
+#define ui_draw_function_next(ui, function) ui_box_draw_function_stack_push(ui_frame_arena(ui), &ui->draw_function_stack, function, true)
+#define ui_draw_function_auto_pop(ui)       ui_box_draw_function_stack_auto_pop(&ui->draw_function_stack)
+#define ui_draw_function_top(ui)            (ui->draw_function_stack.top->item)
+
+#define ui_draw_data_push(ui, data) ui_pointer_stack_push(ui_frame_arena(ui), &ui->draw_data_stack, data, false)
+#define ui_draw_data_pop(ui)        ui_pointer_stack_pop(&ui->draw_data_stack)
+#define ui_draw_data(ui, data)      defer_loop(ui_draw_data_push(ui, data), ui_draw_data_pop(ui))
+#define ui_draw_data_next(ui, data) ui_pointer_stack_push(ui_frame_arena(ui), &ui->draw_data_stack, data, true)
+#define ui_draw_data_auto_pop(ui)   ui_pointer_stack_auto_pop(&ui->draw_data_stack)
+#define ui_draw_data_top(ui)        (ui->draw_data_stack.top->item)
 
 #endif // UI_CORE_H
