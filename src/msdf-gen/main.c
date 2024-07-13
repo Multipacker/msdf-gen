@@ -130,12 +130,24 @@ internal Void draw_text(FontCache_Font *font, V2F32 origin, Str8 string, U32 siz
     arena_end_temporary(scratch);
 }
 
+internal UI_BOX_DRAW_FUNCTION(draw_ui_msdf) {
+    Font *font = (Font *) data;
+    Glyph *glyph = &font->glyphs[box->string.data[0]];
+
+    render_rectangle(
+        box->calculated_rectangle.min,
+        box->calculated_rectangle.max,
+        .uv_min = glyph->uv_min, .uv_max = glyph->uv_max,
+        .texture = font->atlas,
+        .flags = Render_RectangleFlags_MSDF
+    );
+}
+
 internal Void draw_ui(UI_Box *box) {
     if (box->flags & UI_BoxFlags_DrawBackground) {
         render_rectangle(
             box->calculated_rectangle.min, box->calculated_rectangle.max,
             .color = box->color,
-            .softness = 1.0f
         );
 
         if (box->flags & UI_BoxFlags_DrawHot && box->hot_t > 0.0f) {
@@ -160,10 +172,7 @@ internal Void draw_ui(UI_Box *box) {
     }
 
     if (box->flags & UI_BoxFlags_DrawText) {
-        V2F32 origin = v2f32(
-            box->calculated_rectangle.min.x + box->size[Axis2_X].value,
-            box->calculated_rectangle.min.y + box->size[Axis2_Y].value
-        );
+        V2F32 origin = box->calculated_rectangle.min;
         F32 advance = 0.0f;
         for (U64 i = 0; i < box->text.letter_count; ++i) {
             FontCache_Letter *letter = &box->text.letters[i];
@@ -248,12 +257,7 @@ internal S32 os_run(Str8List arguments) {
 
     font_cache_create();
 
-    V2F32 offset      = { 0 };
-    F32   zoom        = 2.0f;
-    B32   running     = true;
-    B32   render_msdf = true;
-    V2F32 grab        = { 0 };
-    B32   dragging    = false;
+    B32 running = true;
 
     Arena *current_arena  = arena_create();
     Arena *previous_arena = arena_create();
@@ -263,33 +267,77 @@ internal S32 os_run(Str8List arguments) {
         ui_begin(gfx, ui, &events, 1.0f / 60.0f);
 
         Theme *theme = &global_themes[1];
-        ui_width_push(ui, ui_size_parent_percent(0.25f, 1.0f));
-        ui_height_push(ui, ui_size_children_sum(1.0f));
-        ui_color_push(ui, theme->background_color);
-        ui_border_color_push(ui, theme->border_color);
-        ui_text_color_push(ui, theme->text_color);
-        ui_extra_box_flags_next(ui, UI_BoxFlags_DrawBackground | UI_BoxFlags_AnimatePosition | UI_BoxFlags_Clickable | UI_BoxFlags_Scrollable);
-        UI_Box *column = ui_column_string_begin(ui, str8_literal("test"));
-        {
+        local U32 selected_codepoint = 0;
+
+        U32 codepoint_count = 128;
+        ui_extra_box_flags_next(ui, UI_BoxFlags_OverflowY);
+        ui_width_next(ui, ui_size_parent_percent(1.0f, 0.0f));
+        ui_height_next(ui, ui_size_children_sum(1.0f));
+        ui_column_string(ui, str8_literal("glyphs")) {
+            UI_Box *container = ui_parent_top(ui);
+            U32 column_count = (U32) (container->calculated_size.width / 200.0f);
+            if (!column_count) {
+                column_count = 10;
+            }
+
             ui_color_push(ui, theme->element_color);
-            ui_width_push(ui, ui_size_parent_percent(1.0f, 1.0f));
-            ui_height_push(ui, ui_size_text_content(5.0f, 1.0f));
-            ui_label(ui, str8_literal("testing"));
-            for (U32 i = 0; i < 10; ++i) {
-                UI_Input input = ui_button_format(ui, "Hello %u", i);
-                if (input.input_flags & UI_InputFlag_Clicked) {
-                    Arena_Temporary scratch = arena_get_scratch(0, 0);
-                    os_console_print(str8_format(scratch.arena, "Hello, world %u!\n", i));
-                    arena_end_temporary(scratch);
+            ui_border_color_push(ui, theme->border_color);
+            for (U32 codepoint = 0; codepoint < codepoint_count;) {
+                ui_width_next(ui, ui_size_parent_percent(1.0f, 1.0f));
+                ui_height_next(ui, ui_size_children_sum(1.0f));
+                ui_row(ui) {
+                    ui_width(ui, ui_size_fill())
+                    ui_height(ui, ui_size_pixels(50.0f, 1.0f))
+                    for (U32 column = 0; column < column_count && codepoint < codepoint_count; ++column, ++codepoint) {
+                        U8 buffer[4] = { 0 };
+                        U64 size = string_encode_utf8(buffer, codepoint);
+                        Str8 string = str8(buffer, size);
+
+                        ui_draw_function_next(ui, draw_ui_msdf);
+                        ui_draw_data_next(ui, &font);
+                        UI_Box *box = ui_create_box_from_string(
+                            ui,
+                            UI_BoxFlags_DrawBackground | UI_BoxFlags_DrawBorder |
+                            UI_BoxFlags_DrawHot | UI_BoxFlags_DrawActive |
+                            UI_BoxFlags_Clickable,
+                            string
+                        );
+                        UI_Input input = ui_input_from_box(ui, box);
+
+                        if (input.input_flags & UI_InputFlag_LeftClicked) {
+                            selected_codepoint = codepoint;
+                        }
+                    }
                 }
             }
+            ui_border_color_pop(ui);
+            ui_color_pop(ui);
         }
-        ui_input_from_box(ui, column);
-        ui_column_end(ui);
+
+        ui_width_next(ui, ui_size_parent_percent(0.25f, 1.0f));
+        ui_height_next(ui, ui_size_parent_percent(1.0f, 1.0f));
+        ui_color_next(ui, theme->background_color);
+        ui_extra_box_flags_next(ui, UI_BoxFlags_DrawBackground);
+        ui_column(ui) {
+            ui_width(ui, ui_size_text_content(5.0f, 1.0f))
+            ui_height(ui, ui_size_text_content(5.0f, 1.0f))
+            ui_color(ui, theme->element_color)
+            ui_border_color(ui, theme->border_color) {
+                ui_label_format(ui, "Selected glyph: U+%.6X", selected_codepoint);
+
+                ui_width_next(ui, ui_size_parent_percent(1.0f, 0.0f));
+                ui_height_next(ui, ui_size_parent_percent(1.0f, 0.0f));
+                ui_draw_function_next(ui, draw_ui_msdf);
+                ui_draw_data_next(ui, &font);
+                U8 buffer[4] = { 0 };
+                U64 size = string_encode_utf8(buffer, selected_codepoint);
+                Str8 string = str8(buffer, size);
+                ui_create_box_from_string(ui, 0, string);
+            }
+        }
 
         ui_end(gfx, ui);
 
-        V2F32 mouse = gfx_get_mouse_position(gfx);
         for (Gfx_Event *event = events.first, *next; event; event = next) {
             next = event->next;
             B32 consumed = false;
@@ -297,53 +345,15 @@ internal S32 os_run(Str8List arguments) {
             if (event->kind == Gfx_EventKind_Quit) {
                 running = false;
                 consumed = true;
-            } else if (event->kind == Gfx_EventKind_Scroll) {
-                F32 old_zoom = zoom;
-
-                zoom *= f32_pow(0.97f, event->scroll.y);
-
-                offset = v2f32_subtract(mouse, v2f32_scale(v2f32_subtract(mouse, offset), old_zoom / zoom));
-                consumed = true;
-            } else if (event->kind == Gfx_EventKind_KeyRelease && event->key == Gfx_Key_Tab) {
-                render_msdf = !render_msdf;
-                consumed = true;
-            } else if (event->kind == Gfx_EventKind_KeyPress && event->key == Gfx_Key_MouseLeft) {
-                dragging = true;
-                grab = v2f32_subtract(offset, mouse);
-                consumed = true;
-            } else if (event->kind == Gfx_EventKind_KeyRelease && event->key == Gfx_Key_MouseLeft) {
-                dragging = false;
-                consumed = true;
             }
 
             if (consumed) {
                 dll_remove(events.first, events.last, event);
             }
         }
-        if (dragging) {
-            offset = v2f32_add(grab, mouse);
-        }
 
         V2U32 client_area = gfx_get_window_client_area(gfx);
         render_begin(client_area);
-
-        V2U32 texture_size = render_size_from_texture(font.atlas);
-        for (U32 y = 0; y < 16; ++y) {
-            for (U32 x = 0; x < 16; ++x) {
-                U32 codepoint = x + y * 16;
-                Glyph *glyph = &font.glyphs[codepoint];
-                render_rectangle(
-                    v2f32_add(offset, v2f32(40 * x / zoom, 40 * y / zoom)),
-                    v2f32_add(offset, v2f32(40 * (x + 1.0f) / zoom, 40 * (y + 1.0f) / zoom)),
-                    .uv_min = glyph->uv_min, .uv_max = glyph->uv_max,
-                    .texture = font.atlas,
-                    .flags = (render_msdf ? Render_RectangleFlags_MSDF : Render_RectangleFlags_Texture)
-                );
-            }
-        }
-
-        draw_text_msdf(&font, offset, 50.0f / zoom, str8_literal("MSDF-based text rendering"));
-
         draw_ui(ui->root);
         render_end();
 
