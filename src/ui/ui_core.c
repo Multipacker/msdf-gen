@@ -25,10 +25,12 @@ internal Arena *ui_frame_arena(UI_Context *ui) {
 internal Str8 ui_hash_part_from_string(Str8 string) {
     Str8 result = string;
 
-    for (U64 i = 0; i < string.size - 2; ++i) {
-        if (string.data[i] == '#' && string.data[i + 1] == '#' && string.data[i + 2] == '#') {
-            result = str8_skip(string, i + 3);
-            break;
+    if (string.size > 2) {
+        for (U64 i = 0; i < string.size - 2; ++i) {
+            if (string.data[i] == '#' && string.data[i + 1] == '#' && string.data[i + 2] == '#') {
+                result = str8_skip(string, i + 3);
+                break;
+            }
         }
     }
 
@@ -39,10 +41,12 @@ internal Str8 ui_hash_part_from_string(Str8 string) {
 internal Str8 ui_display_part_from_string(Str8 string) {
     Str8 result = string;
 
-    for (U64 i = 0; i < string.size - 1; ++i) {
-        if (string.data[i] == '#' && string.data[i + 1] == '#') {
-            result = str8_prefix(string, i);
-            break;
+    if (string.size > 1) {
+        for (U64 i = 0; i < string.size - 1; ++i) {
+            if (string.data[i] == '#' && string.data[i + 1] == '#') {
+                result = str8_prefix(string, i);
+                break;
+            }
         }
     }
 
