@@ -4,6 +4,7 @@
 #include "src/font/font_include.h"
 #include "src/font_cache/font_cache_include.h"
 #include "src/ui/ui_include.h"
+#include "src/c_lexer/c_lexer_include.h"
 
 #include "src/base/base_include.c"
 #include "src/graphics/graphics_include.c"
@@ -11,6 +12,7 @@
 #include "src/font/font_include.c"
 #include "src/font_cache/font_cache_include.c"
 #include "src/ui/ui_include.c"
+#include "src/c_lexer/c_lexer_include.c"
 
 typedef struct {
     Str8 name;
@@ -220,6 +222,9 @@ internal Void draw_ui(UI_Box *box) {
 }
 
 internal S32 os_run(Str8List arguments) {
+    c_lexer_test();
+    return 0;
+
     if (!arguments.first->next) {
         os_console_print(str8_literal("You have to pass a file\n"));
         os_exit(1);
