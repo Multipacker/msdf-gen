@@ -79,6 +79,191 @@ struct PP_State {
     Str8List segments;
 };
 
+typedef struct PP_Stream PP_Stream;
+struct PP_Stream {
+    U8 *start;
+    U8 *end;
+    U8 *cursor;
+
+    U64 index;
+    B32 is_end;
+
+    U8 *source_start;
+    U8 *source_cursor;
+    U8 *source_end;
+};
+
+internal U64 pp_stream_index(PP_Stream *stream) {
+    U64 result  = stream->index + (stream->cursor - stream->start);
+    return result;
+}
+
+internal Void pp_stream_refill(PP_Stream *stream) {
+    local U8 zeroes[256] = { 0 };
+    local U8 one_backslash[] = { '\\', };
+
+    typedef enum {
+        State_Start,
+        State_SeenBackslash,
+        State_SeenCarridgeReturn,
+        State_Done,
+    } State;
+
+    // NOTE(simon): This is one of the pre-conditions for the function, but it
+    // is easy to guard against.
+    if (stream->cursor != stream->end) {
+        return;
+    }
+
+    stream->index += stream->end - stream->start;
+
+    State state = State_Start;
+    while (stream->source_cursor < stream->source_end && state != State_Done) {
+        if (state == State_Start) {
+            if (*stream->source_cursor == '\\') {
+                ++stream->source_cursor;
+                state = State_SeenBackslash;
+            } else {
+                // NOTE(simon): Find next '\'.
+                U8 *next_backslash = stream->source_cursor;
+                while (next_backslash < stream->source_end && *next_backslash != '\\') {
+                    ++next_backslash;
+                }
+
+                // NOTE(simon): Return up until '\' or the rest of the buffer
+                // if we don't have one.
+                stream->start         = stream->source_cursor;
+                stream->cursor        = stream->source_cursor;
+                stream->end           = next_backslash;
+                stream->source_cursor = next_backslash;
+                state = State_Done;
+            }
+        } else if (state == State_SeenBackslash) {
+            if (*stream->source_cursor == '\n') {
+                // NOTE(simon): Escape of '\n'.
+                ++stream->source_cursor;
+                state = State_Start;
+                stream->index += 2;
+            } else if (*stream->source_cursor == '\r') {
+                // NOTE(simon): Escape, might include more characters.
+                ++stream->source_cursor;
+                state = State_SeenCarridgeReturn;
+            } else {
+                // NOTE(simon): Not a line escape, send '\'.
+                stream->start  = one_backslash;
+                stream->cursor = one_backslash;
+                stream->end    = one_backslash + array_count(one_backslash);
+                state = State_Done;
+            }
+        } else if (state == State_SeenCarridgeReturn) {
+            if (*stream->source_cursor == '\n') {
+                // NOTE(simon): Escape of '\r\n'.
+                ++stream->source_cursor;
+                state = State_Start;
+                stream->index += 3;
+            } else {
+                // NOTE(simon): Escape of '\r'.
+                state = State_Start;
+                stream->index += 2;
+            }
+        }
+    }
+
+    if (state == State_Start || state == State_SeenCarridgeReturn) {
+        // NOTE(simon): Reached the end of the stream, potentially having read
+        // a '\r' escape.
+        stream->start  = zeroes;
+        stream->cursor = zeroes;
+        stream->end    = zeroes + array_count(zeroes);
+        stream->is_end = true;
+    } else if (state == State_SeenBackslash) {
+        // NOTE(simon): Not a line escape, send '\'.
+        stream->start  = one_backslash;
+        stream->cursor = one_backslash;
+        stream->end    = one_backslash + array_count(one_backslash);
+    }
+}
+
+typedef struct PP_BufferedStream PP_BufferedStream;
+struct PP_BufferedStream {
+    U8 *start;
+    U8 *cursor;
+    U8 *end;
+    U8 *mark;
+
+    U8  buffer[5];
+    U64 index[5];
+
+    PP_Stream source;
+};
+
+internal U64 pp_buffered_stream_index(PP_BufferedStream *stream) {
+    U64 result = 0;
+
+    if (stream->start == stream->buffer) {
+        // NOTE(simon): Discontinues stream, there could be any amount of line
+        // escapes between bytes.
+        result = stream->index[stream->cursor - stream->start];
+    } else {
+        // NOTE(simon): Continues stream, all bytes are right after one
+        // another.
+        result = stream->index[0] + (stream->cursor - stream->start);
+    }
+
+    return result;
+}
+
+// NOTE(simon): Always allows you to read 4 characters after the call.
+// Pre-condition:  start <= cursor <= end
+// Post-condition: start <= cursor && cursor + 4 <= end
+internal Void pp_buffered_stream_refill(PP_BufferedStream *stream) {
+    if (stream->cursor >= stream->mark) {
+        U64 source_read = stream->source.cursor - stream->source.start;
+        U64 source_left = stream->source.end    - stream->source.cursor;
+        U64 buffer_size = array_count(stream->buffer);
+        U64 bytes_left  = stream->end - stream->cursor;
+
+        if (source_read >= bytes_left && source_left >= buffer_size) {
+            // NOTE(simon): Switch to new buffer
+            stream->start    = stream->source.start + source_read - bytes_left;
+            stream->cursor   = stream->source.start + source_read - bytes_left;
+            stream->end      = stream->source.end;
+            stream->mark     = stream->source.end - buffer_size;
+            stream->index[0] = pp_stream_index(&stream->source) - bytes_left;
+            stream->source.cursor = stream->source.end;
+        } else {
+            // NOTE(simon): Switch to temporary transition buffer.
+            for (U64 i = 0; i < bytes_left; ++i) {
+                stream->buffer[i] = *stream->cursor;
+                stream->index[i]  = pp_buffered_stream_index(stream);
+                ++stream->cursor;
+            }
+
+            stream->start  = stream->buffer;
+            stream->cursor = stream->buffer;
+            stream->end    = stream->buffer + buffer_size;
+            stream->mark   = stream->end - buffer_size;
+
+            U64 new_cursor_index = bytes_left;
+            while (new_cursor_index < buffer_size) {
+                if (stream->source.cursor == stream->source.end) {
+                    pp_stream_refill(&stream->source);
+                }
+
+                U64 bytes_availible = stream->source.end - stream->source.cursor;
+                U64 bytes_needed = buffer_size - new_cursor_index;
+                U64 bytes_to_read = u64_min(bytes_availible, bytes_needed);
+                for (U64 i = 0; i < bytes_to_read; ++i) {
+                    stream->buffer[new_cursor_index] = *stream->source.cursor;
+                    stream->index[new_cursor_index]  = pp_stream_index(&stream->source);
+                    ++stream->source.cursor;
+                    ++new_cursor_index;
+                }
+            }
+        }
+    }
+}
+
 internal B32 pp_has_at_least(PP_State *state, U64 amount) {
     // NOTE(simon): Decrement one as we need to count the character the cursor
     // is on.
