@@ -93,8 +93,24 @@ struct PP_Stream {
     U8 *source_end;
 };
 
-internal U64 pp_stream_index(PP_Stream *stream) {
-    U64 result  = stream->index + (stream->cursor - stream->start);
+// TODO(simon): Add a way to detect when we have reached the end of the file.
+typedef struct PP_BufferedStream PP_BufferedStream;
+struct PP_BufferedStream {
+    U8 *start;
+    U8 *cursor;
+    U8 *end;
+    U8 *mark;
+
+    U8  buffer[4];
+    U8 *index[5];
+    B32 is_end[5];
+
+    PP_Stream source;
+};
+
+internal U8 *pp_stream_index(PP_Stream *stream) {
+    U64 index = stream->index + (stream->cursor - stream->start);
+    U8 *result = &stream->source_start[index];
     return result;
 }
 
@@ -184,21 +200,8 @@ internal Void pp_stream_refill(PP_Stream *stream) {
     }
 }
 
-typedef struct PP_BufferedStream PP_BufferedStream;
-struct PP_BufferedStream {
-    U8 *start;
-    U8 *cursor;
-    U8 *end;
-    U8 *mark;
-
-    U8  buffer[5];
-    U64 index[5];
-
-    PP_Stream source;
-};
-
-internal U64 pp_buffered_stream_index(PP_BufferedStream *stream) {
-    U64 result = 0;
+internal U8 *pp_buffered_stream_index(PP_BufferedStream *stream) {
+    U8 *result = 0;
 
     if (stream->start == stream->buffer) {
         // NOTE(simon): Discontinues stream, there could be any amount of line
@@ -207,7 +210,22 @@ internal U64 pp_buffered_stream_index(PP_BufferedStream *stream) {
     } else {
         // NOTE(simon): Continues stream, all bytes are right after one
         // another.
-        result = stream->index[0] + (stream->cursor - stream->start);
+        result = stream->index[array_count(stream->buffer)] + (stream->cursor - stream->start);
+    }
+
+    return result;
+}
+
+internal B32 pp_buffered_stream_is_end(PP_BufferedStream *stream) {
+    B32 result = false;
+
+    if (stream->start == stream->buffer) {
+        // NOTE(simon): Discontinues stream, lookup per character.
+        result = stream->is_end[stream->cursor - stream->start];
+    } else {
+        // NOTE(simon): Continues stream, all bytes are right after one
+        // another. Lookup per continues stream.
+        result = stream->is_end[array_count(stream->buffer)];
     }
 
     return result;
@@ -229,13 +247,15 @@ internal Void pp_buffered_stream_refill(PP_BufferedStream *stream) {
             stream->cursor   = stream->source.start + source_read - bytes_left;
             stream->end      = stream->source.end;
             stream->mark     = stream->source.end - buffer_size;
-            stream->index[0] = pp_stream_index(&stream->source) - bytes_left;
+            stream->index[buffer_size]  = pp_stream_index(&stream->source) - bytes_left;
+            stream->is_end[buffer_size] = stream->source.is_end;
             stream->source.cursor = stream->source.end;
         } else {
             // NOTE(simon): Switch to temporary transition buffer.
             for (U64 i = 0; i < bytes_left; ++i) {
                 stream->buffer[i] = *stream->cursor;
                 stream->index[i]  = pp_buffered_stream_index(stream);
+                stream->is_end[i] = pp_buffered_stream_is_end(stream);
                 ++stream->cursor;
             }
 
@@ -256,74 +276,28 @@ internal Void pp_buffered_stream_refill(PP_BufferedStream *stream) {
                 for (U64 i = 0; i < bytes_to_read; ++i) {
                     stream->buffer[new_cursor_index] = *stream->source.cursor;
                     stream->index[new_cursor_index]  = pp_stream_index(&stream->source);
+                    stream->is_end[new_cursor_index] = stream->source.is_end;
                     ++stream->source.cursor;
                     ++new_cursor_index;
                 }
+                stream->index[new_cursor_index] = pp_stream_index(&stream->source);
             }
         }
     }
 }
 
-internal B32 pp_has_at_least(PP_State *state, U64 amount) {
-    // NOTE(simon): Decrement one as we need to count the character the cursor
-    // is on.
-    --amount;
-
-    Str8Node *segment = state->segment;
-    U8 *cursor = state->cursor;
-    while (segment && cursor + amount >= segment->string.data + segment->string.size) {
-        amount -= segment->string.size - (cursor - segment->string.data);
-        segment = segment->next;
-        cursor = segment ? segment->string.data : 0;
-    }
-
-    B32 result = segment != 0;
-
-    return result;
-}
-
-internal U8 pp_peek(PP_State *state, U64 amount) {
-    Str8Node *segment = state->segment;
-    U8 *cursor = state->cursor;
-    while (segment && cursor + amount >= segment->string.data + segment->string.size) {
-        amount -= segment->string.size - (cursor - segment->string.data);
-        segment = segment->next;
-        cursor = segment ? segment->string.data : 0;
-    }
-
-    U8 result = 0;
-    if (segment) {
-        result = cursor[amount];
-    }
-
-    return result;
-}
-
-internal Void pp_eat(PP_State *state, U64 amount) {
-    Str8Node *segment = state->segment;
-    U8 *cursor = state->cursor;
-    while (segment && cursor + amount >= segment->string.data + segment->string.size) {
-        amount -= segment->string.size - (cursor - segment->string.data);
-        segment = segment->next;
-        cursor = segment ? segment->string.data : 0;
-    }
-
-    if (segment) {
-        state->cursor = cursor + amount;
-    }
-    state->segment = segment;
-}
-
 // NOTE(simon): Assumes that the input begin with either '\u' or \U'.
-internal PP_Character pp_read_universal_character_name(PP_State *state) {
+internal PP_Character pp_read_universal_character_name(PP_BufferedStream *stream) {
     PP_Character result = { 0 };
 
-    U32 expected_character_count = 2 + (pp_peek(state, 1) == 'u' ? 4 : 8);
-    pp_eat(state, 2);
+    U32 expected_character_count = 2 + (stream->cursor[1] == 'u' ? 4 : 8);
+    stream->cursor += 2;
 
     U32 digits_read = 0;
     for (; digits_read < expected_character_count; ++digits_read) {
-        U8 character = pp_peek(state, 0);
+        pp_buffered_stream_refill(stream);
+
+        U8 character = *stream->cursor;
         U32 digit = 0;
 
         if ('0' <= character && character <= '9') {
@@ -337,7 +311,7 @@ internal PP_Character pp_read_universal_character_name(PP_State *state) {
         }
 
         result.codepoint = result.codepoint * 16 + digit;
-        pp_eat(state, 1);
+        ++stream->cursor;
     }
 
     // TODO(simon): Accept any attempt at a universal character name, but error if it is outside of the ranges.
@@ -351,57 +325,60 @@ internal PP_Character pp_read_universal_character_name(PP_State *state) {
 }
 
 // NOTE(simon): Assumes that the input starts with a '\'.
-internal PP_Character pp_read_escape_sequence(PP_State *state) {
+internal PP_Character pp_read_escape_sequence(PP_BufferedStream *stream) {
     PP_Character result = { 0 };
 
     // NOTE(simon): Consume '\'
-    pp_eat(state, 1);
+    ++stream->cursor;
 
-    U8 character1 = pp_peek(state, 0);
+    pp_buffered_stream_refill(stream);
+    U8 character1 = stream->cursor[1];
     switch (character1) {
         // NOTE(simon): Simple escape sequences.
         case '\'': case '"': case '?': case '\\': {
-            pp_eat(state, 1);
+            stream->cursor += 2;
             result.codepoint = character1;
         } break;
         case 'a': {
-            pp_eat(state, 1);
+            stream->cursor += 2;
             result.codepoint = '\a';
         } break;
         case 'b': {
-            pp_eat(state, 1);
+            stream->cursor += 2;
             result.codepoint = '\b';
         } break;
         case 'f': {
-            pp_eat(state, 1);
+            stream->cursor += 2;
             result.codepoint = '\f';
         } break;
         case 'n': {
-            pp_eat(state, 1);
+            stream->cursor += 2;
             result.codepoint = '\n';
         } break;
         case 'r': {
-            pp_eat(state, 1);
+            stream->cursor += 2;
             result.codepoint = '\r';
         } break;
         case 't': {
-            pp_eat(state, 1);
+            stream->cursor += 2;
             result.codepoint = '\t';
         } break;
         case 'v': {
-            pp_eat(state, 1);
+            stream->cursor += 2;
             result.codepoint = '\v';
         } break;
         // NOTE(simon): Universal character names.
         case 'u': case 'U': {
-            result = pp_read_universal_character_name(state);
+            result = pp_read_universal_character_name(stream);
         } break;
         // NOTE(simon): Hexadecimal escape sequence.
         case 'x': {
-            pp_eat(state, 1);
+            stream->cursor += 2;
 
-            for (; pp_has_at_least(state, 1); pp_eat(state, 1)) {
-                U8 character = pp_peek(state, 1);
+            for (;;) {
+                pp_buffered_stream_refill(stream);
+
+                U8 character = *stream->cursor;
                 U32 digit = 0;
 
                 if ('0' <= character && character <= '9') {
@@ -415,14 +392,17 @@ internal PP_Character pp_read_escape_sequence(PP_State *state) {
                 }
 
                 result.codepoint = result.codepoint * 16 + digit;
+                ++stream->cursor;
             }
 
             // TODO(simon): Error if less than one digit is specified.
         } break;
         // NOTE(simon): Octal escape sequence.
         case '0': case '1': case '2': case '3': case '4': case '5': case '6': case '7': {
-            for (; pp_has_at_least(state, 1); pp_eat(state, 1)) {
-                U8 character = pp_peek(state, 0);
+            ++stream->cursor;
+
+            for (;;) {
+                U8 character = *stream->cursor;
                 U32 digit = 0;
 
                 if ('0' <= character && character <= '7') {
@@ -432,6 +412,7 @@ internal PP_Character pp_read_escape_sequence(PP_State *state) {
                 }
 
                 result.codepoint = result.codepoint * 16 + digit;
+                ++stream->cursor;
             }
         } break;
         default: {
@@ -442,66 +423,27 @@ internal PP_Character pp_read_escape_sequence(PP_State *state) {
     return result;
 }
 
-internal Str8List pp_segments_from_string(Arena *arena, Str8 string) {
-    Str8List segments = { 0 };
-
-    U8 *segment_start = string.data;
-    U8 *segment_end   = segment_start;
-    U8 *end = string.data + string.size;
-
-    while (segment_end + 2 < end) {
-        if (segment_end[0] == '\\' && segment_end[1] == '\n') {
-            if (segment_start < segment_end) {
-                str8_list_push(arena, &segments, str8_range(segment_start, segment_end));
-            }
-            segment_start = segment_end + 2;
-            segment_end   = segment_start;
-        } else if (segment_end[0] == '\\' && segment_end[1] == '\r' && segment_end[2] == '\n') {
-            if (segment_start < segment_end) {
-                str8_list_push(arena, &segments, str8_range(segment_start, segment_end));
-            }
-            segment_start = segment_end + 3;
-            segment_end   = segment_start;
-        } else {
-            ++segment_end;
-        }
-    }
-
-    // NOTE(simon): We migth still have a line escape left.
-    if (segment_end + 1 < end && segment_end[0] == '\\' && segment_end[1] == '\n') {
-        if (segment_start < segment_end) {
-            str8_list_push(arena, &segments, str8_range(segment_start, segment_end));
-        }
-        segment_start = segment_end + 2;
-        segment_end   = segment_start;
-    }
-
-    // NOTE(simon): There might be a segment that hasn't been outputed.
-    if (segment_end < end) {
-        str8_list_push(arena, &segments, str8_range(segment_start, end));
-    }
-
-    return segments;
-}
-
-internal PPToken pp_next_token(PP_State *state, B32 read_header_names) {
+internal PPToken pp_next_token(PP_BufferedStream *stream, B32 read_header_names) {
     PPToken token = { 0 };
-    token.raw.data = state->cursor;
 
-    if (!pp_has_at_least(state, 1)) {
+    pp_buffered_stream_refill(stream);
+
+    token.raw.data = pp_buffered_stream_index(stream);
+
+    if (pp_buffered_stream_is_end(stream)) {
         token.kind = PPToken_EndOfFile;
     } else {
-        U8 character0 = pp_peek(state, 0);
-        U8 character1 = pp_peek(state, 1);
-        U8 character2 = pp_peek(state, 2);
-        U8 character3 = pp_peek(state, 3);
-        U32 two   = *state->cursor <<  8 | character1;
-        U32 three = *state->cursor << 16 | character1 <<  8 | character2;
-        U32 four  = *state->cursor << 24 | character1 << 16 | character2 << 8 | character3;
+        U8 character0 = stream->cursor[0];
+        U8 character1 = stream->cursor[1];
+        U8 character2 = stream->cursor[2];
+        U8 character3 = stream->cursor[3];
+        U32 two   = character0 <<  8 | character1;
+        U32 three = character0 << 16 | character1 <<  8 | character2;
+        U32 four  = character0 << 24 | character1 << 16 | character2 << 8 | character3;
 
 #define CASE2(a, b)       case a << 8 | b
 #define CASE3(a, b, c)    case a << 16 | b << 8 | c
-        switch (*state->cursor) {
+        switch (character0) {
             // NOTE(simon): pp-number.
             case '0': case '1': case '2': case '3': case '4': case '5': case '6': case '7': case '8': case '9': {
                 goto pp_number;
@@ -516,13 +458,13 @@ internal PPToken pp_next_token(PP_State *state, B32 read_header_names) {
             // NOTE(simon): Might be starting a character literal or an identifier.
             case 'L': case 'u': case 'U': {
                 if (character1 == '\'') {
-                    pp_eat(state, 2);
+                    stream->cursor += 2;
                     goto character;
                 } else if (character1 == '"') {
-                    pp_eat(state, 2);
+                    stream->cursor += 2;
                     goto string;
                 } else if (character1 == '8' && character2 == '"') {
-                    pp_eat(state, 3);
+                    stream->cursor += 3;
                     goto string;
                 } else {
                     goto identifier;
@@ -531,7 +473,7 @@ internal PPToken pp_next_token(PP_State *state, B32 read_header_names) {
             // NOTE(simon): Single character punctuators.
             case '[': case ']': case '(': case ')': case '{': case '}': case '~': case '?': case ';': case ',': {
                 token.kind = PPToken_Punctuator;
-                pp_eat(state, 1);
+                ++stream->cursor;
             } break;
             // NOTE(simon): Potentially double character punctuators or comments.
             case '-': case '+': case '&': case '|': case '^': case '!': case '*': case '#': case '=': case '/': case ':': {
@@ -548,36 +490,40 @@ internal PPToken pp_next_token(PP_State *state, B32 read_header_names) {
                     CASE2('/', '='):
                     CASE2(':', '>'): {
                         token.kind = PPToken_Punctuator;
-                        pp_eat(state, 2);
+                        stream->cursor += 2;
                     } break;
                     // NOTE(simon): Single line comment. Consume up to but not
                     // including the next new line character.
                     CASE2('/', '/'): {
                         token.kind = PPToken_Comment;
-                        while (pp_has_at_least(state, 1) && pp_peek(state, 0) != '\n' && pp_peek(state, 0) != '\r') {
-                            pp_eat(state, 1);
+                        stream->cursor += 2;
+
+                        while (!pp_buffered_stream_is_end(stream) && !(*stream->cursor == '\n' || *stream->cursor == '\r')) {
+                            ++stream->cursor;
+                            pp_buffered_stream_refill(stream);
                         }
                     } break;
                     // NOTE(simon): Multiline comment. Consume up to and
                     // including the next '*/'.
                     CASE2('/', '*'): {
                         token.kind = PPToken_Comment;
-                        state->cursor += 2;
+                        stream->cursor += 2;
 
-                        while (pp_has_at_least(state, 2) && !(pp_peek(state, 0) == '*' && pp_peek(state, 1) == '/')) {
-                            pp_eat(state, 1);
+                        while (!pp_buffered_stream_is_end(stream) && !(stream->cursor[0] == '*' && stream->cursor[1] == '/')) {
+                            ++stream->cursor;
+                            pp_buffered_stream_refill(stream);
                         }
 
                         // NOTE(simon): Check for unclosed comment.
-                        if (pp_has_at_least(state, 2) && pp_peek(state, 0) == '*' && pp_peek(state, 1) == '/') {
-                            pp_eat(state, 2);
+                        if (stream->cursor[0] == '*' && stream->cursor[1] == '/') {
+                            stream->cursor += 2;
                         } else {
                             // TODO:(simon): Unclosed comment, report error.
                         }
                     } break;
                     default: {
                         token.kind = PPToken_Punctuator;
-                        pp_eat(state, 1);
+                        ++stream->cursor;
                     } break;
                 }
             } break;
@@ -586,115 +532,116 @@ internal PPToken pp_next_token(PP_State *state, B32 read_header_names) {
             // whitespace instead of newlines?
             case ' ': case '\t': case '\v': case '\f': {
                 token.kind = PPToken_Whitespace;
-                while (pp_has_at_least(state, 0) && (pp_peek(state, 0) == ' ' || pp_peek(state, 0) == '\t' || pp_peek(state, 0) == '\v' || pp_peek(state, 0) == '\f')) {
-                    pp_eat(state, 1);
+                while (*stream->cursor == ' ' || *stream->cursor == '\t' || *stream->cursor == '\v' || *stream->cursor == '\f') {
+                    ++stream->cursor;
+                    pp_buffered_stream_refill(stream);
                 }
             } break;
             case '\n': {
                 token.kind = PPToken_Newline;
-                pp_eat(state, 1);
+                ++stream->cursor;
             } break;
             case '\r': {
                 if (character1 == '\n') {
                     token.kind = PPToken_Newline;
-                    pp_eat(state, 2);
+                    stream->cursor += 2;
                 } else {
-                    token.kind = PPToken_Unknown;
-                    pp_eat(state, 1);
+                    token.kind = PPToken_Newline;
+                    ++stream->cursor;
                 }
             } break;
             // NOTE(simon): '.', pp-number or '...'.
             case '.': {
                 if (three == ('.' << 16 | '.' << 8 | '.')) {
                     token.kind = PPToken_Punctuator;
-                    pp_eat(state, 3);
+                    stream->cursor += 3;
                 } else if ('0' <= character1 && character1 <= '9') {
                     goto pp_number;
                 } else {
                     token.kind = PPToken_Punctuator;
-                    pp_eat(state, 1);
+                    ++stream->cursor;
                 }
             } break;
             // NOTE(simon): Potentially header name or tripple character punctuator.
             case '<': {
                 if (read_header_names) {
                     token.kind = PPToken_HeaderName;
-                    pp_eat(state, 1);
-                    while (pp_has_at_least(state, 1) && !(pp_peek(state, 0) == '\n' || pp_peek(state, 0) == '\r' || pp_peek(state, 0) == '>')) {
-                        U8 buffer[4] = { pp_peek(state, 0), pp_peek(state, 1), pp_peek(state, 2), pp_peek(state, 3), };
-                        StringDecode decode = string_decode_utf8(buffer, array_count(buffer));
-                        pp_eat(state, decode.size);
+                    while (!pp_buffered_stream_is_end(stream) && !(*stream->cursor == '\n' || *stream->cursor == '\r' || *stream->cursor == '>')) {
+                        StringDecode decode = string_decode_utf8(stream->cursor, stream->end - stream->cursor);
+                        stream->cursor += decode.size;
+                        pp_buffered_stream_refill(stream);
                     }
 
-                    if (pp_has_at_least(state, 1) && pp_peek(state, 0) == '>') {
-                        pp_eat(state, 1);
+                    if (*stream->cursor == '>') {
+                        ++stream->cursor;
                     } else {
                         // TODO(simon): Error on unclosed header name.
                     }
                 } else if (three == ('<' << 16 | '<' << 8 | '=')) {
                     token.kind = PPToken_Punctuator;
-                    pp_eat(state, 3);
+                    stream->cursor += 3;
                 } else if (two == ('<' << 8 | '<') || two == ('<' << 8 | '=') || two == ('<' << 8 | ':') || two == ('<' << 8 | '%')) {
                     token.kind = PPToken_Punctuator;
-                    pp_eat(state, 2);
+                    stream->cursor += 2;
                 } else {
                     token.kind = PPToken_Punctuator;
-                    pp_eat(state, 1);
+                    ++stream->cursor;
                 }
             } break;
             // NOTE(simon): Potentially triple character punctuator.
             case '>': {
                 if (three == ('>' << 16 | '>' << 8 | '=')) {
                     token.kind = PPToken_Punctuator;
-                    pp_eat(state, 3);
+                    stream->cursor += 3;
                 } else if (two == ('>' << 8 | '>') || two == ('>' << 8 | '=')) {
                     token.kind = PPToken_Punctuator;
-                    pp_eat(state, 2);
+                    stream->cursor += 2;
                 } else {
                     token.kind = PPToken_Punctuator;
-                    pp_eat(state, 1);
+                    ++stream->cursor;
                 }
             } break;
             // NOTE(simon): Potentially quadruple character punctuators.
             case '%': {
                 if (four == ('%' << 24 | ':' << 16 | '%' << 8 | ':')) {
                     token.kind = PPToken_Punctuator;
-                    pp_eat(state, 4);
+                    stream->cursor += 4;
                 } else {
                     switch (two) {
                         CASE2('%', '='): CASE2('%', '>'): CASE2('%', ':'): {
                             token.kind = PPToken_Punctuator;
-                            pp_eat(state, 2);
+                            stream->cursor += 2;
                         } break;
                         default: {
                             token.kind = PPToken_Punctuator;
-                            pp_eat(state, 1);
+                            ++stream->cursor;
                         } break;
                     }
                 }
             } break;
             case '\'': {
-                pp_eat(state, 1);
+                ++stream->cursor;
                 goto character;
             } break;
             // NOTE(simon): Header names or strings.
             case '"': {
                 if (read_header_names) {
                     token.kind = PPToken_HeaderName;
-                    pp_eat(state, 1);
-                    while (pp_has_at_least(state, 1) && !(pp_peek(state, 0) == '\n' || pp_peek(state, 0) == '\r' || pp_peek(state, 0) == '"')) {
-                        U8 buffer[4] = { pp_peek(state, 0), pp_peek(state, 1), pp_peek(state, 2), pp_peek(state, 3), };
-                        StringDecode decode = string_decode_utf8(buffer, array_count(buffer));
-                        pp_eat(state, decode.size);
+                    ++stream->cursor;
+                    pp_buffered_stream_refill(stream);
+                    while (!pp_buffered_stream_is_end(stream) && !(*stream->cursor == '\n' || *stream->cursor == '\r' || *stream->cursor == '"')) {
+                        StringDecode decode = string_decode_utf8(stream->cursor, stream->end - stream->cursor);
+                        stream->cursor += decode.size;
+                        pp_buffered_stream_refill(stream);
                     }
 
-                    if (pp_has_at_least(state, 1) && pp_peek(state, 0) == '"') {
-                        pp_eat(state, 1);
+                    if (*stream->cursor == '"') {
+                        ++stream->cursor;
                     } else {
                         // TODO(simon): Error on unclosed header name.
                     }
                 } else {
-                    pp_eat(state, 1);
+                    ++stream->cursor;
                     goto string;
                 }
             } break;
@@ -704,20 +651,19 @@ internal PPToken pp_next_token(PP_State *state, B32 read_header_names) {
                     goto identifier;
                 } else {
                     token.kind = PPToken_Unknown;
-                    pp_eat(state, 1);
+                    ++stream->cursor;
                 }
             } break;
             default: {
                 // NOTE(simon): If it is inside the universal character name
                 // ranges, then it is an identifier, otherwise it is unknown.
-                U8 buffer[4] = { pp_peek(state, 0), pp_peek(state, 1), pp_peek(state, 2), pp_peek(state, 3), };
-                StringDecode decode = string_decode_utf8(buffer, array_count(buffer));
+                StringDecode decode = string_decode_utf8(stream->cursor, stream->end - stream->cursor);
 #define X(low, high) (low <= decode.codepoint && decode.codepoint <= high) ||
                 if (PP_UNIVERSAL_CHARACTER_RANGES 0) {
                     goto identifier;
                 } else {
                     token.kind = PPToken_Unknown;
-                    pp_eat(state, 1);
+                    ++stream->cursor;
                 }
 #undef X
             } break;
@@ -728,22 +674,23 @@ internal PPToken pp_next_token(PP_State *state, B32 read_header_names) {
         while (0) {
             identifier: {
                 token.kind = PPToken_Identifier;
-                while (pp_has_at_least(state, 1)) {
-                    character0 = pp_peek(state, 0);
-                    character1 = pp_peek(state, 1);
+                for (;;) {
+                    pp_buffered_stream_refill(stream);
+                    character0 = stream->cursor[0];
+                    character1 = stream->cursor[1];
                     B32 is_digit       = '0' <= character0 && character0 <= '9';
                     B32 is_lower_alpha = 'a' <= character0 && character0 <= 'z';
                     B32 is_upper_alpha = 'A' <= character0 && character0 <= 'Z';
+
                     if (character0 == '_' || is_digit || is_lower_alpha || is_upper_alpha) {
-                        pp_eat(state, 1);
+                        ++stream->cursor;
                     } else if (character0 == '\\' && (character1 == 'u' || character1 == 'U')) {
-                        PP_Character character = pp_read_universal_character_name(state);
+                        PP_Character character = pp_read_universal_character_name(stream);
                     } else {
-                        U8 buffer[4] = { pp_peek(state, 0), pp_peek(state, 1), pp_peek(state, 2), pp_peek(state, 3), };
-                        StringDecode decode = string_decode_utf8(buffer, array_count(buffer));
+                        StringDecode decode = string_decode_utf8(stream->cursor, stream->end - stream->cursor);
 #define X(low, high) (low <= decode.codepoint && decode.codepoint <= high) ||
                         if (PP_UNIVERSAL_CHARACTER_RANGES 0) {
-                            pp_eat(state, decode.size);
+                            stream->cursor += decode.size;
                         } else {
                             break;
                         }
@@ -753,10 +700,10 @@ internal PPToken pp_next_token(PP_State *state, B32 read_header_names) {
             } break;
             pp_number: {
                 token.kind = PPToken_Number;
-                while (pp_has_at_least(state, 1)) {
-                    character0 = pp_peek(state, 0);
-                    character1 = pp_peek(state, 1);
-
+                for (;;) {
+                    pp_buffered_stream_refill(stream);
+                    character0 = stream->cursor[0];
+                    character1 = stream->cursor[1];
                     B32 is_digit       = '0' <= character0 && character0 <= '9';
                     B32 is_lower_alpha = 'a' <= character0 && character0 <= 'z';
                     B32 is_upper_alpha = 'A' <= character0 && character0 <= 'Z';
@@ -765,18 +712,17 @@ internal PPToken pp_next_token(PP_State *state, B32 read_header_names) {
                     B32 has_sign       = character1 == '+' || character1 == '-';
 
                     if (character0 == '.' || is_digit || character0 == '_' || is_lower_alpha || is_upper_alpha) {
-                        pp_eat(state, 1);
+                        ++stream->cursor;
                     } else if ((is_exponent || is_power) && has_sign) {
-                        pp_eat(state, 2);
+                        stream->cursor += 2;
                     } else if (character0 == '\\' && (character1 == 'u' || character1 == 'U')) {
-                        PP_Character character = pp_read_universal_character_name(state);
+                        PP_Character character = pp_read_universal_character_name(stream);
                     } else {
-                        U8 buffer[4] = { pp_peek(state, 0), pp_peek(state, 1), pp_peek(state, 2), pp_peek(state, 3), };
-                        StringDecode decode = string_decode_utf8(buffer, array_count(buffer));
+                        StringDecode decode = string_decode_utf8(stream->cursor, stream->end - stream->cursor);
 
 #define X(low, high) (low <= decode.codepoint && decode.codepoint <= high) ||
                         if (PP_UNIVERSAL_CHARACTER_RANGES 0) {
-                            pp_eat(state, decode.size);
+                            stream->cursor += decode.size;
                         } else {
                             break;
                         }
@@ -787,58 +733,58 @@ internal PPToken pp_next_token(PP_State *state, B32 read_header_names) {
             character: {
                 token.kind = PPToken_CharacterConstant;
 
-                while (pp_has_at_least(state, 1) && pp_peek(state, 0) != '\'') {
-                    switch (*state->cursor) {
+                while (!pp_buffered_stream_is_end(stream) && *stream->cursor != '\'') {
+                    switch (*stream->cursor) {
                         // NOTE(simon): Not allowed.
                         case '\n': case '\r': {
-                            pp_eat(state, 1);
+                            ++stream->cursor;
                             // TODO(simon): Error
                         } break;
                         // NOTE(simon): Escape sequences.
                         case '\\': {
-                            PP_Character character = pp_read_escape_sequence(state);
+                            PP_Character character = pp_read_escape_sequence(stream);
                         } break;
                         // NOTE(simon): Anything in the source character set, which is all of UTF-8.
                         default: {
-                            U8 buffer[4] = { pp_peek(state, 0), pp_peek(state, 1), pp_peek(state, 2), pp_peek(state, 3), };
-                            StringDecode decode = string_decode_utf8(buffer, array_count(buffer));
-                            pp_eat(state, decode.size);
+                            StringDecode decode = string_decode_utf8(stream->cursor, stream->end - stream->cursor);
+                            stream->cursor += decode.size;
                         } break;
                     }
+                    pp_buffered_stream_refill(stream);
                 }
 
                 // TODO(simon): Error if no characters are read.
 
-                if (pp_has_at_least(state, 1) && pp_peek(state, 0) == '\'') {
-                    pp_eat(state, 1);
+                if (*stream->cursor == '\'') {
+                    ++stream->cursor;
                 } else {
                     // TODO(simon): Error on unclosed character constant.
                 }
             } break;
             string: {
                 token.kind = PPToken_StringLiteral;
-                while (pp_has_at_least(state, 1) && pp_peek(state, 0) != '"') {
-                    switch (*state->cursor) {
+                while (!pp_buffered_stream_is_end(stream) && *stream->cursor != '"') {
+                    switch (*stream->cursor) {
                         // NOTE(simon): Not allowed.
                         case '\n': case '\r': {
-                            pp_eat(state, 1);
+                            ++stream->cursor;
                             // TODO(simon): Error
                         } break;
                         // NOTE(simon): Escape sequences.
                         case '\\': {
-                            PP_Character character = pp_read_escape_sequence(state);
+                            PP_Character character = pp_read_escape_sequence(stream);
                         } break;
                         // NOTE(simon): Anything in the source character set, which is all of UTF-8.
                         default: {
-                            U8 buffer[4] = { pp_peek(state, 0), pp_peek(state, 1), pp_peek(state, 2), pp_peek(state, 3), };
-                            StringDecode decode = string_decode_utf8(buffer, array_count(buffer));
-                            pp_eat(state, decode.size);
+                            StringDecode decode = string_decode_utf8(stream->cursor, stream->end - stream->cursor);
+                            stream->cursor += decode.size;
                         } break;
                     }
+                    pp_buffered_stream_refill(stream);
                 }
 
-                if (pp_has_at_least(state, 1) && pp_peek(state, 0) == '"') {
-                    pp_eat(state, 1);
+                if (*stream->cursor == '"') {
+                    ++stream->cursor;
                 } else {
                     // TODO(simon): Error on unclosed string.
                 }
@@ -846,7 +792,7 @@ internal PPToken pp_next_token(PP_State *state, B32 read_header_names) {
         }
     }
 
-    token.raw = str8_range(token.raw.data, state->cursor);
+    token.raw = str8_range(token.raw.data, pp_buffered_stream_index(stream));
     return token;
 }
 
@@ -854,16 +800,16 @@ internal Void c_lexer_test(Void) {
     Arena *arena = arena_create();
 
     Str8 source = { 0 };
-    if (os_file_read(arena, str8_literal("test"), &source)) {
-        PP_State state = { 0 };
-        state.segments = pp_segments_from_string(arena, source);
-        state.segment = state.segments.first;
-        state.cursor = state.segment->string.data;
+    if (os_file_read(arena, str8_literal("src/font/stb_truetype.h"), &source)) {
+        PP_BufferedStream stream = { 0 };
+        stream.source.source_start  = source.data;
+        stream.source.source_cursor = source.data;
+        stream.source.source_end    = source.data + source.size;
 
         Str8List output_list = { 0 };
 
         for (;;) {
-            PPToken token = pp_next_token(&state, true);
+            PPToken token = pp_next_token(&stream, true);
             CStr token_kind = 0;
             switch (token.kind) {
                 case PPToken_HeaderName:        token_kind = "HeaderName";        break;
