@@ -56,13 +56,18 @@ typedef enum {
     PPToken_Newline,
     PPToken_Comment,
     PPToken_Unknown,
-    PPToken_EndOfFile,
 } PPToken_Kind;
 
 typedef struct PPToken PPToken;
 struct PPToken {
     PPToken_Kind kind;
-    Str8 raw;
+    Str8 source;
+};
+
+typedef struct PP_TokenArray PP_TokenArray;
+struct PP_TokenArray {
+    PPToken *tokens;
+    U64      count;
 };
 
 typedef struct PP_Character PP_Character;
@@ -423,20 +428,79 @@ internal PP_Character pp_read_escape_sequence(PP_BufferedStream *stream) {
     return result;
 }
 
-internal PPToken pp_next_token(PP_BufferedStream *stream, B32 read_header_names) {
-    PPToken token = { 0 };
+internal B32 pp_token_is_identifier(PPToken token, Str8 identifier) {
+    B32 result = false;
 
-    pp_buffered_stream_refill(stream);
+    if (token.kind == PPToken_Identifier) {
+        Arena_Temporary scratch = arena_get_scratch(0, 0);
+        U8 *buffer = arena_push_array(scratch.arena, U8, token.source.size);
+        U8 *cursor = buffer;
+        U64 i = 0;
+        while (i < token.source.size) {
+            if (token.source.size - i >= 2 && token.source.data[i] == '\\' && token.source.data[i + 1] == '\n') {
+                i += 2;
+            } else if (token.source.size - i >= 3 && token.source.data[i] == '\\' && token.source.data[i + 1] == '\r' && token.source.data[i + 2] == '\n') {
+                i += 3;
+            } else if (token.source.size - i >= 2 && token.source.data[i] == '\\' && token.source.data[i + 1] == '\r') {
+                i += 2;
+            } else {
+                *cursor++ = token.source.data[i++];
+            }
+        }
 
-    token.raw.data = pp_buffered_stream_index(stream);
+        if ((U64) (cursor - buffer) == identifier.size) {
+            result = memory_equal(buffer, identifier.data, identifier.size);
+        }
 
-    if (pp_buffered_stream_is_end(stream)) {
-        token.kind = PPToken_EndOfFile;
-    } else {
-        U8 character0 = stream->cursor[0];
-        U8 character1 = stream->cursor[1];
-        U8 character2 = stream->cursor[2];
-        U8 character3 = stream->cursor[3];
+        arena_end_temporary(scratch);
+    }
+
+    return result;
+}
+
+internal PP_TokenArray pp_tokens_from_string(Arena *arena, Str8 source) {
+    typedef enum {
+        State_Normal,
+        State_MaybeDirective,
+        State_DirectiveStart,
+        State_Include,
+    } State;
+    typedef struct PP_TokenChunk PP_TokenChunk;
+    struct PP_TokenChunk {
+        PP_TokenChunk *next;
+        PP_TokenChunk *previous;
+
+        U64     count;
+        PPToken tokens[1000];
+    };
+    typedef struct PP_TokenList PP_TokenList;
+    struct PP_TokenList {
+        PP_TokenChunk *first;
+        PP_TokenChunk *last;
+        U64 token_count;
+    };
+
+    Arena_Temporary scratch = arena_get_scratch(&arena, 1);
+
+    PP_BufferedStream stream = { 0 };
+    stream.source.source_start  = source.data;
+    stream.source.source_cursor = source.data;
+    stream.source.source_end    = source.data + source.size;
+
+    State state = State_Normal;
+    PP_TokenList list = { 0 };
+
+    while (!pp_buffered_stream_is_end(&stream)) {
+        PPToken token = { 0 };
+
+        pp_buffered_stream_refill(&stream);
+
+        token.source.data = pp_buffered_stream_index(&stream);
+
+        U8 character0 = stream.cursor[0];
+        U8 character1 = stream.cursor[1];
+        U8 character2 = stream.cursor[2];
+        U8 character3 = stream.cursor[3];
         U32 two   = character0 <<  8 | character1;
         U32 three = character0 << 16 | character1 <<  8 | character2;
         U32 four  = character0 << 24 | character1 << 16 | character2 << 8 | character3;
@@ -458,13 +522,13 @@ internal PPToken pp_next_token(PP_BufferedStream *stream, B32 read_header_names)
             // NOTE(simon): Might be starting a character literal or an identifier.
             case 'L': case 'u': case 'U': {
                 if (character1 == '\'') {
-                    stream->cursor += 2;
+                    stream.cursor += 2;
                     goto character;
                 } else if (character1 == '"') {
-                    stream->cursor += 2;
+                    stream.cursor += 2;
                     goto string;
                 } else if (character1 == '8' && character2 == '"') {
-                    stream->cursor += 3;
+                    stream.cursor += 3;
                     goto string;
                 } else {
                     goto identifier;
@@ -473,7 +537,7 @@ internal PPToken pp_next_token(PP_BufferedStream *stream, B32 read_header_names)
             // NOTE(simon): Single character punctuators.
             case '[': case ']': case '(': case ')': case '{': case '}': case '~': case '?': case ';': case ',': {
                 token.kind = PPToken_Punctuator;
-                ++stream->cursor;
+                ++stream.cursor;
             } break;
             // NOTE(simon): Potentially double character punctuators or comments.
             case '-': case '+': case '&': case '|': case '^': case '!': case '*': case '#': case '=': case '/': case ':': {
@@ -490,40 +554,40 @@ internal PPToken pp_next_token(PP_BufferedStream *stream, B32 read_header_names)
                     CASE2('/', '='):
                     CASE2(':', '>'): {
                         token.kind = PPToken_Punctuator;
-                        stream->cursor += 2;
+                        stream.cursor += 2;
                     } break;
                     // NOTE(simon): Single line comment. Consume up to but not
                     // including the next new line character.
                     CASE2('/', '/'): {
                         token.kind = PPToken_Comment;
-                        stream->cursor += 2;
+                        stream.cursor += 2;
 
-                        while (!pp_buffered_stream_is_end(stream) && !(*stream->cursor == '\n' || *stream->cursor == '\r')) {
-                            ++stream->cursor;
-                            pp_buffered_stream_refill(stream);
+                        while (!pp_buffered_stream_is_end(&stream) && !(*stream.cursor == '\n' || *stream.cursor == '\r')) {
+                            ++stream.cursor;
+                            pp_buffered_stream_refill(&stream);
                         }
                     } break;
                     // NOTE(simon): Multiline comment. Consume up to and
                     // including the next '*/'.
                     CASE2('/', '*'): {
                         token.kind = PPToken_Comment;
-                        stream->cursor += 2;
+                        stream.cursor += 2;
 
-                        while (!pp_buffered_stream_is_end(stream) && !(stream->cursor[0] == '*' && stream->cursor[1] == '/')) {
-                            ++stream->cursor;
-                            pp_buffered_stream_refill(stream);
+                        while (!pp_buffered_stream_is_end(&stream) && !(stream.cursor[0] == '*' && stream.cursor[1] == '/')) {
+                            ++stream.cursor;
+                            pp_buffered_stream_refill(&stream);
                         }
 
                         // NOTE(simon): Check for unclosed comment.
-                        if (stream->cursor[0] == '*' && stream->cursor[1] == '/') {
-                            stream->cursor += 2;
+                        if (stream.cursor[0] == '*' && stream.cursor[1] == '/') {
+                            stream.cursor += 2;
                         } else {
                             // TODO:(simon): Unclosed comment, report error.
                         }
                     } break;
                     default: {
                         token.kind = PPToken_Punctuator;
-                        ++stream->cursor;
+                        ++stream.cursor;
                     } break;
                 }
             } break;
@@ -532,116 +596,116 @@ internal PPToken pp_next_token(PP_BufferedStream *stream, B32 read_header_names)
             // whitespace instead of newlines?
             case ' ': case '\t': case '\v': case '\f': {
                 token.kind = PPToken_Whitespace;
-                while (*stream->cursor == ' ' || *stream->cursor == '\t' || *stream->cursor == '\v' || *stream->cursor == '\f') {
-                    ++stream->cursor;
-                    pp_buffered_stream_refill(stream);
+                while (*stream.cursor == ' ' || *stream.cursor == '\t' || *stream.cursor == '\v' || *stream.cursor == '\f') {
+                    ++stream.cursor;
+                    pp_buffered_stream_refill(&stream);
                 }
             } break;
             case '\n': {
                 token.kind = PPToken_Newline;
-                ++stream->cursor;
+                ++stream.cursor;
             } break;
             case '\r': {
                 if (character1 == '\n') {
                     token.kind = PPToken_Newline;
-                    stream->cursor += 2;
+                    stream.cursor += 2;
                 } else {
                     token.kind = PPToken_Newline;
-                    ++stream->cursor;
+                    ++stream.cursor;
                 }
             } break;
             // NOTE(simon): '.', pp-number or '...'.
             case '.': {
                 if (three == ('.' << 16 | '.' << 8 | '.')) {
                     token.kind = PPToken_Punctuator;
-                    stream->cursor += 3;
+                    stream.cursor += 3;
                 } else if ('0' <= character1 && character1 <= '9') {
                     goto pp_number;
                 } else {
                     token.kind = PPToken_Punctuator;
-                    ++stream->cursor;
+                    ++stream.cursor;
                 }
             } break;
             // NOTE(simon): Potentially header name or tripple character punctuator.
             case '<': {
-                if (read_header_names) {
+                if (state == State_Include) {
                     token.kind = PPToken_HeaderName;
-                    while (!pp_buffered_stream_is_end(stream) && !(*stream->cursor == '\n' || *stream->cursor == '\r' || *stream->cursor == '>')) {
-                        StringDecode decode = string_decode_utf8(stream->cursor, stream->end - stream->cursor);
-                        stream->cursor += decode.size;
-                        pp_buffered_stream_refill(stream);
+                    while (!pp_buffered_stream_is_end(&stream) && !(*stream.cursor == '\n' || *stream.cursor == '\r' || *stream.cursor == '>')) {
+                        StringDecode decode = string_decode_utf8(stream.cursor, stream.end - stream.cursor);
+                        stream.cursor += decode.size;
+                        pp_buffered_stream_refill(&stream);
                     }
 
-                    if (*stream->cursor == '>') {
-                        ++stream->cursor;
+                    if (*stream.cursor == '>') {
+                        ++stream.cursor;
                     } else {
                         // TODO(simon): Error on unclosed header name.
                     }
                 } else if (three == ('<' << 16 | '<' << 8 | '=')) {
                     token.kind = PPToken_Punctuator;
-                    stream->cursor += 3;
+                    stream.cursor += 3;
                 } else if (two == ('<' << 8 | '<') || two == ('<' << 8 | '=') || two == ('<' << 8 | ':') || two == ('<' << 8 | '%')) {
                     token.kind = PPToken_Punctuator;
-                    stream->cursor += 2;
+                    stream.cursor += 2;
                 } else {
                     token.kind = PPToken_Punctuator;
-                    ++stream->cursor;
+                    ++stream.cursor;
                 }
             } break;
             // NOTE(simon): Potentially triple character punctuator.
             case '>': {
                 if (three == ('>' << 16 | '>' << 8 | '=')) {
                     token.kind = PPToken_Punctuator;
-                    stream->cursor += 3;
+                    stream.cursor += 3;
                 } else if (two == ('>' << 8 | '>') || two == ('>' << 8 | '=')) {
                     token.kind = PPToken_Punctuator;
-                    stream->cursor += 2;
+                    stream.cursor += 2;
                 } else {
                     token.kind = PPToken_Punctuator;
-                    ++stream->cursor;
+                    ++stream.cursor;
                 }
             } break;
             // NOTE(simon): Potentially quadruple character punctuators.
             case '%': {
                 if (four == ('%' << 24 | ':' << 16 | '%' << 8 | ':')) {
                     token.kind = PPToken_Punctuator;
-                    stream->cursor += 4;
+                    stream.cursor += 4;
                 } else {
                     switch (two) {
                         CASE2('%', '='): CASE2('%', '>'): CASE2('%', ':'): {
                             token.kind = PPToken_Punctuator;
-                            stream->cursor += 2;
+                            stream.cursor += 2;
                         } break;
                         default: {
                             token.kind = PPToken_Punctuator;
-                            ++stream->cursor;
+                            ++stream.cursor;
                         } break;
                     }
                 }
             } break;
             case '\'': {
-                ++stream->cursor;
+                ++stream.cursor;
                 goto character;
             } break;
             // NOTE(simon): Header names or strings.
             case '"': {
-                if (read_header_names) {
+                if (state == State_Include) {
                     token.kind = PPToken_HeaderName;
-                    ++stream->cursor;
-                    pp_buffered_stream_refill(stream);
-                    while (!pp_buffered_stream_is_end(stream) && !(*stream->cursor == '\n' || *stream->cursor == '\r' || *stream->cursor == '"')) {
-                        StringDecode decode = string_decode_utf8(stream->cursor, stream->end - stream->cursor);
-                        stream->cursor += decode.size;
-                        pp_buffered_stream_refill(stream);
+                    ++stream.cursor;
+                    pp_buffered_stream_refill(&stream);
+                    while (!pp_buffered_stream_is_end(&stream) && !(*stream.cursor == '\n' || *stream.cursor == '\r' || *stream.cursor == '"')) {
+                        StringDecode decode = string_decode_utf8(stream.cursor, stream.end - stream.cursor);
+                        stream.cursor += decode.size;
+                        pp_buffered_stream_refill(&stream);
                     }
 
-                    if (*stream->cursor == '"') {
-                        ++stream->cursor;
+                    if (*stream.cursor == '"') {
+                        ++stream.cursor;
                     } else {
                         // TODO(simon): Error on unclosed header name.
                     }
                 } else {
-                    ++stream->cursor;
+                    ++stream.cursor;
                     goto string;
                 }
             } break;
@@ -651,19 +715,19 @@ internal PPToken pp_next_token(PP_BufferedStream *stream, B32 read_header_names)
                     goto identifier;
                 } else {
                     token.kind = PPToken_Unknown;
-                    ++stream->cursor;
+                    ++stream.cursor;
                 }
             } break;
             default: {
                 // NOTE(simon): If it is inside the universal character name
                 // ranges, then it is an identifier, otherwise it is unknown.
-                StringDecode decode = string_decode_utf8(stream->cursor, stream->end - stream->cursor);
+                StringDecode decode = string_decode_utf8(stream.cursor, stream.end - stream.cursor);
 #define X(low, high) (low <= decode.codepoint && decode.codepoint <= high) ||
                 if (PP_UNIVERSAL_CHARACTER_RANGES 0) {
                     goto identifier;
                 } else {
                     token.kind = PPToken_Unknown;
-                    ++stream->cursor;
+                    ++stream.cursor;
                 }
 #undef X
             } break;
@@ -675,22 +739,22 @@ internal PPToken pp_next_token(PP_BufferedStream *stream, B32 read_header_names)
             identifier: {
                 token.kind = PPToken_Identifier;
                 for (;;) {
-                    pp_buffered_stream_refill(stream);
-                    character0 = stream->cursor[0];
-                    character1 = stream->cursor[1];
+                    pp_buffered_stream_refill(&stream);
+                    character0 = stream.cursor[0];
+                    character1 = stream.cursor[1];
                     B32 is_digit       = '0' <= character0 && character0 <= '9';
                     B32 is_lower_alpha = 'a' <= character0 && character0 <= 'z';
                     B32 is_upper_alpha = 'A' <= character0 && character0 <= 'Z';
 
                     if (character0 == '_' || is_digit || is_lower_alpha || is_upper_alpha) {
-                        ++stream->cursor;
+                        ++stream.cursor;
                     } else if (character0 == '\\' && (character1 == 'u' || character1 == 'U')) {
-                        PP_Character character = pp_read_universal_character_name(stream);
+                        PP_Character character = pp_read_universal_character_name(&stream);
                     } else {
-                        StringDecode decode = string_decode_utf8(stream->cursor, stream->end - stream->cursor);
+                        StringDecode decode = string_decode_utf8(stream.cursor, stream.end - stream.cursor);
 #define X(low, high) (low <= decode.codepoint && decode.codepoint <= high) ||
                         if (PP_UNIVERSAL_CHARACTER_RANGES 0) {
-                            stream->cursor += decode.size;
+                            stream.cursor += decode.size;
                         } else {
                             break;
                         }
@@ -701,9 +765,9 @@ internal PPToken pp_next_token(PP_BufferedStream *stream, B32 read_header_names)
             pp_number: {
                 token.kind = PPToken_Number;
                 for (;;) {
-                    pp_buffered_stream_refill(stream);
-                    character0 = stream->cursor[0];
-                    character1 = stream->cursor[1];
+                    pp_buffered_stream_refill(&stream);
+                    character0 = stream.cursor[0];
+                    character1 = stream.cursor[1];
                     B32 is_digit       = '0' <= character0 && character0 <= '9';
                     B32 is_lower_alpha = 'a' <= character0 && character0 <= 'z';
                     B32 is_upper_alpha = 'A' <= character0 && character0 <= 'Z';
@@ -712,17 +776,17 @@ internal PPToken pp_next_token(PP_BufferedStream *stream, B32 read_header_names)
                     B32 has_sign       = character1 == '+' || character1 == '-';
 
                     if (character0 == '.' || is_digit || character0 == '_' || is_lower_alpha || is_upper_alpha) {
-                        ++stream->cursor;
+                        ++stream.cursor;
                     } else if ((is_exponent || is_power) && has_sign) {
-                        stream->cursor += 2;
+                        stream.cursor += 2;
                     } else if (character0 == '\\' && (character1 == 'u' || character1 == 'U')) {
-                        PP_Character character = pp_read_universal_character_name(stream);
+                        PP_Character character = pp_read_universal_character_name(&stream);
                     } else {
-                        StringDecode decode = string_decode_utf8(stream->cursor, stream->end - stream->cursor);
+                        StringDecode decode = string_decode_utf8(stream.cursor, stream.end - stream.cursor);
 
 #define X(low, high) (low <= decode.codepoint && decode.codepoint <= high) ||
                         if (PP_UNIVERSAL_CHARACTER_RANGES 0) {
-                            stream->cursor += decode.size;
+                            stream.cursor += decode.size;
                         } else {
                             break;
                         }
@@ -733,105 +797,132 @@ internal PPToken pp_next_token(PP_BufferedStream *stream, B32 read_header_names)
             character: {
                 token.kind = PPToken_CharacterConstant;
 
-                while (!pp_buffered_stream_is_end(stream) && *stream->cursor != '\'') {
-                    switch (*stream->cursor) {
+                while (!pp_buffered_stream_is_end(&stream) && *stream.cursor != '\'') {
+                    switch (*stream.cursor) {
                         // NOTE(simon): Not allowed.
                         case '\n': case '\r': {
-                            ++stream->cursor;
+                            ++stream.cursor;
                             // TODO(simon): Error
                         } break;
                         // NOTE(simon): Escape sequences.
                         case '\\': {
-                            PP_Character character = pp_read_escape_sequence(stream);
+                            PP_Character character = pp_read_escape_sequence(&stream);
                         } break;
                         // NOTE(simon): Anything in the source character set, which is all of UTF-8.
                         default: {
-                            StringDecode decode = string_decode_utf8(stream->cursor, stream->end - stream->cursor);
-                            stream->cursor += decode.size;
+                            StringDecode decode = string_decode_utf8(stream.cursor, stream.end - stream.cursor);
+                            stream.cursor += decode.size;
                         } break;
                     }
-                    pp_buffered_stream_refill(stream);
+                    pp_buffered_stream_refill(&stream);
                 }
 
                 // TODO(simon): Error if no characters are read.
 
-                if (*stream->cursor == '\'') {
-                    ++stream->cursor;
+                if (*stream.cursor == '\'') {
+                    ++stream.cursor;
                 } else {
                     // TODO(simon): Error on unclosed character constant.
                 }
             } break;
             string: {
                 token.kind = PPToken_StringLiteral;
-                while (!pp_buffered_stream_is_end(stream) && *stream->cursor != '"') {
-                    switch (*stream->cursor) {
+                while (!pp_buffered_stream_is_end(&stream) && *stream.cursor != '"') {
+                    switch (*stream.cursor) {
                         // NOTE(simon): Not allowed.
                         case '\n': case '\r': {
-                            ++stream->cursor;
+                            ++stream.cursor;
                             // TODO(simon): Error
                         } break;
                         // NOTE(simon): Escape sequences.
                         case '\\': {
-                            PP_Character character = pp_read_escape_sequence(stream);
+                            PP_Character character = pp_read_escape_sequence(&stream);
                         } break;
                         // NOTE(simon): Anything in the source character set, which is all of UTF-8.
                         default: {
-                            StringDecode decode = string_decode_utf8(stream->cursor, stream->end - stream->cursor);
-                            stream->cursor += decode.size;
+                            StringDecode decode = string_decode_utf8(stream.cursor, stream.end - stream.cursor);
+                            stream.cursor += decode.size;
                         } break;
                     }
-                    pp_buffered_stream_refill(stream);
+                    pp_buffered_stream_refill(&stream);
                 }
 
-                if (*stream->cursor == '"') {
-                    ++stream->cursor;
+                if (*stream.cursor == '"') {
+                    ++stream.cursor;
                 } else {
                     // TODO(simon): Error on unclosed string.
                 }
             } break;
         }
+
+        token.source = str8_range(token.source.data, pp_buffered_stream_index(&stream));
+
+        // NOTE(simon): Update the state machine for if we are in an include or not.
+        if (token.kind == PPToken_Newline) {
+            state = State_MaybeDirective;
+        } else {
+            if (state == State_MaybeDirective && (token.kind == PPToken_Whitespace || token.kind == PPToken_Comment)) {
+                state = State_MaybeDirective;
+            } else if (state == State_MaybeDirective && token.source.size == 1 && token.source.data[0] == '#') {
+                state = State_DirectiveStart;
+            } else if (state == State_DirectiveStart && (token.kind == PPToken_Whitespace || token.kind == PPToken_Comment)) {
+                state = State_DirectiveStart;
+            } else if (state == State_DirectiveStart && pp_token_is_identifier(token, str8_literal("include"))) {
+                state = State_Include;
+            } else if (state == State_Include) {
+                state = State_Include;
+            } else {
+                state = State_Normal;
+            }
+        }
+
+        // NOTE(simon): Add to list.
+        PP_TokenChunk *chunk = list.last;
+        if (!chunk || chunk->count >= array_count(chunk->tokens)) {
+            chunk = arena_push_struct_zero(scratch.arena, PP_TokenChunk);
+            dll_push_back(list.first, list.last, chunk);
+        }
+
+        chunk->tokens[chunk->count] = token;
+        ++chunk->count;
+        ++list.token_count;
     }
 
-    token.raw = str8_range(token.raw.data, pp_buffered_stream_index(stream));
-    return token;
+    // NOTE(simon): Compact into an array.
+    PP_TokenArray tokens = { 0 };
+    tokens.tokens = arena_push_array(arena, PPToken, list.token_count);
+    for (PP_TokenChunk *chunk = list.first; chunk; chunk = chunk->next) {
+        memory_copy(&tokens.tokens[tokens.count], chunk->tokens, chunk->count * sizeof(*chunk->tokens));
+        tokens.count += chunk->count;
+    }
+
+    arena_end_temporary(scratch);
+    return tokens;
 }
 
 internal Void c_lexer_test(Void) {
     Arena *arena = arena_create();
 
     Str8 source = { 0 };
-    if (os_file_read(arena, str8_literal("src/font/stb_truetype.h"), &source)) {
-        PP_BufferedStream stream = { 0 };
-        stream.source.source_start  = source.data;
-        stream.source.source_cursor = source.data;
-        stream.source.source_end    = source.data + source.size;
-
-        Str8List output_list = { 0 };
-
-        for (;;) {
-            PPToken token = pp_next_token(&stream, true);
-            CStr token_kind = 0;
-            switch (token.kind) {
-                case PPToken_HeaderName:        token_kind = "HeaderName";        break;
-                case PPToken_Identifier:        token_kind = "Identifier";        break;
-                case PPToken_Number:            token_kind = "Number";            break;
-                case PPToken_CharacterConstant: token_kind = "CharacterConstant"; break;
-                case PPToken_StringLiteral:     token_kind = "StringLiteral";     break;
-                case PPToken_Punctuator:        token_kind = "Punctuator";        break;
-                case PPToken_Whitespace:        token_kind = "Whitespace";        break;
-                case PPToken_Newline:           token_kind = "Newline";           break;
-                case PPToken_Comment:           token_kind = "Comment";           break;
-                case PPToken_Unknown:           token_kind = "Unknown";           break;
-                case PPToken_EndOfFile:         token_kind = "EndOfFile";         break;
+    if (os_file_read(arena, str8_literal("src/base/base_core.h"), &source)) {
+        PP_TokenArray tokens = pp_tokens_from_string(arena, source);
+        for (U64 i = 0; i < tokens.count; ++i) {
+            switch (tokens.tokens[i].kind) {
+                case PPToken_HeaderName:        os_console_print(str8_literal("HeaderName"));        break;
+                case PPToken_Identifier:        os_console_print(str8_literal("Identifier"));        break;
+                case PPToken_Number:            os_console_print(str8_literal("Number"));            break;
+                case PPToken_CharacterConstant: os_console_print(str8_literal("CharacterConstant")); break;
+                case PPToken_StringLiteral:     os_console_print(str8_literal("StringLiteral"));     break;
+                case PPToken_Punctuator:        os_console_print(str8_literal("Punctuator"));        break;
+                case PPToken_Whitespace:        os_console_print(str8_literal("Whitespace"));        break;
+                case PPToken_Newline:           os_console_print(str8_literal("Newline"));           break;
+                case PPToken_Comment:           os_console_print(str8_literal("Comment"));           break;
+                case PPToken_Unknown:           os_console_print(str8_literal("Unknown"));           break;
             }
-            str8_list_push(arena, &output_list, str8_format(arena, "%.*s: %s\n", str8_expand(token.raw), token_kind));
-            if (token.kind == PPToken_EndOfFile) {
-                break;
-            }
+            os_console_print(str8_literal(": "));
+            os_console_print(tokens.tokens[i].source);
+            os_console_print(str8_literal("\n"));
         }
-
-        Str8 output = str8_join(arena, &output_list);
-        os_console_print(output);
     }
 
     arena_destroy(arena);
