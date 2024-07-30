@@ -45,12 +45,6 @@
     X(0xD0000, 0xDFFFD) \
     X(0xE0000, 0xEFFFD)
 
-typedef struct CProc_Character CProc_Character;
-struct CProc_Character {
-    U32 codepoint;
-    U32 size;
-};
-
 typedef struct CProc_Stream CProc_Stream;
 struct CProc_Stream {
     U8 *start;
@@ -259,8 +253,8 @@ internal Void cproc_buffered_stream_refill(CProc_BufferedStream *stream) {
 }
 
 // NOTE(simon): Assumes that the input begin with either '\u' or \U'.
-internal CProc_Character cproc_read_universal_character_name(CProc_BufferedStream *stream) {
-    CProc_Character result = { 0 };
+internal U32 cproc_read_universal_character_name(CProc_BufferedStream *stream) {
+    U32 result = { 0 };
 
     U32 expected_character_count = 2 + (stream->cursor[1] == 'u' ? 4 : 8);
     stream->cursor += 2;
@@ -282,12 +276,12 @@ internal CProc_Character cproc_read_universal_character_name(CProc_BufferedStrea
             break;
         }
 
-        result.codepoint = result.codepoint * 16 + digit;
+        result = result * 16 + digit;
         ++stream->cursor;
     }
 
     // TODO(simon): Accept any attempt at a universal character name, but error if it is outside of the ranges.
-#define X(low, high) (low <= result.codepoint && result.codepoint <= high) ||
+#define X(low, high) (low <= result && result <= high) ||
     // NOTE(simon): Are we a valid universal character name?
     if (digits_read != expected_character_count || !(CPROC_UNIVERSAL_CHARACTER_RANGES 0)) {
     }
@@ -297,8 +291,8 @@ internal CProc_Character cproc_read_universal_character_name(CProc_BufferedStrea
 }
 
 // NOTE(simon): Assumes that the input starts with a '\'.
-internal CProc_Character cproc_read_escape_sequence(CProc_BufferedStream *stream) {
-    CProc_Character result = { 0 };
+internal U32 cproc_read_escape_sequence(CProc_BufferedStream *stream) {
+    U32 result = { 0 };
 
     // NOTE(simon): Consume '\'
     ++stream->cursor;
@@ -309,35 +303,35 @@ internal CProc_Character cproc_read_escape_sequence(CProc_BufferedStream *stream
         // NOTE(simon): Simple escape sequences.
         case '\'': case '"': case '?': case '\\': {
             stream->cursor += 2;
-            result.codepoint = character1;
+            result = character1;
         } break;
         case 'a': {
             stream->cursor += 2;
-            result.codepoint = '\a';
+            result = '\a';
         } break;
         case 'b': {
             stream->cursor += 2;
-            result.codepoint = '\b';
+            result = '\b';
         } break;
         case 'f': {
             stream->cursor += 2;
-            result.codepoint = '\f';
+            result = '\f';
         } break;
         case 'n': {
             stream->cursor += 2;
-            result.codepoint = '\n';
+            result = '\n';
         } break;
         case 'r': {
             stream->cursor += 2;
-            result.codepoint = '\r';
+            result = '\r';
         } break;
         case 't': {
             stream->cursor += 2;
-            result.codepoint = '\t';
+            result = '\t';
         } break;
         case 'v': {
             stream->cursor += 2;
-            result.codepoint = '\v';
+            result = '\v';
         } break;
         // NOTE(simon): Universal character names.
         case 'u': case 'U': {
@@ -363,7 +357,7 @@ internal CProc_Character cproc_read_escape_sequence(CProc_BufferedStream *stream
                     break;
                 }
 
-                result.codepoint = result.codepoint * 16 + digit;
+                result = result * 16 + digit;
                 ++stream->cursor;
             }
 
@@ -383,7 +377,7 @@ internal CProc_Character cproc_read_escape_sequence(CProc_BufferedStream *stream
                     break;
                 }
 
-                result.codepoint = result.codepoint * 16 + digit;
+                result = result * 16 + digit;
                 ++stream->cursor;
             }
         } break;
@@ -400,26 +394,90 @@ internal B32 cproc_token_is_identifier(CProc_Token token, Str8 identifier) {
 
     if (token.kind == CProc_Token_Identifier) {
         Arena_Temporary scratch = arena_get_scratch(0, 0);
-        U8 *buffer = arena_push_array(scratch.arena, U8, token.source.size);
-        U8 *cursor = buffer;
-        U64 i = 0;
-        while (i < token.source.size) {
-            if (token.source.size - i >= 2 && token.source.data[i] == '\\' && token.source.data[i + 1] == '\n') {
-                i += 2;
-            } else if (token.source.size - i >= 3 && token.source.data[i] == '\\' && token.source.data[i + 1] == '\r' && token.source.data[i + 2] == '\n') {
-                i += 3;
-            } else if (token.source.size - i >= 2 && token.source.data[i] == '\\' && token.source.data[i + 1] == '\r') {
-                i += 2;
-            } else {
-                *cursor++ = token.source.data[i++];
-            }
-        }
 
-        if ((U64) (cursor - buffer) == identifier.size) {
-            result = memory_equal(buffer, identifier.data, identifier.size);
+        Str8 token_identifer = cproc_text_from_token(scratch.arena, token);
+        if (token_identifer.size == identifier.size) {
+            result = memory_equal(token_identifer.data, identifier.data, identifier.size);
         }
 
         arena_end_temporary(scratch);
+    }
+
+    return result;
+}
+
+internal Str8 cproc_text_from_token(Arena *arena, CProc_Token token) {
+    // NOTE(simon): The maximum number of generated bytes cannot exceed the
+    // size of the source string.
+    U8 *start  = arena_push_array(arena, U8, token.source.size);
+    U8 *end    = start + token.source.size;
+    U8 *cursor = start;
+
+    CProc_BufferedStream stream = { 0 };
+    stream.source.source_start  = token.source.data;
+    stream.source.source_cursor = token.source.data;
+    stream.source.source_end    = token.source.data + token.source.size;
+
+
+    while (!cproc_buffered_stream_is_end(&stream)) {
+        cproc_buffered_stream_refill(&stream);
+
+        U32 character = 0;
+        if (stream.cursor[0] == '\\') {
+            character = cproc_read_escape_sequence(&stream);
+        } else {
+            StringDecode decode = string_decode_utf8(stream.cursor, stream.end - stream.cursor);
+            character = decode.codepoint;
+            stream.cursor += decode.size;
+        }
+
+        U64 size = string_encode_utf8(cursor, character);
+        cursor += size;
+    }
+
+    arena_pop_amount(arena, end - cursor);
+
+    Str8 result = str8_range(start, cursor);
+
+    // NOTE(simon): Skip delimiters.
+    if (token.kind == CProc_Token_CharacterConstant || token.kind == CProc_Token_StringLiteral || token.kind == CProc_Token_HeaderName) {
+        // TODO(simon): This becomes incorrect with broken constants and
+        // literals. Fix it with token flags probably?
+        result = str8_skip(str8_chop(result, 1), 1);
+    }
+
+    return result;
+}
+
+internal CProc_Location cproc_location_from_token(Str8 source, CProc_Token token) {
+    CProc_Location result = { 0 };
+    result.line     = 1;
+    result.column   = 1;
+
+    U8 *start      = source.data;
+    U8 *end        = source.data + source.size;
+    U8 *line_start = start;
+
+    // NOTE(simon): Find the line.
+    for (U8 *cursor = start; cursor < end && cursor < token.source.data;) {
+        if (*cursor == '\n') {
+            ++result.line;
+            ++cursor;
+            line_start = cursor;
+        } else if (cursor + 1 < end && cursor[0] == '\r' && cursor[1] == '\n') {
+            ++result.line;
+            cursor += 2;
+            line_start = cursor;
+        } else {
+            ++cursor;
+        }
+    }
+
+    // NOTE(simon): Find the column.
+    for (U8 *cursor = line_start; cursor < end && cursor < token.source.data;) {
+        StringDecode decode = string_decode_utf8(cursor, end - cursor);
+        ++result.column;
+        cursor += decode.size;
     }
 
     return result;
@@ -728,7 +786,7 @@ internal CProc_LexerResult cproc_tokens_from_string(Arena *arena, Str8 source) {
                     if (character0 == '_' || is_digit || is_lower_alpha || is_upper_alpha) {
                         ++stream.cursor;
                     } else if (character0 == '\\' && (character1 == 'u' || character1 == 'U')) {
-                        CProc_Character character = cproc_read_universal_character_name(&stream);
+                        U32 character = cproc_read_universal_character_name(&stream);
                     } else {
                         StringDecode decode = string_decode_utf8(stream.cursor, stream.end - stream.cursor);
 #define X(low, high) (low <= decode.codepoint && decode.codepoint <= high) ||
@@ -759,7 +817,7 @@ internal CProc_LexerResult cproc_tokens_from_string(Arena *arena, Str8 source) {
                     } else if ((is_exponent || is_power) && has_sign) {
                         stream.cursor += 2;
                     } else if (character0 == '\\' && (character1 == 'u' || character1 == 'U')) {
-                        CProc_Character character = cproc_read_universal_character_name(&stream);
+                        U32 character = cproc_read_universal_character_name(&stream);
                     } else {
                         StringDecode decode = string_decode_utf8(stream.cursor, stream.end - stream.cursor);
 
@@ -783,7 +841,7 @@ internal CProc_LexerResult cproc_tokens_from_string(Arena *arena, Str8 source) {
                         break;
                     } else if (stream.cursor[0] == '\\') {
                         // NOTE(simon): Escape sequences.
-                        CProc_Character character = cproc_read_escape_sequence(&stream);
+                        U32 character = cproc_read_escape_sequence(&stream);
                     } else {
                         // NOTE(simon): Anything in the source character set, which is all of UTF-8.
                         StringDecode decode = string_decode_utf8(stream.cursor, stream.end - stream.cursor);
@@ -812,7 +870,7 @@ internal CProc_LexerResult cproc_tokens_from_string(Arena *arena, Str8 source) {
                         break;
                     } else if (stream.cursor[0] == '\\') {
                         // NOTE(simon): Escape sequences.
-                        CProc_Character character = cproc_read_escape_sequence(&stream);
+                        U32 character = cproc_read_escape_sequence(&stream);
                     } else {
                         // NOTE(simon): Anything in the source character set, which is all of UTF-8.
                         StringDecode decode = string_decode_utf8(stream.cursor, stream.end - stream.cursor);

@@ -45,6 +45,14 @@ struct CProc_LexerResult {
     CProc_ErrorList  errors;
 };
 
+typedef struct CProc_Location CProc_Location;
+struct CProc_Location {
+    U32 line;
+    U32 column;
+};
+
+internal Str8              cproc_text_from_token(Arena *arena, CProc_Token token);
+internal CProc_Location    cproc_location_from_token(Str8 source, CProc_Token token);
 internal CProc_LexerResult cproc_tokens_from_string(Arena *arena, Str8 source);
 
 #endif // C_LEXER_INCLUDE_H
