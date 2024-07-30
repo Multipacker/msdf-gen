@@ -1,4 +1,4 @@
-#define PP_UNIVERSAL_CHARACTER_RANGES \
+#define CPROC_UNIVERSAL_CHARACTER_RANGES \
     X(0x00A8,  0x00A8)  \
     X(0x00AA,  0x00AA)  \
     X(0x00AD,  0x00AD)  \
@@ -45,47 +45,14 @@
     X(0xD0000, 0xDFFFD) \
     X(0xE0000, 0xEFFFD)
 
-typedef enum {
-    PPToken_HeaderName,
-    PPToken_Identifier,
-    PPToken_Number,
-    PPToken_CharacterConstant,
-    PPToken_StringLiteral,
-    PPToken_Punctuator,
-    PPToken_Whitespace,
-    PPToken_Newline,
-    PPToken_Comment,
-    PPToken_Unknown,
-} PPToken_Kind;
-
-typedef struct PPToken PPToken;
-struct PPToken {
-    PPToken_Kind kind;
-    Str8 source;
-};
-
-typedef struct PP_TokenArray PP_TokenArray;
-struct PP_TokenArray {
-    PPToken *tokens;
-    U64      count;
-};
-
-typedef struct PP_Character PP_Character;
-struct PP_Character {
+typedef struct CProc_Character CProc_Character;
+struct CProc_Character {
     U32 codepoint;
     U32 size;
 };
 
-typedef struct PP_State PP_State;
-struct PP_State {
-    Str8Node *segment;
-    U8 *cursor;
-
-    Str8List segments;
-};
-
-typedef struct PP_Stream PP_Stream;
-struct PP_Stream {
+typedef struct CProc_Stream CProc_Stream;
+struct CProc_Stream {
     U8 *start;
     U8 *end;
     U8 *cursor;
@@ -99,8 +66,8 @@ struct PP_Stream {
 };
 
 // TODO(simon): Add a way to detect when we have reached the end of the file.
-typedef struct PP_BufferedStream PP_BufferedStream;
-struct PP_BufferedStream {
+typedef struct CProc_BufferedStream CProc_BufferedStream;
+struct CProc_BufferedStream {
     U8 *start;
     U8 *cursor;
     U8 *end;
@@ -110,16 +77,16 @@ struct PP_BufferedStream {
     U8 *index[5];
     B32 is_end[5];
 
-    PP_Stream source;
+    CProc_Stream source;
 };
 
-internal U8 *pp_stream_index(PP_Stream *stream) {
+internal U8 *cproc_stream_index(CProc_Stream *stream) {
     U64 index = stream->index + (stream->cursor - stream->start);
     U8 *result = &stream->source_start[index];
     return result;
 }
 
-internal Void pp_stream_refill(PP_Stream *stream) {
+internal Void cproc_stream_refill(CProc_Stream *stream) {
     local U8 zeroes[256] = { 0 };
     local U8 one_backslash[] = { '\\', };
 
@@ -205,7 +172,7 @@ internal Void pp_stream_refill(PP_Stream *stream) {
     }
 }
 
-internal U8 *pp_buffered_stream_index(PP_BufferedStream *stream) {
+internal U8 *cproc_buffered_stream_index(CProc_BufferedStream *stream) {
     U8 *result = 0;
 
     if (stream->start == stream->buffer) {
@@ -221,7 +188,7 @@ internal U8 *pp_buffered_stream_index(PP_BufferedStream *stream) {
     return result;
 }
 
-internal B32 pp_buffered_stream_is_end(PP_BufferedStream *stream) {
+internal B32 cproc_buffered_stream_is_end(CProc_BufferedStream *stream) {
     B32 result = false;
 
     if (stream->start == stream->buffer) {
@@ -239,7 +206,7 @@ internal B32 pp_buffered_stream_is_end(PP_BufferedStream *stream) {
 // NOTE(simon): Always allows you to read 4 characters after the call.
 // Pre-condition:  start <= cursor <= end
 // Post-condition: start <= cursor && cursor + 4 <= end
-internal Void pp_buffered_stream_refill(PP_BufferedStream *stream) {
+internal Void cproc_buffered_stream_refill(CProc_BufferedStream *stream) {
     if (stream->cursor >= stream->mark) {
         U64 source_read = stream->source.cursor - stream->source.start;
         U64 source_left = stream->source.end    - stream->source.cursor;
@@ -252,15 +219,15 @@ internal Void pp_buffered_stream_refill(PP_BufferedStream *stream) {
             stream->cursor   = stream->source.start + source_read - bytes_left;
             stream->end      = stream->source.end;
             stream->mark     = stream->source.end - buffer_size;
-            stream->index[buffer_size]  = pp_stream_index(&stream->source) - bytes_left;
+            stream->index[buffer_size]  = cproc_stream_index(&stream->source) - bytes_left;
             stream->is_end[buffer_size] = stream->source.is_end;
             stream->source.cursor = stream->source.end;
         } else {
             // NOTE(simon): Switch to temporary transition buffer.
             for (U64 i = 0; i < bytes_left; ++i) {
                 stream->buffer[i] = *stream->cursor;
-                stream->index[i]  = pp_buffered_stream_index(stream);
-                stream->is_end[i] = pp_buffered_stream_is_end(stream);
+                stream->index[i]  = cproc_buffered_stream_index(stream);
+                stream->is_end[i] = cproc_buffered_stream_is_end(stream);
                 ++stream->cursor;
             }
 
@@ -272,7 +239,7 @@ internal Void pp_buffered_stream_refill(PP_BufferedStream *stream) {
             U64 new_cursor_index = bytes_left;
             while (new_cursor_index < buffer_size) {
                 if (stream->source.cursor == stream->source.end) {
-                    pp_stream_refill(&stream->source);
+                    cproc_stream_refill(&stream->source);
                 }
 
                 U64 bytes_availible = stream->source.end - stream->source.cursor;
@@ -280,27 +247,27 @@ internal Void pp_buffered_stream_refill(PP_BufferedStream *stream) {
                 U64 bytes_to_read = u64_min(bytes_availible, bytes_needed);
                 for (U64 i = 0; i < bytes_to_read; ++i) {
                     stream->buffer[new_cursor_index] = *stream->source.cursor;
-                    stream->index[new_cursor_index]  = pp_stream_index(&stream->source);
+                    stream->index[new_cursor_index]  = cproc_stream_index(&stream->source);
                     stream->is_end[new_cursor_index] = stream->source.is_end;
                     ++stream->source.cursor;
                     ++new_cursor_index;
                 }
-                stream->index[new_cursor_index] = pp_stream_index(&stream->source);
+                stream->index[new_cursor_index] = cproc_stream_index(&stream->source);
             }
         }
     }
 }
 
 // NOTE(simon): Assumes that the input begin with either '\u' or \U'.
-internal PP_Character pp_read_universal_character_name(PP_BufferedStream *stream) {
-    PP_Character result = { 0 };
+internal CProc_Character cproc_read_universal_character_name(CProc_BufferedStream *stream) {
+    CProc_Character result = { 0 };
 
     U32 expected_character_count = 2 + (stream->cursor[1] == 'u' ? 4 : 8);
     stream->cursor += 2;
 
     U32 digits_read = 0;
     for (; digits_read < expected_character_count; ++digits_read) {
-        pp_buffered_stream_refill(stream);
+        cproc_buffered_stream_refill(stream);
 
         U8 character = *stream->cursor;
         U32 digit = 0;
@@ -322,7 +289,7 @@ internal PP_Character pp_read_universal_character_name(PP_BufferedStream *stream
     // TODO(simon): Accept any attempt at a universal character name, but error if it is outside of the ranges.
 #define X(low, high) (low <= result.codepoint && result.codepoint <= high) ||
     // NOTE(simon): Are we a valid universal character name?
-    if (digits_read != expected_character_count || !(PP_UNIVERSAL_CHARACTER_RANGES 0)) {
+    if (digits_read != expected_character_count || !(CPROC_UNIVERSAL_CHARACTER_RANGES 0)) {
     }
 #undef X
 
@@ -330,13 +297,13 @@ internal PP_Character pp_read_universal_character_name(PP_BufferedStream *stream
 }
 
 // NOTE(simon): Assumes that the input starts with a '\'.
-internal PP_Character pp_read_escape_sequence(PP_BufferedStream *stream) {
-    PP_Character result = { 0 };
+internal CProc_Character cproc_read_escape_sequence(CProc_BufferedStream *stream) {
+    CProc_Character result = { 0 };
 
     // NOTE(simon): Consume '\'
     ++stream->cursor;
 
-    pp_buffered_stream_refill(stream);
+    cproc_buffered_stream_refill(stream);
     U8 character1 = stream->cursor[1];
     switch (character1) {
         // NOTE(simon): Simple escape sequences.
@@ -374,14 +341,14 @@ internal PP_Character pp_read_escape_sequence(PP_BufferedStream *stream) {
         } break;
         // NOTE(simon): Universal character names.
         case 'u': case 'U': {
-            result = pp_read_universal_character_name(stream);
+            result = cproc_read_universal_character_name(stream);
         } break;
         // NOTE(simon): Hexadecimal escape sequence.
         case 'x': {
             stream->cursor += 2;
 
             for (;;) {
-                pp_buffered_stream_refill(stream);
+                cproc_buffered_stream_refill(stream);
 
                 U8 character = *stream->cursor;
                 U32 digit = 0;
@@ -428,10 +395,10 @@ internal PP_Character pp_read_escape_sequence(PP_BufferedStream *stream) {
     return result;
 }
 
-internal B32 pp_token_is_identifier(PPToken token, Str8 identifier) {
+internal B32 cproc_token_is_identifier(CProc_Token token, Str8 identifier) {
     B32 result = false;
 
-    if (token.kind == PPToken_Identifier) {
+    if (token.kind == CProc_Token_Identifier) {
         Arena_Temporary scratch = arena_get_scratch(0, 0);
         U8 *buffer = arena_push_array(scratch.arena, U8, token.source.size);
         U8 *cursor = buffer;
@@ -458,44 +425,45 @@ internal B32 pp_token_is_identifier(PPToken token, Str8 identifier) {
     return result;
 }
 
-internal PP_TokenArray pp_tokens_from_string(Arena *arena, Str8 source) {
+internal CProc_LexerResult cproc_tokens_from_string(Arena *arena, Str8 source) {
     typedef enum {
         State_Normal,
         State_MaybeDirective,
         State_DirectiveStart,
         State_Include,
     } State;
-    typedef struct PP_TokenChunk PP_TokenChunk;
-    struct PP_TokenChunk {
-        PP_TokenChunk *next;
-        PP_TokenChunk *previous;
+    typedef struct CProc_TokenChunk CProc_TokenChunk;
+    struct CProc_TokenChunk {
+        CProc_TokenChunk *next;
+        CProc_TokenChunk *previous;
 
         U64     count;
-        PPToken tokens[1000];
+        CProc_Token tokens[1000];
     };
-    typedef struct PP_TokenList PP_TokenList;
-    struct PP_TokenList {
-        PP_TokenChunk *first;
-        PP_TokenChunk *last;
+    typedef struct CProc_TokenList CProc_TokenList;
+    struct CProc_TokenList {
+        CProc_TokenChunk *first;
+        CProc_TokenChunk *last;
         U64 token_count;
     };
 
     Arena_Temporary scratch = arena_get_scratch(&arena, 1);
 
-    PP_BufferedStream stream = { 0 };
+    CProc_BufferedStream stream = { 0 };
     stream.source.source_start  = source.data;
     stream.source.source_cursor = source.data;
     stream.source.source_end    = source.data + source.size;
 
     State state = State_Normal;
-    PP_TokenList list = { 0 };
+    CProc_TokenList list = { 0 };
+    CProc_ErrorList errors = { 0 };
 
-    while (!pp_buffered_stream_is_end(&stream)) {
-        PPToken token = { 0 };
+    while (!cproc_buffered_stream_is_end(&stream)) {
+        CProc_Token token = { 0 };
 
-        pp_buffered_stream_refill(&stream);
+        cproc_buffered_stream_refill(&stream);
 
-        token.source.data = pp_buffered_stream_index(&stream);
+        token.source.data = cproc_buffered_stream_index(&stream);
 
         U8 character0 = stream.cursor[0];
         U8 character1 = stream.cursor[1];
@@ -510,7 +478,7 @@ internal PP_TokenArray pp_tokens_from_string(Arena *arena, Str8 source) {
         switch (character0) {
             // NOTE(simon): pp-number.
             case '0': case '1': case '2': case '3': case '4': case '5': case '6': case '7': case '8': case '9': {
-                goto pp_number;
+                goto cproc_number;
             } break;
             case '_':
             case 'a': case 'b': case 'c': case 'd': case 'e': case 'f': case 'g': case 'h': case 'i': case 'j': case 'k': case 'l': case 'm': 
@@ -536,7 +504,7 @@ internal PP_TokenArray pp_tokens_from_string(Arena *arena, Str8 source) {
             } break;
             // NOTE(simon): Single character punctuators.
             case '[': case ']': case '(': case ')': case '{': case '}': case '~': case '?': case ';': case ',': {
-                token.kind = PPToken_Punctuator;
+                token.kind = CProc_Token_Punctuator;
                 ++stream.cursor;
             } break;
             // NOTE(simon): Potentially double character punctuators or comments.
@@ -553,40 +521,45 @@ internal PP_TokenArray pp_tokens_from_string(Arena *arena, Str8 source) {
                     CASE2('=', '='):
                     CASE2('/', '='):
                     CASE2(':', '>'): {
-                        token.kind = PPToken_Punctuator;
+                        token.kind = CProc_Token_Punctuator;
                         stream.cursor += 2;
                     } break;
                     // NOTE(simon): Single line comment. Consume up to but not
                     // including the next new line character.
                     CASE2('/', '/'): {
-                        token.kind = PPToken_Comment;
+                        token.kind = CProc_Token_Comment;
                         stream.cursor += 2;
 
-                        while (!pp_buffered_stream_is_end(&stream) && !(*stream.cursor == '\n' || *stream.cursor == '\r')) {
+                        while (!cproc_buffered_stream_is_end(&stream) && !(*stream.cursor == '\n' || *stream.cursor == '\r')) {
                             ++stream.cursor;
-                            pp_buffered_stream_refill(&stream);
+                            cproc_buffered_stream_refill(&stream);
                         }
                     } break;
                     // NOTE(simon): Multiline comment. Consume up to and
                     // including the next '*/'.
                     CASE2('/', '*'): {
-                        token.kind = PPToken_Comment;
+                        token.kind = CProc_Token_Comment;
                         stream.cursor += 2;
 
-                        while (!pp_buffered_stream_is_end(&stream) && !(stream.cursor[0] == '*' && stream.cursor[1] == '/')) {
+                        while (!cproc_buffered_stream_is_end(&stream) && !(stream.cursor[0] == '*' && stream.cursor[1] == '/')) {
                             ++stream.cursor;
-                            pp_buffered_stream_refill(&stream);
+                            cproc_buffered_stream_refill(&stream);
                         }
 
                         // NOTE(simon): Check for unclosed comment.
                         if (stream.cursor[0] == '*' && stream.cursor[1] == '/') {
                             stream.cursor += 2;
                         } else {
-                            // TODO:(simon): Unclosed comment, report error.
+                            stream.cursor = stream.end;
+
+                            // TODO(simon): Report location.
+                            CProc_Error *error = arena_push_struct_zero(arena, CProc_Error);
+                            error->message = str8_literal("Unclosed multiline comment.");
+                            sll_queue_push(errors.first, errors.last, error);
                         }
                     } break;
                     default: {
-                        token.kind = PPToken_Punctuator;
+                        token.kind = CProc_Token_Punctuator;
                         ++stream.cursor;
                     } break;
                 }
@@ -595,89 +568,92 @@ internal PP_TokenArray pp_tokens_from_string(Arena *arena, Str8 source) {
             // TODO(simon): Is it correct to interpret '\v' and '\f' as
             // whitespace instead of newlines?
             case ' ': case '\t': case '\v': case '\f': {
-                token.kind = PPToken_Whitespace;
+                token.kind = CProc_Token_Whitespace;
                 while (*stream.cursor == ' ' || *stream.cursor == '\t' || *stream.cursor == '\v' || *stream.cursor == '\f') {
                     ++stream.cursor;
-                    pp_buffered_stream_refill(&stream);
+                    cproc_buffered_stream_refill(&stream);
                 }
             } break;
             case '\n': {
-                token.kind = PPToken_Newline;
+                token.kind = CProc_Token_Newline;
                 ++stream.cursor;
             } break;
             case '\r': {
                 if (character1 == '\n') {
-                    token.kind = PPToken_Newline;
+                    token.kind = CProc_Token_Newline;
                     stream.cursor += 2;
                 } else {
-                    token.kind = PPToken_Newline;
+                    token.kind = CProc_Token_Newline;
                     ++stream.cursor;
                 }
             } break;
             // NOTE(simon): '.', pp-number or '...'.
             case '.': {
                 if (three == ('.' << 16 | '.' << 8 | '.')) {
-                    token.kind = PPToken_Punctuator;
+                    token.kind = CProc_Token_Punctuator;
                     stream.cursor += 3;
                 } else if ('0' <= character1 && character1 <= '9') {
-                    goto pp_number;
+                    goto cproc_number;
                 } else {
-                    token.kind = PPToken_Punctuator;
+                    token.kind = CProc_Token_Punctuator;
                     ++stream.cursor;
                 }
             } break;
             // NOTE(simon): Potentially header name or tripple character punctuator.
             case '<': {
                 if (state == State_Include) {
-                    token.kind = PPToken_HeaderName;
-                    while (!pp_buffered_stream_is_end(&stream) && !(*stream.cursor == '\n' || *stream.cursor == '\r' || *stream.cursor == '>')) {
+                    token.kind = CProc_Token_HeaderName;
+                    while (!cproc_buffered_stream_is_end(&stream) && !(*stream.cursor == '\n' || *stream.cursor == '\r' || *stream.cursor == '>')) {
                         StringDecode decode = string_decode_utf8(stream.cursor, stream.end - stream.cursor);
                         stream.cursor += decode.size;
-                        pp_buffered_stream_refill(&stream);
+                        cproc_buffered_stream_refill(&stream);
                     }
 
                     if (*stream.cursor == '>') {
                         ++stream.cursor;
                     } else {
-                        // TODO(simon): Error on unclosed header name.
+                        // TODO(simon): Report location.
+                        CProc_Error *error = arena_push_struct_zero(arena, CProc_Error);
+                        error->message = str8_literal("Unclosed header-name.");
+                        sll_queue_push(errors.first, errors.last, error);
                     }
                 } else if (three == ('<' << 16 | '<' << 8 | '=')) {
-                    token.kind = PPToken_Punctuator;
+                    token.kind = CProc_Token_Punctuator;
                     stream.cursor += 3;
                 } else if (two == ('<' << 8 | '<') || two == ('<' << 8 | '=') || two == ('<' << 8 | ':') || two == ('<' << 8 | '%')) {
-                    token.kind = PPToken_Punctuator;
+                    token.kind = CProc_Token_Punctuator;
                     stream.cursor += 2;
                 } else {
-                    token.kind = PPToken_Punctuator;
+                    token.kind = CProc_Token_Punctuator;
                     ++stream.cursor;
                 }
             } break;
             // NOTE(simon): Potentially triple character punctuator.
             case '>': {
                 if (three == ('>' << 16 | '>' << 8 | '=')) {
-                    token.kind = PPToken_Punctuator;
+                    token.kind = CProc_Token_Punctuator;
                     stream.cursor += 3;
                 } else if (two == ('>' << 8 | '>') || two == ('>' << 8 | '=')) {
-                    token.kind = PPToken_Punctuator;
+                    token.kind = CProc_Token_Punctuator;
                     stream.cursor += 2;
                 } else {
-                    token.kind = PPToken_Punctuator;
+                    token.kind = CProc_Token_Punctuator;
                     ++stream.cursor;
                 }
             } break;
             // NOTE(simon): Potentially quadruple character punctuators.
             case '%': {
                 if (four == ('%' << 24 | ':' << 16 | '%' << 8 | ':')) {
-                    token.kind = PPToken_Punctuator;
+                    token.kind = CProc_Token_Punctuator;
                     stream.cursor += 4;
                 } else {
                     switch (two) {
                         CASE2('%', '='): CASE2('%', '>'): CASE2('%', ':'): {
-                            token.kind = PPToken_Punctuator;
+                            token.kind = CProc_Token_Punctuator;
                             stream.cursor += 2;
                         } break;
                         default: {
-                            token.kind = PPToken_Punctuator;
+                            token.kind = CProc_Token_Punctuator;
                             ++stream.cursor;
                         } break;
                     }
@@ -690,19 +666,22 @@ internal PP_TokenArray pp_tokens_from_string(Arena *arena, Str8 source) {
             // NOTE(simon): Header names or strings.
             case '"': {
                 if (state == State_Include) {
-                    token.kind = PPToken_HeaderName;
+                    token.kind = CProc_Token_HeaderName;
                     ++stream.cursor;
-                    pp_buffered_stream_refill(&stream);
-                    while (!pp_buffered_stream_is_end(&stream) && !(*stream.cursor == '\n' || *stream.cursor == '\r' || *stream.cursor == '"')) {
+                    cproc_buffered_stream_refill(&stream);
+                    while (!cproc_buffered_stream_is_end(&stream) && !(*stream.cursor == '\n' || *stream.cursor == '\r' || *stream.cursor == '"')) {
                         StringDecode decode = string_decode_utf8(stream.cursor, stream.end - stream.cursor);
                         stream.cursor += decode.size;
-                        pp_buffered_stream_refill(&stream);
+                        cproc_buffered_stream_refill(&stream);
                     }
 
                     if (*stream.cursor == '"') {
                         ++stream.cursor;
                     } else {
-                        // TODO(simon): Error on unclosed header name.
+                        // TODO(simon): Report location.
+                        CProc_Error *error = arena_push_struct_zero(arena, CProc_Error);
+                        error->message = str8_literal("Unclosed header-name.");
+                        sll_queue_push(errors.first, errors.last, error);
                     }
                 } else {
                     ++stream.cursor;
@@ -714,7 +693,7 @@ internal PP_TokenArray pp_tokens_from_string(Arena *arena, Str8 source) {
                 if (character0 == '\\' && (character1 == 'u' || character1 == 'U')) {
                     goto identifier;
                 } else {
-                    token.kind = PPToken_Unknown;
+                    token.kind = CProc_Token_Unknown;
                     ++stream.cursor;
                 }
             } break;
@@ -723,10 +702,10 @@ internal PP_TokenArray pp_tokens_from_string(Arena *arena, Str8 source) {
                 // ranges, then it is an identifier, otherwise it is unknown.
                 StringDecode decode = string_decode_utf8(stream.cursor, stream.end - stream.cursor);
 #define X(low, high) (low <= decode.codepoint && decode.codepoint <= high) ||
-                if (PP_UNIVERSAL_CHARACTER_RANGES 0) {
+                if (CPROC_UNIVERSAL_CHARACTER_RANGES 0) {
                     goto identifier;
                 } else {
-                    token.kind = PPToken_Unknown;
+                    token.kind = CProc_Token_Unknown;
                     ++stream.cursor;
                 }
 #undef X
@@ -737,9 +716,9 @@ internal PP_TokenArray pp_tokens_from_string(Arena *arena, Str8 source) {
 
         while (0) {
             identifier: {
-                token.kind = PPToken_Identifier;
+                token.kind = CProc_Token_Identifier;
                 for (;;) {
-                    pp_buffered_stream_refill(&stream);
+                    cproc_buffered_stream_refill(&stream);
                     character0 = stream.cursor[0];
                     character1 = stream.cursor[1];
                     B32 is_digit       = '0' <= character0 && character0 <= '9';
@@ -749,11 +728,11 @@ internal PP_TokenArray pp_tokens_from_string(Arena *arena, Str8 source) {
                     if (character0 == '_' || is_digit || is_lower_alpha || is_upper_alpha) {
                         ++stream.cursor;
                     } else if (character0 == '\\' && (character1 == 'u' || character1 == 'U')) {
-                        PP_Character character = pp_read_universal_character_name(&stream);
+                        CProc_Character character = cproc_read_universal_character_name(&stream);
                     } else {
                         StringDecode decode = string_decode_utf8(stream.cursor, stream.end - stream.cursor);
 #define X(low, high) (low <= decode.codepoint && decode.codepoint <= high) ||
-                        if (PP_UNIVERSAL_CHARACTER_RANGES 0) {
+                        if (CPROC_UNIVERSAL_CHARACTER_RANGES 0) {
                             stream.cursor += decode.size;
                         } else {
                             break;
@@ -762,10 +741,10 @@ internal PP_TokenArray pp_tokens_from_string(Arena *arena, Str8 source) {
                     }
                 }
             } break;
-            pp_number: {
-                token.kind = PPToken_Number;
+            cproc_number: {
+                token.kind = CProc_Token_Number;
                 for (;;) {
-                    pp_buffered_stream_refill(&stream);
+                    cproc_buffered_stream_refill(&stream);
                     character0 = stream.cursor[0];
                     character1 = stream.cursor[1];
                     B32 is_digit       = '0' <= character0 && character0 <= '9';
@@ -780,12 +759,12 @@ internal PP_TokenArray pp_tokens_from_string(Arena *arena, Str8 source) {
                     } else if ((is_exponent || is_power) && has_sign) {
                         stream.cursor += 2;
                     } else if (character0 == '\\' && (character1 == 'u' || character1 == 'U')) {
-                        PP_Character character = pp_read_universal_character_name(&stream);
+                        CProc_Character character = cproc_read_universal_character_name(&stream);
                     } else {
                         StringDecode decode = string_decode_utf8(stream.cursor, stream.end - stream.cursor);
 
 #define X(low, high) (low <= decode.codepoint && decode.codepoint <= high) ||
-                        if (PP_UNIVERSAL_CHARACTER_RANGES 0) {
+                        if (CPROC_UNIVERSAL_CHARACTER_RANGES 0) {
                             stream.cursor += decode.size;
                         } else {
                             break;
@@ -795,26 +774,22 @@ internal PP_TokenArray pp_tokens_from_string(Arena *arena, Str8 source) {
                 }
             } break;
             character: {
-                token.kind = PPToken_CharacterConstant;
+                token.kind = CProc_Token_CharacterConstant;
 
-                while (!pp_buffered_stream_is_end(&stream) && *stream.cursor != '\'') {
-                    switch (*stream.cursor) {
-                        // NOTE(simon): Not allowed.
-                        case '\n': case '\r': {
-                            ++stream.cursor;
-                            // TODO(simon): Error
-                        } break;
+                while (!cproc_buffered_stream_is_end(&stream) && *stream.cursor != '\'') {
+                    if (stream.cursor[0] == '\n' || stream.cursor[0] == '\r') {
+                        // NOTE(simon): Not allowed, error is reported as
+                        // unclosed character-constant.
+                        break;
+                    } else if (stream.cursor[0] == '\\') {
                         // NOTE(simon): Escape sequences.
-                        case '\\': {
-                            PP_Character character = pp_read_escape_sequence(&stream);
-                        } break;
+                        CProc_Character character = cproc_read_escape_sequence(&stream);
+                    } else {
                         // NOTE(simon): Anything in the source character set, which is all of UTF-8.
-                        default: {
-                            StringDecode decode = string_decode_utf8(stream.cursor, stream.end - stream.cursor);
-                            stream.cursor += decode.size;
-                        } break;
+                        StringDecode decode = string_decode_utf8(stream.cursor, stream.end - stream.cursor);
+                        stream.cursor += decode.size;
                     }
-                    pp_buffered_stream_refill(&stream);
+                    cproc_buffered_stream_refill(&stream);
                 }
 
                 // TODO(simon): Error if no characters are read.
@@ -822,52 +797,54 @@ internal PP_TokenArray pp_tokens_from_string(Arena *arena, Str8 source) {
                 if (*stream.cursor == '\'') {
                     ++stream.cursor;
                 } else {
-                    // TODO(simon): Error on unclosed character constant.
+                    // TODO(simon): Report location.
+                    CProc_Error *error = arena_push_struct_zero(arena, CProc_Error);
+                    error->message = str8_literal("Unclosed character-constant.");
+                    sll_queue_push(errors.first, errors.last, error);
                 }
             } break;
             string: {
-                token.kind = PPToken_StringLiteral;
-                while (!pp_buffered_stream_is_end(&stream) && *stream.cursor != '"') {
-                    switch (*stream.cursor) {
-                        // NOTE(simon): Not allowed.
-                        case '\n': case '\r': {
-                            ++stream.cursor;
-                            // TODO(simon): Error
-                        } break;
+                token.kind = CProc_Token_StringLiteral;
+                while (!cproc_buffered_stream_is_end(&stream) && *stream.cursor != '"') {
+                    if (stream.cursor[0] == '\n' || stream.cursor[0] == '\r') {
+                        // NOTE(simon): Not allowed, error is reported as
+                        // unclosed string-literal.
+                        break;
+                    } else if (stream.cursor[0] == '\\') {
                         // NOTE(simon): Escape sequences.
-                        case '\\': {
-                            PP_Character character = pp_read_escape_sequence(&stream);
-                        } break;
+                        CProc_Character character = cproc_read_escape_sequence(&stream);
+                    } else {
                         // NOTE(simon): Anything in the source character set, which is all of UTF-8.
-                        default: {
-                            StringDecode decode = string_decode_utf8(stream.cursor, stream.end - stream.cursor);
-                            stream.cursor += decode.size;
-                        } break;
+                        StringDecode decode = string_decode_utf8(stream.cursor, stream.end - stream.cursor);
+                        stream.cursor += decode.size;
                     }
-                    pp_buffered_stream_refill(&stream);
+                    cproc_buffered_stream_refill(&stream);
                 }
 
                 if (*stream.cursor == '"') {
                     ++stream.cursor;
                 } else {
-                    // TODO(simon): Error on unclosed string.
+                    // TODO(simon): Report location.
+                    CProc_Error *error = arena_push_struct_zero(arena, CProc_Error);
+                    error->message = str8_literal("Unclosed string-literal.");
+                    sll_queue_push(errors.first, errors.last, error);
                 }
             } break;
         }
 
-        token.source = str8_range(token.source.data, pp_buffered_stream_index(&stream));
+        token.source = str8_range(token.source.data, cproc_buffered_stream_index(&stream));
 
         // NOTE(simon): Update the state machine for if we are in an include or not.
-        if (token.kind == PPToken_Newline) {
+        if (token.kind == CProc_Token_Newline) {
             state = State_MaybeDirective;
         } else {
-            if (state == State_MaybeDirective && (token.kind == PPToken_Whitespace || token.kind == PPToken_Comment)) {
+            if (state == State_MaybeDirective && (token.kind == CProc_Token_Whitespace || token.kind == CProc_Token_Comment)) {
                 state = State_MaybeDirective;
             } else if (state == State_MaybeDirective && token.source.size == 1 && token.source.data[0] == '#') {
                 state = State_DirectiveStart;
-            } else if (state == State_DirectiveStart && (token.kind == PPToken_Whitespace || token.kind == PPToken_Comment)) {
+            } else if (state == State_DirectiveStart && (token.kind == CProc_Token_Whitespace || token.kind == CProc_Token_Comment)) {
                 state = State_DirectiveStart;
-            } else if (state == State_DirectiveStart && pp_token_is_identifier(token, str8_literal("include"))) {
+            } else if (state == State_DirectiveStart && cproc_token_is_identifier(token, str8_literal("include"))) {
                 state = State_Include;
             } else if (state == State_Include) {
                 state = State_Include;
@@ -877,9 +854,9 @@ internal PP_TokenArray pp_tokens_from_string(Arena *arena, Str8 source) {
         }
 
         // NOTE(simon): Add to list.
-        PP_TokenChunk *chunk = list.last;
+        CProc_TokenChunk *chunk = list.last;
         if (!chunk || chunk->count >= array_count(chunk->tokens)) {
-            chunk = arena_push_struct_zero(scratch.arena, PP_TokenChunk);
+            chunk = arena_push_struct_zero(scratch.arena, CProc_TokenChunk);
             dll_push_back(list.first, list.last, chunk);
         }
 
@@ -889,41 +866,18 @@ internal PP_TokenArray pp_tokens_from_string(Arena *arena, Str8 source) {
     }
 
     // NOTE(simon): Compact into an array.
-    PP_TokenArray tokens = { 0 };
-    tokens.tokens = arena_push_array(arena, PPToken, list.token_count);
-    for (PP_TokenChunk *chunk = list.first; chunk; chunk = chunk->next) {
+    CProc_TokenArray tokens = { 0 };
+    tokens.tokens = arena_push_array(arena, CProc_Token, list.token_count);
+    for (CProc_TokenChunk *chunk = list.first; chunk; chunk = chunk->next) {
         memory_copy(&tokens.tokens[tokens.count], chunk->tokens, chunk->count * sizeof(*chunk->tokens));
         tokens.count += chunk->count;
     }
 
     arena_end_temporary(scratch);
-    return tokens;
-}
 
-internal Void c_lexer_test(Void) {
-    Arena *arena = arena_create();
+    CProc_LexerResult result = { 0 };
+    result.tokens = tokens;
+    result.errors = errors;
 
-    Str8 source = { 0 };
-    if (os_file_read(arena, str8_literal("src/base/base_core.h"), &source)) {
-        PP_TokenArray tokens = pp_tokens_from_string(arena, source);
-        for (U64 i = 0; i < tokens.count; ++i) {
-            switch (tokens.tokens[i].kind) {
-                case PPToken_HeaderName:        os_console_print(str8_literal("HeaderName"));        break;
-                case PPToken_Identifier:        os_console_print(str8_literal("Identifier"));        break;
-                case PPToken_Number:            os_console_print(str8_literal("Number"));            break;
-                case PPToken_CharacterConstant: os_console_print(str8_literal("CharacterConstant")); break;
-                case PPToken_StringLiteral:     os_console_print(str8_literal("StringLiteral"));     break;
-                case PPToken_Punctuator:        os_console_print(str8_literal("Punctuator"));        break;
-                case PPToken_Whitespace:        os_console_print(str8_literal("Whitespace"));        break;
-                case PPToken_Newline:           os_console_print(str8_literal("Newline"));           break;
-                case PPToken_Comment:           os_console_print(str8_literal("Comment"));           break;
-                case PPToken_Unknown:           os_console_print(str8_literal("Unknown"));           break;
-            }
-            os_console_print(str8_literal(": "));
-            os_console_print(tokens.tokens[i].source);
-            os_console_print(str8_literal("\n"));
-        }
-    }
-
-    arena_destroy(arena);
+    return result;
 }

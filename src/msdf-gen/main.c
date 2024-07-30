@@ -222,8 +222,37 @@ internal Void draw_ui(UI_Box *box) {
 }
 
 internal S32 os_run(Str8List arguments) {
-    c_lexer_test();
+    Arena *arena = arena_create();
+
+    Str8 source = { 0 };
+    if (os_file_read(arena, str8_literal("src/base/base_core.h"), &source)) {
+        CProc_LexerResult lexer_result = cproc_tokens_from_string(arena, source);
+        for (U64 i = 0; i < lexer_result.tokens.count; ++i) {
+            switch (lexer_result.tokens.tokens[i].kind) {
+                case CProc_Token_HeaderName:        os_console_print(str8_literal("HeaderName"));        break;
+                case CProc_Token_Identifier:        os_console_print(str8_literal("Identifier"));        break;
+                case CProc_Token_Number:            os_console_print(str8_literal("Number"));            break;
+                case CProc_Token_CharacterConstant: os_console_print(str8_literal("CharacterConstant")); break;
+                case CProc_Token_StringLiteral:     os_console_print(str8_literal("StringLiteral"));     break;
+                case CProc_Token_Punctuator:        os_console_print(str8_literal("Punctuator"));        break;
+                case CProc_Token_Whitespace:        os_console_print(str8_literal("Whitespace"));        break;
+                case CProc_Token_Newline:           os_console_print(str8_literal("Newline"));           break;
+                case CProc_Token_Comment:           os_console_print(str8_literal("Comment"));           break;
+                case CProc_Token_Unknown:           os_console_print(str8_literal("Unknown"));           break;
+            }
+            os_console_print(str8_literal(": "));
+            os_console_print(lexer_result.tokens.tokens[i].source);
+            os_console_print(str8_literal("\n"));
+        }
+        for (CProc_Error *error = lexer_result.errors.first; error; error = error->next) {
+            os_console_print(error->message);
+            os_console_print(str8_literal("\n"));
+        }
+    }
+
+    arena_destroy(arena);
     return 0;
+#if 0
 
     if (!arguments.first->next) {
         os_console_print(str8_literal("You have to pass a file\n"));
@@ -367,4 +396,5 @@ internal S32 os_run(Str8List arguments) {
     }
 
     return 0;
+#endif
 }
