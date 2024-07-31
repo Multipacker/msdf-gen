@@ -14,6 +14,20 @@
 #include "src/ui/ui_include.c"
 #include "src/c_lexer/c_lexer_include.c"
 
+/*
+ * TODO:
+ * Clipping to parent
+ * Clipboard
+ * Rounded corners
+ * Focus and keyboard navigation / interaction
+ * Draggin and more input information
+ */
+/* NOTE(simon): The old zoom equations, for reference.
+ * F32 old_zoom = zoom;
+ * zoom *= f32_pow(0.97f, event->scroll.y);
+ * offset = v2f32_subtract(mouse, v2f32_scale(v2f32_subtract(mouse, offset), old_zoom / zoom));
+*/
+
 typedef struct {
     Str8 name;
     V4F32 background_color;
