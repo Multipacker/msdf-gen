@@ -26,10 +26,17 @@ struct CProc_TokenArray {
     U64      count;
 };
 
+typedef struct CProc_Location CProc_Location;
+struct CProc_Location {
+    U32 line;
+    U32 column;
+};
+
 typedef struct CProc_Error CProc_Error;
 struct CProc_Error {
-    CProc_Error *next;
-    Str8         message;
+    CProc_Error   *next;
+    CProc_Location location;
+    Str8           message;
 };
 
 typedef struct CProc_ErrorList CProc_ErrorList;
@@ -43,12 +50,6 @@ typedef struct CProc_LexerResult CProc_LexerResult;
 struct CProc_LexerResult {
     CProc_TokenArray tokens;
     CProc_ErrorList  errors;
-};
-
-typedef struct CProc_Location CProc_Location;
-struct CProc_Location {
-    U32 line;
-    U32 column;
 };
 
 internal Str8              cproc_text_from_token(Arena *arena, CProc_Token token);

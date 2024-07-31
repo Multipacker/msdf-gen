@@ -610,9 +610,9 @@ internal CProc_LexerResult cproc_tokens_from_string(Arena *arena, Str8 source) {
                         } else {
                             stream.cursor = stream.end;
 
-                            // TODO(simon): Report location.
                             CProc_Error *error = arena_push_struct_zero(arena, CProc_Error);
                             error->message = str8_literal("Unclosed multiline comment.");
+                            error->location = cproc_location_from_token(source, token);
                             sll_queue_push(errors.first, errors.last, error);
                         }
                     } break;
@@ -670,9 +670,9 @@ internal CProc_LexerResult cproc_tokens_from_string(Arena *arena, Str8 source) {
                     if (*stream.cursor == '>') {
                         ++stream.cursor;
                     } else {
-                        // TODO(simon): Report location.
                         CProc_Error *error = arena_push_struct_zero(arena, CProc_Error);
                         error->message = str8_literal("Unclosed header-name.");
+                        error->location = cproc_location_from_token(source, token);
                         sll_queue_push(errors.first, errors.last, error);
                     }
                 } else if (three == ('<' << 16 | '<' << 8 | '=')) {
@@ -736,9 +736,9 @@ internal CProc_LexerResult cproc_tokens_from_string(Arena *arena, Str8 source) {
                     if (*stream.cursor == '"') {
                         ++stream.cursor;
                     } else {
-                        // TODO(simon): Report location.
                         CProc_Error *error = arena_push_struct_zero(arena, CProc_Error);
                         error->message = str8_literal("Unclosed header-name.");
+                        error->location = cproc_location_from_token(source, token);
                         sll_queue_push(errors.first, errors.last, error);
                     }
                 } else {
@@ -855,9 +855,9 @@ internal CProc_LexerResult cproc_tokens_from_string(Arena *arena, Str8 source) {
                 if (*stream.cursor == '\'') {
                     ++stream.cursor;
                 } else {
-                    // TODO(simon): Report location.
                     CProc_Error *error = arena_push_struct_zero(arena, CProc_Error);
                     error->message = str8_literal("Unclosed character-constant.");
+                    error->location = cproc_location_from_token(source, token);
                     sll_queue_push(errors.first, errors.last, error);
                 }
             } break;
@@ -882,9 +882,9 @@ internal CProc_LexerResult cproc_tokens_from_string(Arena *arena, Str8 source) {
                 if (*stream.cursor == '"') {
                     ++stream.cursor;
                 } else {
-                    // TODO(simon): Report location.
                     CProc_Error *error = arena_push_struct_zero(arena, CProc_Error);
                     error->message = str8_literal("Unclosed string-literal.");
+                    error->location = cproc_location_from_token(source, token);
                     sll_queue_push(errors.first, errors.last, error);
                 }
             } break;

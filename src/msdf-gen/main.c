@@ -245,8 +245,9 @@ internal S32 os_run(Str8List arguments) {
             os_console_print(str8_literal("\n"));
         }
         for (CProc_Error *error = lexer_result.errors.first; error; error = error->next) {
-            os_console_print(error->message);
-            os_console_print(str8_literal("\n"));
+            Arena_Temporary scratch = arena_get_scratch(0, 0);
+            os_console_print(str8_format(arena, "ERROR(%lu:%lu): %.*s\n", error->location.line, error->location.column, str8_expand(error->message)));
+            arena_end_temporary(scratch);
         }
     }
 
