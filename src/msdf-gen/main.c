@@ -228,18 +228,18 @@ internal S32 os_run(Str8List arguments) {
     if (os_file_read(arena, str8_literal("src/base/base_core.h"), &source)) {
         CProc_LexerResult lexer_result = cproc_tokens_from_string(arena, source);
         for (U64 i = 0; i < lexer_result.tokens.count; ++i) {
-            switch (lexer_result.tokens.tokens[i].kind) {
-                case CProc_Token_HeaderName:        os_console_print(str8_literal("HeaderName"));        break;
-                case CProc_Token_Identifier:        os_console_print(str8_literal("Identifier"));        break;
-                case CProc_Token_Number:            os_console_print(str8_literal("Number"));            break;
-                case CProc_Token_CharacterConstant: os_console_print(str8_literal("CharacterConstant")); break;
-                case CProc_Token_StringLiteral:     os_console_print(str8_literal("StringLiteral"));     break;
-                case CProc_Token_Punctuator:        os_console_print(str8_literal("Punctuator"));        break;
-                case CProc_Token_Whitespace:        os_console_print(str8_literal("Whitespace"));        break;
-                case CProc_Token_Newline:           os_console_print(str8_literal("Newline"));           break;
-                case CProc_Token_Comment:           os_console_print(str8_literal("Comment"));           break;
-                case CProc_Token_Unknown:           os_console_print(str8_literal("Unknown"));           break;
-            }
+            CProc_Token_Kind kind = lexer_result.tokens.tokens[i].kind;
+            if (kind & CProc_Token_HeaderName)        { os_console_print(str8_literal("HeaderName"));        }
+            if (kind & CProc_Token_Identifier)        { os_console_print(str8_literal("Identifier"));        }
+            if (kind & CProc_Token_Number)            { os_console_print(str8_literal("Number"));            }
+            if (kind & CProc_Token_CharacterConstant) { os_console_print(str8_literal("CharacterConstant")); }
+            if (kind & CProc_Token_StringLiteral)     { os_console_print(str8_literal("StringLiteral"));     }
+            if (kind & CProc_Token_Punctuator)        { os_console_print(str8_literal("Punctuator"));        }
+            if (kind & CProc_Token_Whitespace)        { os_console_print(str8_literal("Whitespace"));        }
+            if (kind & CProc_Token_Newline)           { os_console_print(str8_literal("Newline"));           }
+            if (kind & CProc_Token_Comment)           { os_console_print(str8_literal("Comment"));           }
+            if (kind & CProc_Token_Unknown)           { os_console_print(str8_literal("Unknown"));           }
+
             os_console_print(str8_literal(": "));
             os_console_print(lexer_result.tokens.tokens[i].source);
             os_console_print(str8_literal("\n"));

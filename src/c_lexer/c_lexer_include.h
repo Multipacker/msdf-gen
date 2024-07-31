@@ -2,16 +2,18 @@
 #define C_LEXER_INCLUDE_H
 
 typedef enum {
-    CProc_Token_HeaderName,
-    CProc_Token_Identifier,
-    CProc_Token_Number,
-    CProc_Token_CharacterConstant,
-    CProc_Token_StringLiteral,
-    CProc_Token_Punctuator,
-    CProc_Token_Whitespace,
-    CProc_Token_Newline,
-    CProc_Token_Comment,
-    CProc_Token_Unknown,
+    CProc_Token_HeaderName        = 1 << 0,
+    CProc_Token_Identifier        = 1 << 1,
+    CProc_Token_Number            = 1 << 2,
+    CProc_Token_CharacterConstant = 1 << 3,
+    CProc_Token_StringLiteral     = 1 << 4,
+    CProc_Token_Punctuator        = 1 << 5,
+    CProc_Token_Whitespace        = 1 << 6,
+    CProc_Token_Newline           = 1 << 7,
+    CProc_Token_Comment           = 1 << 8,
+    CProc_Token_Unknown           = 1 << 9,
+
+    CProc_Token_BrokenDelimiter   = 1 << 10,
 } CProc_Token_Kind;
 
 typedef struct CProc_Token CProc_Token;
@@ -23,7 +25,7 @@ struct CProc_Token {
 typedef struct CProc_TokenArray CProc_TokenArray;
 struct CProc_TokenArray {
     CProc_Token *tokens;
-    U64      count;
+    U64          count;
 };
 
 typedef struct CProc_Location CProc_Location;

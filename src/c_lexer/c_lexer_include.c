@@ -59,7 +59,6 @@ struct CProc_Stream {
     U8 *source_end;
 };
 
-// TODO(simon): Add a way to detect when we have reached the end of the file.
 typedef struct CProc_BufferedStream CProc_BufferedStream;
 struct CProc_BufferedStream {
     U8 *start;
@@ -341,6 +340,8 @@ internal U32 cproc_read_escape_sequence(CProc_BufferedStream *stream) {
         case 'x': {
             stream->cursor += 2;
 
+            U64 character_count = 0;
+
             for (;;) {
                 cproc_buffered_stream_refill(stream);
 
@@ -361,7 +362,9 @@ internal U32 cproc_read_escape_sequence(CProc_BufferedStream *stream) {
                 ++stream->cursor;
             }
 
-            // TODO(simon): Error if less than one digit is specified.
+            if (character_count == 0) {
+                // TODO(simon): Error if less than one digit is specified.
+            }
         } break;
         // NOTE(simon): Octal escape sequence.
         case '0': case '1': case '2': case '3': case '4': case '5': case '6': case '7': {
@@ -440,10 +443,11 @@ internal Str8 cproc_text_from_token(Arena *arena, CProc_Token token) {
     Str8 result = str8_range(start, cursor);
 
     // NOTE(simon): Skip delimiters.
-    if (token.kind == CProc_Token_CharacterConstant || token.kind == CProc_Token_StringLiteral || token.kind == CProc_Token_HeaderName) {
-        // TODO(simon): This becomes incorrect with broken constants and
-        // literals. Fix it with token flags probably?
-        result = str8_skip(str8_chop(result, 1), 1);
+    if (token.kind & CProc_Token_CharacterConstant || token.kind & CProc_Token_StringLiteral || token.kind & CProc_Token_HeaderName) {
+        result = str8_skip(result, 1);
+        if (!(token.kind & CProc_Token_BrokenDelimiter)) {
+            result = str8_chop(result, 1);
+        }
     }
 
     return result;
@@ -623,8 +627,6 @@ internal CProc_LexerResult cproc_tokens_from_string(Arena *arena, Str8 source) {
                 }
             } break;
             // NOTE(simon): Whitespace.
-            // TODO(simon): Is it correct to interpret '\v' and '\f' as
-            // whitespace instead of newlines?
             case ' ': case '\t': case '\v': case '\f': {
                 token.kind = CProc_Token_Whitespace;
                 while (*stream.cursor == ' ' || *stream.cursor == '\t' || *stream.cursor == '\v' || *stream.cursor == '\f') {
@@ -674,6 +676,7 @@ internal CProc_LexerResult cproc_tokens_from_string(Arena *arena, Str8 source) {
                         error->message = str8_literal("Unclosed header-name.");
                         error->location = cproc_location_from_token(source, token);
                         sll_queue_push(errors.first, errors.last, error);
+                        token.kind |= CProc_Token_BrokenDelimiter;
                     }
                 } else if (three == ('<' << 16 | '<' << 8 | '=')) {
                     token.kind = CProc_Token_Punctuator;
@@ -740,6 +743,7 @@ internal CProc_LexerResult cproc_tokens_from_string(Arena *arena, Str8 source) {
                         error->message = str8_literal("Unclosed header-name.");
                         error->location = cproc_location_from_token(source, token);
                         sll_queue_push(errors.first, errors.last, error);
+                        token.kind |= CProc_Token_BrokenDelimiter;
                     }
                 } else {
                     ++stream.cursor;
@@ -765,6 +769,9 @@ internal CProc_LexerResult cproc_tokens_from_string(Arena *arena, Str8 source) {
                 } else {
                     token.kind = CProc_Token_Unknown;
                     ++stream.cursor;
+                    CProc_Error *error = arena_push_struct_zero(arena, CProc_Error);
+                    error->message = str8_literal("Unknown character.");
+                    error->location = cproc_location_from_token(source, token);
                 }
 #undef X
             } break;
@@ -834,6 +841,8 @@ internal CProc_LexerResult cproc_tokens_from_string(Arena *arena, Str8 source) {
             character: {
                 token.kind = CProc_Token_CharacterConstant;
 
+                U64 character_count = 0;
+
                 while (!cproc_buffered_stream_is_end(&stream) && *stream.cursor != '\'') {
                     if (stream.cursor[0] == '\n' || stream.cursor[0] == '\r') {
                         // NOTE(simon): Not allowed, error is reported as
@@ -842,15 +851,22 @@ internal CProc_LexerResult cproc_tokens_from_string(Arena *arena, Str8 source) {
                     } else if (stream.cursor[0] == '\\') {
                         // NOTE(simon): Escape sequences.
                         U32 character = cproc_read_escape_sequence(&stream);
+                        ++character_count;
                     } else {
                         // NOTE(simon): Anything in the source character set, which is all of UTF-8.
                         StringDecode decode = string_decode_utf8(stream.cursor, stream.end - stream.cursor);
                         stream.cursor += decode.size;
+                        ++character_count;
                     }
                     cproc_buffered_stream_refill(&stream);
                 }
 
-                // TODO(simon): Error if no characters are read.
+                if (character_count != 1) {
+                    CProc_Error *error = arena_push_struct_zero(arena, CProc_Error);
+                    error->message = str8_literal("Character constants must have exactly one character.");
+                    error->location = cproc_location_from_token(source, token);
+                    sll_queue_push(errors.first, errors.last, error);
+                }
 
                 if (*stream.cursor == '\'') {
                     ++stream.cursor;
@@ -859,6 +875,7 @@ internal CProc_LexerResult cproc_tokens_from_string(Arena *arena, Str8 source) {
                     error->message = str8_literal("Unclosed character-constant.");
                     error->location = cproc_location_from_token(source, token);
                     sll_queue_push(errors.first, errors.last, error);
+                    token.kind |= CProc_Token_BrokenDelimiter;
                 }
             } break;
             string: {
@@ -886,6 +903,7 @@ internal CProc_LexerResult cproc_tokens_from_string(Arena *arena, Str8 source) {
                     error->message = str8_literal("Unclosed string-literal.");
                     error->location = cproc_location_from_token(source, token);
                     sll_queue_push(errors.first, errors.last, error);
+                    token.kind |= CProc_Token_BrokenDelimiter;
                 }
             } break;
         }
