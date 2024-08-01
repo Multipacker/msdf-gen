@@ -54,7 +54,7 @@ struct CProc_LexerResult {
     CProc_ErrorList  errors;
 };
 
-internal Str8              cproc_text_from_token(Arena *arena, CProc_Token token);
+internal Str8              cproc_string_from_token(Arena *arena, CProc_Token token);
 internal CProc_Location    cproc_location_from_token(Str8 source, CProc_Token token);
 internal CProc_LexerResult cproc_tokens_from_string(Arena *arena, Str8 source);
 
