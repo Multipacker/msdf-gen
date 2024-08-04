@@ -234,39 +234,6 @@ internal Void draw_ui(UI_Box *box) {
 }
 
 internal S32 os_run(Str8List arguments) {
-    Arena *arena = arena_create();
-
-    Str8 source = { 0 };
-    if (os_file_read(arena, str8_literal("src/base/base_core.h"), &source)) {
-        CProc_LexerResult lexer_result = cproc_tokens_from_string(arena, source);
-        for (U64 i = 0; i < lexer_result.tokens.count; ++i) {
-            CProc_Token_Kind kind = lexer_result.tokens.tokens[i].kind;
-            if (kind & CProc_Token_HeaderName)        { os_console_print(str8_literal("HeaderName"));        }
-            if (kind & CProc_Token_Identifier)        { os_console_print(str8_literal("Identifier"));        }
-            if (kind & CProc_Token_Number)            { os_console_print(str8_literal("Number"));            }
-            if (kind & CProc_Token_CharacterConstant) { os_console_print(str8_literal("CharacterConstant")); }
-            if (kind & CProc_Token_StringLiteral)     { os_console_print(str8_literal("StringLiteral"));     }
-            if (kind & CProc_Token_Punctuator)        { os_console_print(str8_literal("Punctuator"));        }
-            if (kind & CProc_Token_Whitespace)        { os_console_print(str8_literal("Whitespace"));        }
-            if (kind & CProc_Token_Newline)           { os_console_print(str8_literal("Newline"));           }
-            if (kind & CProc_Token_Comment)           { os_console_print(str8_literal("Comment"));           }
-            if (kind & CProc_Token_Unknown)           { os_console_print(str8_literal("Unknown"));           }
-
-            os_console_print(str8_literal(": "));
-            os_console_print(lexer_result.tokens.tokens[i].source);
-            os_console_print(str8_literal("\n"));
-        }
-        for (CProc_Error *error = lexer_result.errors.first; error; error = error->next) {
-            Arena_Temporary scratch = arena_get_scratch(0, 0);
-            os_console_print(str8_format(arena, "ERROR(%lu:%lu): %.*s\n", error->location.line, error->location.column, str8_expand(error->message)));
-            arena_end_temporary(scratch);
-        }
-    }
-
-    arena_destroy(arena);
-    return 0;
-#if 0
-
     if (!arguments.first->next) {
         os_console_print(str8_literal("You have to pass a file\n"));
         os_exit(1);
@@ -409,5 +376,4 @@ internal S32 os_run(Str8List arguments) {
     }
 
     return 0;
-#endif
 }
