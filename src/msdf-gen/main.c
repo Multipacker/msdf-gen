@@ -4,7 +4,6 @@
 #include "src/font/font_include.h"
 #include "src/font_cache/font_cache_include.h"
 #include "src/ui/ui_include.h"
-#include "src/c_lexer/c_lexer_include.h"
 
 #include "src/base/base_include.c"
 #include "src/graphics/graphics_include.c"
@@ -12,7 +11,6 @@
 #include "src/font/font_include.c"
 #include "src/font_cache/font_cache_include.c"
 #include "src/ui/ui_include.c"
-#include "src/c_lexer/c_lexer_include.c"
 
 /*
  * TODO:
