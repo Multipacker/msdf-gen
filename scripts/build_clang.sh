@@ -35,6 +35,10 @@ errors+="-Wno-unused-function "
 errors+="-Wno-unused-parameter "
 errors+="-Wno-unused-variable "
 
+if [ -v error_limit ]; then
+    errors+="-ferror-limit=5 "
+fi
+
 libraries="-lm -lSDL2"
 common_compiler_flags="-I. ${errors}"
 common_linker_flags="${libraries}"
