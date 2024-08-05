@@ -81,12 +81,12 @@ internal Void load_font(Str8 font_path, Font *result) {
             result->glyphs[codepoint].min_pt = v2f32(raster_result.x_min - width_adjustment, raster_result.y_min - height_adjustment);
             result->glyphs[codepoint].max_pt = v2f32(raster_result.x_max + width_adjustment, raster_result.y_max + height_adjustment);
             result->glyphs[codepoint].uv_min = v2f32(
-                ((F32) atlas_position.x + 0.5f) / atlas_size,
-                ((F32) atlas_position.y + 0.5f) / atlas_size
+                ((F32) atlas_position.x + 0.5f) / (F32) atlas_size,
+                ((F32) atlas_position.y + 0.5f) / (F32) atlas_size
             );
             result->glyphs[codepoint].uv_max = v2f32(
-                ((F32) atlas_position.x + glyph_size - 0.5f) / atlas_size,
-                ((F32) atlas_position.y + glyph_size - 0.5f) / atlas_size
+                ((F32) atlas_position.x + (F32) glyph_size - 0.5f) / (F32) atlas_size,
+                ((F32) atlas_position.y + (F32) glyph_size - 0.5f) / (F32) atlas_size
             );
 
             arena_end_temporary(glyph_scratch);
