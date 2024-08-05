@@ -208,7 +208,7 @@ internal Void render_begin(V2U32 resolution) {
 
     gfx->frame_restore = arena_begin_temporary(gfx->arena);
 
-    glViewport(0, 0, resolution.width, resolution.height);
+    glViewport(0, 0, (GLsizei) resolution.width, (GLsizei) resolution.height);
 
     M4F32 projection = m4f32_ortho(0.0f, (F32) resolution.width, 0.0f, (F32) resolution.height, 1.0f, -1.0f);
     glProgramUniformMatrix4fv(gfx->program, gfx->uniform_projection_location, 1, GL_FALSE, &projection.m[0][0]);
