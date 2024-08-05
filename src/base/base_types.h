@@ -111,8 +111,8 @@ typedef enum {
 
 global S8  S8_MIN  = 0x80;
 global S16 S16_MIN = 0x8000;
-global S32 S32_MIN = 0x80000000;
-global S64 S64_MIN = 0x8000000000000000ll;
+global S32 S32_MIN = (S32) 0x80000000;
+global S64 S64_MIN = (S64) 0x8000000000000000ll;
 
 global S8  S8_MAX  = 0x7F;
 global S16 S16_MAX = 0x7FFF;

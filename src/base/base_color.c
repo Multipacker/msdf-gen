@@ -56,10 +56,10 @@ internal U32 u32_srgba_from_color(V4F32 color) {
         f32_clamp(color.a, 0.0f, 1.0f)
     );
 
-    U8 red   = (U8) f32_round(f32_srgb_from_linear(clamped.r) * 255.0f);
-    U8 green = (U8) f32_round(f32_srgb_from_linear(clamped.g) * 255.0f);
-    U8 blue  = (U8) f32_round(f32_srgb_from_linear(clamped.b) * 255.0f);
-    U8 alpha = (U8) f32_round(clamped.a * 255.0f);
+    U32 red   = (U32) f32_round(f32_srgb_from_linear(clamped.r) * 255.0f);
+    U32 green = (U32) f32_round(f32_srgb_from_linear(clamped.g) * 255.0f);
+    U32 blue  = (U32) f32_round(f32_srgb_from_linear(clamped.b) * 255.0f);
+    U32 alpha = (U32) f32_round(clamped.a * 255.0f);
 
     U32 srgba = red << 24 | blue << 16 | green << 8 | alpha;
 

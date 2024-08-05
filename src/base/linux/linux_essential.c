@@ -19,12 +19,12 @@ global Str8List linux_argument_list;
 internal DateTime linux_date_time_from_tm_and_milliseconds(struct tm *time, U16 milliseconds) {
     DateTime result = { 0 };
     result.millisecond = milliseconds;
-    result.second      = time->tm_sec;
-    result.minute      = time->tm_min;
-    result.hour        = time->tm_hour;
-    result.day         = time->tm_mday - 1;
-    result.month       = time->tm_mon;
-    result.year        = time->tm_year + 1900;
+    result.second      = (U8) time->tm_sec;
+    result.minute      = (U8) time->tm_min;
+    result.hour        = (U8) time->tm_hour;
+    result.day         = (U8) time->tm_mday - 1;
+    result.month       = (U8) time->tm_mon;
+    result.year        = (S16) (time->tm_year + 1900);
 
     return result;
 }
@@ -41,7 +41,7 @@ internal struct tm linux_tm_from_date_time(DateTime *date_time) {
 }
 
 internal Void linux_file_properties_from_stat(FileProperties *properties, struct stat *metadata) {
-    properties->size = metadata->st_size;
+    properties->size = (U64) (metadata->st_size);
     properties->flags = 0;
     if (S_ISDIR(metadata->st_mode)) {
         properties->flags |= FILE_PROPERTY_FLAGS_IS_FOLDER;
@@ -53,7 +53,7 @@ internal Void linux_file_properties_from_stat(FileProperties *properties, struct
 
     struct tm deconstructed_modify_time = { 0 };
     if (gmtime_r(&metadata->st_mtim.tv_sec, &deconstructed_modify_time) == &deconstructed_modify_time) {
-        DateTime modify_date_time = linux_date_time_from_tm_and_milliseconds(&deconstructed_modify_time, metadata->st_mtim.tv_nsec / 1000000);
+        DateTime modify_date_time = linux_date_time_from_tm_and_milliseconds(&deconstructed_modify_time, (U16) (metadata->st_mtim.tv_nsec / 1000000));
         properties->modify_time = dense_time_from_date_time(&modify_date_time);
     } else {
         properties->modify_time = 0;
@@ -90,7 +90,7 @@ internal B32 os_file_read(Arena *arena, Str8 file_name, Str8 *result) {
     if (file_descriptor != -1) {
         struct stat metadata = { 0 };
         if (fstat(file_descriptor, &metadata) != -1) {
-            U64 total_size = metadata.st_size;
+            U64 total_size = (U64) metadata.st_size;
             Arena_Temporary restore_point = arena_begin_temporary(arena);
             U8 *buffer = arena_push_array(arena, U8, total_size);
             U8 *ptr = buffer;
@@ -357,7 +357,7 @@ internal Str8 os_file_path(Arena *arena, OS_SystemPath path) {
                 }
             }
 
-            Str8 result_path = str8(buffer, read);
+            Str8 result_path = str8(buffer, (U64) read);
 
             U64 index = 0;
             if (str8_last_index_of(result_path, '/', &index)) {
@@ -409,7 +409,7 @@ internal DateTime os_now_universal_time(Void) {
         // TODO: Handle error
     }
 
-    return linux_date_time_from_tm_and_milliseconds(&deconstructed_time, time.tv_usec / 1000);
+    return linux_date_time_from_tm_and_milliseconds(&deconstructed_time, (U16) (time.tv_usec / 1000));
 }
 
 internal DateTime os_local_time_from_universal(DateTime *date_time) {
@@ -442,7 +442,7 @@ internal U64 os_now_nanoseconds(Void) {
     if (clock_gettime(CLOCK_MONOTONIC_RAW, &time) == -1) {
         // TODO: Handle error
     }
-    U64 nanoseconds = time.tv_sec * 1000000000 + time.tv_nsec;
+    U64 nanoseconds = (U64) time.tv_sec * 1000000000 + (U64) time.tv_nsec;
     return nanoseconds;
 }
 
@@ -485,7 +485,7 @@ internal B32 os_console_run(Str8 program, Str8List arguments) {
 
     Arena_Temporary scratch = arena_get_scratch(0, 0);
 
-    U32   argument_count  = 1 + arguments.node_count + 1;
+    U64   argument_count  = 1 + arguments.node_count + 1;
     CStr *arguments_array = arena_push_array(scratch.arena, CStr, argument_count);
 
     arguments_array[0] = cstr_from_str8(scratch.arena, program);
@@ -519,7 +519,7 @@ internal Void os_console_print(Str8 string) {
 }
 
 internal Void os_restart_self(Void) {
-    U32   argument_count  = linux_argument_list.node_count + 1;
+    U64   argument_count  = linux_argument_list.node_count + 1;
     CStr *arguments_array = arena_push_array(linux_permanent_arena, CStr, argument_count);
 
     U32 argument_index = 0;

@@ -9,7 +9,7 @@ internal Str8 str8(U8 *data, U64 size) {
 internal Str8 str8_range(U8 *start, U8 *opl) {
     Str8 result;
     result.data = start;
-    result.size = opl - start;
+    result.size = (U64) (opl - start);
 
     return result;
 }
@@ -319,28 +319,28 @@ internal U64 string_encode_utf8(U8 *destination, U32 codepoint) {
     U64 size = 0;
 
     if (codepoint <= 0x7F) {
-        destination[0] = codepoint;
+        destination[0] = (U8) codepoint;
         size = 1;
     } else if (codepoint <= 0x07FF) {
-        destination[0] = 0xC0 | (codepoint >> 6);
-        destination[1] = 0x80 | (codepoint & 0x3F);
+        destination[0] = (U8) (0xC0 | (codepoint >> 6));
+        destination[1] = (U8) (0x80 | (codepoint & 0x3F));
         size = 2;
     } else if (codepoint <= 0xFFFF) {
-        destination[0] = 0xC0 | (codepoint >> 12);
-        destination[1] = 0x80 | ((codepoint >> 6) & 0x3F);
-        destination[2] = 0x80 | (codepoint & 0x3F);
+        destination[0] = (U8) (0xC0 | (codepoint >> 12));
+        destination[1] = (U8) (0x80 | ((codepoint >> 6) & 0x3F));
+        destination[2] = (U8) (0x80 | (codepoint & 0x3F));
         size = 3;
     } else if (codepoint <= 0x10FFFF) {
-        destination[0] = 0xC0 | (codepoint >> 18);
-        destination[1] = 0x80 | ((codepoint >> 12) & 0x3F);
-        destination[2] = 0x80 | ((codepoint >> 6) & 0x3F);
-        destination[3] = 0x80 | (codepoint & 0x3F);
+        destination[0] = (U8) (0xC0 | (codepoint >> 18));
+        destination[1] = (U8) (0x80 | ((codepoint >> 12) & 0x3F));
+        destination[2] = (U8) (0x80 | ((codepoint >> 6) & 0x3F));
+        destination[3] = (U8) (0x80 | (codepoint & 0x3F));
         size = 4;
     } else {
         U32 missing_codepoint = 0xFFFD;
-        destination[0] = 0xC0 | (missing_codepoint >> 12);
-        destination[1] = 0x80 | ((missing_codepoint >> 6) & 0x3F);
-        destination[2] = 0x80 | (missing_codepoint & 0x3F);
+        destination[0] = (U8) (0xC0 | (missing_codepoint >> 12));
+        destination[1] = (U8) (0x80 | ((missing_codepoint >> 6) & 0x3F));
+        destination[2] = (U8) (0x80 | (missing_codepoint & 0x3F));
         size = 3;
     }
 
@@ -366,7 +366,7 @@ internal StringDecode string_decode_utf16(U16 *string, U64 size) {
         code_unit = *string++;
 
         if (0xD800 <= lead_surrogate && lead_surrogate <= 0xDBFF && 0xDC00 <= code_unit && code_unit <= 0xDFFF) {
-            result.codepoint = 0x10000 + ((lead_surrogate - 0xD800) << 10) + (code_unit - 0xDC00);
+            result.codepoint = (U32) (0x10000 + ((lead_surrogate - 0xD800) << 10) + (code_unit - 0xDC00));
             ++result.size;
         }
     }
@@ -378,12 +378,12 @@ internal U64 string_encode_utf16(U16 *destination, U32 codepoint) {
     U64 size = 0;
 
     if (codepoint < 0x10000) {
-        destination[0] = codepoint;
+        destination[0] = (U16) codepoint;
         size = 1;
     } else {
         U32 adjusted_codepoint = codepoint - 0x10000;
-        destination[0] = 0xD800 + (adjusted_codepoint >> 10);
-        destination[1] = 0xDC00 + (adjusted_codepoint & 0x03FF);
+        destination[0] = (U16) (0xD800 + (adjusted_codepoint >> 10));
+        destination[1] = (U16) (0xDC00 + (adjusted_codepoint & 0x03FF));
         size = 2;
     }
 
@@ -449,7 +449,7 @@ internal Str16 str16_from_str8(Arena *arena, Str8 string) {
 
     while (ptr < opl) {
         StringDecode decode = string_decode_utf8(ptr, (U64) (opl - ptr));
-        U32 encode_size = string_encode_utf16(destination_ptr, decode.codepoint);
+        U64 encode_size = string_encode_utf16(destination_ptr, decode.codepoint);
         destination_ptr += encode_size;
         ptr += decode.size;
     }
@@ -510,7 +510,7 @@ internal CStr16 cstr16_from_str8(Arena *arena, Str8 string) {
 
     while (ptr < opl) {
         StringDecode decode = string_decode_utf8(ptr, (U64) (opl - ptr));
-        U32 encode_size = string_encode_utf16(destination_ptr, decode.codepoint);
+        U64 encode_size = string_encode_utf16(destination_ptr, decode.codepoint);
         destination_ptr += encode_size;
         ptr += decode.size;
     }
