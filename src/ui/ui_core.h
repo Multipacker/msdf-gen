@@ -267,7 +267,7 @@ internal UI_Box *ui_box_from_key(UI_Context *ui, UI_Key key);
 internal UI_Box *ui_create_box_from_key(UI_Context *ui, UI_BoxFlags flags, UI_Key key);
 internal UI_Box *ui_create_box(UI_Context *ui, UI_BoxFlags flags);
 internal UI_Box *ui_create_box_from_string(UI_Context *ui, UI_BoxFlags flags, Str8 string);
-internal UI_Box *ui_create_box_from_string_format(UI_Context *ui, UI_Key key, CStr format, ...);
+internal UI_Box *ui_create_box_from_string_format(UI_Context *ui, UI_BoxFlags flags, CStr format, ...);
 
 internal Void     ui_box_set_string(UI_Context *ui, UI_Box *box, Str8 string);
 internal UI_Input ui_input_from_box(UI_Context *ui, UI_Box *box);

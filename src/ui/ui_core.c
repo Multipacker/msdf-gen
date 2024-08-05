@@ -199,8 +199,8 @@ internal Void ui_begin(Gfx_Context *gfx, UI_Context *ui, Gfx_EventList *events, 
     // NOTE(simon): Build root
     {
         V2U32 window_size = gfx_get_window_client_area(gfx);
-        ui_width_next(ui, ui_size_pixels(window_size.width, 1.0f));
-        ui_height_next(ui, ui_size_pixels(window_size.height, 1.0f));
+        ui_width_next(ui, ui_size_pixels((F32) window_size.width, 1.0f));
+        ui_height_next(ui, ui_size_pixels((F32) window_size.height, 1.0f));
         ui->root = ui_create_box(ui, 0);
         ui_parent_push(ui, ui->root);
     }
@@ -280,13 +280,13 @@ internal Void ui_layout_downwards_dependent_sizes(UI_Box *box, Axis2 axis) {
         F32 sum = 0.0f;
         if (axis == box->layout_axis) {
             for (UI_Box *child = box->first; child != &global_ui_null_box; child = child->next) {
-                if (!(child->flags & (UI_BoxFlags_FloatingX << axis))) {
+                if (!(child->flags & (UI_BoxFlags) (UI_BoxFlags_FloatingX << axis))) {
                     sum += child->calculated_size.values[axis];
                 }
             }
         } else {
             for (UI_Box *child = box->first; child != &global_ui_null_box; child = child->next) {
-                if (!(child->flags & (UI_BoxFlags_FloatingX << axis))) {
+                if (!(child->flags & (UI_BoxFlags) (UI_BoxFlags_FloatingX << axis))) {
                     sum = f32_max(sum, child->calculated_size.values[axis]);
                 }
             }
@@ -298,7 +298,7 @@ internal Void ui_layout_downwards_dependent_sizes(UI_Box *box, Axis2 axis) {
 
 internal Void ui_layout_position(UI_Box *box, Axis2 axis) {
     // NOTE(simon): Calculate final rectangle.
-    if (box->flags & (UI_BoxFlags_AnimateX << axis)) {
+    if (box->flags & (UI_BoxFlags) (UI_BoxFlags_AnimateX << axis)) {
         if (box->create_index == box->last_used_index) {
             box->animated_position.values[axis] = box->calculated_position.values[axis];
         }
@@ -312,14 +312,14 @@ internal Void ui_layout_position(UI_Box *box, Axis2 axis) {
     if (axis == box->layout_axis) {
         F32 position = 0.0f;
         for (UI_Box *child = box->first; child != &global_ui_null_box; child = child->next) {
-            if (!(child->flags & (UI_BoxFlags_FloatingX << axis))) {
+            if (!(child->flags & (UI_BoxFlags) (UI_BoxFlags_FloatingX << axis))) {
                 child->calculated_position.values[axis] = position;
                 position += child->calculated_size.values[axis];
             }
         }
     } else {
         for (UI_Box *child = box->first; child != &global_ui_null_box; child = child->next) {
-            if (!(child->flags & (UI_BoxFlags_FloatingX << axis))) {
+            if (!(child->flags & (UI_BoxFlags) (UI_BoxFlags_FloatingX << axis))) {
                 child->calculated_position.values[axis] = 0.0f;
             }
         }
@@ -336,7 +336,7 @@ internal Void ui_layout_position(UI_Box *box, Axis2 axis) {
 }
 
 internal Void ui_layout_resolve_violations(UI_Box *box, Axis2 axis) {
-    if (box->flags & (UI_BoxFlags_OverflowX << axis)) {
+    if (box->flags & (UI_BoxFlags) (UI_BoxFlags_OverflowX << axis)) {
         for (UI_Box *child = box->first; child != &global_ui_null_box; child = child->next) {
             ui_layout_upwards_dependent_sizes_no_recurse(child, axis);
         }
@@ -345,7 +345,7 @@ internal Void ui_layout_resolve_violations(UI_Box *box, Axis2 axis) {
             F32 total_size = 0.0f;
             F32 total_adjustable_size = 0.0f;
             for (UI_Box *child = box->first; child != &global_ui_null_box; child = child->next) {
-                if (!(child->flags & (UI_BoxFlags_FloatingX << axis))) {
+                if (!(child->flags & (UI_BoxFlags) (UI_BoxFlags_FloatingX << axis))) {
                     total_size += child->calculated_size.values[axis];
                     total_adjustable_size += child->calculated_size.values[axis] * (1.0f - child->size[axis].strictness);
                 }
@@ -356,7 +356,7 @@ internal Void ui_layout_resolve_violations(UI_Box *box, Axis2 axis) {
                 // NOTE(simon): Adjust children
                 F32 adjust_percent = violation / total_adjustable_size;
                 for (UI_Box *child = box->first; child != &global_ui_null_box; child = child->next) {
-                    if (!(child->flags & (UI_BoxFlags_FloatingX << axis))) {
+                    if (!(child->flags & (UI_BoxFlags) (UI_BoxFlags_FloatingX << axis))) {
                         F32 child_size = child->calculated_size.values[axis];
                         F32 adjustable_size = child_size * (1.0f - child->size[axis].strictness);
 
@@ -366,7 +366,7 @@ internal Void ui_layout_resolve_violations(UI_Box *box, Axis2 axis) {
             }
         } else {
             for (UI_Box *child = box->first; child != &global_ui_null_box; child = child->next) {
-                if (!(child->flags & (UI_BoxFlags_FloatingX << axis))) {
+                if (!(child->flags & (UI_BoxFlags) (UI_BoxFlags_FloatingX << axis))) {
                     F32 violation = f32_max(0.0f, child->calculated_size.values[axis] - box->calculated_size.values[axis]);
                     child->calculated_size.values[axis] -= violation;
                 }
@@ -465,9 +465,9 @@ internal Void ui_end(Gfx_Context *gfx, UI_Context *ui) {
                 box->animated_position.y = box->calculated_position.y;
             }
 
-            box->hot_t      += (is_hot    - box->hot_t)        * fast_rate;
-            box->active_t   += (is_active - box->active_t)     * fast_rate;
-            box->disabled_t += (is_disabled - box->disabled_t) * slow_rate;
+            box->hot_t      += ((F32) is_hot    - box->hot_t)        * fast_rate;
+            box->active_t   += ((F32) is_active - box->active_t)     * fast_rate;
+            box->disabled_t += ((F32) is_disabled - box->disabled_t) * slow_rate;
         }
     }
     ui->tooltip_t += ((F32) ui->is_tooltip_active - ui->tooltip_t) * fast_rate;
@@ -620,7 +620,7 @@ internal UI_Box *ui_create_box_from_string(UI_Context *ui, UI_BoxFlags flags, St
     return result;
 }
 
-internal UI_Box *ui_create_box_from_string_format(UI_Context *ui, UI_Key key, CStr format, ...) {
+internal UI_Box *ui_create_box_from_string_format(UI_Context *ui, UI_BoxFlags flags, CStr format, ...) {
     Arena_Temporary scratch = arena_get_scratch(0, 0);
 
     va_list arguments;
@@ -628,7 +628,7 @@ internal UI_Box *ui_create_box_from_string_format(UI_Context *ui, UI_Key key, CS
     Str8 string = str8_format_list(scratch.arena, format, arguments);
     va_end(arguments);
 
-    UI_Box *result = ui_create_box_from_string(ui, key, string);
+    UI_Box *result = ui_create_box_from_string(ui, flags, string);
 
     arena_end_temporary(scratch);
     return result;
@@ -677,7 +677,7 @@ internal UI_Input ui_input_from_box(UI_Context *ui, UI_Box *box) {
 
         // NOTE(simon): Clicked in bounds.
         if (box->flags & UI_BoxFlags_Clickable && is_mouse_key && event->kind == Gfx_EventKind_KeyPress && is_in_bounds) {
-            result.input_flags |= UI_InputFlag_LeftPressed << mouse_key;
+            result.input_flags |= (UI_InputFlag) (UI_InputFlag_LeftPressed << mouse_key);
             ui->active_key = box->key;
             ui->hot_key = box->key;
             consumed = true;
@@ -691,8 +691,8 @@ internal UI_Input ui_input_from_box(UI_Context *ui, UI_Box *box) {
             is_in_bounds &&
             ui_keys_match(ui->active_key, box->key)
         ) {
-            result.input_flags |= UI_InputFlag_LeftReleased << mouse_key;
-            result.input_flags |= UI_InputFlag_LeftClicked << mouse_key;
+            result.input_flags |= (UI_InputFlag) (UI_InputFlag_LeftReleased << mouse_key);
+            result.input_flags |= (UI_InputFlag) (UI_InputFlag_LeftClicked << mouse_key);
             ui->active_key = global_ui_null_key;
             consumed = true;
         }
@@ -705,7 +705,7 @@ internal UI_Input ui_input_from_box(UI_Context *ui, UI_Box *box) {
             !is_in_bounds &&
             ui_keys_match(ui->active_key, box->key)
         ) {
-            result.input_flags |= UI_InputFlag_LeftReleased << mouse_key;
+            result.input_flags |= (UI_InputFlag) (UI_InputFlag_LeftReleased << mouse_key);
             ui->active_key = global_ui_null_key;
             ui->hot_key = global_ui_null_key;
             consumed = true;
