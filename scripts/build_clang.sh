@@ -32,7 +32,9 @@ errors+="-Wno-gnu-zero-variadic-macro-arguments "
 errors+="-Wno-initializer-overrides "
 errors+="-Wno-unused-but-set-variable "
 errors+="-Wno-unused-function "
+errors+="-Wno-unused-local-typedef "
 errors+="-Wno-unused-parameter "
+errors+="-Wno-unused-value "
 errors+="-Wno-unused-variable "
 
 if [ -v error_limit ]; then
