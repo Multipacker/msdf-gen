@@ -181,9 +181,9 @@ internal FontCache_Font *font_cache_font_from_path(Str8 path) {
 
         Font_Metrics metrics = raster_get_font_metrics(result->font);
 
-        result->ascent       = metrics.ascent;
-        result->descent      = metrics.descent;
-        result->units_per_em = metrics.units_per_em;
+        result->ascent       = (F32) metrics.ascent;
+        result->descent      = (F32) metrics.descent;
+        result->units_per_em = (F32) metrics.units_per_em;
 
         dll_insert_next_previous_zero(fonts->first, fonts->last, fonts->last, result, hash_next, hash_previous, 0);
     }
@@ -202,8 +202,8 @@ internal FontCache_Text font_cache_text(Arena *arena, FontCache_Font *font, Str8
 
     // TODO(simon): I don't like that we are resolution dependent here, can we move it into the font backend?
     F32 resolution = 96.0f;
-    result.ascent  = font->ascent  * size * resolution / (72.0f * font->units_per_em);
-    result.descent = font->descent * size * resolution / (72.0f * font->units_per_em);
+    result.ascent  = font->ascent  * (F32) size * resolution / (72.0f * font->units_per_em);
+    result.descent = font->descent * (F32) size * resolution / (72.0f * font->units_per_em);
     result.size.height = result.ascent - result.descent;
 
     U8 *ptr = text.data;
