@@ -83,10 +83,10 @@ internal Void ttf_parse_head_table(Arena *arena, TTF_Font *font) {
         U32       magic_number        = u32_big_to_local_endian(head->magic_number);
         U16       flags               = u16_big_to_local_endian(head->flags);
         U16       units_per_em        = u16_big_to_local_endian(head->units_per_em);
-        TTF_FWord x_min               = u16_big_to_local_endian(head->x_min);
-        TTF_FWord y_min               = u16_big_to_local_endian(head->y_min);
-        TTF_FWord x_max               = u16_big_to_local_endian(head->x_max);
-        TTF_FWord y_max               = u16_big_to_local_endian(head->y_max);
+        TTF_FWord x_min               = (S16) u16_big_to_local_endian((U16) head->x_min);
+        TTF_FWord y_min               = (S16) u16_big_to_local_endian((U16) head->y_min);
+        TTF_FWord x_max               = (S16) u16_big_to_local_endian((U16) head->x_max);
+        TTF_FWord y_max               = (S16) u16_big_to_local_endian((U16) head->y_max);
         U16       lowest_rec_ppem     = u16_big_to_local_endian(head->lowest_rec_ppem);
         S16       font_direction_hint = s16_big_to_local_endian(head->font_direction_hint);
         S16       index_to_loc_format = s16_big_to_local_endian(head->index_to_loc_format);
@@ -285,7 +285,7 @@ internal U32 ttf_get_glyph_index(TTF_Font *font, U32 codepoint) {
             }
         } break;
         case 2: {
-            assert(!"Not reached!");
+            // NOTE(simon): Not implemented.
         } break;
         case 4: {
             TTF_CmapFormat4 *format = (TTF_CmapFormat4 *) subtable_data.data;
@@ -297,7 +297,7 @@ internal U32 ttf_get_glyph_index(TTF_Font *font, U32 codepoint) {
             U16 *id_delta        = (U16 *) (subtable_data.data + sizeof(TTF_CmapFormat4) + sizeof(U16) + 2 * segment_count * sizeof(U16));
             U16 *id_range_offset = (U16 *) (subtable_data.data + sizeof(TTF_CmapFormat4) + sizeof(U16) + 3 * segment_count * sizeof(U16));
 
-            U32 glyph_index_array_count = (subtable_data.size - (sizeof(TTF_CmapFormat4) + (4 * segment_count + 1) * sizeof(U16))) / sizeof(U16);
+            U32 glyph_index_array_count = (U32) ((subtable_data.size - (sizeof(TTF_CmapFormat4) + (4 * segment_count + 1) * sizeof(U16))) / sizeof(U16));
 
             for (U32 i = 0; i < segment_count; ++i) {
                 U16 start  = u16_big_to_local_endian(start_code[i]);
@@ -338,10 +338,10 @@ internal U32 ttf_get_glyph_index(TTF_Font *font, U32 codepoint) {
             }
         } break;
         case 8: {
-            assert(!"Not reached!");
+            // NOTE(simon): Not implemented.
         } break;
         case 10: {
-            assert(!"Not reached!");
+            // NOTE(simon): Not implemented.
         } break;
         case 12: {
             TTF_CmapFormat12 *format = (TTF_CmapFormat12 *) subtable_data.data;
@@ -361,13 +361,13 @@ internal U32 ttf_get_glyph_index(TTF_Font *font, U32 codepoint) {
             }
         } break;
         case 13: {
-            assert(!"Not reached!");
+            // NOTE(simon): Not implemented.
         } break;
         case 14: {
-            assert(!"Not reached!");
+            // NOTE(simon): Not implemented.
         } break;
         default: {
-            assert(!"Not reached!");
+            // NOTE(simon): Not implemented.
         } break;
     }
 
@@ -421,11 +421,11 @@ internal Void ttf_choose_character_map(Arena *arena, TTF_Font *font) {
             font->character_map_format = u16_big_to_local_endian(*(U16 *) subtable_data.data);
         } else {
             str8_list_push(arena, &font->errors, str8_literal("Subtable is outside of cmap table.\n"));
-            font->character_map_format = -1; // NOTE(simon): Intentionally invalid format.
+            font->character_map_format = U32_MAX; // NOTE(simon): Intentionally invalid format.
         }
     } else {
         str8_list_push(arena, &font->errors, str8_literal("Could not find a suitable cmap subtable.\n"));
-        font->character_map_format = -1; // NOTE(simon): Intentionally invalid format.
+        font->character_map_format = U32_MAX; // NOTE(simon): Intentionally invalid format.
     }
 
     switch (font->character_map_format) {
@@ -494,7 +494,8 @@ internal Void ttf_choose_character_map(Arena *arena, TTF_Font *font) {
         case 14: {
             str8_list_push(arena, &font->errors, str8_literal("Cmap format 14 is not supported.\n"));
         } break;
-        case -1: {
+        // TODO(simon): Switch U32_MAX and similar to be macros to allow use in switch cases.
+        case 0xFFFFFFFF: {
             // NOTE(simon): Invalid cmap or we couldn't find a suitable one.
         } break;
         default: {
@@ -532,8 +533,8 @@ internal TTF_Glyph ttf_get_glyph_outlines(Arena *arena, TTF_Font *font, U32 glyp
 
     if (contour_count > 0) {
         if ((U32) contour_count < font->contour_capacity) {
-            if (glyph_data.size >= read_index + contour_count * sizeof(U16)) {
-                result.contour_count = contour_count;
+            if (glyph_data.size >= read_index + (U64) contour_count * sizeof(U16)) {
+                result.contour_count = (U32) contour_count;
 
                 for (S32 i = 0; i < contour_count; ++i) {
                     result.contour_end_points[i] = u16_big_to_local_endian(*(U16 *) &glyph_data.data[read_index]);
@@ -740,14 +741,14 @@ internal TTF_Glyph ttf_get_glyph_outlines(Arena *arena, TTF_Font *font, U32 glyp
             for (U32 i = 0; i < component_glyph.point_count; ++i) {
                 TTF_FWord x = component_glyph.x_coordinates[i];
                 TTF_FWord y = component_glyph.y_coordinates[i];
-                component_glyph.x_coordinates[i] = a * x + c * y + m * e;
-                component_glyph.y_coordinates[i] = b * x + d * y + n * f;
+                component_glyph.x_coordinates[i] = (TTF_FWord) (a * x + c * y + m * e);
+                component_glyph.y_coordinates[i] = (TTF_FWord) (b * x + d * y + n * f);
             }
 
             if (!(flags & TTF_COMPOUND_GLYPH_FLAGS_ARGS_ARE_XY_VALUES)) {
                 if (compound_point_index < result.point_count && component_point_index < component_glyph.point_count) {
-                    U32 offset_x = result.x_coordinates[compound_point_index] - component_glyph.x_coordinates[component_point_index];
-                    U32 offset_y = result.y_coordinates[compound_point_index] - component_glyph.y_coordinates[component_point_index];
+                    TTF_FWord offset_x = result.x_coordinates[compound_point_index] - component_glyph.x_coordinates[component_point_index];
+                    TTF_FWord offset_y = result.y_coordinates[compound_point_index] - component_glyph.y_coordinates[component_point_index];
                     for (U32 i = 0; i < component_glyph.point_count; ++i) {
                         component_glyph.x_coordinates[i] += offset_x;
                         component_glyph.y_coordinates[i] += offset_y;
@@ -770,7 +771,7 @@ internal TTF_Glyph ttf_get_glyph_outlines(Arena *arena, TTF_Font *font, U32 glyp
             }
 
             for (U32 i = 0; i < component_glyph.contour_count; ++i) {
-                result.contour_end_points[result.contour_count] = component_glyph.contour_end_points[i] + result.point_count;
+                result.contour_end_points[result.contour_count] = (U16) (component_glyph.contour_end_points[i] + result.point_count);
                 ++result.contour_count;
             }
 
@@ -813,7 +814,7 @@ internal MSDF_Glyph ttf_expand_contours_to_msdf(Arena *arena, TTF_Font *font, U3
         B32       prev_on_curve    = (glyph.flags[prev_index] & TTF_SIMPLE_GLYPH_FLAGS_ON_CURVE);
         TTF_FWord current_x        = glyph.x_coordinates[current_index];
         TTF_FWord current_y        = glyph.y_coordinates[current_index];
-        U8        current_on_curve = (glyph.flags[current_index] & TTF_SIMPLE_GLYPH_FLAGS_ON_CURVE);
+        B32       current_on_curve = (glyph.flags[current_index] & TTF_SIMPLE_GLYPH_FLAGS_ON_CURVE);
 
         for (; point_index <= glyph.contour_end_points[contour_index]; ++point_index) {
             TTF_FWord next_x        = glyph.x_coordinates[point_index];

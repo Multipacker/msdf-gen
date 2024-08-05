@@ -84,8 +84,8 @@ internal U32 msdf_quadratic_bezier_intersect_recurse(MSDF_Segment a, MSDF_Segmen
             for (U32 i = 0; i < 4; ++i) {
                 U32 new_solutions = msdf_quadratic_bezier_intersect_recurse(segments[i / 2], segments[2 + i % 2], iteration_count - 1, &result_ats[count], &result_bts[count]);
                 for (U32 j = 0; j < new_solutions; ++j) {
-                    result_ats[count + j] = (i / 2) * 0.5f + result_ats[count + j] * 0.5f;
-                    result_bts[count + j] = (i % 2) * 0.5f + result_bts[count + j] * 0.5f;
+                    result_ats[count + j] = (F32) (i / 2) * 0.5f + result_ats[count + j] * 0.5f;
+                    result_bts[count + j] = (F32) (i % 2) * 0.5f + result_bts[count + j] * 0.5f;
                 }
                 count += new_solutions;
             }
@@ -103,9 +103,9 @@ internal U32 msdf_quadratic_bezier_intersect(MSDF_Segment a, MSDF_Segment b, F32
     F32 aly = 2.0f * f32_abs(a.p2.y - 2.0f * a.p1.y + a.p0.y);
     F32 blx = 2.0f * f32_abs(b.p2.x - 2.0f * b.p1.x + b.p0.x);
     F32 bly = 2.0f * f32_abs(b.p2.y - 2.0f * b.p1.y + b.p0.y);
-    U32 ar = f32_max(0.0f, f32_log2(f32_sqrt(f32_sqrt(alx * alx + aly * aly) / (8.0f * error))));
-    U32 br = f32_max(0.0f, f32_log2(f32_sqrt(f32_sqrt(blx * blx + bly * bly) / (8.0f * error))));
-    U32 r = u32_max(ar, br);
+    U32 ar = (U32) f32_max(0.0f, f32_log2(f32_sqrt(f32_sqrt(alx * alx + aly * aly) / (8.0f * error))));
+    U32 br = (U32) f32_max(0.0f, f32_log2(f32_sqrt(f32_sqrt(blx * blx + bly * bly) / (8.0f * error))));
+    U32 r  = u32_max(ar, br);
 
     U32 count = msdf_quadratic_bezier_intersect_recurse(a, b, r, result_ats, result_bts);
 
@@ -240,7 +240,7 @@ internal S32 msdf_contour_calculate_own_winding_number(MSDF_Contour *contour) {
         }
     }
 
-    S32 winding = f32_sign(double_signed_area);
+    S32 winding = (S32) f32_sign(double_signed_area);
 
     return winding;
 }
@@ -318,13 +318,13 @@ internal B32 msdf_is_corner(MSDF_Segment a, MSDF_Segment b, F32 threshold) {
     V2F32 a_dir = v2f32(0.0f, 0.0f);
     V2F32 b_dir = v2f32(0.0f, 0.0f);
     switch (a.kind) {
-        case MSDF_SEGMENT_NULL:             assert(!"Not reached!");                             break;
+        case MSDF_SEGMENT_NULL:             a_dir = v2f32(0.0f, 0.0f);                           break;
         case MSDF_SEGMENT_LINE:             a_dir = v2f32_normalize(v2f32_subtract(a.p1, a.p0)); break;
         case MSDF_SEGMENT_QUADRATIC_BEZIER: a_dir = v2f32_normalize(v2f32_subtract(a.p2, a.p1)); break;
         case MSDF_SEGMENT_KIND_COUNT:       a_dir = v2f32(0.0f, 0.0f);                           break;
     }
     switch (b.kind) {
-        case MSDF_SEGMENT_NULL:             assert(!"Not reached!");                             break;
+        case MSDF_SEGMENT_NULL:             b_dir = v2f32(0.0f, 0.0f);                           break;
         case MSDF_SEGMENT_LINE:             b_dir = v2f32_normalize(v2f32_subtract(b.p1, b.p0)); break;
         case MSDF_SEGMENT_QUADRATIC_BEZIER: b_dir = v2f32_normalize(v2f32_subtract(b.p1, b.p0)); break;
         case MSDF_SEGMENT_KIND_COUNT:       b_dir = v2f32(0.0f, 0.0f);                           break;
@@ -390,7 +390,7 @@ internal MSDF_Distance msdf_quadratic_bezier_distance_orthogonality(V2F32 point,
 
     F32 distance = f32_sqrt(min_distance);
     V2F32 direction = v2f32_normalize(v2f32_add(v2f32_scale(p2, min_t), p1));
-    V2F32 perpendicular = v2f32_scale(min_vector_distance, 1.0 / distance);
+    V2F32 perpendicular = v2f32_scale(min_vector_distance, 1.0f / distance);
 
     MSDF_Distance result;
     result.distance      = distance;
@@ -741,7 +741,6 @@ internal MSDF_RasterResult msdf_generate(Arena *arena, TTF_Font *font, U32 codep
 
             switch (segment->kind) {
                 case MSDF_SEGMENT_NULL: {
-                    assert(!"Not reached");
                 } break;
                 case MSDF_SEGMENT_LINE: {
                     dll_push_back(lines.first, lines.last, segment);
@@ -750,7 +749,6 @@ internal MSDF_RasterResult msdf_generate(Arena *arena, TTF_Font *font, U32 codep
                     dll_push_back(quad_beziers.first, quad_beziers.last, segment);
                 } break;
                 case MSDF_SEGMENT_KIND_COUNT: {
-                    assert(!"Not reached");
                 } break;
             }
         }
@@ -765,12 +763,12 @@ internal MSDF_RasterResult msdf_generate(Arena *arena, TTF_Font *font, U32 codep
 
     for (MSDF_Segment *line = lines.first; line; line = line->next) {
         line->p0 = v2f32(
-            ((line->p0.x  - glyph.x_min) * x_scale + (F32) padding) / (F32) render_size,
-            ((glyph.y_max - line->p0.y)  * y_scale + (F32) padding) / (F32) render_size
+            ((line->p0.x  - (F32) glyph.x_min) * x_scale + (F32) padding) / (F32) render_size,
+            (((F32) glyph.y_max - line->p0.y)  * y_scale + (F32) padding) / (F32) render_size
         );
         line->p1 = v2f32(
-            ((line->p1.x  - glyph.x_min) * x_scale + (F32) padding) / (F32) render_size,
-            ((glyph.y_max - line->p1.y)  * y_scale + (F32) padding) / (F32) render_size
+            ((line->p1.x  - (F32) glyph.x_min) * x_scale + (F32) padding) / (F32) render_size,
+            (((F32) glyph.y_max - line->p1.y)  * y_scale + (F32) padding) / (F32) render_size
         );
 
         V2F32 min = v2f32_min(line->p0, line->p1);
@@ -782,16 +780,16 @@ internal MSDF_RasterResult msdf_generate(Arena *arena, TTF_Font *font, U32 codep
     }
     for (MSDF_Segment *bezier = quad_beziers.first; bezier; bezier = bezier->next) {
         bezier->p0 = v2f32(
-            ((bezier->p0.x - glyph.x_min)  * x_scale + (F32) padding) / (F32) render_size,
-            ((glyph.y_max  - bezier->p0.y) * y_scale + (F32) padding) / (F32) render_size
+            ((bezier->p0.x - (F32) glyph.x_min)  * x_scale + (F32) padding) / (F32) render_size,
+            (((F32) glyph.y_max  - bezier->p0.y) * y_scale + (F32) padding) / (F32) render_size
         );
         bezier->p1 = v2f32(
-            ((bezier->p1.x - glyph.x_min)  * x_scale + (F32) padding) / (F32) render_size,
-            ((glyph.y_max  - bezier->p1.y) * y_scale + (F32) padding) / (F32) render_size
+            ((bezier->p1.x - (F32) glyph.x_min)  * x_scale + (F32) padding) / (F32) render_size,
+            (((F32) glyph.y_max  - bezier->p1.y) * y_scale + (F32) padding) / (F32) render_size
         );
         bezier->p2 = v2f32(
-            ((bezier->p2.x - glyph.x_min)  * x_scale + (F32) padding) / (F32) render_size,
-            ((glyph.y_max  - bezier->p2.y) * y_scale + (F32) padding) / (F32) render_size
+            ((bezier->p2.x - (F32) glyph.x_min)  * x_scale + (F32) padding) / (F32) render_size,
+            (((F32) glyph.y_max  - bezier->p2.y) * y_scale + (F32) padding) / (F32) render_size
         );
 
         V2F32 min = v2f32_min(v2f32_min(bezier->p0, bezier->p1), bezier->p2);
@@ -802,7 +800,7 @@ internal MSDF_RasterResult msdf_generate(Arena *arena, TTF_Font *font, U32 codep
         bezier->circle_radius = radius;
     }
 
-    F32 distance_range = 2.0f / render_size;
+    F32 distance_range = 2.0f / (F32) render_size;
     U32 pixel_index = 0;
     result.data = arena_push_array(arena, U8, 4 * render_size * render_size);
     for (U32 y = 0; y < render_size; ++y) {
@@ -815,7 +813,7 @@ internal MSDF_RasterResult msdf_generate(Arena *arena, TTF_Font *font, U32 codep
             MSDF_Distance blue_distance  = { .distance = f32_infinity(), .orthogonality = 0.0f };
             MSDF_Segment *blue_segment   = &nil_segment;
 
-            V2F32 point = v2f32((x + 0.5f) / (F32) render_size, (y + 0.5f) / (F32) render_size);
+            V2F32 point = v2f32(((F32) x + 0.5f) / (F32) render_size, ((F32) y + 0.5f) / (F32) render_size);
             for (MSDF_Segment *line = lines.first; line; line = line->next) {
                 F32 min_distance = v2f32_length_squared(v2f32_subtract(line->circle_center, point));
 
@@ -880,9 +878,9 @@ internal MSDF_RasterResult msdf_generate(Arena *arena, TTF_Font *font, U32 codep
                 blue_distance.distance = msdf_quadratic_bezier_signed_pseudo_distance(point, *blue_segment, blue_distance.unclamped_t);
             }
 
-            S32 red   = s32_min(s32_max(0, f32_round_to_s32((red_distance.distance   / distance_range + 0.5f) * 255.0f)), 255);
-            S32 green = s32_min(s32_max(0, f32_round_to_s32((green_distance.distance / distance_range + 0.5f) * 255.0f)), 255);
-            S32 blue  = s32_min(s32_max(0, f32_round_to_s32((blue_distance.distance  / distance_range + 0.5f) * 255.0f)), 255);
+            U8 red   = (U8) s32_min(s32_max(0, f32_round_to_s32((red_distance.distance   / distance_range + 0.5f) * 255.0f)), 255);
+            U8 green = (U8) s32_min(s32_max(0, f32_round_to_s32((green_distance.distance / distance_range + 0.5f) * 255.0f)), 255);
+            U8 blue  = (U8) s32_min(s32_max(0, f32_round_to_s32((blue_distance.distance  / distance_range + 0.5f) * 255.0f)), 255);
 
             result.data[pixel_index++] = red;
             result.data[pixel_index++] = green;

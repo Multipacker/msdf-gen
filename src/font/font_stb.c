@@ -1,5 +1,14 @@
+#if COMPILER_CLANG
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wconversion"
+#endif
+
 #define STB_TRUETYPE_IMPLEMENTATION
 #include "stb_truetype.h"
+
+#if COMPILER_CLANG
+#pragma clang diagnostic pop
+#endif
 
 struct Font_Raster {
     stbtt_fontinfo font_info;
@@ -50,20 +59,20 @@ internal MSDF_RasterResult raster_generate(Arena *arena, Font_Raster *font, U32 
 
         int width  = x_max - x_min;
         int height = y_max - y_min;
-        result.data = arena_push_array_zero(arena, U8, width * height);
+        result.data = arena_push_array_zero(arena, U8, (U64) (width * height));
         stbtt_MakeGlyphBitmap(&font->font_info, result.data, width, height, width, scale, scale, glyph_index);
 
         int advance_width     = 0;
         int left_side_bearing = 0;
         stbtt_GetGlyphHMetrics(&font->font_info, glyph_index, &advance_width, &left_side_bearing);
 
-        result.x_min             = x_min;
-        result.y_min             = y_min;
-        result.x_max             = x_max;
-        result.y_max             = y_max;
+        result.x_min             = (F32) x_min;
+        result.y_min             = (F32) y_min;
+        result.x_max             = (F32) x_max;
+        result.y_max             = (F32) y_max;
         result.size              = v2u32((U32) width, (U32) height);
-        result.advance_width     = scale * advance_width;
-        result.left_side_bearing = scale * left_side_bearing;
+        result.advance_width     = scale * (F32) advance_width;
+        result.left_side_bearing = scale * (F32) left_side_bearing;
     }
 
     return result;
