@@ -130,8 +130,8 @@ internal Gfx_EventList gfx_get_events(Arena *arena, Gfx_Context *gfx) {
                     event->kind = Gfx_EventKind_KeyRelease;
                 }
 
-                event->position.x = sdl_event.button.x;
-                event->position.y = sdl_event.button.y;
+                event->position.x = (F32) sdl_event.button.x;
+                event->position.y = (F32) sdl_event.button.y;
 
                 switch (sdl_event.button.button) {
                     case SDL_BUTTON_LEFT:   event->key = Gfx_Key_MouseLeft;   break;
@@ -143,8 +143,8 @@ internal Gfx_EventList gfx_get_events(Arena *arena, Gfx_Context *gfx) {
             case SDL_MOUSEWHEEL: {
                 event->kind   = Gfx_EventKind_Scroll;
                 event->scroll = v2f32(-sdl_event.wheel.preciseX, sdl_event.wheel.preciseY);
-                event->position.x = sdl_event.wheel.mouseX;
-                event->position.y = sdl_event.wheel.mouseY;
+                event->position.x = (F32) sdl_event.wheel.mouseX;
+                event->position.y = (F32) sdl_event.wheel.mouseY;
             } break;
         }
 
@@ -161,7 +161,7 @@ internal V2F32 gfx_get_mouse_position(Gfx_Context *gfx) {
     int y = 0;
     SDL_GetMouseState(&x, &y);
 
-    V2F32 result = v2f32(x, y);
+    V2F32 result = v2f32((F32) x, (F32) y);
     return result;
 }
 
