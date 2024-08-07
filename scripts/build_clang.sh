@@ -3,15 +3,8 @@
 set -e
 
 for argument in "$@"; do declare $argument='1'; done
-if [ ! -v release ]; then
+if [ ! -v release ] && [ ! -v profile ]; then
     debug=1
-fi
-
-if [ -v debug ]; then
-    echo "Debug build"
-fi
-if [ -v release ]; then
-    echo "Release build"
 fi
 
 # Common flags
@@ -46,28 +39,37 @@ common_compiler_flags="-I. ${errors}"
 common_linker_flags="${libraries}"
 
 # Debug flags
-
 debug_compiler_flags="${common_compiler_flags} -g -DENABLE_ASSERT=1 -DDEBUG_BUILD=1"
 debug_linker_flags="${common_linker_flags}"
 
 # Release flags
-
-release_compiler_flags="${common_compiler_flags} -O3 -DRELEASE_BUILD=1"
+release_compiler_flags="${common_compiler_flags} -O3 -march=native -DRELEASE_BUILD=1"
 release_linker_flags="${common_linker_flags}"
 
-# Choose options
+# Profile flags
+profile_compiler_flags="${common_compiler_flags} -g -O3 -march=native -DPROFILE_BUILD=1 -DTRACY_ENABLE=1"
+profile_linker_flags="${common_linker_flags} -lTracyClient"
 
+# Choose options
 if [ -v debug ]; then
+    echo "Debug build"
     compiler_flags="${debug_compiler_flags}"
     linker_flags="${debug_linker_flags}"
 fi
 if [ -v release ]; then
+    echo "Release build"
     compiler_flags="${release_compiler_flags}"
     linker_flags="${release_linker_flags}"
+fi
+if [ -v profile ]; then
+    echo "Profile build"
+    compiler_flags="${profile_compiler_flags}"
+    linker_flags="${profile_linker_flags}"
 fi
 
 # Build
 
 mkdir -p build
 
-clang $compiler_flags $linker_flags src/msdf-gen/main.c -o build/msdf-gen
+clang -c $compiler_flags src/msdf-gen/main.c -o build/msdf-gen.o
+clang++ $linker_flags build/msdf-gen.o -o build/msdf-gen

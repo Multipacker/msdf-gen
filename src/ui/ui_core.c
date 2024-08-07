@@ -127,6 +127,8 @@ internal UI_Context *ui_create(Void) {
 
 
 internal Void ui_begin(Gfx_Context *gfx, UI_Context *ui, Gfx_EventList *events, F32 dt) {
+    prof_function_begin();
+
     // NOTE(simon): Reset stacks
     ui->parent_stack.top      = 0;
     ui->parent_stack.freelist = 0;
@@ -238,6 +240,8 @@ internal Void ui_begin(Gfx_Context *gfx, UI_Context *ui, Gfx_EventList *events, 
     if (ui_keys_match(ui->active_key, global_ui_null_key)) {
         ui->hot_key = global_ui_null_key;
     }
+
+    prof_function_end();
 }
 
 internal Void ui_layout_independent_sizes(UI_Box *box, Axis2 axis) {
@@ -381,6 +385,8 @@ internal Void ui_layout_resolve_violations(UI_Box *box, Axis2 axis) {
 }
 
 internal Void ui_end(Gfx_Context *gfx, UI_Context *ui) {
+    prof_function_begin();
+
     // NOTE(simon): Remove untouched boxes.
     for (U32 i = 0; i < UI_BOX_TABLE_SIZE; ++i) {
         UI_BoxList *boxes = &ui->box_table[i];
@@ -399,12 +405,16 @@ internal Void ui_end(Gfx_Context *gfx, UI_Context *ui) {
     }
 
     // NOTE(simon): Layout
-    for (Axis2 axis = 0; axis < Axis2_COUNT; ++axis) {
-        ui_layout_independent_sizes(ui->root, axis);
-        ui_layout_upwards_dependent_sizes(ui->root, axis);
-        ui_layout_downwards_dependent_sizes(ui->root, axis);
-        ui_layout_resolve_violations(ui->root, axis);
-        ui_layout_position(ui->root, axis);
+    {
+        prof_zone_begin(prof_layout, "layout");
+        for (Axis2 axis = 0; axis < Axis2_COUNT; ++axis) {
+            ui_layout_independent_sizes(ui->root, axis);
+            ui_layout_upwards_dependent_sizes(ui->root, axis);
+            ui_layout_downwards_dependent_sizes(ui->root, axis);
+            ui_layout_resolve_violations(ui->root, axis);
+            ui_layout_position(ui->root, axis);
+        }
+        prof_zone_end(prof_layout);
     }
 
     // NOTE(simon): Move context menu to anchor.
@@ -446,31 +456,35 @@ internal Void ui_end(Gfx_Context *gfx, UI_Context *ui) {
     }
 
     // NOTE(simon): Animate
-    F32 fast_rate = 1.0f - f32_pow(2, -ui->dt / (1.0f / 60.0f));
-    F32 slow_rate = 1.0f - f32_pow(2, -ui->dt / (1.0f / 30.0f));
+    {
+        prof_zone_begin(prof_animate, "animate");
+        F32 fast_rate = 1.0f - f32_pow(2, -ui->dt / (1.0f / 60.0f));
+        F32 slow_rate = 1.0f - f32_pow(2, -ui->dt / (1.0f / 30.0f));
 
-    for (U32 i = 0; i < UI_BOX_TABLE_SIZE; ++i) {
-        UI_BoxList boxes = ui->box_table[i];
-        for (UI_Box *box = boxes.first; box; box = box->hash_next) {
-            B32 is_hot      = ui_keys_match(ui->hot_key,    box->key);
-            B32 is_active   = ui_keys_match(ui->active_key, box->key);
-            B32 is_disabled = box->flags & UI_BoxFlags_Disabled;
+        for (U32 i = 0; i < UI_BOX_TABLE_SIZE; ++i) {
+            UI_BoxList boxes = ui->box_table[i];
+            for (UI_Box *box = boxes.first; box; box = box->hash_next) {
+                B32 is_hot      = ui_keys_match(ui->hot_key,    box->key);
+                B32 is_active   = ui_keys_match(ui->active_key, box->key);
+                B32 is_disabled = box->flags & UI_BoxFlags_Disabled;
 
-            box->animated_position.x += (box->calculated_position.x - box->animated_position.x) * fast_rate;
-            box->animated_position.y += (box->calculated_position.y - box->animated_position.y) * fast_rate;
-            if (f32_abs(box->calculated_position.x - box->animated_position.x) < 1.0f) {
-                box->animated_position.x = box->calculated_position.x;
+                box->animated_position.x += (box->calculated_position.x - box->animated_position.x) * fast_rate;
+                box->animated_position.y += (box->calculated_position.y - box->animated_position.y) * fast_rate;
+                if (f32_abs(box->calculated_position.x - box->animated_position.x) < 1.0f) {
+                    box->animated_position.x = box->calculated_position.x;
+                }
+                if (f32_abs(box->calculated_position.y - box->animated_position.y) < 1.0f) {
+                    box->animated_position.y = box->calculated_position.y;
+                }
+
+                box->hot_t      += ((F32) is_hot    - box->hot_t)        * fast_rate;
+                box->active_t   += ((F32) is_active - box->active_t)     * fast_rate;
+                box->disabled_t += ((F32) is_disabled - box->disabled_t) * slow_rate;
             }
-            if (f32_abs(box->calculated_position.y - box->animated_position.y) < 1.0f) {
-                box->animated_position.y = box->calculated_position.y;
-            }
-
-            box->hot_t      += ((F32) is_hot    - box->hot_t)        * fast_rate;
-            box->active_t   += ((F32) is_active - box->active_t)     * fast_rate;
-            box->disabled_t += ((F32) is_disabled - box->disabled_t) * slow_rate;
         }
+        ui->tooltip_t += ((F32) ui->is_tooltip_active - ui->tooltip_t) * fast_rate;
+        prof_zone_end(prof_animate);
     }
-    ui->tooltip_t += ((F32) ui->is_tooltip_active - ui->tooltip_t) * fast_rate;
 
     // NOTE(simon): Make sure events don't go through the context menu.
     if (!ui_keys_match(ui->context_menu_anchor_key, global_ui_null_key)) {
@@ -502,6 +516,8 @@ internal Void ui_end(Gfx_Context *gfx, UI_Context *ui) {
 
     ++ui->frame_index;
     arena_pop_to(ui_frame_arena(ui), 0);
+
+    prof_function_end();
 }
 
 

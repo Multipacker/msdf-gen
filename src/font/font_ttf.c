@@ -790,6 +790,7 @@ internal TTF_Glyph ttf_get_glyph_outlines(Arena *arena, TTF_Font *font, U32 glyp
 }
 
 internal MSDF_Glyph ttf_expand_contours_to_msdf(Arena *arena, TTF_Font *font, U32 glyph_index) {
+    prof_function_begin();
     MSDF_Glyph result = { 0 };
     Arena_Temporary scratch = arena_get_scratch(&arena, 1);
 
@@ -857,6 +858,7 @@ internal MSDF_Glyph ttf_expand_contours_to_msdf(Arena *arena, TTF_Font *font, U3
     }
 
     arena_end_temporary(scratch);
+    prof_function_end();
     return result;
 }
 

@@ -710,6 +710,7 @@ internal Void msdf_color_edges(MSDF_Glyph glyph) {
 }
 
 internal MSDF_RasterResult msdf_generate(Arena *arena, TTF_Font *font, U32 codepoint, U32 render_size) {
+    prof_function_begin();
     MSDF_RasterResult result = { 0 };
 
     Arena_Temporary scratch = arena_get_scratch(&arena, 1);
@@ -725,10 +726,15 @@ internal MSDF_RasterResult msdf_generate(Arena *arena, TTF_Font *font, U32 codep
     result.advance_width     = (F32) metrics.advance_width / (F32) font->funits_per_em;
     result.left_side_bearing = (F32) metrics.left_side_bearing / (F32) font->funits_per_em;
 
-    msdf_resolve_contour_overlap(scratch.arena, &glyph);
-    msdf_convert_to_simple_polygons(scratch.arena, &glyph);
-    msdf_correct_contour_orientation(&glyph);
-    msdf_color_edges(glyph);
+    // NOTE(simon): Simplify outline
+    {
+        prof_zone_begin(prof_simplify, "simplify outline");
+        msdf_resolve_contour_overlap(scratch.arena, &glyph);
+        msdf_convert_to_simple_polygons(scratch.arena, &glyph);
+        msdf_correct_contour_orientation(&glyph);
+        msdf_color_edges(glyph);
+        prof_zone_end(prof_simplify);
+    }
 
     // NOTE(simon): We no longer need the segments to be organized in curves or
     // have any order amongst themselves. Separate them by kind to ease
@@ -800,96 +806,102 @@ internal MSDF_RasterResult msdf_generate(Arena *arena, TTF_Font *font, U32 codep
         bezier->circle_radius = radius;
     }
 
-    F32 distance_range = 2.0f / (F32) render_size;
-    U32 pixel_index = 0;
-    result.data = arena_push_array(arena, U8, 4 * render_size * render_size);
-    for (U32 y = 0; y < render_size; ++y) {
-        for (U32 x = 0; x < render_size; ++x) {
-            MSDF_Segment nil_segment     = { 0 };
-            MSDF_Distance red_distance   = { .distance = f32_infinity(), .orthogonality = 0.0f };
-            MSDF_Segment *red_segment    = &nil_segment;
-            MSDF_Distance green_distance = { .distance = f32_infinity(), .orthogonality = 0.0f };
-            MSDF_Segment *green_segment  = &nil_segment;
-            MSDF_Distance blue_distance  = { .distance = f32_infinity(), .orthogonality = 0.0f };
-            MSDF_Segment *blue_segment   = &nil_segment;
+    // NOTE(simon): Generate
+    {
+        prof_zone_begin(prof_generate, "generate");
+        F32 distance_range = 2.0f / (F32) render_size;
+        U32 pixel_index = 0;
+        result.data = arena_push_array(arena, U8, 4 * render_size * render_size);
+        for (U32 y = 0; y < render_size; ++y) {
+            for (U32 x = 0; x < render_size; ++x) {
+                MSDF_Segment nil_segment     = { 0 };
+                MSDF_Distance red_distance   = { .distance = f32_infinity(), .orthogonality = 0.0f };
+                MSDF_Segment *red_segment    = &nil_segment;
+                MSDF_Distance green_distance = { .distance = f32_infinity(), .orthogonality = 0.0f };
+                MSDF_Segment *green_segment  = &nil_segment;
+                MSDF_Distance blue_distance  = { .distance = f32_infinity(), .orthogonality = 0.0f };
+                MSDF_Segment *blue_segment   = &nil_segment;
 
-            V2F32 point = v2f32(((F32) x + 0.5f) / (F32) render_size, ((F32) y + 0.5f) / (F32) render_size);
-            for (MSDF_Segment *line = lines.first; line; line = line->next) {
-                F32 min_distance = v2f32_length_squared(v2f32_subtract(line->circle_center, point));
+                V2F32 point = v2f32(((F32) x + 0.5f) / (F32) render_size, ((F32) y + 0.5f) / (F32) render_size);
+                for (MSDF_Segment *line = lines.first; line; line = line->next) {
+                    F32 min_distance = v2f32_length_squared(v2f32_subtract(line->circle_center, point));
 
-                F32 red   = red_distance.distance   + line->circle_radius;
-                F32 green = green_distance.distance + line->circle_radius;
-                F32 blue  = blue_distance.distance  + line->circle_radius;
-                if (red * red >= min_distance || green * green >= min_distance || blue * blue >= min_distance) {
-                    MSDF_Distance distance = msdf_line_distance_orthogonality(point, *line);
+                    F32 red   = red_distance.distance   + line->circle_radius;
+                    F32 green = green_distance.distance + line->circle_radius;
+                    F32 blue  = blue_distance.distance  + line->circle_radius;
+                    if (red * red >= min_distance || green * green >= min_distance || blue * blue >= min_distance) {
+                        MSDF_Distance distance = msdf_line_distance_orthogonality(point, *line);
 
-                    if ((line->flags & MSDF_COLOR_RED) && msdf_distance_is_closer(distance, red_distance)) {
-                        red_distance = distance;
-                        red_segment  = line;
-                    }
-                    if ((line->flags & MSDF_COLOR_GREEN) && msdf_distance_is_closer(distance, green_distance)) {
-                        green_distance = distance;
-                        green_segment  = line;
-                    }
-                    if ((line->flags & MSDF_COLOR_BLUE) && msdf_distance_is_closer(distance, blue_distance)) {
-                        blue_distance = distance;
-                        blue_segment  = line;
-                    }
-                }
-            }
-
-            for (MSDF_Segment *bezier = quad_beziers.first; bezier; bezier = bezier->next) {
-                F32 min_distance = v2f32_length_squared(v2f32_subtract(bezier->circle_center, point));
-
-                F32 red   = red_distance.distance   + bezier->circle_radius;
-                F32 green = green_distance.distance + bezier->circle_radius;
-                F32 blue  = blue_distance.distance  + bezier->circle_radius;
-                if (red * red >= min_distance || green * green >= min_distance || blue * blue >= min_distance) {
-                    MSDF_Distance distance = msdf_quadratic_bezier_distance_orthogonality(point, *bezier);
-
-                    if ((bezier->flags & MSDF_COLOR_RED) && msdf_distance_is_closer(distance, red_distance)) {
-                        red_distance = distance;
-                        red_segment  = bezier;
-                    }
-                    if ((bezier->flags & MSDF_COLOR_GREEN) && msdf_distance_is_closer(distance, green_distance)) {
-                        green_distance = distance;
-                        green_segment  = bezier;
-                    }
-                    if ((bezier->flags & MSDF_COLOR_BLUE) && msdf_distance_is_closer(distance, blue_distance)) {
-                        blue_distance = distance;
-                        blue_segment  = bezier;
+                        if ((line->flags & MSDF_COLOR_RED) && msdf_distance_is_closer(distance, red_distance)) {
+                            red_distance = distance;
+                            red_segment  = line;
+                        }
+                        if ((line->flags & MSDF_COLOR_GREEN) && msdf_distance_is_closer(distance, green_distance)) {
+                            green_distance = distance;
+                            green_segment  = line;
+                        }
+                        if ((line->flags & MSDF_COLOR_BLUE) && msdf_distance_is_closer(distance, blue_distance)) {
+                            blue_distance = distance;
+                            blue_segment  = line;
+                        }
                     }
                 }
-            }
 
-            if (red_segment->kind == MSDF_SEGMENT_LINE) {
-                red_distance.distance = msdf_line_signed_pseudo_distance(point, *red_segment);
-            } else if (red_segment->kind == MSDF_SEGMENT_QUADRATIC_BEZIER) {
-                red_distance.distance = msdf_quadratic_bezier_signed_pseudo_distance(point, *red_segment, red_distance.unclamped_t);
-            }
-            if (green_segment->kind == MSDF_SEGMENT_LINE) {
-                green_distance.distance = msdf_line_signed_pseudo_distance(point, *green_segment);
-            } else if (green_segment->kind == MSDF_SEGMENT_QUADRATIC_BEZIER) {
-                green_distance.distance = msdf_quadratic_bezier_signed_pseudo_distance(point, *green_segment, green_distance.unclamped_t);
-            }
-            if (blue_segment->kind == MSDF_SEGMENT_LINE) {
-                blue_distance.distance = msdf_line_signed_pseudo_distance(point, *blue_segment);
-            } else if (blue_segment->kind == MSDF_SEGMENT_QUADRATIC_BEZIER) {
-                blue_distance.distance = msdf_quadratic_bezier_signed_pseudo_distance(point, *blue_segment, blue_distance.unclamped_t);
-            }
+                for (MSDF_Segment *bezier = quad_beziers.first; bezier; bezier = bezier->next) {
+                    F32 min_distance = v2f32_length_squared(v2f32_subtract(bezier->circle_center, point));
 
-            U8 red   = (U8) s32_min(s32_max(0, f32_round_to_s32((red_distance.distance   / distance_range + 0.5f) * 255.0f)), 255);
-            U8 green = (U8) s32_min(s32_max(0, f32_round_to_s32((green_distance.distance / distance_range + 0.5f) * 255.0f)), 255);
-            U8 blue  = (U8) s32_min(s32_max(0, f32_round_to_s32((blue_distance.distance  / distance_range + 0.5f) * 255.0f)), 255);
+                    F32 red   = red_distance.distance   + bezier->circle_radius;
+                    F32 green = green_distance.distance + bezier->circle_radius;
+                    F32 blue  = blue_distance.distance  + bezier->circle_radius;
+                    if (red * red >= min_distance || green * green >= min_distance || blue * blue >= min_distance) {
+                        MSDF_Distance distance = msdf_quadratic_bezier_distance_orthogonality(point, *bezier);
 
-            result.data[pixel_index++] = red;
-            result.data[pixel_index++] = green;
-            result.data[pixel_index++] = blue;
-            result.data[pixel_index++] = 0;
+                        if ((bezier->flags & MSDF_COLOR_RED) && msdf_distance_is_closer(distance, red_distance)) {
+                            red_distance = distance;
+                            red_segment  = bezier;
+                        }
+                        if ((bezier->flags & MSDF_COLOR_GREEN) && msdf_distance_is_closer(distance, green_distance)) {
+                            green_distance = distance;
+                            green_segment  = bezier;
+                        }
+                        if ((bezier->flags & MSDF_COLOR_BLUE) && msdf_distance_is_closer(distance, blue_distance)) {
+                            blue_distance = distance;
+                            blue_segment  = bezier;
+                        }
+                    }
+                }
+
+                if (red_segment->kind == MSDF_SEGMENT_LINE) {
+                    red_distance.distance = msdf_line_signed_pseudo_distance(point, *red_segment);
+                } else if (red_segment->kind == MSDF_SEGMENT_QUADRATIC_BEZIER) {
+                    red_distance.distance = msdf_quadratic_bezier_signed_pseudo_distance(point, *red_segment, red_distance.unclamped_t);
+                }
+                if (green_segment->kind == MSDF_SEGMENT_LINE) {
+                    green_distance.distance = msdf_line_signed_pseudo_distance(point, *green_segment);
+                } else if (green_segment->kind == MSDF_SEGMENT_QUADRATIC_BEZIER) {
+                    green_distance.distance = msdf_quadratic_bezier_signed_pseudo_distance(point, *green_segment, green_distance.unclamped_t);
+                }
+                if (blue_segment->kind == MSDF_SEGMENT_LINE) {
+                    blue_distance.distance = msdf_line_signed_pseudo_distance(point, *blue_segment);
+                } else if (blue_segment->kind == MSDF_SEGMENT_QUADRATIC_BEZIER) {
+                    blue_distance.distance = msdf_quadratic_bezier_signed_pseudo_distance(point, *blue_segment, blue_distance.unclamped_t);
+                }
+
+                U8 red   = (U8) s32_min(s32_max(0, f32_round_to_s32((red_distance.distance   / distance_range + 0.5f) * 255.0f)), 255);
+                U8 green = (U8) s32_min(s32_max(0, f32_round_to_s32((green_distance.distance / distance_range + 0.5f) * 255.0f)), 255);
+                U8 blue  = (U8) s32_min(s32_max(0, f32_round_to_s32((blue_distance.distance  / distance_range + 0.5f) * 255.0f)), 255);
+
+                result.data[pixel_index++] = red;
+                result.data[pixel_index++] = green;
+                result.data[pixel_index++] = blue;
+                result.data[pixel_index++] = 0;
+            }
         }
+        prof_zone_end(prof_generate);
     }
 
     arena_end_temporary(scratch);
 
+    prof_function_end();
     return result;
 }

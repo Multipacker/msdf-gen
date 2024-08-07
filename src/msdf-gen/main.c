@@ -373,6 +373,7 @@ internal S32 os_run(Str8List arguments) {
 
         arena_reset(previous_arena);
         swap(current_arena, previous_arena, Arena *);
+        prof_frame_done();
     }
 
     return 0;
