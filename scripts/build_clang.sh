@@ -48,7 +48,7 @@ release_linker_flags="${common_linker_flags}"
 
 # Profile flags
 profile_compiler_flags="${common_compiler_flags} -g -O3 -march=native -DPROFILE_BUILD=1 -DTRACY_ENABLE=1"
-profile_linker_flags="${common_linker_flags} -lTracyClient"
+profile_linker_flags="-fuse-ld=mold ${common_linker_flags} -lstdc++ -lTracyClient"
 
 # Choose options
 if [ -v debug ]; then
@@ -71,5 +71,4 @@ fi
 
 mkdir -p build
 
-clang -c $compiler_flags src/msdf-gen/main.c -o build/msdf-gen.o
-clang++ $linker_flags build/msdf-gen.o -o build/msdf-gen
+clang $compiler_flags $linker_flags src/msdf-gen/main.c -o build/msdf-gen
