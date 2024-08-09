@@ -269,8 +269,12 @@ internal StringDecode string_decode_utf8(U8 *string, U64 size) {
         4,                                              // 11111xxx: Invalid
     };
     local U8 masks[4]            = { 0x7F, 0x1F, 0x0F, 0x07, };
-    local U8 lower_boundaries[4] = { 0x80, 0x80, 0xA0, 0x90, };
-    local U8 upper_boundaries[4] = { 0xBF, 0xBF, 0x9F, 0x8F, };
+
+    // NOTE(simon): We prefill with 0xFF as it is an invalid UTF-8 byte and it
+    // will ensure we handle end of buffer properly.
+    U8 buffer[] = { 0xFF, 0xFF, 0xFF, 0xFF, };
+    memory_copy(buffer, string, u64_min(size, 4));
+    U8 *ptr = buffer;
 
     StringDecode result;
     result.codepoint = 0xFFFD;
@@ -280,7 +284,7 @@ internal StringDecode string_decode_utf8(U8 *string, U64 size) {
         return result;
     }
 
-    U8 byte = *string++;
+    U8 byte = *ptr++;
     ++result.size;
 
     U8 bytes_needed = lengths[byte >> 3];
@@ -288,17 +292,12 @@ internal StringDecode string_decode_utf8(U8 *string, U64 size) {
         return result;
     }
 
-    U8  lower_boundary = lower_boundaries[bytes_needed];
-    U8  upper_boundary = upper_boundaries[bytes_needed];
+    U8  lower_boundary = (byte == 0xE0 ? 0xA0 : byte == 0xF0 ? 0x90 : 0x80);
+    U8  upper_boundary = (byte == 0xED ? 0x9F : byte == 0xF4 ? 0x8F : 0xBF);
     U32 codepoint      = byte & masks[bytes_needed];
 
-    if (size < result.size + bytes_needed) {
-        result.size = size;
-        return result;
-    }
-
     while (bytes_needed != 0) {
-        byte = *string++;
+        byte = *ptr++;
 
         if (!(lower_boundary <= byte && byte <= upper_boundary)) {
             return result;
@@ -322,25 +321,25 @@ internal U64 string_encode_utf8(U8 *destination, U32 codepoint) {
         destination[0] = (U8) codepoint;
         size = 1;
     } else if (codepoint <= 0x07FF) {
-        destination[0] = (U8) (0xC0 | (codepoint >> 6));
-        destination[1] = (U8) (0x80 | (codepoint & 0x3F));
+        destination[0] = (U8) (0xC0 | ((codepoint >> 6) & 0x1F));
+        destination[1] = (U8) (0x80 | ((codepoint >> 0) & 0x3F));
         size = 2;
     } else if (codepoint <= 0xFFFF) {
-        destination[0] = (U8) (0xC0 | (codepoint >> 12));
-        destination[1] = (U8) (0x80 | ((codepoint >> 6) & 0x3F));
-        destination[2] = (U8) (0x80 | (codepoint & 0x3F));
+        destination[0] = (U8) (0xE0 | ((codepoint >> 12) & 0x0F));
+        destination[1] = (U8) (0x80 | ((codepoint >>  6) & 0x3F));
+        destination[2] = (U8) (0x80 | ((codepoint >>  0) & 0x3F));
         size = 3;
     } else if (codepoint <= 0x10FFFF) {
-        destination[0] = (U8) (0xC0 | (codepoint >> 18));
+        destination[0] = (U8) (0xF0 | ((codepoint >> 18) & 0x07));
         destination[1] = (U8) (0x80 | ((codepoint >> 12) & 0x3F));
-        destination[2] = (U8) (0x80 | ((codepoint >> 6) & 0x3F));
-        destination[3] = (U8) (0x80 | (codepoint & 0x3F));
+        destination[2] = (U8) (0x80 | ((codepoint >>  6) & 0x3F));
+        destination[3] = (U8) (0x80 | ((codepoint >>  0) & 0x3F));
         size = 4;
     } else {
         U32 missing_codepoint = 0xFFFD;
-        destination[0] = (U8) (0xC0 | (missing_codepoint >> 12));
-        destination[1] = (U8) (0x80 | ((missing_codepoint >> 6) & 0x3F));
-        destination[2] = (U8) (0x80 | (missing_codepoint & 0x3F));
+        destination[0] = (U8) (0xE0 | ((missing_codepoint >> 12) & 0x0F));
+        destination[1] = (U8) (0x80 | ((missing_codepoint >>  6) & 0x3F));
+        destination[2] = (U8) (0x80 | ((missing_codepoint >>  0) & 0x3F));
         size = 3;
     }
 
