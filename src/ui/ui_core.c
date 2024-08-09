@@ -478,8 +478,17 @@ internal Void ui_end(Gfx_Context *gfx, UI_Context *ui) {
                 }
 
                 box->hot_t      += ((F32) is_hot    - box->hot_t)        * fast_rate;
+                if (f32_abs((F32) is_hot - box->hot_t) < 0.001f) {
+                    box->hot_t = (F32) is_hot;
+                }
                 box->active_t   += ((F32) is_active - box->active_t)     * fast_rate;
+                if (f32_abs((F32) is_active - box->active_t) < 0.001f) {
+                    box->active_t = (F32) is_active;
+                }
                 box->disabled_t += ((F32) is_disabled - box->disabled_t) * slow_rate;
+                if (f32_abs((F32) is_disabled - box->disabled_t) < 0.001f) {
+                    box->disabled_t = (F32) is_disabled;
+                }
             }
         }
         ui->tooltip_t += ((F32) ui->is_tooltip_active - ui->tooltip_t) * fast_rate;
