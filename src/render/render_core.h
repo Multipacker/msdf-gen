@@ -4,9 +4,10 @@
 typedef struct Render_Context Render_Context;
 
 typedef enum {
-    Render_RectangleFlags_Texture   = 1 << 0,
-    Render_RectangleFlags_MSDF      = 1 << 1,
-    Render_RectangleFlags_AlphaMask = 1 << 2,
+    Render_RectangleFlags_Texture      = 1 << 0,
+    Render_RectangleFlags_MSDF         = 1 << 1,
+    Render_RectangleFlags_AlphaMask    = 1 << 2,
+    Render_RectangleFlags_TextureIndex = 1 << 3,
 } Render_RectangleFlags;
 
 typedef struct Render_Rectangle Render_Rectangle;
@@ -30,6 +31,12 @@ typedef enum {
 typedef union Render_Texture Render_Texture;
 union Render_Texture {
     U32 u32[4];
+};
+
+typedef struct Render_Stats Render_Stats;
+struct Render_Stats {
+    U32 batch_count;
+    U32 rectangle_count;
 };
 
 internal B32  render_init(Void);
@@ -67,5 +74,6 @@ struct Render_RectangleParams {
         __VA_ARGS__                                                        \
     })
 internal Render_Rectangle *render_rectangle_internal(Render_RectangleParams *parameters);
+internal Render_Stats render_get_stats(Void);
 
 #endif // RENDER_CORE_H

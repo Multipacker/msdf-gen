@@ -20,7 +20,7 @@ out      vec2  vert_center;
 out      vec2  vert_half_size;
 
 uniform mat4      uniform_projection;
-uniform sampler2D uniform_sampler;
+uniform sampler2D uniform_samplers[2];
 
 const vec2 verticies[] = {
     vec2(-1.0, -1.0),

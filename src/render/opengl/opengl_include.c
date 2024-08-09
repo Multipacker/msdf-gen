@@ -177,13 +177,23 @@ internal Render_Rectangle *render_rectangle_internal(Render_RectangleParams *par
 
     Render_Batch *batch = gfx->batches.last;
 
-    if (!batch || batch->size >= RENDER_BATCH_SIZE || (batch->texture_id && batch->texture_id != parameters->texture.u32[0])) {
+    B32 needs_batch = !batch;
+    needs_batch |= batch && batch->size >= RENDER_BATCH_SIZE;
+    needs_batch |= batch && parameters->texture.u32[0] &&
+        batch->texture_ids[0] && batch->texture_ids[0] != parameters->texture.u32[0] &&
+        batch->texture_ids[1] && batch->texture_ids[1] != parameters->texture.u32[0];
+
+    if (needs_batch) {
+        ++gfx->new_stats.batch_count;
         batch = arena_push_struct_zero(gfx->arena, Render_Batch);
         dll_push_back(gfx->batches.first, gfx->batches.last, batch);
     }
 
-    // NOTE(simon): Either it is the same texture id, or there is no texture for this batch.
-    batch->texture_id = parameters->texture.u32[0];
+    if (!batch->texture_ids[0]) {
+        batch->texture_ids[0] = parameters->texture.u32[0];
+    } else if (!batch->texture_ids[1]) {
+        batch->texture_ids[1] = parameters->texture.u32[0];
+    }
 
     Render_Rectangle *rect = &batch->rectangles[batch->size++];
 
@@ -195,10 +205,11 @@ internal Render_Rectangle *render_rectangle_internal(Render_RectangleParams *par
     rect->colors[3] = parameters->color;
     rect->uv_min    = parameters->uv_min;
     rect->uv_max    = parameters->uv_max;
-    rect->flags     = parameters->flags;
+    rect->flags     = parameters->flags | (batch->texture_ids[0] == parameters->texture.u32[0] ? 0 : Render_RectangleFlags_TextureIndex);
     rect->thickness = parameters->thickness;
     rect->softness  = parameters->softness;
     rect->radies    = parameters->radies;
+    ++gfx->new_stats.rectangle_count;
 
     return rect;
 }
@@ -217,12 +228,14 @@ internal Void render_begin(V2U32 resolution) {
 internal Void render_end(Void) {
     Render_Context *gfx = &global_render_context;
 
-    glProgramUniform1i(gfx->program, gfx->uniform_sampler_location, 0);
+    GLint samplers[] = { 0, 1, };
+    glProgramUniform1iv(gfx->program, gfx->uniform_sampler_location, array_count(samplers), samplers);
 
     glClear(GL_COLOR_BUFFER_BIT);
 
     for (Render_Batch *batch = gfx->batches.first; batch; batch = batch->next) {
-        glBindTextureUnit(0, batch->texture_id);
+        glBindTextureUnit(0, batch->texture_ids[0]);
+        glBindTextureUnit(1, batch->texture_ids[1]);
         glNamedBufferSubData(gfx->vbo, 0, batch->size * sizeof(Render_Rectangle), batch->rectangles);
         glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, (GLsizei) batch->size);
     }
@@ -232,6 +245,9 @@ internal Void render_end(Void) {
     arena_end_temporary(gfx->frame_restore);
 
     gfx_swap_buffers(gfx->gfx);
+
+    gfx->current_stats = gfx->new_stats;
+    memory_zero_struct(&gfx->new_stats);
 }
 
 internal Render_Texture render_texture_create(V2U32 size, Render_TextureFormat format, U8 *data) {
@@ -338,7 +354,7 @@ internal Void render_create(Gfx_Context *gfx) {
     result->program = program.handle;
 
     result->uniform_projection_location = glGetUniformLocation(result->program, "uniform_projection");
-    result->uniform_sampler_location    = glGetUniformLocation(result->program, "uniform_sampler");
+    result->uniform_sampler_location    = glGetUniformLocation(result->program, "uniform_samplers");
 
     glCreateBuffers(1, &result->vbo);
     glNamedBufferData(result->vbo, RENDER_BATCH_SIZE * sizeof(Render_Rectangle), 0, GL_DYNAMIC_DRAW);
@@ -365,4 +381,8 @@ internal Void render_create(Gfx_Context *gfx) {
     glBindVertexArray(result->vao);
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+}
+
+internal Render_Stats render_get_stats(Void) {
+    return global_render_context.current_stats;
 }

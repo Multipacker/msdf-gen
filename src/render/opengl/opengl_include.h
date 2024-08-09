@@ -14,7 +14,7 @@ struct Render_Batch {
     Render_Batch *next;
     Render_Batch *previous;
 
-    GLuint texture_id;
+    GLuint texture_ids[2];
     U32 size;
     Render_Rectangle rectangles[RENDER_BATCH_SIZE];
 };
@@ -35,6 +35,8 @@ struct Render_Context {
     GLint            uniform_projection_location;
     GLint            uniform_sampler_location;
     Gfx_Context     *gfx;
+    Render_Stats     current_stats;
+    Render_Stats     new_stats;
 };
 
 #endif // OPENGL_INCLUDE_H
