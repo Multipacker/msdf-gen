@@ -146,7 +146,14 @@ internal Void draw_text(FontCache_Font *font, V2F32 origin, Str8 string, U32 siz
 
 internal UI_BOX_DRAW_FUNCTION(draw_ui_msdf) {
     Font *font = (Font *) data;
-    Glyph *glyph = &font->glyphs[box->string.data[0]];
+
+    StringDecode decode = string_decode_utf8(box->string.data, box->string.size);
+    U32 codepoint = decode.codepoint;
+    if (codepoint > array_count(font->glyphs)) {
+        codepoint = 0;
+    }
+
+    Glyph *glyph = &font->glyphs[codepoint];
 
     render_rectangle(
         box->calculated_rectangle.min,
