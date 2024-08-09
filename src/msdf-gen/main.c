@@ -285,79 +285,96 @@ internal S32 os_run(Str8List arguments) {
 
     while (running) {
         Gfx_EventList events = gfx_get_events(current_arena, gfx);
-        ui_begin(gfx, ui, &events, 1.0f / 60.0f);
 
-        Theme *theme = &global_themes[1];
-        local U32 selected_codepoint = 0;
+        // NOTE(simon): UI build
+        {
+            prof_zone_begin(prof_ui_build, "ui_build");
+            ui_begin(gfx, ui, &events, 1.0f / 60.0f);
 
-        U32 codepoint_count = 128;
-        ui_extra_box_flags_next(ui, UI_BoxFlags_OverflowY);
-        ui_width_next(ui, ui_size_parent_percent(1.0f, 0.0f));
-        ui_height_next(ui, ui_size_children_sum(1.0f));
-        ui_column_string(ui, str8_literal("glyphs")) {
-            UI_Box *container = ui_parent_top(ui);
-            U32 column_count = (U32) (container->calculated_size.width / 200.0f);
-            if (!column_count) {
-                column_count = 10;
-            }
+            Theme *theme = &global_themes[1];
+            local U32 selected_codepoint = 0;
 
-            ui_color_push(ui, theme->element_color);
-            ui_border_color_push(ui, theme->border_color);
-            for (U32 codepoint = 0; codepoint < codepoint_count;) {
-                ui_width_next(ui, ui_size_parent_percent(1.0f, 1.0f));
-                ui_height_next(ui, ui_size_children_sum(1.0f));
-                ui_row(ui) {
-                    ui_width(ui, ui_size_fill())
-                    ui_height(ui, ui_size_pixels(50.0f, 1.0f))
-                    for (U32 column = 0; column < column_count && codepoint < codepoint_count; ++column, ++codepoint) {
-                        U8 buffer[4] = { 0 };
-                        U64 size = string_encode_utf8(buffer, codepoint);
-                        Str8 string = str8(buffer, size);
+            U32 codepoint_count = 128;
+            ui_extra_box_flags_next(ui, UI_BoxFlags_OverflowY);
+            ui_width_next(ui, ui_size_parent_percent(1.0f, 0.0f));
+            ui_height_next(ui, ui_size_children_sum(1.0f));
+            ui_column_string(ui, str8_literal("glyphs")) {
+                UI_Box *container = ui_parent_top(ui);
+                F32 preferred_width = 50.0f;
+                U32 column_count = (U32) (container->calculated_size.width / preferred_width);
+                if (!column_count) {
+                    column_count = 10;
+                }
+                F32 width = container->calculated_size.width / (F32) column_count;
+                F32 height = width * 2.0f;
 
-                        ui_draw_function_next(ui, draw_ui_msdf);
-                        ui_draw_data_next(ui, &font);
-                        UI_Box *box = ui_create_box_from_string(
-                            ui,
-                            UI_BoxFlags_DrawBackground | UI_BoxFlags_DrawBorder |
-                            UI_BoxFlags_DrawHot | UI_BoxFlags_DrawActive |
-                            UI_BoxFlags_Clickable,
-                            string
-                        );
-                        UI_Input input = ui_input_from_box(ui, box);
+                ui_color_push(ui, theme->element_color);
+                ui_border_color_push(ui, theme->border_color);
+                for (U32 codepoint = 0; codepoint < codepoint_count;) {
+                    ui_width_next(ui, ui_size_parent_percent(1.0f, 1.0f));
+                    ui_height_next(ui, ui_size_pixels(height, 1.0f));
+                    ui_row(ui) {
+                        ui_width(ui, ui_size_pixels(width, 1.0f))
+                        ui_height(ui, ui_size_parent_percent(1.0f, 1.0f))
+                        ui_draw_function(ui, draw_ui_msdf)
+                        ui_draw_data(ui, &font)
+                        for (U32 column = 0; column < column_count && codepoint < codepoint_count; ++column, ++codepoint) {
+                            U8 buffer[4] = { 0 };
+                            U64 size = string_encode_utf8(buffer, codepoint);
+                            Str8 string = str8(buffer, size);
 
-                        if (input.input_flags & UI_InputFlag_LeftClicked) {
-                            selected_codepoint = codepoint;
+                            UI_Box *box = ui_create_box_from_string(
+                                ui,
+                                UI_BoxFlags_DrawBackground | UI_BoxFlags_DrawBorder |
+                                UI_BoxFlags_DrawHot | UI_BoxFlags_DrawActive |
+                                UI_BoxFlags_Clickable,
+                                string
+                            );
+                            UI_Input input = ui_input_from_box(ui, box);
+
+                            if (input.input_flags & UI_InputFlag_LeftClicked) {
+                                selected_codepoint = codepoint;
+                            }
                         }
                     }
                 }
+                ui_border_color_pop(ui);
+                ui_color_pop(ui);
             }
-            ui_border_color_pop(ui);
-            ui_color_pop(ui);
-        }
 
-        ui_width_next(ui, ui_size_parent_percent(0.25f, 1.0f));
-        ui_height_next(ui, ui_size_parent_percent(1.0f, 1.0f));
-        ui_color_next(ui, theme->background_color);
-        ui_extra_box_flags_next(ui, UI_BoxFlags_DrawBackground);
-        ui_column(ui) {
-            ui_width(ui, ui_size_text_content(5.0f, 1.0f))
-            ui_height(ui, ui_size_text_content(5.0f, 1.0f))
-            ui_color(ui, theme->element_color)
-            ui_border_color(ui, theme->border_color) {
-                ui_label_format(ui, "Selected glyph: U+%.6X", selected_codepoint);
+            ui_width_next(ui, ui_size_parent_percent(0.25f, 1.0f));
+            ui_height_next(ui, ui_size_parent_percent(1.0f, 1.0f));
+            ui_color_next(ui, theme->background_color);
+            ui_extra_box_flags_next(ui, UI_BoxFlags_DrawBackground);
+            ui_column(ui) {
+                ui_width(ui, ui_size_text_content(5.0f, 1.0f))
+                ui_height(ui, ui_size_text_content(5.0f, 1.0f))
+                ui_color(ui, theme->element_color)
+                ui_border_color(ui, theme->border_color) {
+                    ui_label_format(ui, "Selected glyph: U+%.6X", selected_codepoint);
 
-                ui_width_next(ui, ui_size_parent_percent(1.0f, 0.0f));
-                ui_height_next(ui, ui_size_parent_percent(1.0f, 0.0f));
-                ui_draw_function_next(ui, draw_ui_msdf);
-                ui_draw_data_next(ui, &font);
-                U8 buffer[4] = { 0 };
-                U64 size = string_encode_utf8(buffer, selected_codepoint);
-                Str8 string = str8(buffer, size);
-                ui_create_box_from_string(ui, 0, string);
+                    ui_width_next(ui, ui_size_parent_percent(1.0f, 0.0f));
+                    ui_height_next(ui, ui_size_parent_percent(1.0f, 0.0f));
+                    ui_draw_function_next(ui, draw_ui_msdf);
+                    ui_draw_data_next(ui, &font);
+                    U8 buffer[4] = { 0 };
+                    U64 size = string_encode_utf8(buffer, selected_codepoint);
+                    Str8 string = str8(buffer, size);
+                    ui_create_box_from_string(ui, 0, string);
+                }
+
+                ui_width(ui, ui_size_fill())
+                ui_height(ui, ui_size_text_content(0.0f, 1.0f))
+                {
+                    Render_Stats stats = render_get_stats();
+                    ui_label_format(ui, "Batches: %u", stats.batch_count);
+                    ui_label_format(ui, "Rectangles: %u", stats.rectangle_count);
+                }
             }
-        }
 
-        ui_end(gfx, ui);
+            ui_end(gfx, ui);
+            prof_zone_end(prof_ui_build);
+        }
 
         for (Gfx_Event *event = events.first, *next; event; event = next) {
             next = event->next;
@@ -373,10 +390,14 @@ internal S32 os_run(Str8List arguments) {
             }
         }
 
-        V2U32 client_area = gfx_get_window_client_area(gfx);
-        render_begin(client_area);
-        draw_ui(ui->root);
-        render_end();
+        {
+            prof_zone_begin(prof_render, "render");
+            V2U32 client_area = gfx_get_window_client_area(gfx);
+            render_begin(client_area);
+            draw_ui(ui->root);
+            render_end();
+            prof_zone_end(prof_render);
+        }
 
         arena_reset(previous_arena);
         swap(current_arena, previous_arena, Arena *);
