@@ -235,6 +235,7 @@ internal F32 f32_unlerp(F32 a, F32 b, F32 x);
 internal F32 f32_pow(F32 a, F32 b);
 internal F32 f32_floor(F32 x);
 internal F32 f32_ceil(F32 x);
+internal F32 f32_mod(F32 x, F32 y);
 internal F32 f32_round(F32 x);
 internal U32 f32_round_to_u32(F32 x);
 internal S32 f32_round_to_s32(F32 x);
@@ -255,6 +256,7 @@ internal F64 f64_unlerp(F64 a, F64 b, F64 x);
 internal F64 f64_pow(F64 a, F64 b);
 internal F64 f64_floor(F64 x);
 internal F64 f64_ceil(F64 x);
+internal F64 f64_mod(F64 x, F64 y);
 
 internal DenseTime dense_time_from_date_time(DateTime *date_time);
 internal DateTime  date_time_from_dense_time(DenseTime dense_time);

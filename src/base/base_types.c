@@ -576,6 +576,17 @@ internal F32 f32_ceil(F32 x) {
 #endif
 }
 
+internal F32 f32_mod(F32 x, F32 y) {
+    F32 integral = 0.0f;
+#if COMPILER_CL
+    F32 fraction = modff(x / y, &integral);
+#else
+    F32 fraction = __builtin_modff(x / y, &integral);
+#endif
+    F32 result = fraction * y;
+    return result;
+}
+
 internal F32 f32_round(F32 x) {
 #if COMPILER_CL
     return roundf(x);
@@ -791,6 +802,17 @@ internal F64 f64_ceil(F64 x) {
 #else
     return __builtin_ceil(x);
 #endif
+}
+
+internal F64 f64_mod(F64 x, F64 y) {
+    F64 integral = 0.0;
+#if COMPILER_CL
+    F64 fraction = modf(x / y, &integral);
+#else
+    F64 fraction = __builtin_modf(x / y, &integral);
+#endif
+    F64 result = fraction * y;
+    return result;
 }
 
 
