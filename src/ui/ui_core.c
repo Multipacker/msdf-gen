@@ -179,6 +179,9 @@ internal Void ui_begin(Gfx_Context *gfx, UI_Context *ui, Gfx_EventList *events, 
     ui->mouse = gfx_get_mouse_position(gfx);
     ui->events = events;
     ui->dt = dt;
+    ui->fast_rate = 1.0f - f32_pow(2, -ui->dt / (1.0f / 60.0f));
+    ui->slow_rate = 1.0f - f32_pow(2, -ui->dt / (1.0f / 30.0f));
+
 
     ui->is_tooltip_active = false;
     ui->context_menu_used_this_frame = false;
@@ -306,9 +309,9 @@ internal Void ui_layout_position(UI_Box *box, Axis2 axis) {
         if (box->create_index == box->last_used_index) {
             box->animated_position.values[axis] = box->calculated_position.values[axis];
         }
-        box->calculated_rectangle.min.values[axis] = box->parent->calculated_rectangle.min.values[axis] + box->animated_position.values[axis];
+        box->calculated_rectangle.min.values[axis] = box->parent->calculated_rectangle.min.values[axis] + box->animated_position.values[axis] - box->parent->view_offset.values[axis];
     } else {
-        box->calculated_rectangle.min.values[axis] = box->parent->calculated_rectangle.min.values[axis] + box->calculated_position.values[axis];
+        box->calculated_rectangle.min.values[axis] = box->parent->calculated_rectangle.min.values[axis] + box->calculated_position.values[axis] - box->parent->view_offset.values[axis];
     }
     box->calculated_rectangle.max.values[axis] = box->calculated_rectangle.min.values[axis] + box->calculated_size.values[axis];
 
@@ -458,8 +461,6 @@ internal Void ui_end(Gfx_Context *gfx, UI_Context *ui) {
     // NOTE(simon): Animate
     {
         prof_zone_begin(prof_animate, "animate");
-        F32 fast_rate = 1.0f - f32_pow(2, -ui->dt / (1.0f / 60.0f));
-        F32 slow_rate = 1.0f - f32_pow(2, -ui->dt / (1.0f / 30.0f));
 
         for (U32 i = 0; i < UI_BOX_TABLE_SIZE; ++i) {
             UI_BoxList boxes = ui->box_table[i];
@@ -468,8 +469,8 @@ internal Void ui_end(Gfx_Context *gfx, UI_Context *ui) {
                 B32 is_active   = ui_keys_match(ui->active_key, box->key);
                 B32 is_disabled = box->flags & UI_BoxFlags_Disabled;
 
-                box->animated_position.x += (box->calculated_position.x - box->animated_position.x) * fast_rate;
-                box->animated_position.y += (box->calculated_position.y - box->animated_position.y) * fast_rate;
+                box->animated_position.x += (box->calculated_position.x - box->animated_position.x) * ui->fast_rate;
+                box->animated_position.y += (box->calculated_position.y - box->animated_position.y) * ui->fast_rate;
                 if (f32_abs(box->calculated_position.x - box->animated_position.x) < 1.0f) {
                     box->animated_position.x = box->calculated_position.x;
                 }
@@ -477,21 +478,21 @@ internal Void ui_end(Gfx_Context *gfx, UI_Context *ui) {
                     box->animated_position.y = box->calculated_position.y;
                 }
 
-                box->hot_t      += ((F32) is_hot    - box->hot_t)        * fast_rate;
+                box->hot_t += ((F32) is_hot - box->hot_t) * ui->fast_rate;
                 if (f32_abs((F32) is_hot - box->hot_t) < 0.001f) {
                     box->hot_t = (F32) is_hot;
                 }
-                box->active_t   += ((F32) is_active - box->active_t)     * fast_rate;
+                box->active_t += ((F32) is_active - box->active_t) * ui->fast_rate;
                 if (f32_abs((F32) is_active - box->active_t) < 0.001f) {
                     box->active_t = (F32) is_active;
                 }
-                box->disabled_t += ((F32) is_disabled - box->disabled_t) * slow_rate;
+                box->disabled_t += ((F32) is_disabled - box->disabled_t) * ui->slow_rate;
                 if (f32_abs((F32) is_disabled - box->disabled_t) < 0.001f) {
                     box->disabled_t = (F32) is_disabled;
                 }
             }
         }
-        ui->tooltip_t += ((F32) ui->is_tooltip_active - ui->tooltip_t) * fast_rate;
+        ui->tooltip_t += ((F32) ui->is_tooltip_active - ui->tooltip_t) * ui->fast_rate;
         prof_zone_end(prof_animate);
     }
 

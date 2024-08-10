@@ -209,6 +209,8 @@ struct UI_Context {
     Gfx_EventList *events;
     V2F32          mouse;
     F32 dt;
+    F32 fast_rate;
+    F32 slow_rate;
 
     UI_Key hot_key;
     UI_Key active_key;
