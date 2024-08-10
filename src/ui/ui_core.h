@@ -86,6 +86,7 @@ struct UI_Box {
     V2F32 calculated_size;
     V2F32 calculated_position;
     R2F32 calculated_rectangle;
+    V2F32 view_offset;
 
     V2F32 animated_position;
 
@@ -188,6 +189,7 @@ typedef struct UI_Input UI_Input;
 struct UI_Input {
     UI_Box *box;
     UI_InputFlag input_flags;
+    V2F32 scroll;
 };
 
 #define UI_BOX_TABLE_SIZE (1 << 12)

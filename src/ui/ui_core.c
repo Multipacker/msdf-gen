@@ -738,6 +738,7 @@ internal UI_Input ui_input_from_box(UI_Context *ui, UI_Box *box) {
         }
 
         if (box->flags & UI_BoxFlags_Scrollable && event->kind == Gfx_EventKind_Scroll && is_in_bounds) {
+            result.scroll = event->scroll;
             consumed = true;
         }
 
