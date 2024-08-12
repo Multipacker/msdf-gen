@@ -706,6 +706,7 @@ internal UI_Input ui_input_from_box(UI_Context *ui, UI_Box *box) {
             result.input_flags |= (UI_InputFlag) (UI_InputFlag_LeftPressed << mouse_key);
             ui->active_key = box->key;
             ui->hot_key = box->key;
+            ui->drag_start = event->position;
             consumed = true;
         }
 
@@ -745,6 +746,10 @@ internal UI_Input ui_input_from_box(UI_Context *ui, UI_Box *box) {
         if (consumed) {
             dll_remove(ui->events->first, ui->events->last, event);
         }
+    }
+
+    if (box->flags & UI_BoxFlags_Clickable && ui_keys_match(ui->active_key, box->key)) {
+        result.input_flags |= UI_InputFlag_Dragging;
     }
 
     if (
@@ -799,4 +804,9 @@ internal B32 ui_context_menu_begin(UI_Context *ui, UI_Key context_key) {
 
 internal Void ui_context_menu_end(UI_Context *ui) {
     ui_parent_pop(ui);
+}
+
+internal V2F32 ui_drag_delta(UI_Context *ui) {
+    V2F32 result = v2f32_subtract(ui->mouse, ui->drag_start);
+    return result;
 }

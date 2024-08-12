@@ -176,13 +176,19 @@ typedef enum {
     UI_InputFlag_MiddleClicked  = 1 << 7,
     UI_InputFlag_RightClicked   = 1 << 8,
 
+    // NOTE(simon): Pressed and holding in box.
+    UI_InputFlag_LeftDragging    = 1 << 9,
+    UI_InputFlag_MiddleDragging  = 1 << 10,
+    UI_InputFlag_RightDragging   = 1 << 11,
+
     // NOTE(simon): Mouse is over this box.
-    UI_InputFlag_Hovering       = 1 << 9,
+    UI_InputFlag_Hovering       = 1 << 12,
 
     // NOTE(simon): Convenient combinations
-    UI_InputFlag_Pressed  = UI_InputFlag_LeftPressed | UI_InputFlag_MiddlePressed | UI_InputFlag_RightPressed,
+    UI_InputFlag_Pressed  = UI_InputFlag_LeftPressed  | UI_InputFlag_MiddlePressed  | UI_InputFlag_RightPressed,
     UI_InputFlag_Released = UI_InputFlag_LeftReleased | UI_InputFlag_MiddleReleased | UI_InputFlag_RightReleased,
-    UI_InputFlag_Clicked  = UI_InputFlag_LeftClicked | UI_InputFlag_MiddleClicked | UI_InputFlag_RightClicked,
+    UI_InputFlag_Clicked  = UI_InputFlag_LeftClicked  | UI_InputFlag_MiddleClicked  | UI_InputFlag_RightClicked,
+    UI_InputFlag_Dragging = UI_InputFlag_LeftDragging | UI_InputFlag_MiddleDragging | UI_InputFlag_RightDragging,
 } UI_InputFlag;
 
 typedef struct UI_Input UI_Input;
@@ -216,6 +222,7 @@ struct UI_Context {
 
     UI_Key hot_key;
     UI_Key active_key;
+    V2F32  drag_start;
 
     // NOTE(simon): Tooltip state.
     F32 tooltip_t;
@@ -290,6 +297,8 @@ internal Void ui_context_menu_end(UI_Context *ui);
         glue(is_open, __LINE__) ? 1 : (ui_context_menu_end(ui), 0);           \
         glue(is_open, __LINE__) = false                                       \
     )
+
+internal V2F32 ui_drag_delta(UI_Context *ui);
 
 #define ui_parent_push(ui, parent) ui_box_stack_push(ui_frame_arena(ui), &ui->parent_stack, parent, false)
 #define ui_parent_pop(ui)          ui_box_stack_pop(&ui->parent_stack)
