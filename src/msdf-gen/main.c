@@ -46,20 +46,26 @@ typedef struct {
 
 typedef struct {
     Render_Texture atlas;
-    Glyph glyphs[256];
+    Glyph glyphs[2048];
 } Font;
+
+typedef struct UIDrawMSDF UIDrawMSDF;
+struct UIDrawMSDF {
+    Font *font;
+    B32   render_raw;
+};
 
 internal Void load_font(Str8 font_path, Font *result) {
     Arena_Temporary scratch = arena_get_scratch(0, 0);
     U32 glyph_size     = 32;
-    U32 glyphs_per_row = 16;
+    U32 glyphs_per_row = 64;
     U32 atlas_size     = glyph_size * glyphs_per_row;
     result->atlas = render_texture_create(v2u32(atlas_size, atlas_size), Render_TextureFormat_RGBA8, 0);
 
     TTF_Font *font = ttf_load(scratch.arena, font_path);
     if (font->errors.node_count == 0) {
         // Generate glyphs
-        for (U32 codepoint = 0; codepoint < 256; ++codepoint) {
+        for (U32 codepoint = 0; codepoint < 2048; ++codepoint) {
             Arena_Temporary glyph_scratch = arena_get_scratch(&scratch.arena, 1);
 
             MSDF_RasterResult raster_result = msdf_generate(glyph_scratch.arena, font, codepoint, glyph_size);
@@ -145,22 +151,22 @@ internal Void draw_text(FontCache_Font *font, V2F32 origin, Str8 string, U32 siz
 }
 
 internal UI_BOX_DRAW_FUNCTION(draw_ui_msdf) {
-    Font *font = (Font *) data;
+    UIDrawMSDF *draw_msdf = (UIDrawMSDF *) data;
 
     StringDecode decode = string_decode_utf8(box->string.data, box->string.size);
     U32 codepoint = decode.codepoint;
-    if (codepoint > array_count(font->glyphs)) {
+    if (codepoint > array_count(draw_msdf->font->glyphs)) {
         codepoint = 0;
     }
 
-    Glyph *glyph = &font->glyphs[codepoint];
+    Glyph *glyph = &draw_msdf->font->glyphs[codepoint];
 
     render_rectangle(
         box->calculated_rectangle.min,
         box->calculated_rectangle.max,
         .uv_min = glyph->uv_min, .uv_max = glyph->uv_max,
-        .texture = font->atlas,
-        .flags = Render_RectangleFlags_MSDF
+        .texture = draw_msdf->font->atlas,
+        .flags = (draw_msdf->render_raw ? Render_RectangleFlags_Texture : Render_RectangleFlags_MSDF)
     );
 }
 
@@ -240,6 +246,163 @@ internal Void draw_ui(UI_Box *box) {
     }
 }
 
+internal Void build_glyph_view(UI_Context *ui, Theme *theme, UIDrawMSDF *draw_msdf, U32 *selected_codepoint) {
+    // NOTE(simon): Scroll region
+    ui_width_next(ui, ui_size_parent_percent(1.0f, 0.0f));
+    ui_height_next(ui, ui_size_children_sum(1.0f));
+    ui_layout_axis_next(ui, Axis2_X);
+    UI_Box *region = ui_create_box_from_string(ui, UI_BoxFlags_OverflowY | UI_BoxFlags_Scrollable, str8_literal("region"));
+    ui_parent_push(ui, region);
+
+    // NOTE(simon): Scroll container
+    ui_color_next(ui, theme->background_color);
+    ui_width_next(ui, ui_size_fill());
+    ui_height_next(ui, ui_size_parent_percent(1.0f, 0.0f));
+    ui_layout_axis_next(ui, Axis2_Y);
+    UI_Box *container = ui_create_box_from_string(ui, UI_BoxFlags_DrawBackground, str8_literal("glyphs"));
+
+
+
+    local U32 scroll_codepoint = 0;
+    local F32 scroll_offset = 0.0f;
+
+    U32 first_codepoint = 0x000000;
+    U32 last_codepoint  = 2000;
+
+    F32 preferred_width = 50.0f;
+    U32 codepoints_per_row = (U32) f32_floor(container->calculated_size.width / preferred_width);
+    if (!codepoints_per_row) {
+        codepoints_per_row = 10;
+    }
+    F32 width = container->calculated_size.width / (F32) codepoints_per_row;
+    F32 height = width * 2.0f;
+
+    S32 first_row = 0;
+    S32 last_row  = (S32) ((last_codepoint + codepoints_per_row - 1) / codepoints_per_row);
+
+    S32 scroll_row = (S32) (scroll_codepoint / codepoints_per_row);
+    S32 target_row = scroll_row;
+
+    S32 top_row    = scroll_row + (S32) (scroll_offset < 0.0f ? f32_ceil(scroll_offset - 1.0f) : f32_floor(scroll_offset));
+    S32 bottom_row = s32_min(top_row + (S32) f32_ceil(container->calculated_size.height / height) + 1, last_row);
+    container->view_offset.y = height * (f32_mod(scroll_offset, 1.0f) + (scroll_offset < 0.0f));
+
+    S32 selected_row = (S32) (*selected_codepoint / codepoints_per_row);
+
+
+
+    // NOTE(simon): Scrollbar container
+    ui_color_next(ui, theme->background_color);
+    ui_border_color_next(ui, theme->border_color);
+    ui_width_next(ui, ui_size_pixels(20.0f, 0.0f));
+    ui_height_next(ui, ui_size_parent_percent(1.0f, 0.0f));
+    ui_layout_axis_next(ui, Axis2_Y);
+    UI_Box *scroll_container = ui_create_box_from_string(ui, UI_BoxFlags_DrawBackground | UI_BoxFlags_DrawBorder, str8_literal("scrollbar"));
+
+    ui_width(ui, ui_size_parent_percent(1.0f, 1.0f))
+    ui_parent(ui, scroll_container) {
+        F32 rows_above   = (F32) (scroll_row - first_row) + scroll_offset;
+        F32 visible_rows = container->calculated_size.height / height;
+        F32 row_count    = (F32) (last_row - first_row) + visible_rows - 1.0f;
+        F32 rows_below   = (F32) (last_row - first_row) - 1.0f - (F32) scroll_row - scroll_offset;
+
+        ui_hover_cursor_next(ui, Gfx_Cursor_Hand);
+        ui_height_next(ui, ui_size_parent_percent(rows_above / row_count, 1.0f));
+        UI_Box *scroll_before = ui_create_box_from_string(ui, UI_BoxFlags_Clickable, str8_literal("before"));
+
+        ui_hover_cursor_next(ui, Gfx_Cursor_Hand);
+        ui_color_next(ui, theme->element_color);
+        ui_border_color_next(ui, theme->border_color);
+        ui_height_next(ui, ui_size_parent_percent(visible_rows / row_count, 1.0f));
+        UI_Box *scroll = ui_create_box_from_string(ui, UI_BoxFlags_Clickable | UI_BoxFlags_DrawBackground | UI_BoxFlags_DrawBorder | UI_BoxFlags_DrawHot | UI_BoxFlags_DrawActive, str8_literal("scroll"));
+
+        ui_hover_cursor_next(ui, Gfx_Cursor_Hand);
+        ui_height_next(ui, ui_size_parent_percent(rows_below / row_count, 1.0f));
+        UI_Box *scroll_after = ui_create_box_from_string(ui, UI_BoxFlags_Clickable, str8_literal("after"));
+
+        UI_Input before_input = ui_input_from_box(ui, scroll_before);
+        if (before_input.input_flags & UI_InputFlag_LeftClicked) {
+            target_row -= (S32) f32_floor(visible_rows);
+        }
+
+        UI_Input scroll_input = ui_input_from_box(ui, scroll);
+        if (scroll_input.input_flags & UI_InputFlag_Dragging) {
+            local S32 start_row = 0;
+            if (scroll_input.input_flags & UI_InputFlag_Pressed) {
+                start_row = top_row;
+            }
+
+            F32 scroll_size = scroll_container->calculated_size.height - scroll->calculated_size.height;
+            F32 drag_percent = ui_drag_delta(ui).y / scroll_size;
+            target_row = start_row + (S32) f32_floor(drag_percent * row_count);
+        }
+
+        UI_Input after_input  = ui_input_from_box(ui, scroll_after);
+        if (after_input.input_flags & UI_InputFlag_LeftClicked) {
+            target_row += (S32) f32_floor(visible_rows);
+        }
+    }
+
+    ui_parent_push(ui, container);
+
+    ui_color_push(ui, theme->element_color);
+    ui_border_color_push(ui, theme->border_color);
+    for (S32 row = top_row; row < bottom_row; ++row) {
+        ui_width_next(ui, ui_size_parent_percent(1.0f, 1.0f));
+        ui_height_next(ui, ui_size_pixels(height, 1.0f));
+        ui_row(ui) {
+            ui_width(ui, ui_size_pixels(width, 1.0f))
+            ui_height(ui, ui_size_parent_percent(1.0f, 1.0f))
+            ui_draw_function(ui, draw_ui_msdf)
+            ui_draw_data(ui, draw_msdf)
+            ui_hover_cursor(ui, Gfx_Cursor_Hand)
+            for (U32 column = 0; column < codepoints_per_row; ++column) {
+                U32 codepoint = column + (U32) row * codepoints_per_row;
+                if (codepoint > last_codepoint) {
+                    break;
+                }
+
+                U8 buffer[4] = { 0 };
+                U64 size = string_encode_utf8(buffer, codepoint);
+                Str8 string = str8(buffer, size);
+
+                UI_Box *box = ui_create_box_from_string(
+                    ui,
+                    UI_BoxFlags_DrawBackground | UI_BoxFlags_DrawBorder |
+                    UI_BoxFlags_DrawHot | UI_BoxFlags_DrawActive |
+                    UI_BoxFlags_Clickable,
+                    string
+                );
+                UI_Input input = ui_input_from_box(ui, box);
+
+                if (input.input_flags & UI_InputFlag_LeftClicked) {
+                    *selected_codepoint = codepoint;
+                }
+            }
+        }
+    }
+    ui_border_color_pop(ui);
+    ui_color_pop(ui);
+
+    // NOTE(simon): Container
+    ui_parent_pop(ui);
+
+    // NOTE(simon): Region
+    ui_parent_pop(ui);
+
+    UI_Input region_input = ui_input_from_box(ui, region);
+    target_row -= (S32) region_input.scroll.y;
+
+    // NOTE(simon): Updating scroll
+    target_row = s32_min(s32_max(first_row, target_row), last_row - 1);
+    scroll_offset += (F32) scroll_row - (F32) target_row;
+    scroll_row = target_row;
+    scroll_codepoint = (U32) scroll_row * codepoints_per_row;
+
+    // NOTE(simon): Animation
+    scroll_offset += -scroll_offset * ui->slow_rate;
+}
+
 internal S32 os_run(Str8List arguments) {
     if (!arguments.first->next) {
         os_console_print(str8_literal("You have to pass a file\n"));
@@ -283,8 +446,21 @@ internal S32 os_run(Str8List arguments) {
     Arena *current_arena  = arena_create();
     Arena *previous_arena = arena_create();
 
+    UIDrawMSDF draw_msdf = { 0 };
+    draw_msdf.font = &font;
+
     while (running) {
         Gfx_EventList events = gfx_get_events(current_arena, gfx);
+
+        for (Gfx_Event *event = events.first, *next = 0; event; event = next) {
+            next = event->next;
+
+            if (event->kind == Gfx_EventKind_KeyRelease && event->key == Gfx_Key_Tab) {
+                draw_msdf.render_raw ^= 1;
+                dll_remove(events.first, events.last, event);
+            }
+        }
+
 
         // NOTE(simon): UI build
         {
@@ -292,80 +468,30 @@ internal S32 os_run(Str8List arguments) {
             ui_begin(gfx, ui, &events, 1.0f / 60.0f);
 
             Theme *theme = &global_themes[1];
+
             local U32 selected_codepoint = 0;
-
-            U32 codepoint_count = 128;
-            ui_extra_box_flags_next(ui, UI_BoxFlags_OverflowY);
-            ui_width_next(ui, ui_size_parent_percent(1.0f, 0.0f));
-            ui_height_next(ui, ui_size_children_sum(1.0f));
-            ui_column_string(ui, str8_literal("glyphs")) {
-                UI_Box *container = ui_parent_top(ui);
-                F32 preferred_width = 50.0f;
-                U32 column_count = (U32) (container->calculated_size.width / preferred_width);
-                if (!column_count) {
-                    column_count = 10;
-                }
-                F32 width = container->calculated_size.width / (F32) column_count;
-                F32 height = width * 2.0f;
-
-                ui_color_push(ui, theme->element_color);
-                ui_border_color_push(ui, theme->border_color);
-                for (U32 codepoint = 0; codepoint < codepoint_count;) {
-                    ui_width_next(ui, ui_size_parent_percent(1.0f, 1.0f));
-                    ui_height_next(ui, ui_size_pixels(height, 1.0f));
-                    ui_row(ui) {
-                        ui_width(ui, ui_size_pixels(width, 1.0f))
-                        ui_height(ui, ui_size_parent_percent(1.0f, 1.0f))
-                        ui_draw_function(ui, draw_ui_msdf)
-                        ui_draw_data(ui, &font)
-                        for (U32 column = 0; column < column_count && codepoint < codepoint_count; ++column, ++codepoint) {
-                            U8 buffer[4] = { 0 };
-                            U64 size = string_encode_utf8(buffer, codepoint);
-                            Str8 string = str8(buffer, size);
-
-                            UI_Box *box = ui_create_box_from_string(
-                                ui,
-                                UI_BoxFlags_DrawBackground | UI_BoxFlags_DrawBorder |
-                                UI_BoxFlags_DrawHot | UI_BoxFlags_DrawActive |
-                                UI_BoxFlags_Clickable,
-                                string
-                            );
-                            UI_Input input = ui_input_from_box(ui, box);
-
-                            if (input.input_flags & UI_InputFlag_LeftClicked) {
-                                selected_codepoint = codepoint;
-                            }
-                        }
-                    }
-                }
-                ui_border_color_pop(ui);
-                ui_color_pop(ui);
-            }
+            build_glyph_view(ui, theme, &draw_msdf, &selected_codepoint);
 
             ui_width_next(ui, ui_size_parent_percent(0.25f, 1.0f));
             ui_height_next(ui, ui_size_parent_percent(1.0f, 1.0f));
             ui_color_next(ui, theme->background_color);
             ui_extra_box_flags_next(ui, UI_BoxFlags_DrawBackground);
             ui_column(ui) {
-                ui_width(ui, ui_size_text_content(5.0f, 1.0f))
-                ui_height(ui, ui_size_text_content(5.0f, 1.0f))
+                ui_width(ui, ui_size_text_content(0.0f, 1.0f))
+                ui_height(ui, ui_size_text_content(0.0f, 1.0f))
                 ui_color(ui, theme->element_color)
                 ui_border_color(ui, theme->border_color) {
-                    ui_label_format(ui, "Selected glyph: U+%.6X", selected_codepoint);
-
                     ui_width_next(ui, ui_size_parent_percent(1.0f, 0.0f));
                     ui_height_next(ui, ui_size_parent_percent(1.0f, 0.0f));
                     ui_draw_function_next(ui, draw_ui_msdf);
-                    ui_draw_data_next(ui, &font);
+                    ui_draw_data_next(ui, &draw_msdf);
                     U8 buffer[4] = { 0 };
                     U64 size = string_encode_utf8(buffer, selected_codepoint);
                     Str8 string = str8(buffer, size);
                     ui_create_box_from_string(ui, 0, string);
-                }
 
-                ui_width(ui, ui_size_fill())
-                ui_height(ui, ui_size_text_content(0.0f, 1.0f))
-                {
+                    ui_label_format(ui, "Selected glyph: U+%.6X", selected_codepoint);
+
                     Render_Stats stats = render_get_stats();
                     ui_label_format(ui, "Batches: %u", stats.batch_count);
                     ui_label_format(ui, "Rectangles: %u", stats.rectangle_count);
