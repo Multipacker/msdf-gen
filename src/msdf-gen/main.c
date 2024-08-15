@@ -334,7 +334,7 @@ internal Void build_glyph_view(UI_Context *ui, Theme *theme, UIDrawMSDF *draw_ms
 
             F32 scroll_size = scroll_container->calculated_size.height - scroll->calculated_size.height;
             F32 drag_percent = ui_drag_delta(ui).y / scroll_size;
-            target_row = start_row + (S32) f32_floor(drag_percent * row_count);
+            target_row = start_row + (S32) f32_floor(drag_percent * (row_count - visible_rows));
         }
 
         UI_Input after_input  = ui_input_from_box(ui, scroll_after);
