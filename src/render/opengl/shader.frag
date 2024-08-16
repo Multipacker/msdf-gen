@@ -1,8 +1,9 @@
 #version 450 core
 
-#define Render_RectangleFlags_Texture      uint(1 << 0)
-#define Render_RectangleFlags_MSDF         uint(1 << 1)
-#define Render_RectangleFlags_AlphaMask    uint(1 << 2)
+#define Render_ShapeFlag_Texture   uint(1 << 0)
+#define Render_ShapeFlag_MSDF      uint(1 << 1)
+#define Render_ShapeFlag_AlphaMask uint(1 << 2)
+#define Render_ShapeFlag_Line      uint(1 << 3)
 
 layout(origin_upper_left) in vec4 gl_FragCoord;
 
@@ -33,16 +34,16 @@ void main() {
     vec4 texture_sample = vec4(1.0);
     float alpha = 1.0f;
 
-    if ((vert_flags & Render_RectangleFlags_Texture) != 0) {
+    if ((vert_flags & Render_ShapeFlag_Texture) != 0) {
         texture_sample = vec4(texture(uniform_sampler, vert_uv).rgb, 1.0);
     }
 
-    if ((vert_flags & Render_RectangleFlags_MSDF) != 0) {
+    if ((vert_flags & Render_ShapeFlag_MSDF) != 0) {
         vec4 msdf_sample = texture(uniform_sampler, vert_uv);
         float distance = median_of_3(msdf_sample.r, msdf_sample.g, msdf_sample.b) - 0.5;
 
         alpha = clamp(distance / fwidth(distance) + 0.5, 0.0, 1.0);
-    } else if ((vert_flags & Render_RectangleFlags_AlphaMask) != 0) {
+    } else if ((vert_flags & Render_ShapeFlag_AlphaMask) != 0) {
         alpha = texture(uniform_sampler, vert_uv).r;
     } else {
         int   corner_index = int(0.5 * sign(vert_position.x) + sign(vert_position.y) + 1.5);

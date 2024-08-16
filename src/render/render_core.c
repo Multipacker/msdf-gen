@@ -1,17 +1,17 @@
-internal Render_Rectangle *render_rectangle_list_push(Arena *arena, Render_RectangleList *rectangles) {
-    Render_RectangleChunk *chunk = rectangles->last;
+internal Render_Shape *render_shape_list_push(Arena *arena, Render_ShapeList *shapes) {
+    Render_ShapeChunk *chunk = shapes->last;
 
     if (!chunk || chunk->count == chunk->capacity) {
-        chunk = arena_push_struct_zero(arena,  Render_RectangleChunk);
+        chunk = arena_push_struct_zero(arena,  Render_ShapeChunk);
         chunk->capacity = 512;
-        chunk->rectangles = arena_push_array_zero(arena, Render_Rectangle, chunk->capacity);
-        sll_queue_push(rectangles->first, rectangles->last, chunk);
-        ++rectangles->chunk_count;
+        chunk->shapes = arena_push_array_zero(arena, Render_Shape, chunk->capacity);
+        sll_queue_push(shapes->first, shapes->last, chunk);
+        ++shapes->chunk_count;
     }
 
-    Render_Rectangle *result = &chunk->rectangles[chunk->count];
+    Render_Shape *result = &chunk->shapes[chunk->count];
     ++chunk->count;
-    ++rectangles->rectangle_count;
+    ++shapes->shape_count;
 
     return result;
 }

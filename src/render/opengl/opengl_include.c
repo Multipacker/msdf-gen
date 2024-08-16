@@ -307,16 +307,16 @@ internal Void render_create(Gfx_Context *gfx) {
 
     glCreateVertexArrays(1, &result->vao);
 
-    opengl_vertex_array_instance_attribute_float(result->vao,   0, 4, GL_FLOAT,        GL_FALSE, member_offset(Render_Rectangle, rectangle), 0);
-    opengl_vertex_array_instance_attribute_float(result->vao,   1, 4, GL_FLOAT,        GL_FALSE, member_offset(Render_Rectangle, colors[0]), 0);
-    opengl_vertex_array_instance_attribute_float(result->vao,   2, 4, GL_FLOAT,        GL_FALSE, member_offset(Render_Rectangle, colors[1]), 0);
-    opengl_vertex_array_instance_attribute_float(result->vao,   3, 4, GL_FLOAT,        GL_FALSE, member_offset(Render_Rectangle, colors[2]), 0);
-    opengl_vertex_array_instance_attribute_float(result->vao,   4, 4, GL_FLOAT,        GL_FALSE, member_offset(Render_Rectangle, colors[3]), 0);
-    opengl_vertex_array_instance_attribute_float(result->vao,   5, 4, GL_FLOAT,        GL_FALSE, member_offset(Render_Rectangle, uvs),       0);
-    opengl_vertex_array_instance_attribute_integer(result->vao, 6, 1, GL_UNSIGNED_INT,           member_offset(Render_Rectangle, flags),     0);
-    opengl_vertex_array_instance_attribute_float(result->vao,   7, 1, GL_FLOAT,        GL_FALSE, member_offset(Render_Rectangle, thickness), 0);
-    opengl_vertex_array_instance_attribute_float(result->vao,   8, 1, GL_FLOAT,        GL_FALSE, member_offset(Render_Rectangle, softness),  0);
-    opengl_vertex_array_instance_attribute_float(result->vao,   9, 4, GL_FLOAT,        GL_FALSE, member_offset(Render_Rectangle, radies),    0);
+    opengl_vertex_array_instance_attribute_float(result->vao,   0, 4, GL_FLOAT,        GL_FALSE, member_offset(Render_Shape, position),  0);
+    opengl_vertex_array_instance_attribute_float(result->vao,   1, 4, GL_FLOAT,        GL_FALSE, member_offset(Render_Shape, colors[0]), 0);
+    opengl_vertex_array_instance_attribute_float(result->vao,   2, 4, GL_FLOAT,        GL_FALSE, member_offset(Render_Shape, colors[1]), 0);
+    opengl_vertex_array_instance_attribute_float(result->vao,   3, 4, GL_FLOAT,        GL_FALSE, member_offset(Render_Shape, colors[2]), 0);
+    opengl_vertex_array_instance_attribute_float(result->vao,   4, 4, GL_FLOAT,        GL_FALSE, member_offset(Render_Shape, colors[3]), 0);
+    opengl_vertex_array_instance_attribute_float(result->vao,   5, 4, GL_FLOAT,        GL_FALSE, member_offset(Render_Shape, uvs),       0);
+    opengl_vertex_array_instance_attribute_integer(result->vao, 6, 1, GL_UNSIGNED_INT,           member_offset(Render_Shape, flags),     0);
+    opengl_vertex_array_instance_attribute_float(result->vao,   7, 1, GL_FLOAT,        GL_FALSE, member_offset(Render_Shape, thickness), 0);
+    opengl_vertex_array_instance_attribute_float(result->vao,   8, 1, GL_FLOAT,        GL_FALSE, member_offset(Render_Shape, softness),  0);
+    opengl_vertex_array_instance_attribute_float(result->vao,   9, 4, GL_FLOAT,        GL_FALSE, member_offset(Render_Shape, radies),    0);
 
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
     glUseProgram(result->program);
@@ -346,7 +346,7 @@ internal Void render_submit(Render_BatchList batches) {
 
     for (Render_Batch *batch = batches.first; batch; batch = batch->next) {
         ++gfx->current_stats.batch_count;
-        gfx->current_stats.rectangle_count += batch->rectangles.rectangle_count;
+        gfx->current_stats.shape_count += batch->shapes.shape_count;
 
         glScissor(
             (GLint) batch->clip.min.x,
@@ -359,7 +359,7 @@ internal Void render_submit(Render_BatchList batches) {
 
         GLuint vbo = 0;
         B32 specifically_sized = false;
-        U64 byte_size = batch->rectangles.rectangle_count * sizeof(Render_Rectangle);
+        U64 byte_size = batch->shapes.shape_count * sizeof(Render_Shape);
         gfx->current_stats.bytes_uploaded_to_gpu += byte_size;
 
         // NOTE(simon): Select an appropriate buffer.
@@ -380,15 +380,15 @@ internal Void render_submit(Render_BatchList batches) {
         // NOTE(simon): Update buffer data
         U8 *mapped_buffer = (U8 *) glMapNamedBuffer(vbo, GL_WRITE_ONLY);
         U8 *ptr = mapped_buffer;
-        for (Render_RectangleChunk *chunk = batch->rectangles.first; chunk; chunk = chunk->next) {
-            memory_copy(ptr, chunk->rectangles, chunk->count * sizeof(Render_Rectangle));
-            ptr += chunk->count * sizeof(Render_Rectangle);
+        for (Render_ShapeChunk *chunk = batch->shapes.first; chunk; chunk = chunk->next) {
+            memory_copy(ptr, chunk->shapes, chunk->count * sizeof(Render_Shape));
+            ptr += chunk->count * sizeof(Render_Shape);
         }
         glUnmapNamedBuffer(vbo);
 
-        glVertexArrayVertexBuffer(gfx->vao, 0, vbo, 0, sizeof(Render_Rectangle));
+        glVertexArrayVertexBuffer(gfx->vao, 0, vbo, 0, sizeof(Render_Shape));
 
-        glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, (GLsizei) batch->rectangles.rectangle_count);
+        glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, (GLsizei) batch->shapes.shape_count);
 
         // NOTE(simon): Delete specifically sized buffer.
         if (specifically_sized) {

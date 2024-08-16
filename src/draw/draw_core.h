@@ -47,12 +47,12 @@ global Draw_Context global_draw_context;
 internal Void draw_begin_frame(Void);
 internal Void draw_submit(Void);
 
-internal Render_Rectangle *draw_rectangle(R2F32 rectangle, V4F32 color, F32 radius, F32 thickness, F32 softness);
-internal Render_Rectangle *draw_texture(R2F32 rectangle, R2F32 uvs, Render_Texture texture, V4F32 color, F32 radius, F32 thickness, F32 softness, Render_RectangleFlags flags);
+internal Render_Shape *draw_rectangle(R2F32 rectangle, V4F32 color, F32 radius, F32 thickness, F32 softness);
+internal Render_Shape *draw_texture(R2F32 rectangle, R2F32 uvs, Render_Texture texture, V4F32 color, F32 radius, F32 thickness, F32 softness, Render_ShapeFlags flags);
 
-internal Render_Rectangle *draw_image(R2F32 rectangle, R2F32 uvs, Render_Texture texture, V4F32 color, F32 radius, F32 thickness, F32 softness);
-internal Render_Rectangle *draw_glyph(R2F32 rectangle, R2F32 uvs, Render_Texture atlas, V4F32 color);
-internal Render_Rectangle *draw_msdf(R2F32 rectangle, R2F32 uvs, Render_Texture atlas, V4F32 color);
+internal Render_Shape *draw_image(R2F32 rectangle, R2F32 uvs, Render_Texture texture, V4F32 color, F32 radius, F32 thickness, F32 softness);
+internal Render_Shape *draw_glyph(R2F32 rectangle, R2F32 uvs, Render_Texture atlas, V4F32 color);
+internal Render_Shape *draw_msdf(R2F32 rectangle, R2F32 uvs, Render_Texture atlas, V4F32 color);
 
 #define draw_clip_push(clip) draw_r2f32_stack_push(global_draw_context.arena, &global_draw_context.clip_stack, clip)
 #define draw_clip_pop()      draw_r2f32_stack_pop(&global_draw_context.clip_stack)

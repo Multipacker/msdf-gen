@@ -171,7 +171,7 @@ internal UI_BOX_DRAW_FUNCTION(draw_ui_msdf) {
         ui_draw_msdf->font->atlas,
         v4f32(1.0f, 1.0f, 1.0f, 1.0f),
         0.0f, 0.0f, 0.0f,
-        ui_draw_msdf->render_raw ? Render_RectangleFlags_Texture : Render_RectangleFlags_MSDF
+        ui_draw_msdf->render_raw ? Render_ShapeFlag_Texture : Render_ShapeFlag_MSDF
     );
 }
 
@@ -180,13 +180,13 @@ internal Void draw_ui(UI_Box *box) {
         draw_rectangle(box->calculated_rectangle, box->color, 0.0f, 0.0f, 0.0f);
 
         if (box->flags & UI_BoxFlags_DrawHot && box->hot_t > 0.0f) {
-            Render_Rectangle *rect = draw_rectangle(box->calculated_rectangle, v4f32(0.0f, 0.0f, 0.0f, 0.0f), 0.0f, 0.0f, 0.0f);
+            Render_Shape *rect = draw_rectangle(box->calculated_rectangle, v4f32(0.0f, 0.0f, 0.0f, 0.0f), 0.0f, 0.0f, 0.0f);
             rect->colors[0] = v4f32(1.0f, 1.0f, 1.0f, 0.5f * box->hot_t);
             rect->colors[1] = v4f32(1.0f, 1.0f, 1.0f, 0.5f * box->hot_t);
         }
 
         if (box->flags & UI_BoxFlags_DrawActive && box->active_t > 0.0f) {
-            Render_Rectangle *rect = draw_rectangle(box->calculated_rectangle, v4f32(0.0f, 0.0f, 0.0f, 0.0f), 0.0f, 0.0f, 0.0f);
+            Render_Shape *rect = draw_rectangle(box->calculated_rectangle, v4f32(0.0f, 0.0f, 0.0f, 0.0f), 0.0f, 0.0f, 0.0f);
             rect->colors[2] = v4f32(0.0f, 0.0f, 0.0f, 0.5f * box->active_t);
             rect->colors[3] = v4f32(0.0f, 0.0f, 0.0f, 0.5f * box->active_t);
         }
@@ -478,7 +478,7 @@ internal S32 os_run(Str8List arguments) {
                     Render_Stats stats = render_get_stats();
                     ui_label(ui, str8_literal("Render stats"));
                     ui_label_format(ui, "Batches: %u", stats.batch_count);
-                    ui_label_format(ui, "Rectangles: %u", stats.rectangle_count);
+                    ui_label_format(ui, "Shapes: %u", stats.shape_count);
                     ui_label_format(ui, "Bytes uploaded: %u", stats.bytes_uploaded_to_gpu);
                 }
             }

@@ -12,14 +12,15 @@ struct Render_Texture {
 };
 
 typedef enum {
-    Render_RectangleFlags_Texture      = 1 << 0,
-    Render_RectangleFlags_MSDF         = 1 << 1,
-    Render_RectangleFlags_AlphaMask    = 1 << 2,
-} Render_RectangleFlags;
+    Render_ShapeFlag_Texture   = 1 << 0,
+    Render_ShapeFlag_MSDF      = 1 << 1,
+    Render_ShapeFlag_AlphaMask = 1 << 2,
+    Render_ShapeFlag_Line      = 1 << 3,
+} Render_ShapeFlags;
 
-typedef struct Render_Rectangle Render_Rectangle;
-struct Render_Rectangle {
-    R2F32 rectangle;
+typedef struct Render_Shape Render_Shape;
+struct Render_Shape {
+    R2F32 position;
     R2F32 uvs;
     V4F32 colors[4];
     F32   radies[4];
@@ -28,28 +29,28 @@ struct Render_Rectangle {
     U32   flags;
 };
 
-typedef struct Render_RectangleChunk Render_RectangleChunk;
-struct Render_RectangleChunk {
-    Render_RectangleChunk *next;
-    Render_Rectangle      *rectangles;
-    U64                    count;
-    U64                    capacity;
+typedef struct Render_ShapeChunk Render_ShapeChunk;
+struct Render_ShapeChunk {
+    Render_ShapeChunk *next;
+    Render_Shape      *shapes;
+    U64                count;
+    U64                capacity;
 };
 
-typedef struct Render_RectangleList Render_RectangleList;
-struct Render_RectangleList {
-    Render_RectangleChunk *first;
-    Render_RectangleChunk *last;
-    U64                    rectangle_count;
-    U64                    chunk_count;
+typedef struct Render_ShapeList Render_ShapeList;
+struct Render_ShapeList {
+    Render_ShapeChunk *first;
+    Render_ShapeChunk *last;
+    U64                shape_count;
+    U64                chunk_count;
 };
 
 typedef struct Render_Batch Render_Batch;
 struct Render_Batch {
-    Render_Batch        *next;
-    Render_RectangleList rectangles;
-    Render_Texture       texture;
-    R2F32                clip;
+    Render_Batch    *next;
+    Render_ShapeList shapes;
+    Render_Texture   texture;
+    R2F32            clip;
 };
 
 typedef struct Render_BatchList Render_BatchList;
@@ -62,11 +63,11 @@ struct Render_BatchList {
 typedef struct Render_Stats Render_Stats;
 struct Render_Stats {
     U64 bytes_uploaded_to_gpu;
-    U64 rectangle_count;
+    U64 shape_count;
     U64 batch_count;
 };
 
-internal Render_Rectangle *render_rectangle_list_push(Arena *arena, Render_RectangleList *rectangles);
+internal Render_Shape *render_shape_list_push(Arena *arena, Render_ShapeList *shapes);
 
 internal B32  render_init(Void);
 internal Void render_create(Gfx_Context *gfx);
