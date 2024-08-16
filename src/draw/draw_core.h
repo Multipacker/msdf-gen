@@ -1,48 +1,59 @@
 #ifndef DRAW_CORE_H
 #define DRAW_CORE_H
 
-#define draw_define_stack(type_name, variable_name, type)                                                       \
-    typedef struct Draw_##type_name##StackNode Draw_##type_name##StackNode;                                     \
-    struct Draw_##type_name##StackNode {                                                                        \
-        Draw_##type_name##StackNode *next;                                                                      \
-        type                       item;                                                                        \
-    };                                                                                                          \
-    typedef struct Draw_##type_name##Stack Draw_##type_name##Stack;                                             \
-    struct Draw_##type_name##Stack {                                                                            \
-        Draw_##type_name##StackNode *top;                                                                       \
-        Draw_##type_name##StackNode *freelist;                                                                  \
-    };                                                                                                          \
-    internal Void draw_##variable_name##_stack_push(Arena *arena, Draw_##type_name##Stack *stack, type value) { \
-        Draw_##type_name##StackNode *node = 0;                                                                  \
-        if (stack->freelist) {                                                                                  \
-            node = stack->freelist;                                                                             \
-            sll_stack_pop(stack->freelist);                                                                     \
-        } else {                                                                                                \
-            node = arena_push_struct_zero(arena, Draw_##type_name##StackNode);                                  \
-        }                                                                                                       \
-        node->item = value;                                                                                     \
-        sll_stack_push(stack->top, node);                                                                       \
-    }                                                                                                           \
-    internal type draw_##variable_name##_stack_pop(Draw_##type_name##Stack *stack) {                            \
-        Draw_##type_name##StackNode *node = stack->top;                                                         \
-        if (node) {                                                                                             \
-            sll_stack_pop(stack->top);                                                                          \
-            sll_stack_push(stack->freelist, node);                                                              \
-        }                                                                                                       \
-        return node->item;                                                                                      \
-    }                                                                                                           \
+#define draw_define_stack(type_name, variable_name, type)                   \
+    typedef struct Draw_##type_name##StackNode Draw_##type_name##StackNode; \
+    struct Draw_##type_name##StackNode {                                    \
+        Draw_##type_name##StackNode *next;                                  \
+        type                       item;                                    \
+    };                                                                      \
+    typedef struct Draw_##type_name##Stack Draw_##type_name##Stack;         \
+    struct Draw_##type_name##Stack {                                        \
+        Draw_##type_name##StackNode *top;                                   \
+        Draw_##type_name##StackNode *freelist;                              \
+    };
+
+#define draw_define_stack_implementation(type_name, variable_name, type)                           \
+    internal Void draw_##variable_name##_stack_push(Draw_##type_name##Stack *stack, type value) {  \
+        Draw_##type_name##StackNode *node = 0;                                                     \
+        if (stack->freelist) {                                                                     \
+            node = stack->freelist;                                                                \
+            sll_stack_pop(stack->freelist);                                                        \
+        } else {                                                                                   \
+            node = arena_push_struct_zero(global_draw_context.arena, Draw_##type_name##StackNode); \
+        }                                                                                          \
+        node->item = value;                                                                        \
+        sll_stack_push(stack->top, node);                                                          \
+        ++global_draw_context.stack_generation;                                                    \
+    }                                                                                              \
+    internal type draw_##variable_name##_stack_pop(Draw_##type_name##Stack *stack) {               \
+        Draw_##type_name##StackNode *node = stack->top;                                            \
+        if (node) {                                                                                \
+            ++global_draw_context.stack_generation;                                                \
+            sll_stack_pop(stack->top);                                                             \
+            sll_stack_push(stack->freelist, node);                                                 \
+        }                                                                                          \
+        return node->item;                                                                         \
+    }                                                                                              \
 
 draw_define_stack(R2F32, r2f32, R2F32)
+draw_define_stack(M3F32, m3f32, M3F32)
 
 typedef struct Draw_Context Draw_Context;
 struct Draw_Context {
     Arena *arena;
     Draw_R2F32Stack clip_stack;
+    Draw_M3F32Stack transform_stack;
+    U64 stack_generation;
+    U64 batch_generation;
 
     Render_BatchList batches;
 };
 
 global Draw_Context global_draw_context;
+
+draw_define_stack_implementation(R2F32, r2f32, R2F32)
+draw_define_stack_implementation(M3F32, m3f32, M3F32)
 
 internal Void draw_begin_frame(Void);
 internal Void draw_submit(Void);
@@ -54,9 +65,14 @@ internal Render_Shape *draw_image(R2F32 rectangle, R2F32 uvs, Render_Texture tex
 internal Render_Shape *draw_glyph(R2F32 rectangle, R2F32 uvs, Render_Texture atlas, V4F32 color);
 internal Render_Shape *draw_msdf(R2F32 rectangle, R2F32 uvs, Render_Texture atlas, V4F32 color);
 
-#define draw_clip_push(clip) draw_r2f32_stack_push(global_draw_context.arena, &global_draw_context.clip_stack, clip)
+#define draw_clip_push(clip) draw_r2f32_stack_push(&global_draw_context.clip_stack, clip)
 #define draw_clip_pop()      draw_r2f32_stack_pop(&global_draw_context.clip_stack)
 #define draw_clip_top()      global_draw_context.clip_stack.top->item
 #define draw_clip(clip)      defer_loop(draw_clip_push(clip), draw_clip_pop())
+
+#define draw_transform_push(transform) draw_m3f32_stack_push(&global_draw_context.transform_stack, transform)
+#define draw_transform_pop()           draw_m3f32_stack_pop(&global_draw_context.transform_stack)
+#define draw_transform_top()           global_draw_context.transform_stack.top->item
+#define draw_transform(transform)      defer_loop(draw_transform_push(transform), draw_transform_pop())
 
 #endif // DRAW_CORE_H

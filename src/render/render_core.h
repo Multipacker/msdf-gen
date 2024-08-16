@@ -51,6 +51,7 @@ struct Render_Batch {
     Render_ShapeList shapes;
     Render_Texture   texture;
     R2F32            clip;
+    M3F32            transform;
 };
 
 typedef struct Render_BatchList Render_BatchList;

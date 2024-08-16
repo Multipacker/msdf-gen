@@ -20,6 +20,7 @@ out vec4 frag_color;
 
 uniform mat4      uniform_projection;
 uniform sampler2D uniform_sampler;
+uniform mat3      uniform_transfor;
 
 float median_of_3(float a, float b, float c) {
     return max(min(a, b), min(max(a, b), c));

@@ -127,6 +127,7 @@ typedef Void      (*PFNGLNAMEDBUFFERSUBDATAPROC)(GLuint buffer, GLintptr offset,
 typedef Void      (*PFNGLPIXELSTOREI)(GLenum pname, GLint param);
 typedef Void      (*PFNGLPROGRAMUNIFORM1IPROC)(GLuint program, GLint location, GLint v0);
 typedef Void      (*PFNGLPROGRAMUNIFORM1IVPROC)(GLuint program, GLint location, GLsizei count, const GLint *value);
+typedef Void      (*PFNGLPROGRAMUNIFORMMATRIX3FVPROC)(GLuint program, GLint location, GLsizei count, GLboolean transpose, const GLfloat *value);
 typedef Void      (*PFNGLPROGRAMUNIFORMMATRIX4FVPROC)(GLuint program, GLint location, GLsizei count, GLboolean transpose, const GLfloat *value);
 typedef Void      (*PFNGLSHADERSOURCEPROC)(GLuint shader, GLsizei count, const GLchar **string, const GLint *length);
 typedef Void      (*PFNGLTEXTUREPARAMETERIPROC)(GLuint texture, GLenum pname, GLint param);
@@ -180,6 +181,7 @@ X(PFNGLNAMEDBUFFERSUBDATAPROC,        glNamedBufferSubData)        \
 X(PFNGLPIXELSTOREI,                   glPixelStorei)               \
 X(PFNGLPROGRAMUNIFORM1IPROC,          glProgramUniform1i)          \
 X(PFNGLPROGRAMUNIFORM1IVPROC,         glProgramUniform1iv)         \
+X(PFNGLPROGRAMUNIFORMMATRIX3FVPROC,   glProgramUniformMatrix3fv)   \
 X(PFNGLPROGRAMUNIFORMMATRIX4FVPROC,   glProgramUniformMatrix4fv)   \
 X(PFNGLSHADERSOURCEPROC,              glShaderSource)              \
 X(PFNGLTEXTUREPARAMETERIPROC,         glTextureParameteri)         \

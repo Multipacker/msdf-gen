@@ -293,6 +293,7 @@ internal Void render_create(Gfx_Context *gfx) {
 
     result->uniform_projection_location = glGetUniformLocation(result->program, "uniform_projection");
     result->uniform_sampler_location    = glGetUniformLocation(result->program, "uniform_sampler");
+    result->uniform_transform_location  = glGetUniformLocation(result->program, "uniform_transform");
 
     GLuint vbos[4] = { 0 };
     glCreateBuffers(array_count(vbos), vbos);
@@ -328,6 +329,7 @@ internal Void render_create(Gfx_Context *gfx) {
 
 internal Void render_begin(V2U32 resolution) {
     OpenGL_Context *gfx = &global_opengl_context;
+    gfx->resolution = resolution;
 
     glViewport(0, 0, (GLsizei) resolution.width, (GLsizei) resolution.height);
 
@@ -350,12 +352,13 @@ internal Void render_submit(Render_BatchList batches) {
 
         glScissor(
             (GLint) batch->clip.min.x,
-            (GLint) batch->clip.min.y,
+            (GLint) gfx->resolution.y - (GLint) batch->clip.max.y,
             (GLsizei) (batch->clip.max.x - batch->clip.min.x),
             (GLsizei) (batch->clip.max.y - batch->clip.min.y)
         );
 
         glBindTextureUnit(0, opengl_texture_id_from_texture(batch->texture));
+        glProgramUniformMatrix3fv(gfx->program, gfx->uniform_transform_location, 1, GL_TRUE, &batch->transform.m[0][0]);
 
         GLuint vbo = 0;
         B32 specifically_sized = false;

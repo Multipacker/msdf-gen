@@ -8,10 +8,17 @@ internal Void draw_begin_frame(Void) {
 
     draw->clip_stack.top      = 0;
     draw->clip_stack.freelist = 0;
+    draw->transform_stack.top      = 0;
+    draw->transform_stack.freelist = 0;
+
+    draw->stack_generation = 0;
+    draw->batch_generation = 0;
 
     draw->batches.first = 0;
     draw->batches.last  = 0;
     draw->batches.count = 0;
+
+    draw_transform_push(m3f32_identity());
 }
 
 internal Void draw_submit(Void) {
@@ -23,13 +30,15 @@ internal Render_Shape *draw_rectangle(R2F32 rectangle, V4F32 color, F32 radius, 
     Draw_Context *draw = &global_draw_context;
 
     Render_Batch *batch = draw->batches.last;
-    if (!batch) {
+    if (!batch || draw->batch_generation != draw->stack_generation) {
         batch = arena_push_struct_zero(draw->arena,  Render_Batch);
-        batch->texture = render_texture_null();
-        batch->clip    = draw_clip_top();
+        batch->texture   = render_texture_null();
+        batch->clip      = draw_clip_top();
+        batch->transform = draw_transform_top();
 
         sll_queue_push(draw->batches.first, draw->batches.last, batch);
         ++draw->batches.count;
+        draw->batch_generation = draw->stack_generation;
     }
 
     Render_Shape *result = render_shape_list_push(draw->arena, &batch->shapes);
@@ -54,13 +63,15 @@ internal Render_Shape *draw_circle(V2F32 center, F32 radius, V4F32 color, F32 th
     Draw_Context *draw = &global_draw_context;
 
     Render_Batch *batch = draw->batches.last;
-    if (!batch) {
+    if (!batch || draw->batch_generation != draw->stack_generation) {
         batch = arena_push_struct_zero(draw->arena,  Render_Batch);
-        batch->texture = render_texture_null();
-        batch->clip    = draw_clip_top();
+        batch->texture   = render_texture_null();
+        batch->clip      = draw_clip_top();
+        batch->transform = draw_transform_top();
 
         sll_queue_push(draw->batches.first, draw->batches.last, batch);
         ++draw->batches.count;
+        draw->batch_generation = draw->stack_generation;
     }
 
     Render_Shape *result = render_shape_list_push(draw->arena, &batch->shapes);
@@ -88,15 +99,17 @@ internal Render_Shape *draw_texture(R2F32 rectangle, R2F32 uvs, Render_Texture t
     Draw_Context *draw = &global_draw_context;
 
     Render_Batch *batch = draw->batches.last;
-    if (batch && render_texture_equal(batch->texture, render_texture_null())) {
+    if (batch && render_texture_equal(batch->texture, render_texture_null()) && draw->batch_generation == draw->stack_generation) {
         batch->texture = texture;
-    } else if (!batch || (!render_texture_equal(batch->texture, render_texture_null()) && !render_texture_equal(batch->texture, texture))) {
+    } else if (!batch || (!render_texture_equal(batch->texture, render_texture_null()) && !render_texture_equal(batch->texture, texture)) || draw->batch_generation != draw->stack_generation) {
         batch = arena_push_struct_zero(draw->arena,  Render_Batch);
-        batch->texture = texture;
-        batch->clip    = draw_clip_top();
+        batch->texture   = texture;
+        batch->clip      = draw_clip_top();
+        batch->transform = draw_transform_top();
 
         sll_queue_push(draw->batches.first, draw->batches.last, batch);
         ++draw->batches.count;
+        draw->batch_generation = draw->stack_generation;
     }
 
     Render_Shape *result = render_shape_list_push(draw->arena, &batch->shapes);
@@ -137,13 +150,15 @@ internal Render_Shape *draw_line(V2F32 p0, V2F32 p1, V4F32 color, F32 radius, F3
     Draw_Context *draw = &global_draw_context;
 
     Render_Batch *batch = draw->batches.last;
-    if (!batch) {
+    if (!batch || draw->batch_generation != draw->stack_generation) {
         batch = arena_push_struct_zero(draw->arena,  Render_Batch);
-        batch->texture = render_texture_null();
-        batch->clip    = draw_clip_top();
+        batch->texture   = render_texture_null();
+        batch->clip      = draw_clip_top();
+        batch->transform = draw_transform_top();
 
         sll_queue_push(draw->batches.first, draw->batches.last, batch);
         ++draw->batches.count;
+        draw->batch_generation = draw->stack_generation;
     }
 
     Render_Shape *result = render_shape_list_push(draw->arena, &batch->shapes);

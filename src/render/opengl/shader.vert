@@ -23,7 +23,8 @@ out      vec2  vert_position;
 out flat vec2  vert_half_size;
 
 uniform mat4      uniform_projection;
-uniform sampler2D uniform_samplers[2];
+uniform sampler2D uniform_sampler;
+uniform mat3      uniform_transform;
 
 const vec2 verticies[] = {
     vec2(-1.0, -1.0),
@@ -68,7 +69,9 @@ void main() {
     vec2 uv_half_size = 0.5 * (uv_max - uv_min);
     vec2 uv           = uv_center + uv_half_size * verticies[gl_VertexID];
 
-    gl_Position    = uniform_projection * vec4(position, 0.0, 1.0);
+    vec2 transformed_position = (uniform_transform * vec3(position, 1.0f)).xy;
+
+    gl_Position    = uniform_projection * vec4(transformed_position, 0.0, 1.0);
     vert_color     = instance_colors[gl_VertexID];
     vert_uv        = uv;
     vert_flags     = instance_flags;
