@@ -336,7 +336,7 @@ internal Void render_begin(V2U32 resolution) {
         0.0f, (F32) resolution.height,
         1.0f, -1.0f
     );
-    glProgramUniformMatrix4fv(gfx->program, gfx->uniform_projection_location, 1, GL_FALSE, &projection.m[0][0]);
+    glProgramUniformMatrix4fv(gfx->program, gfx->uniform_projection_location, 1, GL_TRUE, &projection.m[0][0]);
 
     glClear(GL_COLOR_BUFFER_BIT);
 }

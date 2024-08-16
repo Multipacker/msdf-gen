@@ -151,25 +151,25 @@ internal V2F32 m2f32_multiply_v2f32(M2F32 matrix, V2F32 vector) {
 internal M4F32 m4f32_ortho(F32 left, F32 right, F32 top, F32 bottom, F32 near_plane, F32 far_plane) {
     M4F32 result = { 0 };
 
-    result.m[0][0] = 2 / (right - left);
-    result.m[0][1] = 0;
-    result.m[0][2] = 0;
-    result.m[0][3] = 0;
+    result.m[0][0] = 2.0f / (right - left);
+    result.m[0][1] = 0.0f;
+    result.m[0][2] = 0.0f;
+    result.m[0][3] = (left + right) / (left - right);
 
-    result.m[1][0] = 0;
-    result.m[1][1] = 2 / (top - bottom);
-    result.m[1][2] = 0;
-    result.m[1][3] = 0;
+    result.m[1][0] = 0.0f;
+    result.m[1][1] = 2.0f / (top - bottom);
+    result.m[1][2] = 0.0f;
+    result.m[1][3] = (top + bottom) / (bottom - top);
 
-    result.m[2][0] = 0;
-    result.m[2][1] = 0;
-    result.m[2][2] = 1 / (near_plane - far_plane);
-    result.m[2][3] = 0;
+    result.m[2][0] = 0.0f;
+    result.m[2][1] = 0.0f;
+    result.m[2][2] = 1.0f / (near_plane - far_plane);
+    result.m[2][3] = near_plane / (near_plane - far_plane);
 
-    result.m[3][0] = (left + right) / (left - right);
-    result.m[3][1] = (top + bottom) / (bottom - top);
-    result.m[3][2] = near_plane / (near_plane - far_plane);
-    result.m[3][3] = 1;
+    result.m[3][0] = 0.0f;
+    result.m[3][1] = 0.0f;
+    result.m[3][2] = 0.0f;
+    result.m[3][3] = 1.0f;
 
     return result;
 }
