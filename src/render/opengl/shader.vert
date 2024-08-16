@@ -14,7 +14,7 @@ out flat uint  vert_flags;
 out flat float vert_thickness;
 out flat float vert_softness;
 out      vec4  vert_radies;
-out flat vec2  vert_center;
+out      vec2  vert_position;
 out flat vec2  vert_half_size;
 
 uniform mat4      uniform_projection;
@@ -47,6 +47,6 @@ void main() {
     vert_thickness = instance_thickness;
     vert_softness  = instance_softness;
     vert_radies    = instance_radies;
-    vert_center    = center;
+    vert_position  = position - center;
     vert_half_size = half_size;
 }

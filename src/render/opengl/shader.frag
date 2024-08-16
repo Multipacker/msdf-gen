@@ -12,7 +12,7 @@ in flat uint  vert_flags;
 in flat float vert_thickness;
 in flat float vert_softness;
 in      vec4  vert_radies;
-in flat vec2  vert_center;
+in      vec2  vert_position;
 in flat vec2  vert_half_size;
 
 out vec4 frag_color;
@@ -45,15 +45,13 @@ void main() {
     } else if ((vert_flags & Render_RectangleFlags_AlphaMask) != 0) {
         alpha = texture(uniform_sampler, vert_uv).r;
     } else {
-        vec2  position = gl_FragCoord.xy - vert_center;
-        // NOTE(simon): Compute corner index, left to right, top to bottom.
-        int   corner_index = int(0.5 * sign(position.x) + sign(position.y) + 1.5);
+        int   corner_index = int(0.5 * sign(vert_position.x) + sign(vert_position.y) + 1.5);
         float outer_radius = vert_radies[corner_index];
         float inner_radius = outer_radius - vert_thickness;
-        float outer_distance = sdf_box(position, vert_half_size - outer_radius) - outer_radius;
+        float outer_distance = sdf_box(vert_position, vert_half_size - outer_radius) - outer_radius;
         float inner_distance = -outer_distance;
         if (vert_thickness > 0.0) {
-            inner_distance = sdf_box(position, vert_half_size - inner_radius - vert_thickness) - inner_radius;
+            inner_distance = sdf_box(vert_position, vert_half_size - inner_radius - vert_thickness) - inner_radius;
         }
         float distance = max(outer_distance, -inner_distance);
         alpha = 1.0 - smoothstep(-vert_softness, vert_softness, distance);
