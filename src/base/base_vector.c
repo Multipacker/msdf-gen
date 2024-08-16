@@ -148,6 +148,93 @@ internal V2F32 m2f32_multiply_v2f32(M2F32 matrix, V2F32 vector) {
     return result;
 }
 
+
+
+internal M3F32 m3f32(F32 m00, F32 m01, F32 m02, F32 m10, F32 m11, F32 m12, F32 m20, F32 m21, F32 m22) {
+    M3F32 result = {
+        .m = {
+            { m00, m01, m02, },
+            { m10, m11, m12, },
+            { m20, m21, m22, },
+        },
+    };
+
+    return result;
+}
+
+internal M3F32 m3f32_identity(Void) {
+    M3F32 result = {
+        .m = {
+            { 1.0f, 0.0f, 0.0f, },
+            { 0.0f, 1.0f, 0.0f, },
+            { 0.0f, 0.0f, 1.0f, },
+        },
+    };
+
+    return result;
+}
+
+internal M3F32 m3f32_translation(V2F32 offset) {
+    M3F32 result = {
+        .m = {
+            { 1.0f, 0.0f, offset.x, },
+            { 0.0f, 1.0f, offset.y, },
+            { 0.0f, 0.0f,     1.0f, },
+        },
+    };
+
+    return result;
+}
+
+internal M3F32 m3f32_scale(V2F32 scale) {
+    M3F32 result = {
+        .m = {
+            { scale.x,    0.0f, 0.0f, },
+            {    0.0f, scale.y, 0.0f, },
+            {    0.0f,    0.0f, 1.0f, },
+        },
+    };
+
+    return result;
+}
+
+internal M3F32 m3f32_multiply_m3f32(M3F32 a, M3F32 b) {
+    M3F32 result = { 0 };
+
+    result.m[0][0] = a.m[0][0] * b.m[0][0] + a.m[0][1] * b.m[1][0] + a.m[0][2] * b.m[2][0];
+    result.m[0][1] = a.m[0][0] * b.m[0][1] + a.m[0][1] * b.m[1][1] + a.m[0][2] * b.m[2][1];
+    result.m[0][2] = a.m[0][0] * b.m[0][2] + a.m[0][1] * b.m[1][2] + a.m[0][2] * b.m[2][2];
+
+    result.m[1][0] = a.m[1][0] * b.m[0][0] + a.m[1][1] * b.m[1][0] + a.m[1][2] * b.m[2][0];
+    result.m[1][1] = a.m[1][0] * b.m[0][1] + a.m[1][1] * b.m[1][1] + a.m[1][2] * b.m[2][1];
+    result.m[1][2] = a.m[1][0] * b.m[0][2] + a.m[1][1] * b.m[1][2] + a.m[1][2] * b.m[2][2];
+
+    result.m[2][0] = a.m[2][0] * b.m[0][0] + a.m[2][1] * b.m[1][0] + a.m[2][2] * b.m[2][0];
+    result.m[2][1] = a.m[2][0] * b.m[0][1] + a.m[2][1] * b.m[1][1] + a.m[2][2] * b.m[2][1];
+    result.m[2][2] = a.m[2][0] * b.m[0][2] + a.m[2][1] * b.m[1][2] + a.m[2][2] * b.m[2][2];
+
+    return result;
+}
+
+internal V2F32 m3f32_multiply_v2f32(M3F32 matrix, V2F32 vector) {
+    V2F32 result = {
+        .x = vector.x * matrix.m[0][0] + vector.y * matrix.m[0][1] + matrix.m[0][2],
+        .y = vector.x * matrix.m[1][0] + vector.y * matrix.m[1][1] + matrix.m[1][2],
+    };
+    return result;
+}
+
+internal V3F32 m3f32_multiply_v3f32(M3F32 matrix, V3F32 vector) {
+    V3F32 result = {
+        .x = vector.x * matrix.m[0][0] + vector.y * matrix.m[0][1] + vector.z * matrix.m[0][2],
+        .y = vector.x * matrix.m[1][0] + vector.y * matrix.m[1][1] + vector.z * matrix.m[1][2],
+        .z = vector.x * matrix.m[2][0] + vector.y * matrix.m[2][1] + vector.z * matrix.m[2][2],
+    };
+    return result;
+}
+
+
+
 internal M4F32 m4f32_ortho(F32 left, F32 right, F32 top, F32 bottom, F32 near_plane, F32 far_plane) {
     M4F32 result = { 0 };
 

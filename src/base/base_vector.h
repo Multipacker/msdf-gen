@@ -145,6 +145,11 @@ struct M2F32 {
     F32 m[2][2];
 };
 
+typedef struct M3F32 M3F32;
+struct M3F32 {
+    F32 m[3][3];
+};
+
 typedef struct M4F32 M4F32;
 struct M4F32 {
     F32 m[4][4];
@@ -227,6 +232,14 @@ internal V2F32 v2f32_max(V2F32 a, V2F32 b);
 
 internal M2F32 m2f32(F32 m00, F32 m01, F32 m10, F32 m11);
 internal V2F32 m2f32_multiply_v2f32(M2F32 matrix, V2F32 vector);
+
+internal M3F32 m3f32(F32 m00, F32 m01, F32 m02, F32 m10, F32 m11, F32 m12, F32 m20, F32 m21, F32 m22);
+internal M3F32 m3f32_identity(Void);
+internal M3F32 m3f32_translation(V2F32 offset);
+internal M3F32 m3f32_scale(V2F32 scale);
+internal M3F32 m3f32_multiply_m3f32(M3F32 a, M3F32 b);
+internal V2F32 m3f32_multiply_v2f32(M3F32 matrix, V2F32 vector);
+internal V3F32 m3f32_multiply_v3f32(M3F32 matrix, V3F32 vector);
 
 internal M4F32 m4f32_ortho(F32 left, F32 right, F32 top, F32 bottom, F32 near_plane, F32 far_plane);
 
