@@ -825,7 +825,7 @@ internal MSDF_Glyph ttf_expand_contours_to_msdf(Arena *arena, TTF_Font *font, U3
             if (current_on_curve) {
                 if (next_on_curve) {
                     MSDF_Segment *line = arena_push_struct_zero(arena, MSDF_Segment);
-                    line->kind  = MSDF_SEGMENT_LINE;
+                    line->kind  = MSDF_Segment_Line;
                     line->p0    = v2f32(current_x, current_y);
                     line->p1    = v2f32(next_x, next_y);
                     line->flags = 0;
@@ -833,7 +833,7 @@ internal MSDF_Glyph ttf_expand_contours_to_msdf(Arena *arena, TTF_Font *font, U3
                 }
             } else {
                 MSDF_Segment *bezier = arena_push_struct_zero(arena, MSDF_Segment);
-                bezier->kind  = MSDF_SEGMENT_QUADRATIC_BEZIER;
+                bezier->kind  = MSDF_Segment_QuadraticBezier;
                 bezier->p0    = (prev_on_curve ? v2f32(prev_x, prev_y) : v2f32(((F32) prev_x + (F32) current_x) * 0.5f, ((F32) prev_y + (F32) current_y) * 0.5f));
                 bezier->p1    = v2f32(current_x, current_y);
                 bezier->p2    = (next_on_curve ? v2f32(next_x, next_y) : v2f32(((F32) next_x + (F32) current_x) * 0.5f, ((F32) next_y + (F32) current_y) * 0.5f));
@@ -841,7 +841,7 @@ internal MSDF_Glyph ttf_expand_contours_to_msdf(Arena *arena, TTF_Font *font, U3
                 dll_push_back(contour->first_segment, contour->last_segment, bezier);
 
                 if (points_are_collinear(bezier->p0, bezier->p1, bezier->p2)) {
-                    bezier->kind = MSDF_SEGMENT_LINE;
+                    bezier->kind = MSDF_Segment_Line;
                     bezier->p1   = bezier->p2;
                 }
             }

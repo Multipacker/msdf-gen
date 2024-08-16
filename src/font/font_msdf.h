@@ -2,24 +2,23 @@
 #define MSDF_H
 
 typedef enum {
-    MSDF_SEGMENT_NULL,
-    MSDF_SEGMENT_LINE,
-    MSDF_SEGMENT_QUADRATIC_BEZIER,
-    MSDF_SEGMENT_KIND_COUNT,
+    MSDF_Segment_Null,
+    MSDF_Segment_Line,
+    MSDF_Segment_QuadraticBezier,
+    MSDF_Segment_COUNT,
 } MSDF_SegmentKind;
 
 typedef enum {
-    MSDF_COLOR_RED   = 0x01,
-    MSDF_COLOR_GREEN = 0x02,
-    MSDF_COLOR_BLUE  = 0x04,
-
-    MSDF_EDGE_START = 0x08,
-    MSDF_EDGE_END   = 0x10,
-} MSDF_ColorFlags;
+    MSDF_SegmentFlag_Red   = 1 << 0,
+    MSDF_SegmentFlag_Green = 1 << 1,
+    MSDF_SegmentFlag_Blue  = 1 << 2,
+    MSDF_SegmentFlag_Start = 1 << 3,
+    MSDF_SegmentFlag_End   = 1 << 4,
+} MSDF_SegmentFlags;
 
 typedef enum {
-    MSDF_ContourFlags_Flip = 0x01,
-    MSDF_ContourFlags_Keep = 0x02,
+    MSDF_ContourFlag_Flip = 1 << 0,
+    MSDF_ContourFlag_Keep = 1 << 1,
 } MSDF_ContourFlags;
 
 typedef struct MSDF_Segment MSDF_Segment;
@@ -30,7 +29,7 @@ struct MSDF_Segment {
     V2F32 p0;
     V2F32 p1;
     V2F32 p2;
-    MSDF_ColorFlags flags;
+    MSDF_SegmentFlags flags;
 
     // NOTE(simon): Bounding circle for pruning
     V2F32 circle_center;

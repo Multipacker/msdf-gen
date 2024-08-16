@@ -7,13 +7,13 @@ internal Void msdf_quadratic_bezier_split(MSDF_Segment segment, F32 t, MSDF_Segm
     V2F32 b = v2f32_add(segment.p1, v2f32_scale(v2f32_subtract(segment.p2, segment.p1), t));
     V2F32 c = v2f32_add(a, v2f32_scale(v2f32_subtract(b, a), t));
 
-    result_a->kind  = MSDF_SEGMENT_QUADRATIC_BEZIER;
+    result_a->kind  = MSDF_Segment_QuadraticBezier;
     result_a->p0    = segment.p0;
     result_a->p1    = a;
     result_a->p2    = c;
     result_a->flags = segment.flags;
 
-    result_b->kind  = MSDF_SEGMENT_QUADRATIC_BEZIER;
+    result_b->kind  = MSDF_Segment_QuadraticBezier;
     result_b->p0    = c;
     result_b->p1    = b;
     result_b->p2    = segment.p2;
@@ -23,21 +23,21 @@ internal Void msdf_quadratic_bezier_split(MSDF_Segment segment, F32 t, MSDF_Segm
 internal Void msdf_line_split(MSDF_Segment segment, F32 t, MSDF_Segment *result_a, MSDF_Segment *result_b) {
     V2F32 point = v2f32_add(segment.p0, v2f32_scale(v2f32_subtract(segment.p1, segment.p0), t));
 
-    result_a->kind  = MSDF_SEGMENT_LINE;
+    result_a->kind  = MSDF_Segment_Line;
     result_a->p0    = segment.p0;
     result_a->p1    = point;
     result_a->flags = segment.flags;
 
-    result_b->kind  = MSDF_SEGMENT_LINE;
+    result_b->kind  = MSDF_Segment_Line;
     result_b->p0    = point;
     result_b->p1    = segment.p1;
     result_b->flags = segment.flags;
 }
 
 internal Void msdf_segment_split(MSDF_Segment segment, F32 t, MSDF_Segment *result_a, MSDF_Segment *result_b) {
-    if (segment.kind == MSDF_SEGMENT_LINE) {
+    if (segment.kind == MSDF_Segment_Line) {
         msdf_line_split(segment, t, result_a, result_b);
-    } else if (segment.kind == MSDF_SEGMENT_QUADRATIC_BEZIER) {
+    } else if (segment.kind == MSDF_Segment_QuadraticBezier) {
         msdf_quadratic_bezier_split(segment, t, result_a, result_b);
     }
 }
@@ -209,13 +209,13 @@ internal U32 msdf_line_intersect(MSDF_Segment a, MSDF_Segment b, F32 *result_ats
 
 internal U32 msdf_segment_intersect(MSDF_Segment a, MSDF_Segment b, F32 *result_ats, F32 *result_bts) {
     U32 intersection_count = 0;
-    if (a.kind == MSDF_SEGMENT_LINE && b.kind == MSDF_SEGMENT_LINE) {
+    if (a.kind == MSDF_Segment_Line && b.kind == MSDF_Segment_Line) {
         intersection_count = msdf_line_intersect(a, b, result_ats, result_bts);
-    } else if (a.kind == MSDF_SEGMENT_LINE && b.kind == MSDF_SEGMENT_QUADRATIC_BEZIER) {
+    } else if (a.kind == MSDF_Segment_Line && b.kind == MSDF_Segment_QuadraticBezier) {
         intersection_count = msdf_line_quadratic_bezier_intersect(a, b, result_ats, result_bts);
-    } else if (a.kind == MSDF_SEGMENT_QUADRATIC_BEZIER && b.kind == MSDF_SEGMENT_LINE) {
+    } else if (a.kind == MSDF_Segment_QuadraticBezier && b.kind == MSDF_Segment_Line) {
         intersection_count = msdf_line_quadratic_bezier_intersect(b, a, result_bts, result_ats);
-    } else if (a.kind == MSDF_SEGMENT_QUADRATIC_BEZIER && b.kind == MSDF_SEGMENT_QUADRATIC_BEZIER) {
+    } else if (a.kind == MSDF_Segment_QuadraticBezier && b.kind == MSDF_Segment_QuadraticBezier) {
         intersection_count = msdf_quadratic_bezier_intersect(a, b, result_ats, result_bts);
     }
     return intersection_count;
@@ -225,9 +225,9 @@ internal U32 msdf_segment_intersect(MSDF_Segment a, MSDF_Segment b, F32 *result_
 // https://en.wikipedia.org/wiki/Shoelace_formula
 internal S32 msdf_contour_calculate_own_winding_number(MSDF_Contour *contour) {
     F32 double_signed_area = 0.0f;
-    V2F32 previous = (contour->last_segment->kind == MSDF_SEGMENT_LINE ? contour->last_segment->p1 : contour->last_segment->p2);
+    V2F32 previous = (contour->last_segment->kind == MSDF_Segment_Line ? contour->last_segment->p1 : contour->last_segment->p2);
     for (MSDF_Segment *segment = contour->first_segment; segment; segment = segment->next) {
-        if (segment->kind == MSDF_SEGMENT_LINE) {
+        if (segment->kind == MSDF_Segment_Line) {
             double_signed_area += previous.x    * segment->p0.y - segment->p0.x * previous.y;
             double_signed_area += segment->p0.x * segment->p1.y - segment->p1.x * segment->p0.y;
             previous = segment->p1;
@@ -257,7 +257,7 @@ internal S32 msdf_contour_calculate_global_winding_number(MSDF_Glyph *glyph, MSD
             U32 intersection_count = 0;
 
             for (MSDF_Segment *segment = other_contour->first_segment; segment; segment = segment->next) {
-                if (segment->kind == MSDF_SEGMENT_LINE) {
+                if (segment->kind == MSDF_Segment_Line) {
                     // Ray line intersection
                     // p0 + u * (p1 - p0) = test_point + v * (1, 0)  u in [0, 1), v in [0, inf)
                     //   p0.x + u * (p1.x - p0.x) = test_point.x + v
@@ -318,16 +318,16 @@ internal B32 msdf_is_corner(MSDF_Segment a, MSDF_Segment b, F32 threshold) {
     V2F32 a_dir = v2f32(0.0f, 0.0f);
     V2F32 b_dir = v2f32(0.0f, 0.0f);
     switch (a.kind) {
-        case MSDF_SEGMENT_NULL:             a_dir = v2f32(0.0f, 0.0f);                           break;
-        case MSDF_SEGMENT_LINE:             a_dir = v2f32_normalize(v2f32_subtract(a.p1, a.p0)); break;
-        case MSDF_SEGMENT_QUADRATIC_BEZIER: a_dir = v2f32_normalize(v2f32_subtract(a.p2, a.p1)); break;
-        case MSDF_SEGMENT_KIND_COUNT:       a_dir = v2f32(0.0f, 0.0f);                           break;
+        case MSDF_Segment_Null:            a_dir = v2f32(0.0f, 0.0f);                           break;
+        case MSDF_Segment_Line:            a_dir = v2f32_normalize(v2f32_subtract(a.p1, a.p0)); break;
+        case MSDF_Segment_QuadraticBezier: a_dir = v2f32_normalize(v2f32_subtract(a.p2, a.p1)); break;
+        case MSDF_Segment_COUNT:           a_dir = v2f32(0.0f, 0.0f);                           break;
     }
     switch (b.kind) {
-        case MSDF_SEGMENT_NULL:             b_dir = v2f32(0.0f, 0.0f);                           break;
-        case MSDF_SEGMENT_LINE:             b_dir = v2f32_normalize(v2f32_subtract(b.p1, b.p0)); break;
-        case MSDF_SEGMENT_QUADRATIC_BEZIER: b_dir = v2f32_normalize(v2f32_subtract(b.p1, b.p0)); break;
-        case MSDF_SEGMENT_KIND_COUNT:       b_dir = v2f32(0.0f, 0.0f);                           break;
+        case MSDF_Segment_Null:            b_dir = v2f32(0.0f, 0.0f);                           break;
+        case MSDF_Segment_Line:            b_dir = v2f32_normalize(v2f32_subtract(b.p1, b.p0)); break;
+        case MSDF_Segment_QuadraticBezier: b_dir = v2f32_normalize(v2f32_subtract(b.p1, b.p0)); break;
+        case MSDF_Segment_COUNT:           b_dir = v2f32(0.0f, 0.0f);                           break;
     }
 
     B32 are_parallel       = f32_abs(v2f32_cross(a_dir, b_dir)) <= threshold;
@@ -346,7 +346,7 @@ internal MSDF_Distance msdf_line_distance_orthogonality(V2F32 point, MSDF_Segmen
 
     F32 distance = v2f32_length(vector_distance);
 
-    MSDF_Distance result;
+    MSDF_Distance result = { 0 };
     result.distance      = distance;
     result.orthogonality = f32_abs(v2f32_cross(v2f32_normalize(length), v2f32_scale(vector_distance, 1.0f / distance)));
     result.unclamped_t   = t;
@@ -392,7 +392,7 @@ internal MSDF_Distance msdf_quadratic_bezier_distance_orthogonality(V2F32 point,
     V2F32 direction = v2f32_normalize(v2f32_add(v2f32_scale(p2, min_t), p1));
     V2F32 perpendicular = v2f32_scale(min_vector_distance, 1.0f / distance);
 
-    MSDF_Distance result;
+    MSDF_Distance result = { 0 };
     result.distance      = distance;
     result.orthogonality = f32_abs(v2f32_cross(direction, perpendicular));
     result.unclamped_t   = unclamped_t;
@@ -413,8 +413,8 @@ internal F32 msdf_quadratic_bezier_signed_pseudo_distance(V2F32 point, MSDF_Segm
     V2F32 p1 = v2f32_subtract(bezier.p1, bezier.p0);
     V2F32 p2 = v2f32_add(v2f32_add(bezier.p2, v2f32_scale(bezier.p1, -2)), bezier.p0);
 
-    V2F32 derivative;
-    V2F32 distance;
+    V2F32 derivative = { 0 };
+    V2F32 distance   = { 0 };
 
     if (unclamped_t < 0.0f) {
         derivative = v2f32_subtract(bezier.p1, bezier.p0);
@@ -478,12 +478,12 @@ internal Void msdf_resolve_contour_overlap(Arena *arena, MSDF_Glyph *glyph) {
                     // corners. This can be 0, so we also add a small amount to
                     // ensure that the corners do not overlapp.
                     // TODO: Why is the "small amount" 0.005f? What should it be?
-                    V2F32 *a0_corner    = (a_segment->kind == MSDF_SEGMENT_LINE ? &a_segment->p1 : &a_segment->p2);
-                    V2F32  a0_direction = v2f32_normalize(v2f32_subtract((a_segment->kind == MSDF_SEGMENT_LINE ? a_segment->p0 : a_segment->p1), *a0_corner));
+                    V2F32 *a0_corner    = (a_segment->kind == MSDF_Segment_Line ? &a_segment->p1 : &a_segment->p2);
+                    V2F32  a0_direction = v2f32_normalize(v2f32_subtract((a_segment->kind == MSDF_Segment_Line ? a_segment->p0 : a_segment->p1), *a0_corner));
                     V2F32 *a1_corner    = &a_new->p0;
                     V2F32  a1_direction = v2f32_normalize(v2f32_subtract(a_new->p1, *a1_corner));
-                    V2F32 *b0_corner    = (b_segment->kind == MSDF_SEGMENT_LINE ? &b_segment->p1 : &b_segment->p2);
-                    V2F32  b0_direction = v2f32_normalize(v2f32_subtract((b_segment->kind == MSDF_SEGMENT_LINE ? b_segment->p0 : b_segment->p1), *b0_corner));
+                    V2F32 *b0_corner    = (b_segment->kind == MSDF_Segment_Line ? &b_segment->p1 : &b_segment->p2);
+                    V2F32  b0_direction = v2f32_normalize(v2f32_subtract((b_segment->kind == MSDF_Segment_Line ? b_segment->p0 : b_segment->p1), *b0_corner));
                     V2F32 *b1_corner    = &b_new->p0;
                     V2F32  b1_direction = v2f32_normalize(v2f32_subtract(b_new->p1, *b1_corner));
                     F32    move_amount  = 0.005f + v2f32_length(v2f32_subtract(v2f32_add(*a0_corner, *b1_corner), v2f32_add(*a1_corner, *b0_corner))) * 0.5f;
@@ -573,13 +573,13 @@ internal Void msdf_convert_to_simple_polygons(Arena *arena, MSDF_Glyph *glyph) {
 
                     // Ensure that the contour is connected properly.
                     V2F32 *a0_corner = &a_new->p0;
-                    V2F32 *a1_corner = (b_new->kind == MSDF_SEGMENT_LINE ? &b_new->p1 : &b_new->p2);
+                    V2F32 *a1_corner = (b_new->kind == MSDF_Segment_Line ? &b_new->p1 : &b_new->p2);
                     V2F32 a_corner = v2f32_scale(v2f32_add(*a0_corner, *a1_corner), 0.5f);
                     *a0_corner = a_corner;
                     *a1_corner = a_corner;
 
                     V2F32 *b0_corner = &b_segment->p0;
-                    V2F32 *b1_corner = (a_segment->kind == MSDF_SEGMENT_LINE ? &a_segment->p1 : &a_segment->p2);
+                    V2F32 *b1_corner = (a_segment->kind == MSDF_Segment_Line ? &a_segment->p1 : &a_segment->p2);
                     V2F32 b_corner = v2f32_scale(v2f32_add(*b0_corner, *b1_corner), 0.5f);
                     *b0_corner = b_corner;
                     *b1_corner = b_corner;
@@ -599,11 +599,11 @@ internal Void msdf_correct_contour_orientation(MSDF_Glyph *glyph) {
 
         // NOTE(simon): Determine if each contour should be kept and if we need to flip it.
         if (-1 <= global_winding && global_winding <= 1) {
-            contour->flags |= MSDF_ContourFlags_Keep;
+            contour->flags |= MSDF_ContourFlag_Keep;
         }
 
         if ((global_winding == 0 && contour->local_winding == 1) || (global_winding != 0 && contour->local_winding == -1)) {
-            contour->flags |= MSDF_ContourFlags_Flip;
+            contour->flags |= MSDF_ContourFlag_Flip;
         }
     }
 
@@ -613,18 +613,18 @@ internal Void msdf_correct_contour_orientation(MSDF_Glyph *glyph) {
     for (MSDF_Contour *contour = glyph->first_contour, *next; contour; contour = next) {
         next = contour->next;
 
-        if (contour->flags & MSDF_ContourFlags_Flip) {
+        if (contour->flags & MSDF_ContourFlag_Flip) {
             MSDF_Segment *first_segment = 0;
             MSDF_Segment *last_segment  = 0;
 
             for (MSDF_Segment *segment = contour->last_segment, *previous; segment; segment = previous) {
                 previous = segment->previous;
 
-                if (segment->kind == MSDF_SEGMENT_LINE) {
+                if (segment->kind == MSDF_Segment_Line) {
                     V2F32 temp = segment->p0;
                     segment->p0 = segment->p1;
                     segment->p1 = temp;
-                } else if (segment->kind == MSDF_SEGMENT_QUADRATIC_BEZIER) {
+                } else if (segment->kind == MSDF_Segment_QuadraticBezier) {
                     V2F32 temp = segment->p0;
                     segment->p0 = segment->p2;
                     segment->p2 = temp;
@@ -637,7 +637,7 @@ internal Void msdf_correct_contour_orientation(MSDF_Glyph *glyph) {
             contour->last_segment  = last_segment;
         }
 
-        if (contour->flags & MSDF_ContourFlags_Keep) {
+        if (contour->flags & MSDF_ContourFlag_Keep) {
             dll_push_back(first, last, contour);
         }
     }
@@ -662,47 +662,47 @@ internal Void msdf_color_edges(MSDF_Glyph glyph) {
             if (msdf_is_corner(*previous, *current, corner_threshold)) {
                 last_corner_start = current;
                 ++corner_count;
-                current->flags  |= MSDF_EDGE_START;
-                previous->flags |= MSDF_EDGE_END;
+                current->flags  |= MSDF_SegmentFlag_Start;
+                previous->flags |= MSDF_SegmentFlag_End;
             }
         }
 
         if (corner_count == 0) {
             for (MSDF_Segment *segment = contour->first_segment; segment; segment = segment->next) {
-                segment->flags = MSDF_COLOR_RED | MSDF_COLOR_GREEN | MSDF_COLOR_BLUE;
+                segment->flags = MSDF_SegmentFlag_Red | MSDF_SegmentFlag_Green | MSDF_SegmentFlag_Blue;
             }
         } if (corner_count == 1) {
             for (MSDF_Segment *segment = contour->first_segment; segment; segment = segment->next) {
-                segment->flags = MSDF_COLOR_RED | MSDF_COLOR_BLUE;
+                segment->flags = MSDF_SegmentFlag_Red | MSDF_SegmentFlag_Blue;
             }
 
             // TODO(simon): More carefully handle how we split edges in this case.
             // NOTE(simon): We need to split the contour into two edges in order to preserve the corner.
-            last_corner_start->flags = MSDF_COLOR_RED | MSDF_COLOR_GREEN;
+            last_corner_start->flags = MSDF_SegmentFlag_Red | MSDF_SegmentFlag_Green;
         } else {
-            MSDF_ColorFlags current_color = MSDF_COLOR_RED | MSDF_COLOR_BLUE;
+            MSDF_SegmentFlags current_color = MSDF_SegmentFlag_Red | MSDF_SegmentFlag_Blue;
 
             for (MSDF_Segment *segment = contour->first_segment; segment; segment = segment->next) {
                 segment->flags |= current_color;
 
-                if (segment->flags & MSDF_EDGE_END) {
-                    if (current_color == (MSDF_COLOR_RED | MSDF_COLOR_GREEN)) {
-                        current_color = MSDF_COLOR_GREEN | MSDF_COLOR_BLUE;
+                if (segment->flags & MSDF_SegmentFlag_End) {
+                    if (current_color == (MSDF_SegmentFlag_Red | MSDF_SegmentFlag_Green)) {
+                        current_color = MSDF_SegmentFlag_Green | MSDF_SegmentFlag_Blue;
                     } else {
-                        current_color = MSDF_COLOR_RED | MSDF_COLOR_GREEN;
+                        current_color = MSDF_SegmentFlag_Red | MSDF_SegmentFlag_Green;
                     }
                 }
             }
 
             // NOTE(simon): The first edge might cross the start and end of the
             // list and would now have two different colors, correct it!
-            if (!(contour->first_segment->flags & MSDF_EDGE_START)) {
+            if (!(contour->first_segment->flags & MSDF_SegmentFlag_Start)) {
                 for (
                     MSDF_Segment *segment = contour->last_segment;
-                    segment && !(segment->flags & MSDF_EDGE_END);
+                    segment && !(segment->flags & MSDF_SegmentFlag_End);
                     segment = segment->previous
                 ) {
-                    segment->flags |= MSDF_COLOR_RED | MSDF_COLOR_BLUE;
+                    segment->flags |= MSDF_SegmentFlag_Red | MSDF_SegmentFlag_Blue;
                 }
             }
         }
@@ -746,15 +746,15 @@ internal MSDF_RasterResult msdf_generate(Arena *arena, TTF_Font *font, U32 codep
             next = segment->next;
 
             switch (segment->kind) {
-                case MSDF_SEGMENT_NULL: {
+                case MSDF_Segment_Null: {
                 } break;
-                case MSDF_SEGMENT_LINE: {
+                case MSDF_Segment_Line: {
                     dll_push_back(lines.first, lines.last, segment);
                 } break;
-                case MSDF_SEGMENT_QUADRATIC_BEZIER: {
+                case MSDF_Segment_QuadraticBezier: {
                     dll_push_back(quad_beziers.first, quad_beziers.last, segment);
                 } break;
-                case MSDF_SEGMENT_KIND_COUNT: {
+                case MSDF_Segment_COUNT: {
                 } break;
             }
         }
@@ -832,15 +832,15 @@ internal MSDF_RasterResult msdf_generate(Arena *arena, TTF_Font *font, U32 codep
                     if (red * red >= min_distance || green * green >= min_distance || blue * blue >= min_distance) {
                         MSDF_Distance distance = msdf_line_distance_orthogonality(point, *line);
 
-                        if ((line->flags & MSDF_COLOR_RED) && msdf_distance_is_closer(distance, red_distance)) {
+                        if ((line->flags & MSDF_SegmentFlag_Red) && msdf_distance_is_closer(distance, red_distance)) {
                             red_distance = distance;
                             red_segment  = line;
                         }
-                        if ((line->flags & MSDF_COLOR_GREEN) && msdf_distance_is_closer(distance, green_distance)) {
+                        if ((line->flags & MSDF_SegmentFlag_Green) && msdf_distance_is_closer(distance, green_distance)) {
                             green_distance = distance;
                             green_segment  = line;
                         }
-                        if ((line->flags & MSDF_COLOR_BLUE) && msdf_distance_is_closer(distance, blue_distance)) {
+                        if ((line->flags & MSDF_SegmentFlag_Blue) && msdf_distance_is_closer(distance, blue_distance)) {
                             blue_distance = distance;
                             blue_segment  = line;
                         }
@@ -856,34 +856,34 @@ internal MSDF_RasterResult msdf_generate(Arena *arena, TTF_Font *font, U32 codep
                     if (red * red >= min_distance || green * green >= min_distance || blue * blue >= min_distance) {
                         MSDF_Distance distance = msdf_quadratic_bezier_distance_orthogonality(point, *bezier);
 
-                        if ((bezier->flags & MSDF_COLOR_RED) && msdf_distance_is_closer(distance, red_distance)) {
+                        if ((bezier->flags & MSDF_SegmentFlag_Red) && msdf_distance_is_closer(distance, red_distance)) {
                             red_distance = distance;
                             red_segment  = bezier;
                         }
-                        if ((bezier->flags & MSDF_COLOR_GREEN) && msdf_distance_is_closer(distance, green_distance)) {
+                        if ((bezier->flags & MSDF_SegmentFlag_Green) && msdf_distance_is_closer(distance, green_distance)) {
                             green_distance = distance;
                             green_segment  = bezier;
                         }
-                        if ((bezier->flags & MSDF_COLOR_BLUE) && msdf_distance_is_closer(distance, blue_distance)) {
+                        if ((bezier->flags & MSDF_SegmentFlag_Blue) && msdf_distance_is_closer(distance, blue_distance)) {
                             blue_distance = distance;
                             blue_segment  = bezier;
                         }
                     }
                 }
 
-                if (red_segment->kind == MSDF_SEGMENT_LINE) {
+                if (red_segment->kind == MSDF_Segment_Line) {
                     red_distance.distance = msdf_line_signed_pseudo_distance(point, *red_segment);
-                } else if (red_segment->kind == MSDF_SEGMENT_QUADRATIC_BEZIER) {
+                } else if (red_segment->kind == MSDF_Segment_QuadraticBezier) {
                     red_distance.distance = msdf_quadratic_bezier_signed_pseudo_distance(point, *red_segment, red_distance.unclamped_t);
                 }
-                if (green_segment->kind == MSDF_SEGMENT_LINE) {
+                if (green_segment->kind == MSDF_Segment_Line) {
                     green_distance.distance = msdf_line_signed_pseudo_distance(point, *green_segment);
-                } else if (green_segment->kind == MSDF_SEGMENT_QUADRATIC_BEZIER) {
+                } else if (green_segment->kind == MSDF_Segment_QuadraticBezier) {
                     green_distance.distance = msdf_quadratic_bezier_signed_pseudo_distance(point, *green_segment, green_distance.unclamped_t);
                 }
-                if (blue_segment->kind == MSDF_SEGMENT_LINE) {
+                if (blue_segment->kind == MSDF_Segment_Line) {
                     blue_distance.distance = msdf_line_signed_pseudo_distance(point, *blue_segment);
-                } else if (blue_segment->kind == MSDF_SEGMENT_QUADRATIC_BEZIER) {
+                } else if (blue_segment->kind == MSDF_Segment_QuadraticBezier) {
                     blue_distance.distance = msdf_quadratic_bezier_signed_pseudo_distance(point, *blue_segment, blue_distance.unclamped_t);
                 }
 
