@@ -7,36 +7,44 @@
 #include "win32_opengl.h"
 #endif
 
-#define RENDER_BATCH_SIZE 1024
-
-typedef struct Render_Batch Render_Batch;
-struct Render_Batch {
-    Render_Batch *next;
-    Render_Batch *previous;
-
-    GLuint texture_ids[2];
-    U32 size;
-    Render_Rectangle rectangles[RENDER_BATCH_SIZE];
-};
-
-typedef struct Render_BatchList Render_BatchList;
-struct Render_BatchList {
-    Render_Batch *first;
-    Render_Batch *last;
-};
-
-struct Render_Context {
+typedef struct OpenGL_Context OpenGL_Context;
+struct OpenGL_Context {
     Arena           *arena;
     Arena_Temporary  frame_restore;
     Render_BatchList batches;
     GLuint           program;
     GLuint           vao;
-    GLuint           vbo;
     GLint            uniform_projection_location;
     GLint            uniform_sampler_location;
     Gfx_Context     *gfx;
+    Render_Stats     previous_stats;
     Render_Stats     current_stats;
-    Render_Stats     new_stats;
+
+    GLuint vbo_64kb;
+    GLuint vbo_256kb;
+    GLuint vbo_1mb;
+    GLuint vbo_4mb;
 };
+
+typedef struct {
+    Str8 source;
+    GLenum kind;
+} OpenGL_ShaderSpecification;
+
+typedef struct {
+    GLuint handle;
+    Str8List errors;
+} OpenGL_Result;
+
+// NOTE(simon): Shaders compilation helpers.
+internal OpenGL_Result opengl_create_shader(Arena *arena, Str8 path, GLenum shader_type);
+internal OpenGL_Result opengl_create_program(Arena *arena, OpenGL_ShaderSpecification *shaders, U32 shader_count);
+
+// NOTE(simon): Vertex attribute helpers.
+internal Void opengl_vertex_array_instance_attribute_float(GLuint vaobj, GLuint attribindex, GLint size, GLenum type, GLboolean normalized, GLuint relativeoffset, GLuint bindingindex);
+internal Void opengl_vertex_array_instance_attribute_integer(GLuint vaobj, GLuint attribindex, GLint size, GLenum type, GLuint relativeoffset, GLuint bindingindex);
+
+// NOTE(simon): Texture helpers
+internal GLuint opengl_texture_id_from_texture(Render_Texture texture);
 
 #endif // OPENGL_INCLUDE_H

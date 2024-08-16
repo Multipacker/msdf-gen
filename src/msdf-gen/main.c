@@ -3,6 +3,7 @@
 #include "src/render/render_include.h"
 #include "src/font/font_include.h"
 #include "src/font_cache/font_cache_include.h"
+#include "src/draw/draw_include.h"
 #include "src/ui/ui_include.h"
 
 #include "src/base/base_include.c"
@@ -10,6 +11,7 @@
 #include "src/render/render_include.c"
 #include "src/font/font_include.c"
 #include "src/font_cache/font_cache_include.c"
+#include "src/draw/draw_include.c"
 #include "src/ui/ui_include.c"
 
 /*
@@ -112,12 +114,16 @@ internal Void draw_text_msdf(Font *font, V2F32 position, F32 point_size, Str8 te
 
         Glyph *glyph = &font->glyphs[decode.codepoint];
 
-        render_rectangle(
-            v2f32_add(text_point, v2f32_scale(glyph->min_pt, point_size)), v2f32_add(text_point, v2f32_scale(glyph->max_pt, point_size)),
-            .uv_min = glyph->uv_min, .uv_max = glyph->uv_max,
-            .texture = font->atlas,
-            .color = v4f32(1.0f, 1.0f, 1.0f, 1.0f),
-            .flags = Render_RectangleFlags_MSDF
+        draw_msdf(
+            r2f32(
+                text_point.x + glyph->min_pt.x * point_size,
+                text_point.y + glyph->min_pt.y * point_size,
+                text_point.x + glyph->max_pt.x * point_size,
+                text_point.y + glyph->max_pt.y * point_size
+            ),
+            (R2F32) { glyph->uv_min, glyph->uv_max, },
+            font->atlas,
+            v4f32(1.0f, 1.0f, 1.0f, 1.0f)
         );
 
         text_point.x += glyph->advance_pt * point_size;
@@ -131,18 +137,16 @@ internal Void draw_text(FontCache_Font *font, V2F32 origin, Str8 string, U32 siz
     F32 advance = 0.0f;
     for (U64 i = 0; i < text.letter_count; ++i) {
         FontCache_Letter *letter = &text.letters[i];
-        render_rectangle(
-            v2f32(
+        draw_glyph(
+            r2f32(
                 origin.x + letter->offset.x + advance,
-                origin.y + letter->offset.y
-            ),
-            v2f32(
+                origin.y + letter->offset.y,
                 origin.x + letter->offset.x + advance + letter->size.x,
                 origin.y + letter->offset.y + letter->size.y
             ),
-            .uv_min = letter->uvs.min, .uv_max = letter->uvs.max,
-            .texture = letter->texture,
-            .flags = Render_RectangleFlags_AlphaMask
+            letter->uvs,
+            letter->texture,
+            v4f32(1.0f, 1.0f, 1.0f, 1.0f)
         );
         advance += letter->advance;
     }
@@ -151,48 +155,38 @@ internal Void draw_text(FontCache_Font *font, V2F32 origin, Str8 string, U32 siz
 }
 
 internal UI_BOX_DRAW_FUNCTION(draw_ui_msdf) {
-    UIDrawMSDF *draw_msdf = (UIDrawMSDF *) data;
+    UIDrawMSDF *ui_draw_msdf = (UIDrawMSDF *) data;
 
     StringDecode decode = string_decode_utf8(box->string.data, box->string.size);
     U32 codepoint = decode.codepoint;
-    if (codepoint > array_count(draw_msdf->font->glyphs)) {
+    if (codepoint > array_count(ui_draw_msdf->font->glyphs)) {
         codepoint = 0;
     }
 
-    Glyph *glyph = &draw_msdf->font->glyphs[codepoint];
+    Glyph *glyph = &ui_draw_msdf->font->glyphs[codepoint];
 
-    render_rectangle(
-        box->calculated_rectangle.min,
-        box->calculated_rectangle.max,
-        .uv_min = glyph->uv_min, .uv_max = glyph->uv_max,
-        .texture = draw_msdf->font->atlas,
-        .flags = (draw_msdf->render_raw ? Render_RectangleFlags_Texture : Render_RectangleFlags_MSDF)
+    draw_texture(
+        box->calculated_rectangle,
+        (R2F32) { glyph->uv_min, glyph->uv_max, },
+        ui_draw_msdf->font->atlas,
+        v4f32(1.0f, 1.0f, 1.0f, 1.0f),
+        0.0f, 0.0f, 0.0f,
+        ui_draw_msdf->render_raw ? Render_RectangleFlags_Texture : Render_RectangleFlags_MSDF
     );
 }
 
 internal Void draw_ui(UI_Box *box) {
     if (box->flags & UI_BoxFlags_DrawBackground) {
-        render_rectangle(
-            box->calculated_rectangle.min, box->calculated_rectangle.max,
-            .color = box->color,
-        );
+        draw_rectangle(box->calculated_rectangle, box->color, 0.0f, 0.0f, 0.0f);
 
         if (box->flags & UI_BoxFlags_DrawHot && box->hot_t > 0.0f) {
-            Render_Rectangle *rect = render_rectangle(
-                box->calculated_rectangle.min, box->calculated_rectangle.max
-            );
+            Render_Rectangle *rect = draw_rectangle(box->calculated_rectangle, v4f32(0.0f, 0.0f, 0.0f, 0.0f), 0.0f, 0.0f, 0.0f);
             rect->colors[0] = v4f32(1.0f, 1.0f, 1.0f, 0.5f * box->hot_t);
             rect->colors[1] = v4f32(1.0f, 1.0f, 1.0f, 0.5f * box->hot_t);
-            rect->colors[2] = v4f32(0.0f, 0.0f, 0.0f, 0.0f);
-            rect->colors[3] = v4f32(0.0f, 0.0f, 0.0f, 0.0f);
         }
 
         if (box->flags & UI_BoxFlags_DrawActive && box->active_t > 0.0f) {
-            Render_Rectangle *rect = render_rectangle(
-                box->calculated_rectangle.min, box->calculated_rectangle.max
-            );
-            rect->colors[0] = v4f32(0.0f, 0.0f, 0.0f, 0.0f);
-            rect->colors[1] = v4f32(0.0f, 0.0f, 0.0f, 0.0f);
+            Render_Rectangle *rect = draw_rectangle(box->calculated_rectangle, v4f32(0.0f, 0.0f, 0.0f, 0.0f), 0.0f, 0.0f, 0.0f);
             rect->colors[2] = v4f32(0.0f, 0.0f, 0.0f, 0.5f * box->active_t);
             rect->colors[3] = v4f32(0.0f, 0.0f, 0.0f, 0.5f * box->active_t);
         }
@@ -203,19 +197,16 @@ internal Void draw_ui(UI_Box *box) {
         F32 advance = 0.0f;
         for (U64 i = 0; i < box->text.letter_count; ++i) {
             FontCache_Letter *letter = &box->text.letters[i];
-            render_rectangle(
-                v2f32(
+            draw_glyph(
+                r2f32(
                     f32_floor(origin.x + letter->offset.x + advance),
-                    f32_floor(origin.y + letter->offset.y)
-                ),
-                v2f32(
+                    f32_floor(origin.y + letter->offset.y),
                     f32_floor(origin.x + letter->offset.x + advance + letter->size.x),
                     f32_floor(origin.y + letter->offset.y + letter->size.y)
                 ),
-                .color = box->text_color,
-                .uv_min = letter->uvs.min, .uv_max = letter->uvs.max,
-                .texture = letter->texture,
-                .flags = Render_RectangleFlags_AlphaMask
+                (R2F32) { letter->uvs.min, letter->uvs.max, },
+                letter->texture,
+                box->text_color
             );
             advance += letter->advance;
         }
@@ -226,19 +217,11 @@ internal Void draw_ui(UI_Box *box) {
     }
 
     if (box->flags & UI_BoxFlags_DrawBorder) {
-        render_rectangle(
-            box->calculated_rectangle.min, box->calculated_rectangle.max,
-            .color = box->border_color,
-            .thickness = 1.0f,
-            .softness = 1.0f
-        );
+        draw_rectangle(box->calculated_rectangle, box->border_color, 0.0f, 1.0f, 1.0f);
     }
 
     if (box->flags & UI_BoxFlags_Disabled) {
-        Render_Rectangle *rect = render_rectangle(
-            box->calculated_rectangle.min, box->calculated_rectangle.max,
-            .color = v4f32(0.2f, 0.2f, 0.2f, 0.75f)
-        );
+        draw_rectangle(box->calculated_rectangle, v4f32(0.2f, 0.2f, 0.2f, 0.75f), 0.0f, 0.0f, 0.0f);
     }
 
     for (UI_Box *child = box->last; child != &global_ui_null_box; child = child->previous) {
@@ -493,8 +476,10 @@ internal S32 os_run(Str8List arguments) {
                     ui_label_format(ui, "Selected glyph: U+%.6X", selected_codepoint);
 
                     Render_Stats stats = render_get_stats();
+                    ui_label(ui, str8_literal("Render stats"));
                     ui_label_format(ui, "Batches: %u", stats.batch_count);
                     ui_label_format(ui, "Rectangles: %u", stats.rectangle_count);
+                    ui_label_format(ui, "Bytes uploaded: %u", stats.bytes_uploaded_to_gpu);
                 }
             }
 
@@ -520,7 +505,11 @@ internal S32 os_run(Str8List arguments) {
             prof_zone_begin(prof_render, "render");
             V2U32 client_area = gfx_get_window_client_area(gfx);
             render_begin(client_area);
-            draw_ui(ui->root);
+            draw_begin_frame();
+            draw_clip(r2f32(0.0f, 0.0f, (F32) client_area.width, (F32) client_area.height)) {
+                draw_ui(ui->root);
+            }
+            draw_submit();
             render_end();
             prof_zone_end(prof_render);
         }

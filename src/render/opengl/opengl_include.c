@@ -6,15 +6,12 @@
 #include "sdl_opengl.c"
 #endif
 
-typedef struct {
-    Str8 source;
-    GLenum kind;
-} OpenGL_ShaderSpecification;
+global OpenGL_Context global_opengl_context;
 
-typedef struct {
-    GLuint handle;
-    Str8List errors;
-} OpenGL_Result;
+internal GLuint opengl_texture_id_from_texture(Render_Texture texture) {
+    GLuint result = texture.u32[0];
+    return result;
+}
 
 internal Void opengl_debug_output(GLenum source, GLenum type, U32 id, GLenum severity, GLsizei length, const char *message, const Void *userParam) {
     if (severity == GL_DEBUG_SEVERITY_NOTIFICATION) {
@@ -178,88 +175,22 @@ internal Void opengl_vertex_array_instance_attribute_integer(GLuint vaobj, GLuin
     glEnableVertexArrayAttrib(vaobj,   attribindex);
 }
 
-internal Render_Rectangle *render_rectangle_internal(Render_RectangleParams *parameters) {
-    Render_Context *gfx = &global_render_context;
-
-    Render_Batch *batch = gfx->batches.last;
-
-    B32 needs_batch = !batch;
-    needs_batch |= batch && batch->size >= RENDER_BATCH_SIZE;
-    needs_batch |= batch && parameters->texture.u32[0] &&
-        batch->texture_ids[0] && batch->texture_ids[0] != parameters->texture.u32[0] &&
-        batch->texture_ids[1] && batch->texture_ids[1] != parameters->texture.u32[0];
-
-    if (needs_batch) {
-        ++gfx->new_stats.batch_count;
-        batch = arena_push_struct_zero(gfx->arena, Render_Batch);
-        dll_push_back(gfx->batches.first, gfx->batches.last, batch);
-    }
-
-    if (!batch->texture_ids[0]) {
-        batch->texture_ids[0] = parameters->texture.u32[0];
-    } else if (!batch->texture_ids[1]) {
-        batch->texture_ids[1] = parameters->texture.u32[0];
-    }
-
-    Render_Rectangle *rect = &batch->rectangles[batch->size++];
-
-    rect->min       = v2f32(parameters->min.x, parameters->min.y);
-    rect->max       = v2f32(parameters->max.x, parameters->max.y);
-    rect->colors[0] = parameters->color;
-    rect->colors[1] = parameters->color;
-    rect->colors[2] = parameters->color;
-    rect->colors[3] = parameters->color;
-    rect->uv_min    = parameters->uv_min;
-    rect->uv_max    = parameters->uv_max;
-    rect->flags     = parameters->flags | (batch->texture_ids[0] == parameters->texture.u32[0] ? 0 : Render_RectangleFlags_TextureIndex);
-    rect->thickness = parameters->thickness;
-    rect->softness  = parameters->softness;
-    rect->radies    = parameters->radies;
-    ++gfx->new_stats.rectangle_count;
-
-    return rect;
+internal Render_Texture render_texture_null(Void) {
+    Render_Texture result = { 0 };
+    return result;
 }
 
-internal Void render_begin(V2U32 resolution) {
-    Render_Context *gfx = &global_render_context;
-
-    gfx->frame_restore = arena_begin_temporary(gfx->arena);
-
-    glViewport(0, 0, (GLsizei) resolution.width, (GLsizei) resolution.height);
-
-    M4F32 projection = m4f32_ortho(0.0f, (F32) resolution.width, 0.0f, (F32) resolution.height, 1.0f, -1.0f);
-    glProgramUniformMatrix4fv(gfx->program, gfx->uniform_projection_location, 1, GL_FALSE, &projection.m[0][0]);
-}
-
-internal Void render_end(Void) {
-    Render_Context *gfx = &global_render_context;
-
-    GLint samplers[] = { 0, 1, };
-    glProgramUniform1iv(gfx->program, gfx->uniform_sampler_location, array_count(samplers), samplers);
-
-    glClear(GL_COLOR_BUFFER_BIT);
-
-    for (Render_Batch *batch = gfx->batches.first; batch; batch = batch->next) {
-        glBindTextureUnit(0, batch->texture_ids[0]);
-        glBindTextureUnit(1, batch->texture_ids[1]);
-        glNamedBufferSubData(gfx->vbo, 0, batch->size * sizeof(Render_Rectangle), batch->rectangles);
-        glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, (GLsizei) batch->size);
-    }
-
-    gfx->batches.first = 0;
-    gfx->batches.last  = 0;
-    arena_end_temporary(gfx->frame_restore);
-
-    gfx_swap_buffers(gfx->gfx);
-
-    gfx->current_stats = gfx->new_stats;
-    memory_zero_struct(&gfx->new_stats);
+internal B32 render_texture_equal(Render_Texture a, Render_Texture b) {
+    B32 result = opengl_texture_id_from_texture(a) == opengl_texture_id_from_texture(b);
+    return result;
 }
 
 internal Render_Texture render_texture_create(V2U32 size, Render_TextureFormat format, U8 *data) {
-    Render_Texture result = { 0 };
+    GLuint texture_id = 0;
+    glCreateTextures(GL_TEXTURE_2D, 1, &texture_id);
 
-    glCreateTextures(GL_TEXTURE_2D, 1, &result.u32[0]);
+    Render_Texture result = { 0 };
+    result.u32[0] = texture_id;
     result.u32[1] = size.width;
     result.u32[2] = size.height;
     result.u32[3] = format;
@@ -277,17 +208,17 @@ internal Render_Texture render_texture_create(V2U32 size, Render_TextureFormat f
         } break;
     }
 
-    glTextureStorage2D(result.u32[0], 1, gl_internal_format, (GLsizei) size.width, (GLsizei) size.height);
-    glTextureParameteri(result.u32[0], GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTextureParameteri(result.u32[0], GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTextureParameteri(result.u32[0], GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTextureParameteri(result.u32[0], GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTextureStorage2D(texture_id, 1, gl_internal_format, (GLsizei) size.width, (GLsizei) size.height);
+    glTextureParameteri(texture_id, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTextureParameteri(texture_id, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTextureParameteri(texture_id, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTextureParameteri(texture_id, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     if (data) {
         if (format == Render_TextureFormat_R8) {
             glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
         }
 
-        glTextureSubImage2D(result.u32[0], 0, 0, 0, (GLsizei) size.width, (GLsizei) size.height, gl_format, GL_UNSIGNED_BYTE, data);
+        glTextureSubImage2D(texture_id, 0, 0, 0, (GLsizei) size.width, (GLsizei) size.height, gl_format, GL_UNSIGNED_BYTE, data);
 
         if (format == Render_TextureFormat_R8) {
             glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
@@ -298,7 +229,8 @@ internal Render_Texture render_texture_create(V2U32 size, Render_TextureFormat f
 }
 
 internal Void render_texture_destroy(Render_Texture texture) {
-    glDeleteTextures(1, &texture.u32[0]);
+    GLuint texture_id = opengl_texture_id_from_texture(texture);
+    glDeleteTextures(1, &texture_id);
 }
 
 internal V2U32 render_size_from_texture(Render_Texture texture) {
@@ -323,7 +255,7 @@ internal Void render_texture_update(Render_Texture texture, V2U32 position, V2U3
     }
 
     glTextureSubImage2D(
-        texture.u32[0],
+        opengl_texture_id_from_texture(texture),
         0,
         (GLint) position.x, (GLint) position.y,
         (GLsizei) size.width, (GLsizei) size.height,
@@ -337,7 +269,7 @@ internal Void render_texture_update(Render_Texture texture, V2U32 position, V2U3
 }
 
 internal Void render_create(Gfx_Context *gfx) {
-    Render_Context *result = &global_render_context;
+    OpenGL_Context *result = &global_opengl_context;
 
     Arena *arena = arena_create();
     result->arena = arena;
@@ -360,35 +292,122 @@ internal Void render_create(Gfx_Context *gfx) {
     result->program = program.handle;
 
     result->uniform_projection_location = glGetUniformLocation(result->program, "uniform_projection");
-    result->uniform_sampler_location    = glGetUniformLocation(result->program, "uniform_samplers");
+    result->uniform_sampler_location    = glGetUniformLocation(result->program, "uniform_sampler");
 
-    glCreateBuffers(1, &result->vbo);
-    glNamedBufferData(result->vbo, RENDER_BATCH_SIZE * sizeof(Render_Rectangle), 0, GL_DYNAMIC_DRAW);
+    GLuint vbos[4] = { 0 };
+    glCreateBuffers(array_count(vbos), vbos);
+    glNamedBufferData(vbos[0], kilobytes(64),  0, GL_DYNAMIC_DRAW);
+    glNamedBufferData(vbos[1], kilobytes(256), 0, GL_DYNAMIC_DRAW);
+    glNamedBufferData(vbos[2], megabytes(1),   0, GL_DYNAMIC_DRAW);
+    glNamedBufferData(vbos[3], megabytes(4),   0, GL_DYNAMIC_DRAW);
+    result->vbo_64kb  = vbos[0];
+    result->vbo_256kb = vbos[1];
+    result->vbo_1mb   = vbos[2];
+    result->vbo_4mb   = vbos[3];
 
     glCreateVertexArrays(1, &result->vao);
 
-    opengl_vertex_array_instance_attribute_float(result->vao,   0,  2, GL_FLOAT,        GL_FALSE, member_offset(Render_Rectangle, min),       0);
-    opengl_vertex_array_instance_attribute_float(result->vao,   1,  2, GL_FLOAT,        GL_FALSE, member_offset(Render_Rectangle, max),       0);
-    opengl_vertex_array_instance_attribute_float(result->vao,   2,  4, GL_FLOAT,        GL_FALSE, member_offset(Render_Rectangle, colors[0]), 0);
-    opengl_vertex_array_instance_attribute_float(result->vao,   3,  4, GL_FLOAT,        GL_FALSE, member_offset(Render_Rectangle, colors[1]), 0);
-    opengl_vertex_array_instance_attribute_float(result->vao,   4,  4, GL_FLOAT,        GL_FALSE, member_offset(Render_Rectangle, colors[2]), 0);
-    opengl_vertex_array_instance_attribute_float(result->vao,   5,  4, GL_FLOAT,        GL_FALSE, member_offset(Render_Rectangle, colors[3]), 0);
-    opengl_vertex_array_instance_attribute_float(result->vao,   6,  2, GL_FLOAT,        GL_FALSE, member_offset(Render_Rectangle, uv_min),    0);
-    opengl_vertex_array_instance_attribute_float(result->vao,   7,  2, GL_FLOAT,        GL_FALSE, member_offset(Render_Rectangle, uv_max),    0);
-    opengl_vertex_array_instance_attribute_integer(result->vao, 8,  1, GL_UNSIGNED_INT,           member_offset(Render_Rectangle, flags),     0);
-    opengl_vertex_array_instance_attribute_float(result->vao,   9,  1, GL_FLOAT,        GL_FALSE, member_offset(Render_Rectangle, thickness), 0);
-    opengl_vertex_array_instance_attribute_float(result->vao,   10, 1, GL_FLOAT,        GL_FALSE, member_offset(Render_Rectangle, softness),  0);
-    opengl_vertex_array_instance_attribute_float(result->vao,   11, 4, GL_FLOAT,        GL_FALSE, member_offset(Render_Rectangle, radies),    0);
-
-    glVertexArrayVertexBuffer(result->vao, 0, result->vbo, 0, sizeof(Render_Rectangle));
+    opengl_vertex_array_instance_attribute_float(result->vao,   0, 4, GL_FLOAT,        GL_FALSE, member_offset(Render_Rectangle, rectangle), 0);
+    opengl_vertex_array_instance_attribute_float(result->vao,   1, 4, GL_FLOAT,        GL_FALSE, member_offset(Render_Rectangle, colors[0]), 0);
+    opengl_vertex_array_instance_attribute_float(result->vao,   2, 4, GL_FLOAT,        GL_FALSE, member_offset(Render_Rectangle, colors[1]), 0);
+    opengl_vertex_array_instance_attribute_float(result->vao,   3, 4, GL_FLOAT,        GL_FALSE, member_offset(Render_Rectangle, colors[2]), 0);
+    opengl_vertex_array_instance_attribute_float(result->vao,   4, 4, GL_FLOAT,        GL_FALSE, member_offset(Render_Rectangle, colors[3]), 0);
+    opengl_vertex_array_instance_attribute_float(result->vao,   5, 4, GL_FLOAT,        GL_FALSE, member_offset(Render_Rectangle, uvs),       0);
+    opengl_vertex_array_instance_attribute_integer(result->vao, 6, 1, GL_UNSIGNED_INT,           member_offset(Render_Rectangle, flags),     0);
+    opengl_vertex_array_instance_attribute_float(result->vao,   7, 1, GL_FLOAT,        GL_FALSE, member_offset(Render_Rectangle, thickness), 0);
+    opengl_vertex_array_instance_attribute_float(result->vao,   8, 1, GL_FLOAT,        GL_FALSE, member_offset(Render_Rectangle, softness),  0);
+    opengl_vertex_array_instance_attribute_float(result->vao,   9, 4, GL_FLOAT,        GL_FALSE, member_offset(Render_Rectangle, radies),    0);
 
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
     glUseProgram(result->program);
     glBindVertexArray(result->vao);
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glEnable(GL_SCISSOR_TEST);
+}
+
+internal Void render_begin(V2U32 resolution) {
+    OpenGL_Context *gfx = &global_opengl_context;
+
+    glViewport(0, 0, (GLsizei) resolution.width, (GLsizei) resolution.height);
+
+    M4F32 projection = m4f32_ortho(
+        0.0f, (F32) resolution.width,
+        0.0f, (F32) resolution.height,
+        1.0f, -1.0f
+    );
+    glProgramUniformMatrix4fv(gfx->program, gfx->uniform_projection_location, 1, GL_FALSE, &projection.m[0][0]);
+
+    glClear(GL_COLOR_BUFFER_BIT);
+}
+
+internal Void render_submit(Render_BatchList batches) {
+    OpenGL_Context *gfx = &global_opengl_context;
+
+    for (Render_Batch *batch = batches.first; batch; batch = batch->next) {
+        ++gfx->current_stats.batch_count;
+        gfx->current_stats.rectangle_count += batch->rectangles.rectangle_count;
+
+        glScissor(
+            (GLint) batch->clip.min.x,
+            (GLint) batch->clip.min.y,
+            (GLsizei) (batch->clip.max.x - batch->clip.min.x),
+            (GLsizei) (batch->clip.max.y - batch->clip.min.y)
+        );
+
+        glBindTextureUnit(0, opengl_texture_id_from_texture(batch->texture));
+
+        GLuint vbo = 0;
+        B32 specifically_sized = false;
+        U64 byte_size = batch->rectangles.rectangle_count * sizeof(Render_Rectangle);
+        gfx->current_stats.bytes_uploaded_to_gpu += byte_size;
+
+        // NOTE(simon): Select an appropriate buffer.
+        if (byte_size <= kilobytes(64)) {
+            vbo = gfx->vbo_64kb;
+        } else if (byte_size <= kilobytes(256)) {
+            vbo = gfx->vbo_256kb;
+        } else if (byte_size <= megabytes(1)) {
+            vbo = gfx->vbo_1mb;
+        } else if (byte_size <= megabytes(4)) {
+            vbo = gfx->vbo_4mb;
+        } else {
+            specifically_sized = true;
+            glCreateBuffers(1, &vbo);
+            glNamedBufferData(vbo, (GLsizeiptr) byte_size, 0, GL_STREAM_DRAW);
+        }
+
+        // NOTE(simon): Update buffer data
+        U8 *mapped_buffer = (U8 *) glMapNamedBuffer(vbo, GL_WRITE_ONLY);
+        U8 *ptr = mapped_buffer;
+        for (Render_RectangleChunk *chunk = batch->rectangles.first; chunk; chunk = chunk->next) {
+            memory_copy(ptr, chunk->rectangles, chunk->count * sizeof(Render_Rectangle));
+            ptr += chunk->count * sizeof(Render_Rectangle);
+        }
+        glUnmapNamedBuffer(vbo);
+
+        glVertexArrayVertexBuffer(gfx->vao, 0, vbo, 0, sizeof(Render_Rectangle));
+
+        glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, (GLsizei) batch->rectangles.rectangle_count);
+
+        // NOTE(simon): Delete specifically sized buffer.
+        if (specifically_sized) {
+            glDeleteBuffers(1, &vbo);
+        }
+    }
+}
+
+internal Void render_end(Void) {
+    OpenGL_Context *gfx = &global_opengl_context;
+
+    gfx_swap_buffers(gfx->gfx);
+
+    gfx->previous_stats = gfx->current_stats;
+    memory_zero_struct(&gfx->current_stats);
 }
 
 internal Render_Stats render_get_stats(Void) {
-    return global_render_context.current_stats;
+    OpenGL_Context *gfx = &global_opengl_context;
+    Render_Stats result = gfx->previous_stats;
+    return result;
 }
