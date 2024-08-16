@@ -140,6 +140,11 @@ union V4F32 {
     };
 };
 
+typedef struct M2F32 M2F32;
+struct M2F32 {
+    F32 m[2][2];
+};
+
 typedef struct M4F32 M4F32;
 struct M4F32 {
     F32 m[4][4];
@@ -219,6 +224,9 @@ internal V2F32 v2f32_negate(V2F32 vector);
 internal V2F32 v2f32_perpendicular(V2F32 vector);
 internal V2F32 v2f32_min(V2F32 a, V2F32 b);
 internal V2F32 v2f32_max(V2F32 a, V2F32 b);
+
+internal M2F32 m2f32(F32 m00, F32 m01, F32 m10, F32 m11);
+internal V2F32 m2f32_multiply_v2f32(M2F32 matrix, V2F32 vector);
 
 internal M4F32 m4f32_ortho(F32 left, F32 right, F32 top, F32 bottom, F32 near_plane, F32 far_plane);
 

@@ -129,6 +129,25 @@ internal V2F32 v2f32_max(V2F32 a, V2F32 b) {
     return result;
 }
 
+internal M2F32 m2f32(F32 m00, F32 m01, F32 m10, F32 m11) {
+    M2F32 result = {
+        .m = {
+            { m00, m01, },
+            { m10, m11, },
+        },
+    };
+
+    return result;
+}
+
+internal V2F32 m2f32_multiply_v2f32(M2F32 matrix, V2F32 vector) {
+    V2F32 result = {
+        .x = vector.x * matrix.m[0][0] + vector.y * matrix.m[0][1],
+        .y = vector.x * matrix.m[1][0] + vector.y * matrix.m[1][1],
+    };
+    return result;
+}
+
 internal M4F32 m4f32_ortho(F32 left, F32 right, F32 top, F32 bottom, F32 near_plane, F32 far_plane) {
     M4F32 result = { 0 };
 
