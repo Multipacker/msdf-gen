@@ -17,6 +17,10 @@ typedef struct {
 } OpenGL_Result;
 
 internal Void opengl_debug_output(GLenum source, GLenum type, U32 id, GLenum severity, GLsizei length, const char *message, const Void *userParam) {
+    if (severity == GL_DEBUG_SEVERITY_NOTIFICATION) {
+        return;
+    }
+
     Str8 source_string = { 0 };
     switch (source) {
         case GL_DEBUG_SOURCE_API:             source_string = str8_literal("API");             break;
@@ -51,10 +55,12 @@ internal Void opengl_debug_output(GLenum source, GLenum type, U32 id, GLenum sev
     Arena_Temporary scratch = arena_get_scratch(0, 0);
     Str8 final_message = str8_format(
         scratch.arena,
-        "OpenGL: Debug message (%d): %s. Source: %.*s, Type: %.*s, Severity: %.*s\n", id, message,
+        "OpenGL 0x%X(%.*s %.*s, %.*s): %s\n",
+        id,
         str8_expand(source_string),
         str8_expand(type_string),
-        str8_expand(severity_string)
+        str8_expand(severity_string),
+        message
     );
     os_console_print(final_message);
     arena_end_temporary(scratch);
