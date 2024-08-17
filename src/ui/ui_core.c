@@ -1,6 +1,8 @@
 // TODO(simon): Allow specifying fonts directly from `FontCache_Font`s.
 // TODO(simon): Allow padding for text.
 
+global UI_Context *global_ui_state;
+
 global UI_Key global_ui_null_key = { 0 };
 
 global UI_Box global_ui_null_box = {
@@ -11,12 +13,17 @@ global UI_Box global_ui_null_box = {
     .last     = &global_ui_null_box,
 };
 
+internal Void ui_select_state(UI_Context *ui_state) {
+    global_ui_state = ui_state;
+}
+
 internal B32 ui_keys_match(UI_Key a, UI_Key b) {
     B32 result = a == b;
     return result;
 }
 
-internal Arena *ui_frame_arena(UI_Context *ui) {
+internal Arena *ui_frame_arena(Void) {
+    UI_Context *ui = global_ui_state;
     Arena *result = ui->frame_arenas[ui->frame_index % array_count(ui->frame_arenas)];
     return result;
 }
@@ -126,8 +133,10 @@ internal UI_Context *ui_create(Void) {
 
 
 
-internal Void ui_begin(Gfx_Context *gfx, UI_Context *ui, Gfx_EventList *events, F32 dt) {
+internal Void ui_begin(Gfx_Context *gfx, Gfx_EventList *events, F32 dt) {
     prof_function_begin();
+
+    UI_Context *ui = global_ui_state;
 
     // NOTE(simon): Reset stacks
     ui->parent_stack.top      = 0;
@@ -187,37 +196,37 @@ internal Void ui_begin(Gfx_Context *gfx, UI_Context *ui, Gfx_EventList *events, 
     ui->context_menu_used_this_frame = false;
 
     // NOTE(simon): Give default values to all stacks
-    ui_parent_next(ui, &global_ui_null_box);
-    ui_color_push(ui, v4f32(0.0f, 0.0f, 0.0f, 0.0f));
-    ui_border_color_push(ui, v4f32(0.0f, 0.0f, 0.0f, 0.0f));
-    ui_text_color_push(ui, v4f32(1.0f, 1.0f, 1.0f, 1.0f));
-    ui_width_push(ui, ui_size_pixels(0.0f, 0.0f));
-    ui_height_push(ui, ui_size_pixels(0.0f, 0.0f));
-    ui_layout_axis_push(ui, Axis2_X);
-    ui_extra_box_flags_push(ui, 0);
-    ui_font_push(ui, str8_literal("data/NotoSans-Regular.ttf"));
-    ui_font_size_push(ui, 14);
-    ui_hover_cursor_push(ui, Gfx_Cursor_Pointer);
-    ui_draw_function_push(ui, 0);
-    ui_draw_data_push(ui, 0);
+    ui_parent_next(&global_ui_null_box);
+    ui_color_push(v4f32(0.0f, 0.0f, 0.0f, 0.0f));
+    ui_border_color_push(v4f32(0.0f, 0.0f, 0.0f, 0.0f));
+    ui_text_color_push(v4f32(1.0f, 1.0f, 1.0f, 1.0f));
+    ui_width_push(ui_size_pixels(0.0f, 0.0f));
+    ui_height_push(ui_size_pixels(0.0f, 0.0f));
+    ui_layout_axis_push(Axis2_X);
+    ui_extra_box_flags_push(0);
+    ui_font_push(str8_literal("data/NotoSans-Regular.ttf"));
+    ui_font_size_push(14);
+    ui_hover_cursor_push(Gfx_Cursor_Pointer);
+    ui_draw_function_push(0);
+    ui_draw_data_push(0);
 
     // NOTE(simon): Build root
     {
         V2U32 window_size = gfx_get_window_client_area(gfx);
-        ui_width_next(ui, ui_size_pixels((F32) window_size.width, 1.0f));
-        ui_height_next(ui, ui_size_pixels((F32) window_size.height, 1.0f));
-        ui->root = ui_create_box(ui, 0);
-        ui_parent_push(ui, ui->root);
+        ui_width_next(ui_size_pixels((F32) window_size.width, 1.0f));
+        ui_height_next(ui_size_pixels((F32) window_size.height, 1.0f));
+        ui->root = ui_create_box(0);
+        ui_parent_push(ui->root);
     }
 
     // NOTE(simon): Build tooltip root
     {
-        ui_fixed_x_next(ui, ui->mouse.x + 5.0f);
-        ui_fixed_y_next(ui, ui->mouse.y + 5.0f);
-        ui_width_next(ui, ui_size_children_sum(1.0f));
-        ui_height_next(ui, ui_size_children_sum(1.0f));
-        ui_layout_axis_next(ui, Axis2_Y);
-        ui->tooltip_root = ui_create_box_from_string(ui, UI_BoxFlags_FloatingPosition, str8_literal("tooltip"));
+        ui_fixed_x_next(ui->mouse.x + 5.0f);
+        ui_fixed_y_next(ui->mouse.y + 5.0f);
+        ui_width_next(ui_size_children_sum(1.0f));
+        ui_height_next(ui_size_children_sum(1.0f));
+        ui_layout_axis_next(Axis2_Y);
+        ui->tooltip_root = ui_create_box_from_string(UI_BoxFlags_FloatingPosition, str8_literal("tooltip"));
     }
 
     // NOTE(simon): Build context menu root
@@ -225,15 +234,15 @@ internal Void ui_begin(Gfx_Context *gfx, UI_Context *ui, Gfx_EventList *events, 
         ui->context_menu_key           = ui->context_menu_key_next;
         ui->context_menu_anchor_key    = ui->context_menu_anchor_key_next;
         ui->context_menu_anchor_offset = ui->context_menu_anchor_offset_next;
-        ui_width_next(ui, ui_size_children_sum(1.0f));
-        ui_height_next(ui, ui_size_children_sum(1.0f));
-        ui_layout_axis_next(ui, Axis2_Y);
-        ui->context_menu_root = ui_create_box_from_string(ui, UI_BoxFlags_DrawBackground | UI_BoxFlags_DrawBorder | UI_BoxFlags_Clickable | UI_BoxFlags_Scrollable | UI_BoxFlags_FloatingPosition, str8_literal("context_menu"));
+        ui_width_next(ui_size_children_sum(1.0f));
+        ui_height_next(ui_size_children_sum(1.0f));
+        ui_layout_axis_next(Axis2_Y);
+        ui->context_menu_root = ui_create_box_from_string(UI_BoxFlags_DrawBackground | UI_BoxFlags_DrawBorder | UI_BoxFlags_Clickable | UI_BoxFlags_Scrollable | UI_BoxFlags_FloatingPosition, str8_literal("context_menu"));
     }
 
     // NOTE(simon): Reset active key if the active box is disabled or pruned.
     if (!ui_keys_match(ui->active_key, global_ui_null_key)) {
-        UI_Box *box = ui_box_from_key(ui, ui->active_key);
+        UI_Box *box = ui_box_from_key(ui->active_key);
         if (box == &global_ui_null_box || box->flags & UI_BoxFlags_Disabled) {
             ui->active_key = global_ui_null_key;
         }
@@ -387,8 +396,10 @@ internal Void ui_layout_resolve_violations(UI_Box *box, Axis2 axis) {
     }
 }
 
-internal Void ui_end(Gfx_Context *gfx, UI_Context *ui) {
+internal Void ui_end(Gfx_Context *gfx) {
     prof_function_begin();
+
+    UI_Context *ui = global_ui_state;
 
     // NOTE(simon): Remove untouched boxes.
     for (U32 i = 0; i < UI_BOX_TABLE_SIZE; ++i) {
@@ -404,7 +415,7 @@ internal Void ui_end(Gfx_Context *gfx, UI_Context *ui) {
     }
 
     if (!ui->context_menu_used_this_frame) {
-        ui_context_menu_close(ui);
+        ui_context_menu_close();
     }
 
     // NOTE(simon): Layout
@@ -425,7 +436,7 @@ internal Void ui_end(Gfx_Context *gfx, UI_Context *ui) {
         if (ui_keys_match(ui->context_menu_anchor_key, global_ui_null_key)) {
             ui->context_menu_root->calculated_position = ui->context_menu_anchor_offset;
         } else {
-            UI_Box *anchor = ui_box_from_key(ui, ui->context_menu_anchor_key);
+            UI_Box *anchor = ui_box_from_key(ui->context_menu_anchor_key);
             V2F32 offset = v2f32(0.0f, anchor->calculated_size.height);
             ui->context_menu_root->calculated_position = v2f32_add(anchor->calculated_position, offset);
         }
@@ -498,7 +509,7 @@ internal Void ui_end(Gfx_Context *gfx, UI_Context *ui) {
 
     // NOTE(simon): Make sure events don't go through the context menu.
     if (!ui_keys_match(ui->context_menu_anchor_key, global_ui_null_key)) {
-        ui_input_from_box(ui, ui->context_menu_root);
+        ui_input_from_box(ui->context_menu_root);
     }
 
     // NOTE(simon): Close the context menu if there were unconsumed click events.
@@ -510,13 +521,13 @@ internal Void ui_end(Gfx_Context *gfx, UI_Context *ui) {
                 event->key == Gfx_Key_MouseRight
             )
         ) {
-            ui_context_menu_close(ui);
+            ui_context_menu_close();
         }
     }
 
     // NOTE(simon): Update cursor
     {
-        UI_Box *hot = ui_box_from_key(ui, ui->hot_key);
+        UI_Box *hot = ui_box_from_key(ui->hot_key);
         Gfx_Cursor cursor = hot->hover_cursor;
         if (hot->flags & UI_BoxFlags_Disabled) {
             cursor = Gfx_Cursor_Disabled;
@@ -525,14 +536,15 @@ internal Void ui_end(Gfx_Context *gfx, UI_Context *ui) {
     }
 
     ++ui->frame_index;
-    arena_pop_to(ui_frame_arena(ui), 0);
+    arena_pop_to(ui_frame_arena(), 0);
 
     prof_function_end();
 }
 
 
 
-internal UI_Box *ui_box_from_key(UI_Context *ui, UI_Key key) {
+internal UI_Box *ui_box_from_key(UI_Key key) {
+    UI_Context *ui = global_ui_state;
     UI_Box *result = &global_ui_null_box;
 
     if (key != global_ui_null_key) {
@@ -548,8 +560,9 @@ internal UI_Box *ui_box_from_key(UI_Context *ui, UI_Key key) {
     return result;
 }
 
-internal UI_Box *ui_create_box_from_key(UI_Context *ui, UI_BoxFlags flags, UI_Key key) {
-    UI_Box *box = ui_box_from_key(ui, key);
+internal UI_Box *ui_create_box_from_key(UI_BoxFlags flags, UI_Key key) {
+    UI_Context *ui = global_ui_state;
+    UI_Box *box = ui_box_from_key(key);
 
     // NOTE(simon): Zero the box if it was already used this frame.
     if (box != &global_ui_null_box && box->last_used_index == ui->frame_index) {
@@ -561,7 +574,7 @@ internal UI_Box *ui_create_box_from_key(UI_Context *ui, UI_BoxFlags flags, UI_Ke
 
     if (box == &global_ui_null_box) {
         if (is_transient) {
-            box = arena_push_struct_zero(ui_frame_arena(ui), UI_Box);
+            box = arena_push_struct_zero(ui_frame_arena(), UI_Box);
         } else {
             box = ui->box_freelist;
             if (box) {
@@ -590,63 +603,63 @@ internal UI_Box *ui_create_box_from_key(UI_Context *ui, UI_BoxFlags flags, UI_Ke
     }
 
     box->key = key;
-    box->size[Axis2_X] = ui_width_top(ui);
-    box->size[Axis2_Y] = ui_height_top(ui);
-    box->flags         = flags | ui_extra_box_flags_top(ui);
-    box->color         = ui_color_top(ui);
-    box->border_color  = ui_border_color_top(ui);
-    box->text_color    = ui_text_color_top(ui);
-    box->layout_axis   = ui_layout_axis_top(ui);
-    box->font          = font_cache_font_from_path(ui_font_top(ui));
-    box->font_size     = ui_font_size_top(ui);
-    box->hover_cursor  = ui_hover_cursor_top(ui);
-    box->draw_function = ui_draw_function_top(ui);
-    box->draw_data     = ui_draw_data_top(ui);
+    box->size[Axis2_X] = ui_width_top();
+    box->size[Axis2_Y] = ui_height_top();
+    box->flags         = flags | ui_extra_box_flags_top();
+    box->color         = ui_color_top();
+    box->border_color  = ui_border_color_top();
+    box->text_color    = ui_text_color_top();
+    box->layout_axis   = ui_layout_axis_top();
+    box->font          = font_cache_font_from_path(ui_font_top());
+    box->font_size     = ui_font_size_top();
+    box->hover_cursor  = ui_hover_cursor_top();
+    box->draw_function = ui_draw_function_top();
+    box->draw_data     = ui_draw_data_top();
 
     if (ui->fixed_x_stack.top) {
         box->flags |= UI_BoxFlags_FloatingX;
-        box->calculated_position.x = ui_fixed_x_top(ui);
+        box->calculated_position.x = ui_fixed_x_top();
     }
     if (ui->fixed_y_stack.top) {
         box->flags |= UI_BoxFlags_FloatingY;
-        box->calculated_position.y = ui_fixed_y_top(ui);
+        box->calculated_position.y = ui_fixed_y_top();
     }
 
     box->last_used_index = ui->frame_index;
 
     // NOTE(simon): Handle autopops
-    ui_parent_auto_pop(ui);
-    ui_color_auto_pop(ui);
-    ui_border_color_auto_pop(ui);
-    ui_text_color_auto_pop(ui);
-    ui_width_auto_pop(ui);
-    ui_height_auto_pop(ui);
-    ui_layout_axis_auto_pop(ui);
-    ui_extra_box_flags_auto_pop(ui);
-    ui_fixed_x_auto_pop(ui);
-    ui_fixed_y_auto_pop(ui);
-    ui_font_auto_pop(ui);
-    ui_font_size_auto_pop(ui);
-    ui_hover_cursor_auto_pop(ui);
-    ui_draw_function_auto_pop(ui);
-    ui_draw_data_auto_pop(ui);
+    ui_parent_auto_pop();
+    ui_color_auto_pop();
+    ui_border_color_auto_pop();
+    ui_text_color_auto_pop();
+    ui_width_auto_pop();
+    ui_height_auto_pop();
+    ui_layout_axis_auto_pop();
+    ui_extra_box_flags_auto_pop();
+    ui_fixed_x_auto_pop();
+    ui_fixed_y_auto_pop();
+    ui_font_auto_pop();
+    ui_font_size_auto_pop();
+    ui_hover_cursor_auto_pop();
+    ui_draw_function_auto_pop();
+    ui_draw_data_auto_pop();
 
     return box;
 }
 
-internal UI_Box *ui_create_box(UI_Context *ui, UI_BoxFlags flags) {
-    UI_Box *result = ui_create_box_from_key(ui, flags, global_ui_null_key);
+internal UI_Box *ui_create_box(UI_BoxFlags flags) {
+    UI_Box *result = ui_create_box_from_key(flags, global_ui_null_key);
     return result;
 }
 
-internal UI_Box *ui_create_box_from_string(UI_Context *ui, UI_BoxFlags flags, Str8 string) {
+internal UI_Box *ui_create_box_from_string(UI_BoxFlags flags, Str8 string) {
     UI_Key key = ui_key_from_string(ui_hash_part_from_string(string));
-    UI_Box *result = ui_create_box_from_key(ui, flags, key);
-    ui_box_set_string(ui, result, ui_display_part_from_string(string));
+    UI_Box *result = ui_create_box_from_key(flags, key);
+    ui_box_set_string(result, ui_display_part_from_string(string));
     return result;
 }
 
-internal UI_Box *ui_create_box_from_string_format(UI_Context *ui, UI_BoxFlags flags, CStr format, ...) {
+internal UI_Box *ui_create_box_from_string_format(UI_BoxFlags flags, CStr format, ...) {
     Arena_Temporary scratch = arena_get_scratch(0, 0);
 
     va_list arguments;
@@ -654,20 +667,21 @@ internal UI_Box *ui_create_box_from_string_format(UI_Context *ui, UI_BoxFlags fl
     Str8 string = str8_format_list(scratch.arena, format, arguments);
     va_end(arguments);
 
-    UI_Box *result = ui_create_box_from_string(ui, flags, string);
+    UI_Box *result = ui_create_box_from_string(flags, string);
 
     arena_end_temporary(scratch);
     return result;
 }
 
-internal Void ui_box_set_string(UI_Context *ui, UI_Box *box, Str8 string) {
-    box->string = str8_copy(ui_frame_arena(ui), string);
+internal Void ui_box_set_string(UI_Box *box, Str8 string) {
+    box->string = str8_copy(ui_frame_arena(), string);
     if (box->flags & UI_BoxFlags_DrawText) {
-        box->text = font_cache_text(ui_frame_arena(ui), box->font, box->string, box->font_size);
+        box->text = font_cache_text(ui_frame_arena(), box->font, box->string, box->font_size);
     }
 }
 
-internal UI_Input ui_input_from_box(UI_Context *ui, UI_Box *box) {
+internal UI_Input ui_input_from_box(UI_Box *box) {
+    UI_Context *ui = global_ui_state;
     UI_Input result = { 0 };
     result.box = box;
 
@@ -765,48 +779,63 @@ internal UI_Input ui_input_from_box(UI_Context *ui, UI_Box *box) {
 
     // NOTE(simon): Pressing on something that isn't the context menu closes it.
     if (!is_context_menu && result.input_flags & UI_InputFlag_Pressed) {
-        ui_context_menu_close(ui);
+        ui_context_menu_close();
     }
 
     return result;
 }
 
-internal Void ui_tooltip_begin(UI_Context *ui) {
+internal Void ui_tooltip_begin(Void) {
+    UI_Context *ui = global_ui_state;
     ui->is_tooltip_active = true;
-    ui_parent_push(ui, ui->tooltip_root);
+    ui_parent_push(ui->tooltip_root);
 }
 
-internal Void ui_tooltip_end(UI_Context *ui) {
-    ui_parent_pop(ui);
+internal Void ui_tooltip_end(Void) {
+    ui_parent_pop();
 }
 
-internal Void ui_context_menu_open(UI_Context *ui, UI_Key context_key, UI_Key anchor_key, V2F32 anchor_offset) {
+internal Void ui_context_menu_open(UI_Key context_key, UI_Key anchor_key, V2F32 anchor_offset) {
+    UI_Context *ui = global_ui_state;
     ui->context_menu_key_next           = context_key;
     ui->context_menu_anchor_key_next    = anchor_key;
     ui->context_menu_anchor_offset_next = anchor_offset;
     ui->context_menu_used_this_frame    = true;
 }
 
-internal Void ui_context_menu_close(UI_Context *ui) {
+internal Void ui_context_menu_close(Void) {
+    UI_Context *ui = global_ui_state;
     ui->context_menu_key_next = global_ui_null_key;
 }
 
-internal B32 ui_context_menu_begin(UI_Context *ui, UI_Key context_key) {
-    ui_parent_push(ui, ui->context_menu_root);
+internal B32 ui_context_menu_begin(UI_Key context_key) {
+    UI_Context *ui = global_ui_state;
+    ui_parent_push(ui->context_menu_root);
     B32 result = ui_keys_match(context_key, ui->context_menu_key);
     if (result) {
-        ui->context_menu_root->color        = ui_color_top(ui);
-        ui->context_menu_root->border_color = ui_border_color_top(ui);
+        ui->context_menu_root->color        = ui_color_top();
+        ui->context_menu_root->border_color = ui_border_color_top();
         ui->context_menu_used_this_frame    = true;
     }
     return result;
 }
 
-internal Void ui_context_menu_end(UI_Context *ui) {
-    ui_parent_pop(ui);
+internal Void ui_context_menu_end(Void) {
+    ui_parent_pop();
 }
 
-internal V2F32 ui_drag_delta(UI_Context *ui) {
+internal V2F32 ui_drag_delta(Void) {
+    UI_Context *ui = global_ui_state;
     V2F32 result = v2f32_subtract(ui->mouse, ui->drag_start);
+    return result;
+}
+
+internal F32 ui_animation_slow_rate(Void) {
+    F32 result = global_ui_state->slow_rate;
+    return result;
+}
+
+internal F32 ui_animation_fast_rate(Void) {
+    F32 result = global_ui_state->fast_rate;
     return result;
 }
