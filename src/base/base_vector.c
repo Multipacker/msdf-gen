@@ -407,3 +407,11 @@ internal R2F32 r2f32_pad(R2F32 range, F32 pad) {
 
     return result;
 }
+
+internal V2F32 r2f32_size(R2F32 range) {
+    V2F32 result = v2f32(
+        range.max.x - range.min.x,
+        range.max.y - range.min.y
+    );
+    return result;
+}
