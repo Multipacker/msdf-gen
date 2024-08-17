@@ -175,6 +175,65 @@ internal UI_BOX_DRAW_FUNCTION(draw_ui_msdf) {
     );
 }
 
+typedef struct UIDrawGlyphOutline UIDrawGlyphOutline;
+struct UIDrawGlyphOutline {
+    TTF_Font *font;
+    U32 selected_codepoint;
+};
+
+internal UI_BOX_DRAW_FUNCTION(draw_ui_glyph_outline) {
+    UIDrawGlyphOutline *parameters = (UIDrawGlyphOutline *) data;
+
+    Arena_Temporary scratch = arena_get_scratch(0, 0);
+    U32 glyph_index = ttf_get_glyph_index(parameters->font, parameters->selected_codepoint);
+    MSDF_Glyph glyph = ttf_expand_contours_to_msdf(scratch.arena, parameters->font, glyph_index);
+
+    V2F32 box_size = v2f32_subtract(box->calculated_rectangle.max, box->calculated_rectangle.min);
+    V2F32 glyph_size = v2f32((F32) (glyph.x_max - glyph.x_min), (F32) (glyph.y_max - glyph.y_min));
+
+    M3F32 center_glyph = m3f32_translation(v2f32(
+        (F32) -glyph.x_min - glyph_size.x / 2.0f,
+        (F32) -glyph.y_min - glyph_size.y / 2.0f
+    ));
+
+    F32 point_size = 5.0f;
+
+    F32 scale_to_fit = f32_min((box_size.x - 2.0f * point_size) / glyph_size.x, (box_size.y - 2.0f * point_size) / glyph_size.y);
+    M3F32 scale = m3f32_scale(v2f32(scale_to_fit, -scale_to_fit));
+
+    M3F32 center_box = m3f32_translation(v2f32_add(box->calculated_rectangle.min, v2f32_scale(box_size, 0.5f)));
+
+    M3F32 transform = m3f32_multiply_m3f32(center_box, m3f32_multiply_m3f32(scale, center_glyph));
+
+    draw_clip(box->calculated_rectangle)
+    draw_transform(transform) {
+        for (MSDF_Contour *contour = glyph.first_contour; contour; contour = contour->next) {
+            for (MSDF_Segment *segment = contour->first_segment; segment; segment = segment->next) {
+                switch (segment->kind) {
+                    case MSDF_Segment_Null: {
+                    } break;
+                    case MSDF_Segment_Line: {
+                        draw_line(segment->p0, segment->p1, v4f32(1.0f, 1.0f, 1.0f, 1.0f), 1.0f / scale_to_fit, 0.0f, 1.0f);
+                        draw_circle(segment->p0, point_size / scale_to_fit, v4f32(0.0f, 1.0f, 0.0f, 1.0f), 0.0f, 1.0f);
+                        draw_circle(segment->p1, point_size / scale_to_fit, v4f32(0.0f, 1.0f, 0.0f, 1.0f), 0.0f, 1.0f);
+                    } break;
+                    case MSDF_Segment_QuadraticBezier: {
+                        draw_line(segment->p0, segment->p1, v4f32(1.0f, 1.0f, 1.0f, 1.0f), 1.0f / scale_to_fit, 0.0f, 1.0f);
+                        draw_line(segment->p1, segment->p2, v4f32(1.0f, 1.0f, 1.0f, 1.0f), 1.0f / scale_to_fit, 0.0f, 1.0f);
+                        draw_circle(segment->p0, point_size / scale_to_fit, v4f32(0.0f, 1.0f, 0.0f, 1.0f), 0.0f, 1.0f);
+                        draw_circle(segment->p1, point_size / scale_to_fit, v4f32(1.0f, 0.0f, 0.0f, 1.0f), 0.0f, 1.0f);
+                        draw_circle(segment->p2, point_size / scale_to_fit, v4f32(0.0f, 1.0f, 0.0f, 1.0f), 0.0f, 1.0f);
+                    } break;
+                    case MSDF_Segment_COUNT: {
+                    } break;
+                }
+            }
+        }
+    }
+
+    arena_end_temporary(scratch);
+}
+
 internal Void draw_ui(UI_Box *box) {
     if (box->flags & UI_BoxFlags_DrawBackground) {
         draw_rectangle(box->calculated_rectangle, box->color, 0.0f, 0.0f, 0.0f);
@@ -204,7 +263,7 @@ internal Void draw_ui(UI_Box *box) {
                     f32_floor(origin.x + letter->offset.x + advance + letter->size.x),
                     f32_floor(origin.y + letter->offset.y + letter->size.y)
                 ),
-                (R2F32) { letter->uvs.min, letter->uvs.max, },
+                letter->uvs,
                 letter->texture,
                 box->text_color
             );
@@ -229,7 +288,123 @@ internal Void draw_ui(UI_Box *box) {
     }
 }
 
-internal Void build_glyph_view(UI_Context *ui, Theme *theme, UIDrawMSDF *draw_msdf, U32 *selected_codepoint) {
+#define PANEL_BUILD_FUNCTION(name) Void name(Arena *arena, UI_Context *ui, Theme *theme, R2F32 rectangle, Void *data)
+typedef PANEL_BUILD_FUNCTION(PanelBuildFunction);
+
+typedef struct Panel Panel;
+struct Panel {
+    Panel *next;
+    Panel *previous;
+    Panel *first;
+    Panel *last;
+    Panel *parent;
+    F32    percentage_of_parent;
+    Axis2  split_axis;
+
+    Arena *arena;
+    Void  *view_state;
+    PanelBuildFunction *build_view;
+};
+
+typedef struct PanelIterator PanelIterator;
+struct PanelIterator {
+    Panel *next;
+    U32 push_count;
+    U32 pop_count;
+};
+
+typedef struct State State;
+struct State {
+    Arena *arena;
+
+    UI_Context *ui;
+
+    Panel *panel_root;
+    Panel *panel_freelist;
+
+    Font font;
+    TTF_Font *ttf_font;
+    U32 selected_codepoint;
+    B32 running;
+};
+
+global State *global_state;
+
+internal Panel *panel_create(State *state, PanelBuildFunction *build_view) {
+    Panel *panel = state->panel_freelist;
+    if (panel) {
+        sll_stack_pop(state->panel_freelist);
+    } else {
+        panel = arena_push_struct_zero(state->arena, Panel);
+    }
+
+    memory_zero_struct(panel);
+
+    panel->arena = arena_create();
+    panel->build_view = build_view;
+
+    return panel;
+}
+
+internal PanelIterator panel_iterator_depth_first_pre_order(Panel *panel) {
+    PanelIterator iterator = { 0 };
+
+    if (panel->first) {
+        iterator.next = panel->first;
+        iterator.push_count = 1;
+    } else {
+        for (Panel *parent = panel; parent; parent = parent->parent) {
+            if (parent->next) {
+                iterator.next = parent->next;
+                break;
+            }
+            ++iterator.pop_count;
+        }
+    }
+
+    return iterator;
+}
+
+internal R2F32 rectangle_from_child_panel_parent_rectangle(Panel *child, R2F32 parent_rectangle) {
+    R2F32 result = parent_rectangle;
+
+    Panel *parent = child->parent;
+    if (parent) {
+        V2F32 parent_size = r2f32_size(parent_rectangle);
+        for (Panel *panel = parent->first; panel != child; panel = panel->next) {
+            result.min.values[parent->split_axis] += panel->percentage_of_parent * parent_size.values[parent->split_axis];
+        }
+        result.max.values[parent->split_axis] = result.min.values[parent->split_axis] + child->percentage_of_parent * parent_size.values[parent->split_axis];
+    }
+
+    return result;
+}
+
+internal R2F32 rectangle_from_panel(Panel *panel, R2F32 root_rectangle) {
+    Arena_Temporary scratch = arena_get_scratch(0, 0);
+
+    typedef struct WalkNode WalkNode; 
+    struct WalkNode {
+        WalkNode *next;
+        Panel    *child;
+    };
+    WalkNode *first_walk_node = 0;
+    for (Panel *p = panel; p->parent; p = p->parent) {
+        WalkNode *node = arena_push_struct_zero(scratch.arena, WalkNode);
+        node->child = p;
+        sll_stack_push(first_walk_node, node);
+    }
+
+    R2F32 result = root_rectangle;
+    for (WalkNode *node = first_walk_node; node; node = node->next) {
+        result = rectangle_from_child_panel_parent_rectangle(node->child, result);
+    }
+
+    arena_end_temporary(scratch);
+    return result;
+}
+
+PANEL_BUILD_FUNCTION(view_glyph_list) {
     // NOTE(simon): Scroll region
     ui_width_next(ui, ui_size_parent_percent(1.0f, 0.0f));
     ui_height_next(ui, ui_size_children_sum(1.0f));
@@ -250,7 +425,7 @@ internal Void build_glyph_view(UI_Context *ui, Theme *theme, UIDrawMSDF *draw_ms
     local F32 scroll_offset = 0.0f;
 
     U32 first_codepoint = 0x000000;
-    U32 last_codepoint  = 2000;
+    U32 last_codepoint  = 2047;
 
     F32 preferred_width = 50.0f;
     U32 codepoints_per_row = (U32) f32_floor(container->calculated_size.width / preferred_width);
@@ -270,7 +445,7 @@ internal Void build_glyph_view(UI_Context *ui, Theme *theme, UIDrawMSDF *draw_ms
     S32 bottom_row = s32_min(top_row + (S32) f32_ceil(container->calculated_size.height / height) + 1, last_row);
     container->view_offset.y = height * (f32_mod(scroll_offset, 1.0f) + (scroll_offset < 0.0f));
 
-    S32 selected_row = (S32) (*selected_codepoint / codepoints_per_row);
+    S32 selected_row = (S32) (global_state->selected_codepoint / codepoints_per_row);
 
 
 
@@ -328,6 +503,9 @@ internal Void build_glyph_view(UI_Context *ui, Theme *theme, UIDrawMSDF *draw_ms
 
     ui_parent_push(ui, container);
 
+    UIDrawMSDF *draw_msdf = arena_push_struct_zero(ui_frame_arena(ui), UIDrawMSDF);
+    draw_msdf->font = &global_state->font;
+
     ui_color_push(ui, theme->element_color);
     ui_border_color_push(ui, theme->border_color);
     for (S32 row = top_row; row < bottom_row; ++row) {
@@ -359,7 +537,7 @@ internal Void build_glyph_view(UI_Context *ui, Theme *theme, UIDrawMSDF *draw_ms
                 UI_Input input = ui_input_from_box(ui, box);
 
                 if (input.input_flags & UI_InputFlag_LeftClicked) {
-                    *selected_codepoint = codepoint;
+                    global_state->selected_codepoint = codepoint;
                 }
             }
         }
@@ -386,14 +564,47 @@ internal Void build_glyph_view(UI_Context *ui, Theme *theme, UIDrawMSDF *draw_ms
     scroll_offset += -scroll_offset * ui->slow_rate;
 }
 
-internal S32 os_run(Str8List arguments) {
-    if (!arguments.first->next) {
-        os_console_print(str8_literal("You have to pass a file\n"));
-        os_exit(1);
+PANEL_BUILD_FUNCTION(view_glyph) {
+    ui_width(ui, ui_size_parent_percent(1.0f, 1.0f))
+    ui_height(ui, ui_size_parent_percent(1.0f, 1.0f))
+    ui_column(ui) {
+        ui_width(ui, ui_size_text_content(0.0f, 1.0f))
+        ui_height(ui, ui_size_text_content(0.0f, 1.0f))
+        ui_color(ui, theme->element_color)
+        ui_border_color(ui, theme->border_color) {
+            UIDrawMSDF *draw_msdf = arena_push_struct_zero(ui_frame_arena(ui), UIDrawMSDF);
+            draw_msdf->font = &global_state->font;
+
+            ui_width_next(ui, ui_size_parent_percent(1.0f, 0.0f));
+            ui_height_next(ui, ui_size_parent_percent(1.0f, 0.0f));
+            ui_draw_function_next(ui, draw_ui_msdf);
+            ui_draw_data_next(ui, draw_msdf);
+            U8 buffer[4] = { 0 };
+            U64 size = string_encode_utf8(buffer, global_state->selected_codepoint);
+            Str8 string = str8(buffer, size);
+            ui_create_box_from_string(ui, 0, string);
+
+            ui_width_next(ui, ui_size_parent_percent(1.0f, 0.0f));
+            ui_height_next(ui, ui_size_parent_percent(1.0f, 0.0f));
+            ui_draw_function_next(ui, draw_ui_glyph_outline);
+            UIDrawGlyphOutline *glyph_outline = arena_push_struct_zero(ui_frame_arena(ui), UIDrawGlyphOutline);
+            glyph_outline->font = global_state->ttf_font;
+            glyph_outline->selected_codepoint = global_state->selected_codepoint;
+            ui_draw_data_next(ui, glyph_outline);
+            ui_create_box(ui, UI_BoxFlags_DrawBorder);
+
+            ui_label_format(ui, "Selected glyph: U+%.6X", global_state->selected_codepoint);
+
+            Render_Stats stats = render_get_stats();
+            ui_label(ui, str8_literal("Render stats"));
+            ui_label_format(ui, "Batches: %u", stats.batch_count);
+            ui_label_format(ui, "Shapes: %u", stats.shape_count);
+            ui_label_format(ui, "Bytes uploaded: %u", stats.bytes_uploaded_to_gpu);
+        }
     }
+}
 
-    Arena *arena = arena_create();
-
+internal Void update(Gfx_Context *gfx) {
     // NOTE(simon): Themes
     {
         global_themes[0].name = str8_literal("Light theme");
@@ -409,8 +620,147 @@ internal S32 os_run(Str8List arguments) {
         global_themes[1].text_color       = color_from_srgba_u32(0xF8F9FAFF); // OC Gray 0
     }
 
+    State *state = global_state;
+
+    Arena_Temporary scratch = arena_get_scratch(0, 0);
+    Gfx_EventList events = gfx_get_events(scratch.arena, gfx);
+
+    V2U32 client_area = gfx_get_window_client_area(gfx);
+    render_begin(client_area);
+    draw_begin_frame();
+    ui_begin(gfx, state->ui, &events, 1.0f / 60.0f);
+
+    Theme *theme = &global_themes[1];
+
+    R2F32 root_rectangle = r2f32(0.0f, 0.0f, (F32) client_area.x, (F32) client_area.y);
+    F32 panel_pad = 2.0f;
+
+    // NOTE(simon): Build non-leaf panel UI.
+    for (Panel *panel = state->panel_root; panel; panel = panel_iterator_depth_first_pre_order(panel).next) {
+        R2F32 panel_rectangle = rectangle_from_panel(panel, root_rectangle);
+        V2F32 panel_rectangle_size = r2f32_size(panel_rectangle);
+
+        for (Panel *child = panel->first; child && child->next; child = child->next) {
+            R2F32 child_rectangle = rectangle_from_child_panel_parent_rectangle(child, panel_rectangle);
+            R2F32 boundary_rectangle = child_rectangle;
+            boundary_rectangle.min.values[panel->split_axis] = boundary_rectangle.max.values[panel->split_axis];
+            boundary_rectangle.min.values[panel->split_axis] -= panel_pad;
+            boundary_rectangle.max.values[panel->split_axis] += panel_pad;
+
+            ui_fixed_position_next(state->ui, boundary_rectangle.min);
+            ui_width_next(state->ui, ui_size_pixels(r2f32_size(boundary_rectangle).width, 1.0f));
+            ui_height_next(state->ui, ui_size_pixels(r2f32_size(boundary_rectangle).height, 1.0f));
+            ui_hover_cursor_next(state->ui, panel->split_axis == Axis2_X ? Gfx_Cursor_SizeWE : Gfx_Cursor_SizeNS);
+            UI_Box *boundary_box = ui_create_box_from_string_format(
+                state->ui,
+                UI_BoxFlags_Clickable | UI_BoxFlags_FloatingPosition,
+                "###panel_boundary_%p", child
+            );
+            UI_Input input = ui_input_from_box(state->ui, boundary_box);
+
+            if (input.input_flags & UI_InputFlag_LeftDragging) {
+                Panel *min_child = child;
+                Panel *max_child = child->next;
+
+                local V2F32 drag_data = { 0 };
+                if (input.input_flags & UI_InputFlag_LeftPressed) {
+                    drag_data = v2f32(min_child->percentage_of_parent, max_child->percentage_of_parent);
+                }
+
+                // TODO(simon): Clamping
+                V2F32 drag_delta = ui_drag_delta(state->ui);
+                F32 min_child_percentage_pre_drag = drag_data.x;
+                F32 max_child_percentage_pre_drag = drag_data.y;
+                F32 min_child_pixels_pre_drag = min_child_percentage_pre_drag * panel_rectangle_size.values[panel->split_axis];
+                F32 max_child_pixels_pre_drag = max_child_percentage_pre_drag * panel_rectangle_size.values[panel->split_axis];
+                F32 min_child_pixels_post_drag = min_child_pixels_pre_drag + drag_delta.values[panel->split_axis];
+                F32 max_child_pixels_post_drag = max_child_pixels_pre_drag - drag_delta.values[panel->split_axis];
+                F32 min_child_percentage_post_drag = min_child_pixels_post_drag / panel_rectangle_size.values[panel->split_axis];
+                F32 max_child_percentage_post_drag = max_child_pixels_post_drag / panel_rectangle_size.values[panel->split_axis];
+                min_child->percentage_of_parent = min_child_percentage_post_drag;
+                max_child->percentage_of_parent = max_child_percentage_post_drag;
+            }
+        }
+    }
+
+    // NOTE(simon): Build leaf panel UI.
+    ui_color(state->ui, theme->background_color)
+    ui_border_color(state->ui, theme->border_color)
+    ui_layout_axis(state->ui, Axis2_Y)
+    for (Panel *panel = state->panel_root; panel; panel = panel_iterator_depth_first_pre_order(panel).next) {
+        R2F32 panel_rectangle = r2f32_pad(rectangle_from_panel(panel, root_rectangle), -panel_pad);
+
+        if (!panel->first) {
+            ui_fixed_position_next(state->ui, panel_rectangle.min);
+            ui_width_next(state->ui, ui_size_pixels(r2f32_size(panel_rectangle).width, 1.0f));
+            ui_height_next(state->ui, ui_size_pixels(r2f32_size(panel_rectangle).height, 1.0f));
+            UI_Box *panel_box = ui_create_box_from_string_format(
+                state->ui,
+                UI_BoxFlags_DrawBackground | UI_BoxFlags_DrawBorder | UI_BoxFlags_Clickable | UI_BoxFlags_FloatingPosition,
+                "###panel_box_%p", panel
+            );
+
+            ui_parent(state->ui, panel_box) {
+                if (panel->build_view) {
+                    panel->build_view(panel->arena, state->ui, theme, panel_rectangle, panel->view_state);
+                } else {
+                    // TODO(simon): UI for empty panels.
+                }
+            }
+        }
+    }
+
+    ui_end(gfx, state->ui);
+    draw_clip(r2f32(0.0f, 0.0f, (F32) client_area.width, (F32) client_area.height)) {
+        draw_ui(state->ui->root);
+    }
+    draw_submit();
+    render_end();
+
+    for (Gfx_Event *event = events.first, *next; event; event = next) {
+        next = event->next;
+        B32 consumed = false;
+
+        if (event->kind == Gfx_EventKind_Quit) {
+            state->running = false;
+            consumed = true;
+        }
+
+        if (consumed) {
+            dll_remove(events.first, events.last, event);
+        }
+    }
+
+    arena_end_temporary(scratch);
+    prof_frame_done();
+}
+
+internal S32 os_run(Str8List arguments) {
+    if (!arguments.first->next) {
+        os_console_print(str8_literal("You have to pass a file\n"));
+        os_exit(1);
+    }
+
     render_init();
-    UI_Context *ui = ui_create();
+
+    Arena *arena = arena_create();
+    State *state = arena_push_struct(arena, State);
+    state->arena = arena;
+    state->ui = ui_create();
+    state->panel_root = arena_push_struct(state->arena, Panel);
+    state->panel_root->percentage_of_parent = 1.0f;
+    state->panel_root->split_axis = Axis2_X;
+    {
+        Panel *left = panel_create(state, view_glyph_list);
+        Panel *right = panel_create(state, view_glyph);
+        left->percentage_of_parent = 0.75f;
+        right->percentage_of_parent = 0.25f;
+        left->parent = right->parent = state->panel_root;
+        dll_push_back(state->panel_root->first, state->panel_root->last, left);
+        dll_push_back(state->panel_root->first, state->panel_root->last, right);
+    }
+    state->running = true;
+    global_state = state;
 
     Gfx_Context *gfx = gfx_create(arena, str8_literal("MSDF-gen"), 1280, 720);
     if (gfx->errors.node_count) {
@@ -418,105 +768,13 @@ internal S32 os_run(Str8List arguments) {
         return -1;
     }
     render_create(gfx);
-
-    Font font = { 0 };
-    load_font(arguments.first->next->string, &font);
-
     font_cache_create();
 
-    B32 running = true;
+    state->ttf_font = ttf_load(arena, arguments.first->next->string);
+    load_font(arguments.first->next->string, &state->font);
 
-    Arena *current_arena  = arena_create();
-    Arena *previous_arena = arena_create();
-
-    UIDrawMSDF draw_msdf = { 0 };
-    draw_msdf.font = &font;
-
-    while (running) {
-        Gfx_EventList events = gfx_get_events(current_arena, gfx);
-
-        for (Gfx_Event *event = events.first, *next = 0; event; event = next) {
-            next = event->next;
-
-            if (event->kind == Gfx_EventKind_KeyRelease && event->key == Gfx_Key_Tab) {
-                draw_msdf.render_raw ^= 1;
-                dll_remove(events.first, events.last, event);
-            }
-        }
-
-
-        // NOTE(simon): UI build
-        {
-            prof_zone_begin(prof_ui_build, "ui_build");
-            ui_begin(gfx, ui, &events, 1.0f / 60.0f);
-
-            Theme *theme = &global_themes[1];
-
-            local U32 selected_codepoint = 0;
-            build_glyph_view(ui, theme, &draw_msdf, &selected_codepoint);
-
-            ui_width_next(ui, ui_size_parent_percent(0.25f, 1.0f));
-            ui_height_next(ui, ui_size_parent_percent(1.0f, 1.0f));
-            ui_color_next(ui, theme->background_color);
-            ui_extra_box_flags_next(ui, UI_BoxFlags_DrawBackground);
-            ui_column(ui) {
-                ui_width(ui, ui_size_text_content(0.0f, 1.0f))
-                ui_height(ui, ui_size_text_content(0.0f, 1.0f))
-                ui_color(ui, theme->element_color)
-                ui_border_color(ui, theme->border_color) {
-                    ui_width_next(ui, ui_size_parent_percent(1.0f, 0.0f));
-                    ui_height_next(ui, ui_size_parent_percent(1.0f, 0.0f));
-                    ui_draw_function_next(ui, draw_ui_msdf);
-                    ui_draw_data_next(ui, &draw_msdf);
-                    U8 buffer[4] = { 0 };
-                    U64 size = string_encode_utf8(buffer, selected_codepoint);
-                    Str8 string = str8(buffer, size);
-                    ui_create_box_from_string(ui, 0, string);
-
-                    ui_label_format(ui, "Selected glyph: U+%.6X", selected_codepoint);
-
-                    Render_Stats stats = render_get_stats();
-                    ui_label(ui, str8_literal("Render stats"));
-                    ui_label_format(ui, "Batches: %u", stats.batch_count);
-                    ui_label_format(ui, "Shapes: %u", stats.shape_count);
-                    ui_label_format(ui, "Bytes uploaded: %u", stats.bytes_uploaded_to_gpu);
-                }
-            }
-
-            ui_end(gfx, ui);
-            prof_zone_end(prof_ui_build);
-        }
-
-        for (Gfx_Event *event = events.first, *next; event; event = next) {
-            next = event->next;
-            B32 consumed = false;
-
-            if (event->kind == Gfx_EventKind_Quit) {
-                running = false;
-                consumed = true;
-            }
-
-            if (consumed) {
-                dll_remove(events.first, events.last, event);
-            }
-        }
-
-        {
-            prof_zone_begin(prof_render, "render");
-            V2U32 client_area = gfx_get_window_client_area(gfx);
-            render_begin(client_area);
-            draw_begin_frame();
-            draw_clip(r2f32(0.0f, 0.0f, (F32) client_area.width, (F32) client_area.height)) {
-                draw_ui(ui->root);
-            }
-            draw_submit();
-            render_end();
-            prof_zone_end(prof_render);
-        }
-
-        arena_reset(previous_arena);
-        swap(current_arena, previous_arena, Arena *);
-        prof_frame_done();
+    while (state->running) {
+        update(gfx);
     }
 
     return 0;
