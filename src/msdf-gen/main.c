@@ -16,11 +16,9 @@
 
 /*
  * TODO:
- * Clipping to parent
  * Clipboard
- * Rounded corners
  * Focus and keyboard navigation / interaction
- * Draggin and more input information
+ * More input information
  */
 /* NOTE(simon): The old zoom equations, for reference.
  * F32 old_zoom = zoom;
