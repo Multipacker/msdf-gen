@@ -235,23 +235,23 @@ internal UI_BOX_DRAW_FUNCTION(draw_ui_glyph_outline) {
 }
 
 internal Void draw_ui(UI_Box *box) {
-    if (box->flags & UI_BoxFlags_DrawBackground) {
+    if (box->flags & UI_BoxFlag_DrawBackground) {
         draw_rectangle(box->calculated_rectangle, box->color, 0.0f, 0.0f, 0.0f);
 
-        if (box->flags & UI_BoxFlags_DrawHot && box->hot_t > 0.0f) {
+        if (box->flags & UI_BoxFlag_DrawHot && box->hot_t > 0.0f) {
             Render_Shape *rect = draw_rectangle(box->calculated_rectangle, v4f32(0.0f, 0.0f, 0.0f, 0.0f), 0.0f, 0.0f, 0.0f);
             rect->colors[0] = v4f32(1.0f, 1.0f, 1.0f, 0.5f * box->hot_t);
             rect->colors[1] = v4f32(1.0f, 1.0f, 1.0f, 0.5f * box->hot_t);
         }
 
-        if (box->flags & UI_BoxFlags_DrawActive && box->active_t > 0.0f) {
+        if (box->flags & UI_BoxFlag_DrawActive && box->active_t > 0.0f) {
             Render_Shape *rect = draw_rectangle(box->calculated_rectangle, v4f32(0.0f, 0.0f, 0.0f, 0.0f), 0.0f, 0.0f, 0.0f);
             rect->colors[2] = v4f32(0.0f, 0.0f, 0.0f, 0.5f * box->active_t);
             rect->colors[3] = v4f32(0.0f, 0.0f, 0.0f, 0.5f * box->active_t);
         }
     }
 
-    if (box->flags & UI_BoxFlags_DrawText) {
+    if (box->flags & UI_BoxFlag_DrawText) {
         V2F32 origin = box->calculated_rectangle.min;
         F32 advance = 0.0f;
         for (U64 i = 0; i < box->text.letter_count; ++i) {
@@ -275,15 +275,15 @@ internal Void draw_ui(UI_Box *box) {
         box->draw_function(box, box->draw_data);
     }
 
-    if (box->flags & UI_BoxFlags_DrawBorder) {
+    if (box->flags & UI_BoxFlag_DrawBorder) {
         draw_rectangle(box->calculated_rectangle, box->border_color, 0.0f, 1.0f, 1.0f);
     }
 
-    if (box->flags & UI_BoxFlags_Disabled) {
+    if (box->flags & UI_BoxFlag_Disabled) {
         draw_rectangle(box->calculated_rectangle, v4f32(0.2f, 0.2f, 0.2f, 0.75f), 0.0f, 0.0f, 0.0f);
     }
 
-    if (box->flags & UI_BoxFlags_Clip) {
+    if (box->flags & UI_BoxFlag_Clip) {
         R2F32 top_clip = draw_clip_top();
         R2F32 new_clip = r2f32_intersect(top_clip, box->calculated_rectangle);
         draw_clip_push(new_clip);
@@ -293,7 +293,7 @@ internal Void draw_ui(UI_Box *box) {
         draw_ui(child);
     }
 
-    if (box->flags & UI_BoxFlags_Clip) {
+    if (box->flags & UI_BoxFlag_Clip) {
         draw_clip_pop();
     }
 }
@@ -423,7 +423,7 @@ PANEL_BUILD_FUNCTION(view_glyph_list) {
     ui_width_next(ui_size_pixels(panel_size.x, 1.0f));
     ui_height_next(ui_size_pixels(panel_size.y, 1.0f));
     ui_layout_axis_next(Axis2_X);
-    UI_Box *region = ui_create_box_from_string(UI_BoxFlags_OverflowY | UI_BoxFlags_Scrollable, str8_literal("region"));
+    UI_Box *region = ui_create_box_from_string(UI_BoxFlag_OverflowY | UI_BoxFlag_Scrollable, str8_literal("region"));
     ui_parent_push(region);
 
 
@@ -432,7 +432,7 @@ PANEL_BUILD_FUNCTION(view_glyph_list) {
     ui_width_next(ui_size_pixels(container_width, 1.0f));
     ui_height_next(ui_size_pixels(panel_size.y, 1.0f));
     ui_layout_axis_next(Axis2_Y);
-    UI_Box *container = ui_create_box_from_string(UI_BoxFlags_DrawBackground, str8_literal("glyphs"));
+    UI_Box *container = ui_create_box_from_string(UI_BoxFlag_DrawBackground, str8_literal("glyphs"));
 
 
 
@@ -470,7 +470,7 @@ PANEL_BUILD_FUNCTION(view_glyph_list) {
     ui_width_next(ui_size_pixels(scrollbar_width, 1.0f));
     ui_height_next(ui_size_pixels(panel_size.y, 1.0f));
     ui_layout_axis_next(Axis2_Y);
-    UI_Box *scroll_container = ui_create_box_from_string(UI_BoxFlags_DrawBackground | UI_BoxFlags_DrawBorder, str8_literal("scrollbar"));
+    UI_Box *scroll_container = ui_create_box_from_string(UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawBorder, str8_literal("scrollbar"));
 
     ui_width(ui_size_parent_percent(1.0f, 1.0f))
     ui_parent(scroll_container) {
@@ -481,17 +481,17 @@ PANEL_BUILD_FUNCTION(view_glyph_list) {
 
         ui_hover_cursor_next(Gfx_Cursor_Hand);
         ui_height_next(ui_size_parent_percent(rows_above / row_count, 1.0f));
-        UI_Box *scroll_before = ui_create_box_from_string(UI_BoxFlags_Clickable, str8_literal("before"));
+        UI_Box *scroll_before = ui_create_box_from_string(UI_BoxFlag_Clickable, str8_literal("before"));
 
         ui_hover_cursor_next(Gfx_Cursor_Hand);
         ui_color_next(theme->element_color);
         ui_border_color_next(theme->border_color);
         ui_height_next(ui_size_parent_percent(visible_rows / row_count, 1.0f));
-        UI_Box *scroll = ui_create_box_from_string(UI_BoxFlags_Clickable | UI_BoxFlags_DrawBackground | UI_BoxFlags_DrawBorder | UI_BoxFlags_DrawHot | UI_BoxFlags_DrawActive, str8_literal("scroll"));
+        UI_Box *scroll = ui_create_box_from_string(UI_BoxFlag_Clickable | UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawBorder | UI_BoxFlag_DrawHot | UI_BoxFlag_DrawActive, str8_literal("scroll"));
 
         ui_hover_cursor_next(Gfx_Cursor_Hand);
         ui_height_next(ui_size_parent_percent(rows_below / row_count, 1.0f));
-        UI_Box *scroll_after = ui_create_box_from_string(UI_BoxFlags_Clickable, str8_literal("after"));
+        UI_Box *scroll_after = ui_create_box_from_string(UI_BoxFlag_Clickable, str8_literal("after"));
 
         UI_Input before_input = ui_input_from_box(scroll_before);
         if (before_input.input_flags & UI_InputFlag_LeftClicked) {
@@ -543,9 +543,9 @@ PANEL_BUILD_FUNCTION(view_glyph_list) {
                 Str8 string = str8(buffer, size);
 
                 UI_Box *box = ui_create_box_from_string(
-                    UI_BoxFlags_DrawBackground | UI_BoxFlags_DrawBorder |
-                    UI_BoxFlags_DrawHot | UI_BoxFlags_DrawActive |
-                    UI_BoxFlags_Clickable,
+                    UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawBorder |
+                    UI_BoxFlag_DrawHot | UI_BoxFlag_DrawActive |
+                    UI_BoxFlag_Clickable,
                     string
                 );
                 UI_Input input = ui_input_from_box(box);
@@ -605,7 +605,7 @@ PANEL_BUILD_FUNCTION(view_glyph) {
             glyph_outline->font = global_state->ttf_font;
             glyph_outline->selected_codepoint = global_state->selected_codepoint;
             ui_draw_data_next(glyph_outline);
-            ui_create_box(UI_BoxFlags_DrawBorder);
+            ui_create_box(UI_BoxFlag_DrawBorder);
 
             ui_label_format("Selected glyph: U+%.6X", global_state->selected_codepoint);
 
@@ -667,7 +667,7 @@ internal Void update(Gfx_Context *gfx) {
             ui_height_next(ui_size_pixels(r2f32_size(boundary_rectangle).height, 1.0f));
             ui_hover_cursor_next(panel->split_axis == Axis2_X ? Gfx_Cursor_SizeWE : Gfx_Cursor_SizeNS);
             UI_Box *boundary_box = ui_create_box_from_string_format(
-                UI_BoxFlags_Clickable | UI_BoxFlags_FloatingPosition,
+                UI_BoxFlag_Clickable | UI_BoxFlag_FloatingPosition,
                 "###panel_boundary_%p", child
             );
             UI_Input input = ui_input_from_box(boundary_box);
@@ -709,7 +709,7 @@ internal Void update(Gfx_Context *gfx) {
             ui_width_next(ui_size_pixels(r2f32_size(panel_rectangle).width, 1.0f));
             ui_height_next(ui_size_pixels(r2f32_size(panel_rectangle).height, 1.0f));
             UI_Box *panel_box = ui_create_box_from_string_format(
-                UI_BoxFlags_DrawBackground | UI_BoxFlags_DrawBorder | UI_BoxFlags_Clickable | UI_BoxFlags_FloatingPosition | UI_BoxFlags_Clip,
+                UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawBorder | UI_BoxFlag_Clickable | UI_BoxFlag_FloatingPosition | UI_BoxFlag_Clip,
                 "###panel_box_%p", panel
             );
 

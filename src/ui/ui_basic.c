@@ -56,7 +56,7 @@ internal UI_Box *ui_column_end(Void) {
 
 
 internal Void ui_label(Str8 string) {
-    ui_create_box_from_string(UI_BoxFlags_DrawText, string);
+    ui_create_box_from_string(UI_BoxFlag_DrawText, string);
 }
 
 internal Void ui_label_format(CStr format, ...) {
@@ -76,9 +76,9 @@ internal Void ui_label_format(CStr format, ...) {
 internal UI_Input ui_button(Str8 string) {
     ui_hover_cursor_next(Gfx_Cursor_Hand);
     UI_Box *box = ui_create_box_from_string(
-        UI_BoxFlags_DrawBackground | UI_BoxFlags_DrawText | UI_BoxFlags_DrawBorder |
-        UI_BoxFlags_DrawHot | UI_BoxFlags_DrawActive |
-        UI_BoxFlags_Clickable,
+        UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawText | UI_BoxFlag_DrawBorder |
+        UI_BoxFlag_DrawHot | UI_BoxFlag_DrawActive |
+        UI_BoxFlag_Clickable,
         string
     );
     UI_Input result = ui_input_from_box(box);

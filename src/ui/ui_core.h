@@ -26,30 +26,30 @@ typedef U64 UI_Key;
 
 typedef enum {
     // NOTE(simon): Interaction
-    UI_BoxFlags_Disabled       = 1 << 0,
-    UI_BoxFlags_Clickable      = 1 << 1,
-    UI_BoxFlags_Scrollable     = 1 << 2,
+    UI_BoxFlag_Disabled       = 1 << 0,
+    UI_BoxFlag_Clickable      = 1 << 1,
+    UI_BoxFlag_Scrollable     = 1 << 2,
 
     // NOTE(simon): Layout
-    UI_BoxFlags_OverflowX      = 1 << 3,
-    UI_BoxFlags_OverflowY      = 1 << 4,
-    UI_BoxFlags_FloatingX      = 1 << 5,
-    UI_BoxFlags_FloatingY      = 1 << 6,
+    UI_BoxFlag_OverflowX      = 1 << 3,
+    UI_BoxFlag_OverflowY      = 1 << 4,
+    UI_BoxFlag_FloatingX      = 1 << 5,
+    UI_BoxFlag_FloatingY      = 1 << 6,
 
     // NOTE(simon): Appearance
-    UI_BoxFlags_AnimateX       = 1 << 7,
-    UI_BoxFlags_AnimateY       = 1 << 8,
-    UI_BoxFlags_DrawBackground = 1 << 9,
-    UI_BoxFlags_DrawBorder     = 1 << 10,
-    UI_BoxFlags_DrawText       = 1 << 11,
-    UI_BoxFlags_DrawHot        = 1 << 12,
-    UI_BoxFlags_DrawActive     = 1 << 13,
-    UI_BoxFlags_Clip           = 1 << 14,
+    UI_BoxFlag_AnimateX       = 1 << 7,
+    UI_BoxFlag_AnimateY       = 1 << 8,
+    UI_BoxFlag_DrawBackground = 1 << 9,
+    UI_BoxFlag_DrawBorder     = 1 << 10,
+    UI_BoxFlag_DrawText       = 1 << 11,
+    UI_BoxFlag_DrawHot        = 1 << 12,
+    UI_BoxFlag_DrawActive     = 1 << 13,
+    UI_BoxFlag_Clip           = 1 << 14,
 
     // NOTE(simon): Convenient combinations
-    UI_BoxFlags_Overflow         = UI_BoxFlags_OverflowX | UI_BoxFlags_OverflowY,
-    UI_BoxFlags_AnimatePosition  = UI_BoxFlags_AnimateX | UI_BoxFlags_AnimateY,
-    UI_BoxFlags_FloatingPosition = UI_BoxFlags_FloatingX | UI_BoxFlags_FloatingY,
+    UI_BoxFlag_Overflow         = UI_BoxFlag_OverflowX | UI_BoxFlag_OverflowY,
+    UI_BoxFlag_AnimatePosition  = UI_BoxFlag_AnimateX  | UI_BoxFlag_AnimateY,
+    UI_BoxFlag_FloatingPosition = UI_BoxFlag_FloatingX | UI_BoxFlag_FloatingY,
 } UI_BoxFlags;
 
 typedef struct UI_Box UI_Box;
