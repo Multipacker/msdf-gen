@@ -8,7 +8,7 @@ internal UI_Box *ui_spacer(Void) {
     return spacer;
 }
 
-internal UI_Box *ui_spacer_sized( UI_Size size) {
+internal UI_Box *ui_spacer_sized(UI_Size size) {
     Axis2 axis = ui_parent_top()->layout_axis;
     ui_size_next(size, axis);
     UI_Box *spacer = ui_spacer();

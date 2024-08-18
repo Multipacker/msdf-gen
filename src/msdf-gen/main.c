@@ -681,14 +681,23 @@ internal Void update(Gfx_Context *gfx) {
                     drag_data = v2f32(min_child->percentage_of_parent, max_child->percentage_of_parent);
                 }
 
-                // TODO(simon): Clamping
-                V2F32 drag_delta = ui_drag_delta();
                 F32 min_child_percentage_pre_drag = drag_data.x;
                 F32 max_child_percentage_pre_drag = drag_data.y;
                 F32 min_child_pixels_pre_drag = min_child_percentage_pre_drag * panel_rectangle_size.values[panel->split_axis];
                 F32 max_child_pixels_pre_drag = max_child_percentage_pre_drag * panel_rectangle_size.values[panel->split_axis];
-                F32 min_child_pixels_post_drag = min_child_pixels_pre_drag + drag_delta.values[panel->split_axis];
-                F32 max_child_pixels_post_drag = max_child_pixels_pre_drag - drag_delta.values[panel->split_axis];
+
+                // TODO(simon): This doesn't work if we have a big window, make
+                // one of the panels 0 width, and then make the window smaller.
+                F32 drag_delta = ui_drag_delta().values[panel->split_axis];
+                F32 clamped_drag_delta = drag_delta;
+                if (drag_delta < 0.0f) {
+                    clamped_drag_delta = -f32_min(-drag_delta, min_child_pixels_pre_drag - 2.0f * panel_pad);
+                } else {
+                    clamped_drag_delta = f32_min(drag_delta, max_child_pixels_pre_drag - 2.0f * panel_pad);
+                }
+
+                F32 min_child_pixels_post_drag = min_child_pixels_pre_drag + clamped_drag_delta;
+                F32 max_child_pixels_post_drag = max_child_pixels_pre_drag - clamped_drag_delta;
                 F32 min_child_percentage_post_drag = min_child_pixels_post_drag / panel_rectangle_size.values[panel->split_axis];
                 F32 max_child_percentage_post_drag = max_child_pixels_post_drag / panel_rectangle_size.values[panel->split_axis];
                 min_child->percentage_of_parent = min_child_percentage_post_drag;
@@ -717,7 +726,7 @@ internal Void update(Gfx_Context *gfx) {
                 if (panel->build_view) {
                     panel->build_view(panel->arena, theme, panel_rectangle, panel->view_state);
                 } else {
-                    // TODO(simon): UI for empty panels.
+                    // TODO(simon): Empty panel UI.
                 }
             }
         }
