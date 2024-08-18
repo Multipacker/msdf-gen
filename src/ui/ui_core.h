@@ -44,6 +44,7 @@ typedef enum {
     UI_BoxFlags_DrawText       = 1 << 11,
     UI_BoxFlags_DrawHot        = 1 << 12,
     UI_BoxFlags_DrawActive     = 1 << 13,
+    UI_BoxFlags_Clip           = 1 << 14,
 
     // NOTE(simon): Convenient combinations
     UI_BoxFlags_Overflow         = UI_BoxFlags_OverflowX | UI_BoxFlags_OverflowY,

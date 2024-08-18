@@ -686,6 +686,11 @@ internal UI_Input ui_input_from_box(UI_Box *box) {
     result.box = box;
 
     R2F32 bounds = box->calculated_rectangle;
+    for (UI_Box *parent = box; parent != &global_ui_null_box; parent = parent->parent) {
+        if (parent->flags & UI_BoxFlags_Clip) {
+            bounds = r2f32_intersect(bounds, parent->calculated_rectangle);
+        }
+    }
 
     // NOTE(simon): Are we part of the context menu?
     B32 is_context_menu = false;

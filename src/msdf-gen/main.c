@@ -283,8 +283,18 @@ internal Void draw_ui(UI_Box *box) {
         draw_rectangle(box->calculated_rectangle, v4f32(0.2f, 0.2f, 0.2f, 0.75f), 0.0f, 0.0f, 0.0f);
     }
 
+    if (box->flags & UI_BoxFlags_Clip) {
+        R2F32 top_clip = draw_clip_top();
+        R2F32 new_clip = r2f32_intersect(top_clip, box->calculated_rectangle);
+        draw_clip_push(new_clip);
+    }
+
     for (UI_Box *child = box->last; child != &global_ui_null_box; child = child->previous) {
         draw_ui(child);
+    }
+
+    if (box->flags & UI_BoxFlags_Clip) {
+        draw_clip_pop();
     }
 }
 
@@ -699,7 +709,7 @@ internal Void update(Gfx_Context *gfx) {
             ui_width_next(ui_size_pixels(r2f32_size(panel_rectangle).width, 1.0f));
             ui_height_next(ui_size_pixels(r2f32_size(panel_rectangle).height, 1.0f));
             UI_Box *panel_box = ui_create_box_from_string_format(
-                UI_BoxFlags_DrawBackground | UI_BoxFlags_DrawBorder | UI_BoxFlags_Clickable | UI_BoxFlags_FloatingPosition,
+                UI_BoxFlags_DrawBackground | UI_BoxFlags_DrawBorder | UI_BoxFlags_Clickable | UI_BoxFlags_FloatingPosition | UI_BoxFlags_Clip,
                 "###panel_box_%p", panel
             );
 
