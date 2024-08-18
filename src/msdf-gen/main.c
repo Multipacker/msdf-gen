@@ -288,7 +288,7 @@ internal Void draw_ui(UI_Box *box) {
     }
 }
 
-#define PANEL_BUILD_FUNCTION(name) Void name(Arena *arena, Theme *theme, R2F32 rectangle, Void *data)
+#define PANEL_BUILD_FUNCTION(name) Void name(Arena *arena, Theme *theme, R2F32 panel_rectangle, Void *data)
 typedef PANEL_BUILD_FUNCTION(PanelBuildFunction);
 
 typedef struct Panel Panel;
@@ -405,17 +405,22 @@ internal R2F32 rectangle_from_panel(Panel *panel, R2F32 root_rectangle) {
 }
 
 PANEL_BUILD_FUNCTION(view_glyph_list) {
+    V2F32 panel_size = r2f32_size(panel_rectangle);
+    F32 scrollbar_width = 15.0f;
+    F32 container_width = panel_size.x - scrollbar_width;
+
     // NOTE(simon): Scroll region
-    ui_width_next(ui_size_parent_percent(1.0f, 0.0f));
-    ui_height_next(ui_size_children_sum(1.0f));
+    ui_width_next(ui_size_pixels(panel_size.x, 1.0f));
+    ui_height_next(ui_size_pixels(panel_size.y, 1.0f));
     ui_layout_axis_next(Axis2_X);
     UI_Box *region = ui_create_box_from_string(UI_BoxFlags_OverflowY | UI_BoxFlags_Scrollable, str8_literal("region"));
     ui_parent_push(region);
 
+
     // NOTE(simon): Scroll container
     ui_color_next(theme->background_color);
-    ui_width_next(ui_size_fill());
-    ui_height_next(ui_size_parent_percent(1.0f, 0.0f));
+    ui_width_next(ui_size_pixels(container_width, 1.0f));
+    ui_height_next(ui_size_pixels(panel_size.y, 1.0f));
     ui_layout_axis_next(Axis2_Y);
     UI_Box *container = ui_create_box_from_string(UI_BoxFlags_DrawBackground, str8_literal("glyphs"));
 
@@ -428,11 +433,11 @@ PANEL_BUILD_FUNCTION(view_glyph_list) {
     U32 last_codepoint  = 2047;
 
     F32 preferred_width = 50.0f;
-    U32 codepoints_per_row = (U32) f32_floor(container->calculated_size.width / preferred_width);
+    U32 codepoints_per_row = (U32) f32_floor(container_width / preferred_width);
     if (!codepoints_per_row) {
         codepoints_per_row = 10;
     }
-    F32 width = container->calculated_size.width / (F32) codepoints_per_row;
+    F32 width = container_width / (F32) codepoints_per_row;
     F32 height = width * 2.0f;
 
     S32 first_row = 0;
@@ -442,7 +447,7 @@ PANEL_BUILD_FUNCTION(view_glyph_list) {
     S32 target_row = scroll_row;
 
     S32 top_row    = scroll_row + (S32) (scroll_offset < 0.0f ? f32_ceil(scroll_offset - 1.0f) : f32_floor(scroll_offset));
-    S32 bottom_row = s32_min(top_row + (S32) f32_ceil(container->calculated_size.height / height) + 1, last_row);
+    S32 bottom_row = s32_min(top_row + (S32) f32_ceil(panel_size.y / height) + 1, last_row);
     container->view_offset.y = height * (f32_mod(scroll_offset, 1.0f) + (scroll_offset < 0.0f));
 
     S32 selected_row = (S32) (global_state->selected_codepoint / codepoints_per_row);
@@ -452,8 +457,8 @@ PANEL_BUILD_FUNCTION(view_glyph_list) {
     // NOTE(simon): Scrollbar container
     ui_color_next(theme->background_color);
     ui_border_color_next(theme->border_color);
-    ui_width_next(ui_size_pixels(20.0f, 0.0f));
-    ui_height_next(ui_size_parent_percent(1.0f, 0.0f));
+    ui_width_next(ui_size_pixels(scrollbar_width, 1.0f));
+    ui_height_next(ui_size_pixels(panel_size.y, 1.0f));
     ui_layout_axis_next(Axis2_Y);
     UI_Box *scroll_container = ui_create_box_from_string(UI_BoxFlags_DrawBackground | UI_BoxFlags_DrawBorder, str8_literal("scrollbar"));
 
@@ -490,7 +495,7 @@ PANEL_BUILD_FUNCTION(view_glyph_list) {
                 start_row = top_row;
             }
 
-            F32 scroll_size = scroll_container->calculated_size.height - scroll->calculated_size.height;
+            F32 scroll_size = panel_size.y - scroll->calculated_size.height;
             F32 drag_percent = ui_drag_delta().y / scroll_size;
             target_row = start_row + (S32) f32_floor(drag_percent * (row_count - visible_rows));
         }
