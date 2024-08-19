@@ -686,7 +686,8 @@ internal Void update(Void) {
 
                 // TODO(simon): This doesn't work if we have a big window, make
                 // one of the panels 0 width, and then make the window smaller.
-                F32 drag_delta = ui_drag_delta().values[panel->split_axis];
+                V2F32 both_drag_delta = ui_drag_delta();
+                F32 drag_delta = both_drag_delta.values[panel->split_axis];
                 F32 clamped_drag_delta = drag_delta;
                 if (drag_delta < 0.0f) {
                     clamped_drag_delta = -f32_min(-drag_delta, min_child_pixels_pre_drag - 2.0f * panel_pad);
