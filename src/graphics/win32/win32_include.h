@@ -5,13 +5,8 @@
 #define WIN32_LEAN_AND_MEAN
 
 #pragma warning(push, 0)
-#include <Windows.h>
+#include <windows.h>
 #pragma warning(pop)
-
-struct Gfx_Context {
-    HWND hwnd;
-    HDC  hdc;
-};
 
 global Gfx_Key win32_key_table[128] = {
     [0x30]       = Gfx_Key_0,

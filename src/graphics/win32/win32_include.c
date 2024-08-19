@@ -17,38 +17,38 @@ internal LRESULT CALLBACK win32_window_proc(HWND hwnd, UINT message, WPARAM wpar
             case WM_MOUSEWHEEL: {
                 event->kind = Gfx_EventKind_Scroll;
                 event->scroll.y = (F32) (GET_WHEEL_DELTA_WPARAM(wparam) / WHEEL_DELTA);
-                event->position.x = GET_X_LPARAM(lparam);
-                event->position.y = GET_Y_LPARAM(lparam);
+                event->position.x = LOWORD(lparam);
+                event->position.y = HIWORD(lparam);
             } break;
             case WM_MOUSEHWHEEL: {
                 event->kind = Gfx_EventKind_Scroll;
                 event->scroll.x = (F32) (GET_WHEEL_DELTA_WPARAM(wparam) / WHEEL_DELTA);
-                event->position.x = GET_X_LPARAM(lparam);
-                event->position.y = GET_Y_LPARAM(lparam);
+                event->position.x = LOWORD(lparam);
+                event->position.y = HIWORD(lparam);
             } break;
             case WM_LBUTTONUP: case WM_LBUTTONDOWN: {
                 event->kind = message == WM_LBUTTONUP ? Gfx_EventKind_KeyRelease : Gfx_EventKind_KeyPress;
                 event->key = Gfx_Key_MouseLeft;
                 event->key_modifiers |= (GetAsyncKeyState(VK_SHIFT)   & 0x8000) ? Gfx_KeyModifier_Shift   : 0;
                 event->key_modifiers |= (GetAsyncKeyState(VK_CONTROL) & 0x8000) ? Gfx_KeyModifier_Control : 0;
-                event->position.x = GET_X_LPARAM(lparam);
-                event->position.y = GET_Y_LPARAM(lparam);
+                event->position.x = LOWORD(lparam);
+                event->position.y = HIWORD(lparam);
             } break;
             case WM_MBUTTONUP: case WM_MBUTTONDOWN: {
                 event->kind = message == WM_MBUTTONUP ? Gfx_EventKind_KeyRelease : Gfx_EventKind_KeyPress;
                 event->key = Gfx_Key_MouseMiddle;
                 event->key_modifiers |= (GetAsyncKeyState(VK_SHIFT)   & 0x8000) ? Gfx_KeyModifier_Shift   : 0;
                 event->key_modifiers |= (GetAsyncKeyState(VK_CONTROL) & 0x8000) ? Gfx_KeyModifier_Control : 0;
-                event->position.x = GET_X_LPARAM(lparam);
-                event->position.y = GET_Y_LPARAM(lparam);
+                event->position.x = LOWORD(lparam);
+                event->position.y = HIWORD(lparam);
             } break;
             case WM_RBUTTONUP: case WM_RBUTTONDOWN: {
                 event->kind = message == WM_RBUTTONUP ? Gfx_EventKind_KeyRelease : Gfx_EventKind_KeyPress;
                 event->key = Gfx_Key_MouseRight;
                 event->key_modifiers |= (GetAsyncKeyState(VK_SHIFT)   & 0x8000) ? Gfx_KeyModifier_Shift   : 0;
                 event->key_modifiers |= (GetAsyncKeyState(VK_CONTROL) & 0x8000) ? Gfx_KeyModifier_Control : 0;
-                event->position.x = GET_X_LPARAM(lparam);
-                event->position.y = GET_Y_LPARAM(lparam);
+                event->position.x = LOWORD(lparam);
+                event->position.y = HIWORD(lparam);
             } break;
             case WM_SYSKEYUP: case WM_SYSKEYDOWN: case WM_KEYUP: case WM_KEYDOWN: {
                 U32 vk_code = (U32) wparam;
@@ -76,10 +76,17 @@ internal LRESULT CALLBACK win32_window_proc(HWND hwnd, UINT message, WPARAM wpar
     return result;
 }
 
-internal Gfx_Context *gfx_create(Arena *arena, Str8 title, U32 width, U32 height) {
-    Arena_Temporary scratch = arena_get_scratch(&arena, 1);
+typedef struct Gfx_Win32State Gfx_Win32State;
+struct Gfx_Win32State {
+    HWND hwnd;
+    HDC  hdc;
+};
 
-    Gfx_Context *result = arena_push_struct_zero(arena, Gfx_Context);
+global Gfx_Win32State global_gfx_win32_state;
+
+internal Void gfx_create(Str8 title, U32 width, U32 height) {
+    Gfx_Win32State *state = &global_gfx_win32_state;
+    Arena_Temporary scratch = arena_get_scratch(0, 0);
 
     HINSTANCE instance = GetModuleHandle(0);
     CStr16 class_name = cstr16_from_str8(scratch.arena, str8_literal("ApplicationWindowClasssName"));
@@ -92,7 +99,7 @@ internal Gfx_Context *gfx_create(Arena *arena, Str8 title, U32 width, U32 height
     ATOM register_class_result = RegisterClass(&window_class);
     if (register_class_result) {
         CStr16 cstr16_title = cstr16_from_str8(scratch.arena, title);
-        result->hwnd = CreateWindow(
+        state->hwnd = CreateWindow(
             window_class.lpszClassName, cstr16_title,
             WS_OVERLAPPEDWINDOW | WS_SIZEBOX,
             CW_USEDEFAULT, CW_USEDEFAULT,
@@ -100,9 +107,9 @@ internal Gfx_Context *gfx_create(Arena *arena, Str8 title, U32 width, U32 height
             0, 0, instance, 0
         );
 
-        if (result->hwnd) {
-            result->hdc = GetDC(result->hwnd);
-            ShowWindow(result->hwnd, SW_SHOW);
+        if (state->hwnd) {
+            state->hdc = GetDC(state->hwnd);
+            ShowWindow(state->hwnd, SW_SHOW);
         } else {
             // TODO: Error
         }
@@ -111,10 +118,9 @@ internal Gfx_Context *gfx_create(Arena *arena, Str8 title, U32 width, U32 height
     }
 
     arena_end_temporary(scratch);
-    return result;
 }
 
-internal Gfx_EventList gfx_get_events(Arena *arena, Gfx_Context *gfx) {
+internal Gfx_EventList gfx_get_events(Arena *arena) {
     win32_event_arena = arena;
     win32_event_list.first = 0;
     win32_event_list.last  = 0;
@@ -127,21 +133,59 @@ internal Gfx_EventList gfx_get_events(Arena *arena, Gfx_Context *gfx) {
     return win32_event_list;
 }
 
-internal V2F32 gfx_get_mouse_position(Gfx_Context *gfx) {
+internal V2F32 gfx_get_mouse_position(Void) {
+    Gfx_Win32State *state = &global_gfx_win32_state;
     POINT point = { 0 };
     GetCursorPos(&point);
-    ScreenToClient(gfx->hwnd, &point);
+    ScreenToClient(state->hwnd, &point);
     V2F32 result = v2f32((F32) point.x, (F32) point.y);
     return result;
 }
 
-internal V2U32 gfx_get_window_client_area(Gfx_Context *gfx) {
+internal V2U32 gfx_get_window_client_area(Void) {
+    Gfx_Win32State *state = &global_gfx_win32_state;
     RECT rect = { 0 };
-    GetClientRect(gfx->hwnd, &rect);
+    GetClientRect(state->hwnd, &rect);
     V2U32 result = v2u32(rect.right - rect.left, rect.bottom - rect.top);
     return result;
 }
 
-internal Void gfx_swap_buffers(Gfx_Context *gfx) {
-    SwapBuffers(gfx->hdc);
+internal Void gfx_swap_buffers(Void) {
+    Gfx_Win32State *state = &global_gfx_win32_state;
+    SwapBuffers(state->hdc);
+}
+
+internal Void gfx_set_cursor(Gfx_Cursor cursor) {
+    HCURSOR selected_cursor = 0;
+
+#define win32_cursor_list(X) \
+    X(Pointer,  ARROW)       \
+    X(Hand,     HAND)        \
+    X(Beam,     IBEAM)       \
+    X(SizeNWSE, SIZENWSE)    \
+    X(SizeNESW, SIZENESW)    \
+    X(SizeWE,   SIZEWE)      \
+    X(SizeNS,   SIZENS)      \
+    X(SizeAll,  SIZEALL)     \
+    X(Disabled, NO)
+#define win32_load_cursor(gfx_kind, win32_kind)             \
+    case Gfx_Cursor_##gfx_kind: {                           \
+        local HCURSOR win32_cursor = 0;                     \
+        if (!win32_cursor) {                                \
+            win32_cursor = LoadCursor(0, IDC_##win32_kind); \
+        }                                                   \
+        selected_cursor = win32_cursor;                     \
+    } break;
+
+    switch (cursor) {
+        win32_cursor_list(win32_load_cursor)
+        case Gfx_Cursor_COUNT: break;
+    }
+
+#undef win32_load_cursor
+#undef win32_cursor_list
+
+    if (selected_cursor) {
+        SetCursor(selected_cursor);
+    }
 }
