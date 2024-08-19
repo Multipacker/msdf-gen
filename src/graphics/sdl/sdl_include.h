@@ -3,10 +3,10 @@
 
 #include <SDL2/SDL.h>
 
-struct Gfx_Context {
+typedef struct SDL_State SDL_State;
+struct SDL_State {
     SDL_Window   *window;
     SDL_GLContext gl_context;
-    Str8List      errors;
 };
 
 #endif // SDL_INCLUDE_H

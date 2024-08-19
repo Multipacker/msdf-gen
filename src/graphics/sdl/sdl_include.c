@@ -1,15 +1,15 @@
 global Gfx_Key sdl_to_gfx_keycode[128];
 
-internal Gfx_Context *gfx_create(Arena *arena, Str8 title, U32 width, U32 height) {
-    Gfx_Context *result = arena_push_struct_zero(arena, Gfx_Context);
+global SDL_State global_sdl_state;
+
+internal Void gfx_create(Str8 title, U32 width, U32 height) {
+    SDL_State *state = &global_sdl_state;
 
     // NOTE(simon): Initialize SDL to gfx keycode table.
-    for (SDL_KeyCode key = SDLK_0; key <= SDLK_9; ++key)
-    {
+    for (SDL_KeyCode key = SDLK_0; key <= SDLK_9; ++key) {
         sdl_to_gfx_keycode[key] = (Gfx_Key) (Gfx_Key_0 + (key - SDLK_0));
     }
-    for (SDL_KeyCode key = SDLK_a; key <= SDLK_z; ++key)
-    {
+    for (SDL_KeyCode key = SDLK_a; key <= SDLK_z; ++key) {
         sdl_to_gfx_keycode[key] = (Gfx_Key) (Gfx_Key_A + (key - SDLK_a));
     }
     sdl_to_gfx_keycode[SDLK_BACKSPACE] = Gfx_Key_Backspace;
@@ -31,11 +31,11 @@ internal Gfx_Context *gfx_create(Arena *arena, Str8 title, U32 width, U32 height
         SDL_GL_SetAttribute(SDL_GL_FRAMEBUFFER_SRGB_CAPABLE, 1);
         SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
 
-        Arena_Temporary scratch = arena_get_scratch(&arena, 1);
+        Arena_Temporary scratch = arena_get_scratch(0, 0);
 
         CStr cstr_title = cstr_from_str8(scratch.arena, title);
 
-        result->window = SDL_CreateWindow(
+        state->window = SDL_CreateWindow(
             cstr_title,
             SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
             (int) width, (int) height,
@@ -44,8 +44,8 @@ internal Gfx_Context *gfx_create(Arena *arena, Str8 title, U32 width, U32 height
 
         arena_end_temporary(scratch);
 
-        if (result->window) {
-            result->gl_context = SDL_GL_CreateContext(result->window);
+        if (state->window) {
+            state->gl_context = SDL_GL_CreateContext(state->window);
 
 #define X(type, name) name = (type) SDL_GL_GetProcAddress(#name); assert(name);
             GL_LINUX_FUNCTION(X)
@@ -54,22 +54,14 @@ internal Gfx_Context *gfx_create(Arena *arena, Str8 title, U32 width, U32 height
 
             SDL_GL_SetSwapInterval(1);
         } else {
-            str8_list_push(arena, &result->errors, str8_literal("Could not create SDL window.\n"));
+            //str8_list_push(arena, &state->errors, str8_literal("Could not create SDL window.\n"));
         }
     } else {
-        str8_list_push(arena, &result->errors, str8_literal("Could not initialize SDL 2.0.\n"));
+        //str8_list_push(arena, &state->errors, str8_literal("Could not initialize SDL 2.0.\n"));
     }
-
-    if (result->errors.node_count) {
-        if (result->window) {
-            SDL_DestroyWindow(result->window);
-        }
-    }
-
-    return result;
 }
 
-internal Gfx_EventList gfx_get_events(Arena *arena, Gfx_Context *gfx) {
+internal Gfx_EventList gfx_get_events(Arena *arena) {
     Gfx_EventList events = { 0 };
 
     for (SDL_Event sdl_event = { 0 }; SDL_PollEvent(&sdl_event);) {
@@ -156,7 +148,7 @@ internal Gfx_EventList gfx_get_events(Arena *arena, Gfx_Context *gfx) {
     return events;
 }
 
-internal V2F32 gfx_get_mouse_position(Gfx_Context *gfx) {
+internal V2F32 gfx_get_mouse_position(Void) {
     int x = 0;
     int y = 0;
     SDL_GetMouseState(&x, &y);
@@ -165,19 +157,21 @@ internal V2F32 gfx_get_mouse_position(Gfx_Context *gfx) {
     return result;
 }
 
-internal V2U32 gfx_get_window_client_area(Gfx_Context *gfx) {
+internal V2U32 gfx_get_window_client_area(Void) {
+    SDL_State *state = &global_sdl_state;
     int width  = 0;
     int height = 0;
-    SDL_GL_GetDrawableSize(gfx->window, &width, &height);
+    SDL_GL_GetDrawableSize(state->window, &width, &height);
     V2U32 result = v2u32((U32) width, (U32) height);
     return result;
 }
 
-internal Void gfx_swap_buffers(Gfx_Context *gfx) {
-    SDL_GL_SwapWindow(gfx->window);
+internal Void gfx_swap_buffers(Void) {
+    SDL_State *state = &global_sdl_state;
+    SDL_GL_SwapWindow(state->window);
 }
 
-internal Void gfx_set_cursor(Gfx_Context *gfx, Gfx_Cursor cursor) {
+internal Void gfx_set_cursor(Gfx_Cursor cursor) {
     SDL_Cursor *selected_cursor = 0;
 
 #define sdl_cursor_list(X) \

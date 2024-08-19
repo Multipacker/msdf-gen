@@ -133,7 +133,7 @@ internal UI_Context *ui_create(Void) {
 
 
 
-internal Void ui_begin(Gfx_Context *gfx, Gfx_EventList *events, F32 dt) {
+internal Void ui_begin(Gfx_EventList *events, F32 dt) {
     prof_function_begin();
 
     UI_Context *ui = global_ui_state;
@@ -185,7 +185,7 @@ internal Void ui_begin(Gfx_Context *gfx, Gfx_EventList *events, F32 dt) {
     ui->draw_data_stack.freelist = 0;
     ui->draw_data_stack.auto_pop = false;
 
-    ui->mouse = gfx_get_mouse_position(gfx);
+    ui->mouse = gfx_get_mouse_position();
     ui->events = events;
     ui->dt = dt;
     ui->fast_rate = 1.0f - f32_pow(2, -ui->dt / (1.0f / 60.0f));
@@ -212,7 +212,7 @@ internal Void ui_begin(Gfx_Context *gfx, Gfx_EventList *events, F32 dt) {
 
     // NOTE(simon): Build root
     {
-        V2U32 window_size = gfx_get_window_client_area(gfx);
+        V2U32 window_size = gfx_get_window_client_area();
         ui_width_next(ui_size_pixels((F32) window_size.width, 1.0f));
         ui_height_next(ui_size_pixels((F32) window_size.height, 1.0f));
         ui->root = ui_create_box(0);
@@ -396,7 +396,7 @@ internal Void ui_layout_resolve_violations(UI_Box *box, Axis2 axis) {
     }
 }
 
-internal Void ui_end(Gfx_Context *gfx) {
+internal Void ui_end(Void) {
     prof_function_begin();
 
     UI_Context *ui = global_ui_state;
@@ -532,7 +532,7 @@ internal Void ui_end(Gfx_Context *gfx) {
         if (hot->flags & UI_BoxFlag_Disabled) {
             cursor = Gfx_Cursor_Disabled;
         }
-        gfx_set_cursor(gfx, cursor);
+        gfx_set_cursor(cursor);
     }
 
     ++ui->frame_index;

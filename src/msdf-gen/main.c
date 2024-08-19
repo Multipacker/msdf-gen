@@ -616,7 +616,7 @@ PANEL_BUILD_FUNCTION(view_glyph) {
     }
 }
 
-internal Void update(Gfx_Context *gfx) {
+internal Void update(Void) {
     // NOTE(simon): Themes
     {
         global_themes[0].name = str8_literal("Light theme");
@@ -635,13 +635,13 @@ internal Void update(Gfx_Context *gfx) {
     State *state = global_state;
 
     Arena_Temporary scratch = arena_get_scratch(0, 0);
-    Gfx_EventList events = gfx_get_events(scratch.arena, gfx);
+    Gfx_EventList events = gfx_get_events(scratch.arena);
 
-    V2U32 client_area = gfx_get_window_client_area(gfx);
+    V2U32 client_area = gfx_get_window_client_area();
     render_begin(client_area);
     draw_begin_frame();
     ui_select_state(state->ui);
-    ui_begin(gfx, &events, 1.0f / 60.0f);
+    ui_begin(&events, 1.0f / 60.0f);
 
     Theme *theme = &global_themes[1];
 
@@ -730,7 +730,7 @@ internal Void update(Gfx_Context *gfx) {
         }
     }
 
-    ui_end(gfx);
+    ui_end();
     draw_clip(r2f32(0.0f, 0.0f, (F32) client_area.width, (F32) client_area.height)) {
         draw_ui(state->ui->root);
     }
@@ -761,8 +761,6 @@ internal S32 os_run(Str8List arguments) {
         os_exit(1);
     }
 
-    render_init();
-
     Arena *arena = arena_create();
     State *state = arena_push_struct(arena, State);
     state->arena = arena;
@@ -782,19 +780,16 @@ internal S32 os_run(Str8List arguments) {
     state->running = true;
     global_state = state;
 
-    Gfx_Context *gfx = gfx_create(arena, str8_literal("MSDF-gen"), 1280, 720);
-    if (gfx->errors.node_count) {
-        os_console_print(str8_join(arena, &gfx->errors));
-        return -1;
-    }
-    render_create(gfx);
+    gfx_create(str8_literal("MSDF-gen"), 1280, 720);
+    render_init();
+    render_create();
     font_cache_create();
 
     state->ttf_font = ttf_load(arena, arguments.first->next->string);
     load_font(arguments.first->next->string, &state->font);
 
     while (state->running) {
-        update(gfx);
+        update();
     }
 
     return 0;

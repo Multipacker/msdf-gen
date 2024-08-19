@@ -18,7 +18,6 @@ struct OpenGL_Context {
     GLint            uniform_sampler_location;
     GLint            uniform_transform_location;
     V2U32            resolution;
-    Gfx_Context     *gfx;
     Render_Stats     previous_stats;
     Render_Stats     current_stats;
 

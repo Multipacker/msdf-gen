@@ -268,13 +268,12 @@ internal Void render_texture_update(Render_Texture texture, V2U32 position, V2U3
     }
 }
 
-internal Void render_create(Gfx_Context *gfx) {
+internal Void render_create(Void) {
     OpenGL_Context *result = &global_opengl_context;
 
     Arena *arena = arena_create();
     result->arena = arena;
-    result->gfx = gfx;
-    opengl_backend_init(gfx);
+    opengl_backend_init();
 
     glDebugMessageCallback(&opengl_debug_output, NULL);
     glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
@@ -403,7 +402,7 @@ internal Void render_submit(Render_BatchList batches) {
 internal Void render_end(Void) {
     OpenGL_Context *gfx = &global_opengl_context;
 
-    gfx_swap_buffers(gfx->gfx);
+    gfx_swap_buffers();
 
     gfx->previous_stats = gfx->current_stats;
     memory_zero_struct(&gfx->current_stats);

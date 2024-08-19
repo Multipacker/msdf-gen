@@ -272,8 +272,8 @@ internal UI_Size ui_size_text_content(F32 padding, F32 strictness);
 
 internal UI_Context *ui_create(Void);
 
-internal Void ui_begin(Gfx_Context *gfx, Gfx_EventList *events, F32 dt);
-internal Void ui_end(Gfx_Context *gfx);
+internal Void ui_begin(Gfx_EventList *events, F32 dt);
+internal Void ui_end(Void);
 
 internal UI_Box **ui_box_reference_from_key(UI_Key key);
 internal UI_Box *ui_box_from_key(UI_Key key);
