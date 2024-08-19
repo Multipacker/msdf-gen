@@ -20,6 +20,6 @@ typedef HGLRC(WINAPI * PFNWGLCREATECONTEXTATTRIBSARBPROC) (HDC hDC, HGLRC hShare
 typedef BOOL(WINAPI * PFNWGLSWAPINTERVALEXTPROC) (int interval);
 typedef const char *(WINAPI * PFNWGLGETEXTENSIONSSTRINGARBPROC) (HDC hdc);
 
-internal Void win32_init_opengl(Gfx_Context *gfx);
+internal Void win32_init_opengl(Void);
 
 #endif // WIN32_OPENGL_H

@@ -93,7 +93,9 @@ internal B32 render_init(Void) {
     return success;
 }
 
-internal Void opengl_backend_init(Gfx_Context *gfx) {
+internal Void opengl_backend_init(Void) {
+    Gfx_Win32State *state = &global_gfx_win32_state;
+
     S32 pixel_attrib[] = {
         WGL_DRAW_TO_WINDOW_ARB, GL_TRUE,
         WGL_SUPPORT_OPENGL_ARB, GL_TRUE,
@@ -108,10 +110,10 @@ internal Void opengl_backend_init(Gfx_Context *gfx) {
 
     S32 format = 0;
     UINT formats = 0;
-    if (wglChoosePixelFormatARB(gfx->hdc, pixel_attrib, 0, 1, &format, &formats)) {
+    if (wglChoosePixelFormatARB(state->hdc, pixel_attrib, 0, 1, &format, &formats)) {
         PIXELFORMATDESCRIPTOR desc = { 0 };
-        if (DescribePixelFormat(gfx->hdc, format, sizeof(desc), &desc)) {
-            if (SetPixelFormat(gfx->hdc, format, &desc)) {
+        if (DescribePixelFormat(state->hdc, format, sizeof(desc), &desc)) {
+            if (SetPixelFormat(state->hdc, format, &desc)) {
                 S32 context_attrib[] = {
                     WGL_CONTEXT_MAJOR_VERSION_ARB, 4,
                     WGL_CONTEXT_MINOR_VERSION_ARB, 5,
@@ -119,9 +121,9 @@ internal Void opengl_backend_init(Gfx_Context *gfx) {
                     0,
                 };
 
-                HGLRC rc = wglCreateContextAttribsARB(gfx->hdc, NULL, context_attrib);
+                HGLRC rc = wglCreateContextAttribsARB(state->hdc, NULL, context_attrib);
                 if (rc) {
-                    wglMakeCurrent(gfx->hdc, rc);
+                    wglMakeCurrent(state->hdc, rc);
 
 #define X(type, name) name = (type) wglGetProcAddress(#name); assert(name);
                     GL_FUNCTIONS(X)
