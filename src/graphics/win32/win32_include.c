@@ -16,13 +16,13 @@ internal LRESULT CALLBACK win32_window_proc(HWND hwnd, UINT message, WPARAM wpar
             } break;
             case WM_MOUSEWHEEL: {
                 event->kind = Gfx_EventKind_Scroll;
-                event->scroll.y = (F32) (GET_WHEEL_DELTA_WPARAM(wparam) / WHEEL_DELTA);
+                event->scroll.y = (F32) ((S16) GET_WHEEL_DELTA_WPARAM(wparam) / WHEEL_DELTA);
                 event->position.x = LOWORD(lparam);
                 event->position.y = HIWORD(lparam);
             } break;
             case WM_MOUSEHWHEEL: {
                 event->kind = Gfx_EventKind_Scroll;
-                event->scroll.x = (F32) (GET_WHEEL_DELTA_WPARAM(wparam) / WHEEL_DELTA);
+                event->scroll.x = (F32) ((S16) GET_WHEEL_DELTA_WPARAM(wparam) / WHEEL_DELTA);
                 event->position.x = LOWORD(lparam);
                 event->position.y = HIWORD(lparam);
             } break;
