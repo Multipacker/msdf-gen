@@ -122,6 +122,7 @@ union V3F32 {
         F32 height;
         F32 depth;
     };
+    F32 values[3];
 };
 
 typedef union V4F32 V4F32;
@@ -138,6 +139,7 @@ union V4F32 {
         F32 b;
         F32 a;
     };
+    F32 values[4];
 };
 
 typedef struct M2F32 M2F32;
