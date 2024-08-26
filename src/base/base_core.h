@@ -133,10 +133,10 @@
 #define member(type, type_member) (((type *) 0)->type_member)
 #define member_offset(type, type_member) integer_from_pointer(&member(type, type_member))
 
-#define kilobytes(value) ((value) << 10)
-#define megabytes(value) ((value) << 20)
-#define gigabytes(value) ((value) << 30)
-#define terabytes(value) ((value) << 40)
+#define kilobytes(value) ((U64) (value) << 10)
+#define megabytes(value) ((U64) (value) << 20)
+#define gigabytes(value) ((U64) (value) << 30)
+#define terabytes(value) ((U64) (value) << 40)
 
 #define global       static
 #define local        static
