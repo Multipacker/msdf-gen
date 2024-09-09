@@ -65,6 +65,9 @@ internal Render_Shape *draw_image(R2F32 rectangle, R2F32 uvs, Render_Texture tex
 internal Render_Shape *draw_glyph(R2F32 rectangle, R2F32 uvs, Render_Texture atlas, V4F32 color);
 internal Render_Shape *draw_msdf(R2F32 rectangle, R2F32 uvs, Render_Texture atlas, V4F32 color);
 
+internal Render_Shape *draw_line(V2F32 p0, V2F32 p1, V4F32 color, F32 radius, F32 thickness, F32 softness);
+internal Void          draw_bezier(V2F32 p0, V2F32 p1, V2F32 p2, V4F32 color, F32 radius, F32 thickness, F32 softness);
+
 #define draw_clip_push(clip) draw_r2f32_stack_push(&global_draw_context.clip_stack, clip)
 #define draw_clip_pop()      draw_r2f32_stack_pop(&global_draw_context.clip_stack)
 #define draw_clip_top()      global_draw_context.clip_stack.top->item

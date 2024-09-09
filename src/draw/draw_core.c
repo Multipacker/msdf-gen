@@ -179,3 +179,23 @@ internal Render_Shape *draw_line(V2F32 p0, V2F32 p1, V4F32 color, F32 radius, F3
 
     return result;
 }
+
+// TODO(simon): Iterative version
+internal Void draw_bezier(V2F32 p0, V2F32 p1, V2F32 p2, V4F32 color, F32 radius, F32 thickness, F32 softness) {
+    F32 error = 0.01f;
+    F32 lx = 2.0f * f32_abs(p2.x - 2.0f * p1.x + p0.x);
+    F32 ly = 2.0f * f32_abs(p2.y - 2.0f * p1.y + p0.y);
+    U32 r = (U32) f32_max(0.0f, 0.25f * f32_log2(lx * lx + ly * ly) + 4.0f * error);
+
+    if (r == 0) {
+        draw_line(p0, p2, color, radius, thickness, softness);
+    } else {
+        // NOTE(simon): Split the curve in the middle.
+	V2F32 a = v2f32_add(p0, v2f32_scale(v2f32_subtract(p1, p0), 0.5f));
+	V2F32 b = v2f32_add(p1, v2f32_scale(v2f32_subtract(p2, p1), 0.5f));
+	V2F32 c = v2f32_add(a, v2f32_scale(v2f32_subtract(b, a), 0.5f));
+
+        draw_bezier(p0, a,  c, color, radius, thickness, softness);
+        draw_bezier(c,  b, p2, color, radius, thickness, softness);
+    }
+}

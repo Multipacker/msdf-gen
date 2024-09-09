@@ -216,8 +216,7 @@ internal UI_BOX_DRAW_FUNCTION(draw_ui_glyph_outline) {
                         draw_circle(segment->p1, point_size / scale_to_fit, v4f32(0.0f, 1.0f, 0.0f, 1.0f), 0.0f, 1.0f);
                     } break;
                     case MSDF_Segment_QuadraticBezier: {
-                        draw_line(segment->p0, segment->p1, v4f32(1.0f, 1.0f, 1.0f, 1.0f), 1.0f / scale_to_fit, 0.0f, 1.0f);
-                        draw_line(segment->p1, segment->p2, v4f32(1.0f, 1.0f, 1.0f, 1.0f), 1.0f / scale_to_fit, 0.0f, 1.0f);
+                        draw_bezier(segment->p0, segment->p1, segment->p2, v4f32(1.0f, 1.0f, 1.0f, 1.0f), 1.0f / scale_to_fit, 0.0f, 1.0f);
                         draw_circle(segment->p0, point_size / scale_to_fit, v4f32(0.0f, 1.0f, 0.0f, 1.0f), 0.0f, 1.0f);
                         draw_circle(segment->p1, point_size / scale_to_fit, v4f32(1.0f, 0.0f, 0.0f, 1.0f), 0.0f, 1.0f);
                         draw_circle(segment->p2, point_size / scale_to_fit, v4f32(0.0f, 1.0f, 0.0f, 1.0f), 0.0f, 1.0f);
