@@ -26,28 +26,53 @@
  * offset = v2f32_subtract(mouse, v2f32_scale(v2f32_subtract(mouse, offset), old_zoom / zoom));
 */
 
-typedef struct {
+typedef struct Theme Theme;
+struct Theme {
     Str8 name;
     V4F32 background_color;
     V4F32 element_color;
     V4F32 border_color;
     V4F32 text_color;
-} Theme;
+};
 
 global Theme global_themes[2];
 
-typedef struct {
+typedef struct Glyph Glyph;
+struct Glyph {
+    Glyph *next;
+    Glyph *previous;
+
+    U32 codepoint;
+
     V2F32 min_pt;
     V2F32 max_pt;
     F32   advance_pt;
     V2F32 uv_min;
     V2F32 uv_max;
-} Glyph;
+};
 
-typedef struct {
+global Glyph global_glyph_null = { 0 };
+
+typedef struct GlyphList GlyphList;
+struct GlyphList {
+    Glyph *first;
+    Glyph *last;
+};
+
+typedef struct Font Font;
+struct Font {
+    Arena *arena;
+
+    U32 glyph_size;
+    U32 glyphs_per_row;
+    U32 atlas_size;
+
     Render_Texture atlas;
-    Glyph glyphs[2048];
-} Font;
+    GlyphList glyph_lists[2048];
+    TTF_Font *ttf;
+
+    U32 next_glyph_index;
+};
 
 typedef struct UIDrawMSDF UIDrawMSDF;
 struct UIDrawMSDF {
@@ -55,53 +80,77 @@ struct UIDrawMSDF {
     B32   render_raw;
 };
 
-internal Void load_font(Str8 font_path, Font *result) {
+internal Font *font_create(Str8 font_path, U32 glyph_size, U32 glyphs_per_row) {
+    Arena *arena = arena_create();
+    Font *result = arena_push_struct_zero(arena, Font);
+
+    result->glyph_size     = glyph_size;
+    result->glyphs_per_row = glyphs_per_row;
+    result->atlas_size     = glyph_size * glyphs_per_row;
+
+    result->arena = arena;
+    result->atlas = render_texture_create(v2u32(result->atlas_size, result->atlas_size), Render_TextureFormat_RGBA8, 0);
+    result->ttf   = ttf_load(arena, font_path);
+
+    if (result->ttf->errors.node_count != 0) {
+        os_console_print(str8_join(arena, &result->ttf->errors));
+    }
+
+    return result;
+}
+
+internal Glyph *font_get_glyph(Font *font, U32 codepoint) {
     Arena_Temporary scratch = arena_get_scratch(0, 0);
-    U32 glyph_size     = 32;
-    U32 glyphs_per_row = 64;
-    U32 atlas_size     = glyph_size * glyphs_per_row;
-    result->atlas = render_texture_create(v2u32(atlas_size, atlas_size), Render_TextureFormat_RGBA8, 0);
 
-    TTF_Font *font = ttf_load(scratch.arena, font_path);
-    if (font->errors.node_count == 0) {
-        // Generate glyphs
-        for (U32 codepoint = 0; codepoint < 2048; ++codepoint) {
-            Arena_Temporary glyph_scratch = arena_get_scratch(&scratch.arena, 1);
+    U64 hash = u64_hash(codepoint);
+    GlyphList *glyphs = &font->glyph_lists[hash % array_count(font->glyph_lists)];
 
-            MSDF_RasterResult raster_result = msdf_generate(glyph_scratch.arena, font, codepoint, glyph_size);
+    Glyph *result = &global_glyph_null;
 
-            V2U32 atlas_position = v2u32(
-                glyph_size * (codepoint % glyphs_per_row),
-                glyph_size * (codepoint / glyphs_per_row)
-            );
-            render_texture_update(result->atlas, atlas_position, v2u32(glyph_size, glyph_size), raster_result.data);
-
-            // This adjustment increases the size of glyphs to acount for the
-            // UVs needing to include a 1/2 texel border for rendering. This
-            // makes sure that the glyphs have the same visual size.
-            F32 scale = ((F32) glyph_size - 1.0f) / ((F32) glyph_size - 2.0f) - 1.0f;
-            F32 width_adjustment  = (raster_result.x_max - raster_result.x_min) * scale * 0.5f;
-            F32 height_adjustment = (raster_result.y_max - raster_result.y_min) * scale * 0.5f;
-
-            result->glyphs[codepoint].advance_pt = raster_result.advance_width;
-            result->glyphs[codepoint].min_pt = v2f32(raster_result.x_min - width_adjustment, raster_result.y_min - height_adjustment);
-            result->glyphs[codepoint].max_pt = v2f32(raster_result.x_max + width_adjustment, raster_result.y_max + height_adjustment);
-            result->glyphs[codepoint].uv_min = v2f32(
-                ((F32) atlas_position.x + 0.5f) / (F32) atlas_size,
-                ((F32) atlas_position.y + 0.5f) / (F32) atlas_size
-            );
-            result->glyphs[codepoint].uv_max = v2f32(
-                ((F32) atlas_position.x + (F32) glyph_size - 0.5f) / (F32) atlas_size,
-                ((F32) atlas_position.y + (F32) glyph_size - 0.5f) / (F32) atlas_size
-            );
-
-            arena_end_temporary(glyph_scratch);
+    for (Glyph *glyph = glyphs->first; glyph; glyph = glyph->next) {
+        if (glyph->codepoint == codepoint) {
+            result = glyph;
+            break;
         }
-    } else {
-        os_console_print(str8_join(scratch.arena, &font->errors));
+    }
+
+    if (result == &global_glyph_null && font->next_glyph_index < font->glyphs_per_row * font->glyphs_per_row) {
+        result = arena_push_struct_zero(font->arena, Glyph);
+        result->codepoint = codepoint;
+
+        MSDF_RasterResult raster_result = msdf_generate(scratch.arena, font->ttf, codepoint, font->glyph_size);
+
+        V2U32 atlas_position = v2u32(
+            font->glyph_size * (font->next_glyph_index % font->glyphs_per_row),
+            font->glyph_size * (font->next_glyph_index / font->glyphs_per_row)
+        );
+        ++font->next_glyph_index;
+        render_texture_update(font->atlas, atlas_position, v2u32(font->glyph_size, font->glyph_size), raster_result.data);
+
+        // This adjustment increases the size of glyphs to acount for the
+        // UVs needing to include a 1/2 texel border for rendering. This
+        // makes sure that the glyphs have the same visual size.
+        F32 scale = ((F32) font->glyph_size - 1.0f) / ((F32) font->glyph_size - 2.0f) - 1.0f;
+        F32 width_adjustment  = (raster_result.x_max - raster_result.x_min) * scale * 0.5f;
+        F32 height_adjustment = (raster_result.y_max - raster_result.y_min) * scale * 0.5f;
+
+        result->advance_pt = raster_result.advance_width;
+        result->min_pt = v2f32(raster_result.x_min - width_adjustment, raster_result.y_min - height_adjustment);
+        result->max_pt = v2f32(raster_result.x_max + width_adjustment, raster_result.y_max + height_adjustment);
+        result->uv_min = v2f32(
+            ((F32) atlas_position.x + 0.5f) / (F32) font->atlas_size,
+            ((F32) atlas_position.y + 0.5f) / (F32) font->atlas_size
+        );
+        result->uv_max = v2f32(
+            ((F32) atlas_position.x + (F32) font->glyph_size - 0.5f) / (F32) font->atlas_size,
+            ((F32) atlas_position.y + (F32) font->glyph_size - 0.5f) / (F32) font->atlas_size
+        );
+
+        dll_push_back(glyphs->first, glyphs->last, result);
     }
 
     arena_end_temporary(scratch);
+    return result;
 }
 
 internal Void draw_text_msdf(Font *font, V2F32 position, F32 point_size, Str8 text) {
@@ -110,7 +159,7 @@ internal Void draw_text_msdf(Font *font, V2F32 position, F32 point_size, Str8 te
         StringDecode decode = string_decode_utf8(ptr, (U64) (opl - ptr));
         ptr += decode.size;
 
-        Glyph *glyph = &font->glyphs[decode.codepoint];
+        Glyph *glyph = font_get_glyph(font, decode.codepoint);
 
         draw_msdf(
             r2f32(
@@ -156,12 +205,8 @@ internal UI_BOX_DRAW_FUNCTION(draw_ui_msdf) {
     UIDrawMSDF *ui_draw_msdf = (UIDrawMSDF *) data;
 
     StringDecode decode = string_decode_utf8(box->string.data, box->string.size);
-    U32 codepoint = decode.codepoint;
-    if (codepoint > array_count(ui_draw_msdf->font->glyphs)) {
-        codepoint = 0;
-    }
 
-    Glyph *glyph = &ui_draw_msdf->font->glyphs[codepoint];
+    Glyph *glyph = font_get_glyph(ui_draw_msdf->font, decode.codepoint);
 
     draw_texture(
         box->calculated_rectangle,
@@ -329,7 +374,7 @@ struct State {
     Panel *panel_root;
     Panel *panel_freelist;
 
-    Font font;
+    Font *font;
     TTF_Font *ttf_font;
     U32 selected_codepoint;
     B32 running;
@@ -437,7 +482,7 @@ PANEL_BUILD_FUNCTION(view_glyph_list) {
     local F32 scroll_offset = 0.0f;
 
     U32 first_codepoint = 0x000000;
-    U32 last_codepoint  = 2047;
+    U32 last_codepoint  = 4096;
 
     F32 preferred_width = 50.0f;
     U32 codepoints_per_row = (U32) f32_floor(container_width / preferred_width);
@@ -516,7 +561,7 @@ PANEL_BUILD_FUNCTION(view_glyph_list) {
     ui_parent_push(container);
 
     UIDrawMSDF *draw_msdf = arena_push_struct_zero(ui_frame_arena(), UIDrawMSDF);
-    draw_msdf->font = &global_state->font;
+    draw_msdf->font = global_state->font;
 
     ui_color_push(theme->element_color);
     ui_border_color_push(theme->border_color);
@@ -584,7 +629,7 @@ PANEL_BUILD_FUNCTION(view_glyph) {
         ui_color(theme->element_color)
         ui_border_color(theme->border_color) {
             UIDrawMSDF *draw_msdf = arena_push_struct_zero(ui_frame_arena(), UIDrawMSDF);
-            draw_msdf->font = &global_state->font;
+            draw_msdf->font = global_state->font;
 
             ui_width_next(ui_size_parent_percent(1.0f, 0.0f));
             ui_height_next(ui_size_parent_percent(1.0f, 0.0f));
@@ -785,8 +830,8 @@ internal S32 os_run(Str8List arguments) {
     render_create();
     font_cache_create();
 
+    state->font = font_create(arguments.first->next->string, 32, 64);
     state->ttf_font = ttf_load(arena, arguments.first->next->string);
-    load_font(arguments.first->next->string, &state->font);
 
     while (state->running) {
         update();
