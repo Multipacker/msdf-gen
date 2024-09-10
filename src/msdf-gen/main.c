@@ -236,14 +236,14 @@ internal UI_BOX_DRAW_FUNCTION(draw_ui_msdf) {
 typedef struct UIDrawGlyphOutline UIDrawGlyphOutline;
 struct UIDrawGlyphOutline {
     TTF_Font *font;
-    U32 selected_codepoint;
+    U32 codepoint;
 };
 
 internal UI_BOX_DRAW_FUNCTION(draw_ui_glyph_outline) {
     UIDrawGlyphOutline *parameters = (UIDrawGlyphOutline *) data;
 
     Arena_Temporary scratch = arena_get_scratch(0, 0);
-    U32 glyph_index = ttf_get_glyph_index(parameters->font, parameters->selected_codepoint);
+    U32 glyph_index = ttf_get_glyph_index(parameters->font, parameters->codepoint);
     MSDF_Glyph glyph = ttf_expand_contours_to_msdf(scratch.arena, parameters->font, glyph_index);
 
     V2F32 box_size = v2f32_subtract(box->calculated_rectangle.max, box->calculated_rectangle.min);
@@ -660,7 +660,7 @@ PANEL_BUILD_FUNCTION(view_glyph) {
             ui_draw_function_next(draw_ui_glyph_outline);
             UIDrawGlyphOutline *glyph_outline = arena_push_struct_zero(ui_frame_arena(), UIDrawGlyphOutline);
             glyph_outline->font = global_state->ttf_font;
-            glyph_outline->selected_codepoint = global_state->selected_codepoint;
+            glyph_outline->codepoint = global_state->selected_codepoint;
             ui_draw_data_next(glyph_outline);
             ui_create_box(UI_BoxFlag_DrawBorder);
 
