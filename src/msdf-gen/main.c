@@ -236,6 +236,7 @@ internal UI_BOX_DRAW_FUNCTION(draw_ui_msdf) {
 typedef struct UIDrawGlyphOutline UIDrawGlyphOutline;
 struct UIDrawGlyphOutline {
     TTF_Font *font;
+    Font *msdf_font;
     U32 codepoint;
 };
 
@@ -264,6 +265,34 @@ internal UI_BOX_DRAW_FUNCTION(draw_ui_glyph_outline) {
     M3F32 transform = m3f32_multiply_m3f32(center_box, m3f32_multiply_m3f32(scale, center_glyph));
 
     draw_clip(box->calculated_rectangle)
+
+    {
+        Glyph *msdf_glyph = font_get_glyph(parameters->msdf_font, parameters->codepoint);
+
+        V2F32 msdf_glyph_size = v2f32_subtract(msdf_glyph->max_pt, msdf_glyph->min_pt);
+        F32 msdf_scale_to_fit = f32_min(box_size.x / msdf_glyph_size.x, box_size.y / msdf_glyph_size.y);
+
+        M3F32 msdf_center_glyph = m3f32_translation(v2f32_subtract(v2f32_negate(msdf_glyph->min_pt), v2f32_scale(msdf_glyph_size, 0.5f)));
+        M3F32 msdf_scale        = m3f32_scale(v2f32(msdf_scale_to_fit, msdf_scale_to_fit));
+        M3F32 msdf_center_box   = m3f32_translation(v2f32_add(box->calculated_rectangle.min, v2f32_scale(box_size, 0.5f)));
+
+        M3F32 msdf_transform = m3f32_multiply_m3f32(msdf_center_box, m3f32_multiply_m3f32(msdf_scale, msdf_center_glyph));
+
+        // NOTE(simon): We do the transform on the CPU in order to avoid generating
+        // one batch per draw operation. The box isn't rotated so this is fine.
+        V2F32 min_pt = m3f32_multiply_v2f32(msdf_transform, msdf_glyph->min_pt);
+        V2F32 max_pt = m3f32_multiply_v2f32(msdf_transform, msdf_glyph->max_pt);
+
+        draw_texture(
+            r2f32(min_pt.x, min_pt.y, max_pt.x, max_pt.y),
+            (R2F32) { msdf_glyph->uv_min, msdf_glyph->uv_max, },
+            parameters->msdf_font->atlas,
+            v4f32(1.0f, 0.35f, 0.05f, 1.0f),
+            0.0f, 0.0f, 0.0f,
+            Render_ShapeFlag_MSDF
+        );
+    }
+
     draw_transform(transform) {
         for (MSDF_Contour *contour = glyph.first_contour; contour; contour = contour->next) {
             for (MSDF_Segment *segment = contour->first_segment; segment; segment = segment->next) {
@@ -643,23 +672,12 @@ PANEL_BUILD_FUNCTION(view_glyph) {
         ui_height(ui_size_text_content(0.0f, 1.0f))
         ui_color(theme->element_color)
         ui_border_color(theme->border_color) {
-            UIDrawMSDF *draw_msdf = arena_push_struct_zero(ui_frame_arena(), UIDrawMSDF);
-            draw_msdf->font = global_state->font;
-
-            ui_width_next(ui_size_parent_percent(1.0f, 0.0f));
-            ui_height_next(ui_size_parent_percent(1.0f, 0.0f));
-            ui_draw_function_next(draw_ui_msdf);
-            ui_draw_data_next(draw_msdf);
-            U8 buffer[4] = { 0 };
-            U64 size = string_encode_utf8(buffer, global_state->selected_codepoint);
-            Str8 string = str8(buffer, size);
-            ui_create_box_from_string(0, string);
-
             ui_width_next(ui_size_parent_percent(1.0f, 0.0f));
             ui_height_next(ui_size_parent_percent(1.0f, 0.0f));
             ui_draw_function_next(draw_ui_glyph_outline);
             UIDrawGlyphOutline *glyph_outline = arena_push_struct_zero(ui_frame_arena(), UIDrawGlyphOutline);
             glyph_outline->font = global_state->ttf_font;
+            glyph_outline->msdf_font = global_state->font;
             glyph_outline->codepoint = global_state->selected_codepoint;
             ui_draw_data_next(glyph_outline);
             ui_create_box(UI_BoxFlag_DrawBorder);
