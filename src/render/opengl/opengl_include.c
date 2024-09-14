@@ -343,9 +343,13 @@ internal Void render_begin(V2U32 resolution) {
 }
 
 internal Void render_submit(Render_BatchList batches) {
+    prof_function_begin();
+
     OpenGL_Context *gfx = &global_opengl_context;
 
     for (Render_Batch *batch = batches.first; batch; batch = batch->next) {
+        prof_zone_begin(prof_batch, "Batch");
+
         ++gfx->current_stats.batch_count;
         gfx->current_stats.shape_count += batch->shapes.shape_count;
 
@@ -396,7 +400,11 @@ internal Void render_submit(Render_BatchList batches) {
         if (specifically_sized) {
             glDeleteBuffers(1, &vbo);
         }
+
+        prof_zone_end(prof_batch);
     }
+
+    prof_function_end();
 }
 
 internal Void render_end(Void) {
