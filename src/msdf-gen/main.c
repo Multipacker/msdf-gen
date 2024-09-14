@@ -384,10 +384,11 @@ internal Void draw_ui(UI_Box *box) {
     }
 }
 
-#define PANEL_BUILD_FUNCTION(name) Void name(Arena *arena, Theme *theme, R2F32 panel_rectangle, Void *data)
+typedef struct Panel Panel;
+
+#define PANEL_BUILD_FUNCTION(name) Void name(Panel *panel, Theme *theme, R2F32 panel_rectangle)
 typedef PANEL_BUILD_FUNCTION(PanelBuildFunction);
 
-typedef struct Panel Panel;
 struct Panel {
     Panel *next;
     Panel *previous;
@@ -440,6 +441,17 @@ internal Panel *panel_create(State *state, PanelBuildFunction *build_view) {
     panel->build_view = build_view;
 
     return panel;
+}
+
+internal Void *panel_get_state(Panel *panel, U64 size) {
+    Void *state = panel->view_state;
+
+    if (!state) {
+        state = arena_push_zero(panel->arena, size, 16);
+        panel->view_state = state;
+    }
+
+    return state;
 }
 
 internal PanelIterator panel_iterator_depth_first_pre_order(Panel *panel) {
@@ -800,7 +812,7 @@ internal Void update(Void) {
 
             ui_parent(panel_box) {
                 if (panel->build_view) {
-                    panel->build_view(panel->arena, theme, panel_rectangle, panel->view_state);
+                    panel->build_view(panel, theme, panel_rectangle);
                 } else {
                     // TODO(simon): Empty panel UI.
                 }
