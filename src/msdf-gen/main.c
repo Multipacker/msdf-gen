@@ -350,6 +350,8 @@ internal UI_BOX_DRAW_FUNCTION(draw_ui_glyph_outline) {
 }
 
 internal Void draw_ui(UI_Box *box) {
+    prof_function_begin();
+
     if (box->flags & UI_BoxFlag_DrawBackground) {
         draw_rectangle(box->calculated_rectangle, box->color, 0.0f, 0.0f, 0.0f);
 
@@ -411,6 +413,8 @@ internal Void draw_ui(UI_Box *box) {
     if (box->flags & UI_BoxFlag_Clip) {
         draw_clip_pop();
     }
+
+    prof_function_end();
 }
 
 typedef struct Panel Panel;
