@@ -24,4 +24,7 @@ internal Void ui_label_format(CStr format, ...);
 internal UI_Input ui_button(Str8 string);
 internal UI_Input ui_button_format(CStr format, ...);
 
+internal UI_Input ui_checkbox(B32 is_checked, Str8 label);
+internal Void     ui_checkbox_b32(B32 *is_checked, Str8 label);
+
 #endif //UI_BASIC_H
