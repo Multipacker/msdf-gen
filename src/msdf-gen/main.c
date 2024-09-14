@@ -233,11 +233,19 @@ internal UI_BOX_DRAW_FUNCTION(draw_ui_msdf) {
     );
 }
 
+typedef enum {
+    UIDrawGlyphOutline_Flag_DrawOutline = 1 << 0,
+    UIDrawGlyphOutline_Flag_DrawPoints  = 1 << 1,
+    UIDrawGlyphOutline_Flag_DrawMSDF    = 1 << 2,
+    UIDrawGlyphOutline_Flag_DrawRaw     = 1 << 3,
+} UIDrawGlyphOutline_Flags;
+
 typedef struct UIDrawGlyphOutline UIDrawGlyphOutline;
 struct UIDrawGlyphOutline {
     TTF_Font *font;
     Font *msdf_font;
     U32 codepoint;
+    UIDrawGlyphOutline_Flags flags;
 };
 
 internal UI_BOX_DRAW_FUNCTION(draw_ui_glyph_outline) {
@@ -264,54 +272,75 @@ internal UI_BOX_DRAW_FUNCTION(draw_ui_glyph_outline) {
 
     M3F32 transform = m3f32_multiply_m3f32(center_box, m3f32_multiply_m3f32(scale, center_glyph));
 
-    draw_clip(box->calculated_rectangle)
+    draw_clip(box->calculated_rectangle) {
+        if (parameters->flags & (UIDrawGlyphOutline_Flag_DrawMSDF | UIDrawGlyphOutline_Flag_DrawRaw)) {
+            Glyph *msdf_glyph = font_get_glyph(parameters->msdf_font, parameters->codepoint);
 
-    {
-        Glyph *msdf_glyph = font_get_glyph(parameters->msdf_font, parameters->codepoint);
+            V2F32 msdf_glyph_size = v2f32_subtract(msdf_glyph->max_pt, msdf_glyph->min_pt);
+            F32 msdf_scale_to_fit = f32_min(box_size.x / msdf_glyph_size.x, box_size.y / msdf_glyph_size.y);
 
-        V2F32 msdf_glyph_size = v2f32_subtract(msdf_glyph->max_pt, msdf_glyph->min_pt);
-        F32 msdf_scale_to_fit = f32_min(box_size.x / msdf_glyph_size.x, box_size.y / msdf_glyph_size.y);
+            M3F32 msdf_center_glyph = m3f32_translation(v2f32_subtract(v2f32_negate(msdf_glyph->min_pt), v2f32_scale(msdf_glyph_size, 0.5f)));
+            M3F32 msdf_scale        = m3f32_scale(v2f32(msdf_scale_to_fit, msdf_scale_to_fit));
+            M3F32 msdf_center_box   = m3f32_translation(v2f32_add(box->calculated_rectangle.min, v2f32_scale(box_size, 0.5f)));
 
-        M3F32 msdf_center_glyph = m3f32_translation(v2f32_subtract(v2f32_negate(msdf_glyph->min_pt), v2f32_scale(msdf_glyph_size, 0.5f)));
-        M3F32 msdf_scale        = m3f32_scale(v2f32(msdf_scale_to_fit, msdf_scale_to_fit));
-        M3F32 msdf_center_box   = m3f32_translation(v2f32_add(box->calculated_rectangle.min, v2f32_scale(box_size, 0.5f)));
+            M3F32 msdf_transform = m3f32_multiply_m3f32(msdf_center_box, m3f32_multiply_m3f32(msdf_scale, msdf_center_glyph));
 
-        M3F32 msdf_transform = m3f32_multiply_m3f32(msdf_center_box, m3f32_multiply_m3f32(msdf_scale, msdf_center_glyph));
+            // NOTE(simon): We do the transform on the CPU in order to avoid generating
+            // one batch per draw operation. The box isn't rotated so this is fine.
+            V2F32 min_pt = m3f32_multiply_v2f32(msdf_transform, msdf_glyph->min_pt);
+            V2F32 max_pt = m3f32_multiply_v2f32(msdf_transform, msdf_glyph->max_pt);
 
-        // NOTE(simon): We do the transform on the CPU in order to avoid generating
-        // one batch per draw operation. The box isn't rotated so this is fine.
-        V2F32 min_pt = m3f32_multiply_v2f32(msdf_transform, msdf_glyph->min_pt);
-        V2F32 max_pt = m3f32_multiply_v2f32(msdf_transform, msdf_glyph->max_pt);
+            draw_texture(
+                r2f32(min_pt.x, min_pt.y, max_pt.x, max_pt.y),
+                (R2F32) { msdf_glyph->uv_min, msdf_glyph->uv_max, },
+                parameters->msdf_font->atlas,
+                v4f32(1.0f, 1.0f, 1.0f, 1.0f),
+                0.0f, 0.0f, 0.0f,
+                parameters->flags & UIDrawGlyphOutline_Flag_DrawMSDF ? Render_ShapeFlag_MSDF : Render_ShapeFlag_Texture
+            );
+        }
 
-        draw_texture(
-            r2f32(min_pt.x, min_pt.y, max_pt.x, max_pt.y),
-            (R2F32) { msdf_glyph->uv_min, msdf_glyph->uv_max, },
-            parameters->msdf_font->atlas,
-            v4f32(1.0f, 0.35f, 0.05f, 1.0f),
-            0.0f, 0.0f, 0.0f,
-            Render_ShapeFlag_MSDF
-        );
-    }
+        if (parameters->flags & (UIDrawGlyphOutline_Flag_DrawOutline | UIDrawGlyphOutline_Flag_DrawPoints)) {
+            draw_transform(transform) {
+                if (parameters->flags & UIDrawGlyphOutline_Flag_DrawOutline) {
+                    for (MSDF_Contour *contour = glyph.first_contour; contour; contour = contour->next) {
+                        for (MSDF_Segment *segment = contour->first_segment; segment; segment = segment->next) {
+                            switch (segment->kind) {
+                                case MSDF_Segment_Null: {
+                                } break;
+                                case MSDF_Segment_Line: {
+                                    draw_line(segment->p0, segment->p1, v4f32(1.0f, 1.0f, 1.0f, 1.0f), 1.0f / scale_to_fit, 0.0f, 1.0f);
+                                } break;
+                                case MSDF_Segment_QuadraticBezier: {
+                                    draw_bezier(segment->p0, segment->p1, segment->p2, v4f32(1.0f, 1.0f, 1.0f, 1.0f), 1.0f / scale_to_fit, 0.0f, 1.0f);
+                                } break;
+                                case MSDF_Segment_COUNT: {
+                                } break;
+                            }
+                        }
+                    }
+                }
 
-    draw_transform(transform) {
-        for (MSDF_Contour *contour = glyph.first_contour; contour; contour = contour->next) {
-            for (MSDF_Segment *segment = contour->first_segment; segment; segment = segment->next) {
-                switch (segment->kind) {
-                    case MSDF_Segment_Null: {
-                    } break;
-                    case MSDF_Segment_Line: {
-                        draw_line(segment->p0, segment->p1, v4f32(1.0f, 1.0f, 1.0f, 1.0f), 1.0f / scale_to_fit, 0.0f, 1.0f);
-                        draw_circle(segment->p0, point_size / scale_to_fit, v4f32(0.0f, 1.0f, 0.0f, 1.0f), 0.0f, 1.0f);
-                        draw_circle(segment->p1, point_size / scale_to_fit, v4f32(0.0f, 1.0f, 0.0f, 1.0f), 0.0f, 1.0f);
-                    } break;
-                    case MSDF_Segment_QuadraticBezier: {
-                        draw_bezier(segment->p0, segment->p1, segment->p2, v4f32(1.0f, 1.0f, 1.0f, 1.0f), 1.0f / scale_to_fit, 0.0f, 1.0f);
-                        draw_circle(segment->p0, point_size / scale_to_fit, v4f32(0.0f, 1.0f, 0.0f, 1.0f), 0.0f, 1.0f);
-                        draw_circle(segment->p1, point_size / scale_to_fit, v4f32(1.0f, 0.0f, 0.0f, 1.0f), 0.0f, 1.0f);
-                        draw_circle(segment->p2, point_size / scale_to_fit, v4f32(0.0f, 1.0f, 0.0f, 1.0f), 0.0f, 1.0f);
-                    } break;
-                    case MSDF_Segment_COUNT: {
-                    } break;
+                if (parameters->flags & UIDrawGlyphOutline_Flag_DrawPoints) {
+                    for (MSDF_Contour *contour = glyph.first_contour; contour; contour = contour->next) {
+                        for (MSDF_Segment *segment = contour->first_segment; segment; segment = segment->next) {
+                            switch (segment->kind) {
+                                case MSDF_Segment_Null: {
+                                } break;
+                                case MSDF_Segment_Line: {
+                                    draw_circle(segment->p0, point_size / scale_to_fit, v4f32(0.0f, 1.0f, 0.0f, 1.0f), 0.0f, 1.0f);
+                                    draw_circle(segment->p1, point_size / scale_to_fit, v4f32(0.0f, 1.0f, 0.0f, 1.0f), 0.0f, 1.0f);
+                                } break;
+                                case MSDF_Segment_QuadraticBezier: {
+                                    draw_circle(segment->p0, point_size / scale_to_fit, v4f32(0.0f, 1.0f, 0.0f, 1.0f), 0.0f, 1.0f);
+                                    draw_circle(segment->p1, point_size / scale_to_fit, v4f32(1.0f, 0.0f, 0.0f, 1.0f), 0.0f, 1.0f);
+                                    draw_circle(segment->p2, point_size / scale_to_fit, v4f32(0.0f, 1.0f, 0.0f, 1.0f), 0.0f, 1.0f);
+                                } break;
+                                case MSDF_Segment_COUNT: {
+                                } break;
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -677,6 +706,15 @@ PANEL_BUILD_FUNCTION(view_glyph_list) {
 }
 
 PANEL_BUILD_FUNCTION(view_glyph) {
+    typedef struct ViewState ViewState;
+    struct ViewState {
+        B32 render_outline;
+        B32 render_points;
+        B32 render_raw;
+    };
+
+    ViewState *state = (ViewState *) panel_get_state(panel, sizeof(ViewState));
+
     ui_width(ui_size_parent_percent(1.0f, 1.0f))
     ui_height(ui_size_parent_percent(1.0f, 1.0f))
     ui_column() {
@@ -691,8 +729,35 @@ PANEL_BUILD_FUNCTION(view_glyph) {
             glyph_outline->font = global_state->ttf_font;
             glyph_outline->msdf_font = global_state->font;
             glyph_outline->codepoint = global_state->selected_codepoint;
+            glyph_outline->flags = 0;
+
+            if (state->render_raw) {
+                glyph_outline->flags |= UIDrawGlyphOutline_Flag_DrawRaw;
+            } else {
+                glyph_outline->flags |= UIDrawGlyphOutline_Flag_DrawMSDF;
+            }
+            if (state->render_outline) {
+                glyph_outline->flags |= UIDrawGlyphOutline_Flag_DrawOutline;
+            }
+            if (state->render_points) {
+                glyph_outline->flags |= UIDrawGlyphOutline_Flag_DrawPoints;
+            }
+
             ui_draw_data_next(glyph_outline);
             ui_create_box(UI_BoxFlag_DrawBorder);
+
+            ui_color(theme->element_color)
+            ui_text_color(theme->text_color) {
+                ui_checkbox_b32(&state->render_outline, str8_literal("Draw outlines"));
+
+                ui_spacer_sized(ui_size_pixels(5.0f, 1.0f));
+
+                ui_checkbox_b32(&state->render_points, str8_literal("Draw points"));
+
+                ui_spacer_sized(ui_size_pixels(5.0f, 1.0f));
+
+                ui_checkbox_b32(&state->render_raw, str8_literal("Draw raw"));
+            }
 
             ui_label_format("Selected glyph: U+%.6X", global_state->selected_codepoint);
 
