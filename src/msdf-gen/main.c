@@ -238,69 +238,81 @@ internal Void draw_text(FontCache_Font *font, V2F32 origin, Str8 string, U32 siz
     arena_end_temporary(scratch);
 }
 
-internal Void draw_ui(UI_Box *box) {
+internal Void draw_ui(UI_Box *root) {
     prof_function_begin();
 
-    if (box->flags & UI_BoxFlag_DrawBackground) {
-        draw_rectangle(box->calculated_rectangle, box->color, 0.0f, 0.0f, 0.0f);
+    for (UI_Box *box = root; box != &global_ui_null_box;) {
+        if (box->flags & UI_BoxFlag_DrawBackground) {
+            draw_rectangle(box->calculated_rectangle, box->color, 0.0f, 0.0f, 0.0f);
 
-        if (box->flags & UI_BoxFlag_DrawHot && box->hot_t > 0.0f) {
-            Render_Shape *rect = draw_rectangle(box->calculated_rectangle, v4f32(0.0f, 0.0f, 0.0f, 0.0f), 0.0f, 0.0f, 0.0f);
-            rect->colors[0] = v4f32(1.0f, 1.0f, 1.0f, 0.5f * box->hot_t);
-            rect->colors[1] = v4f32(1.0f, 1.0f, 1.0f, 0.5f * box->hot_t);
+            if (box->flags & UI_BoxFlag_DrawHot && box->hot_t > 0.0f) {
+                Render_Shape *rect = draw_rectangle(box->calculated_rectangle, v4f32(0.0f, 0.0f, 0.0f, 0.0f), 0.0f, 0.0f, 0.0f);
+                rect->colors[0] = v4f32(1.0f, 1.0f, 1.0f, 0.5f * box->hot_t);
+                rect->colors[1] = v4f32(1.0f, 1.0f, 1.0f, 0.5f * box->hot_t);
+            }
+
+            if (box->flags & UI_BoxFlag_DrawActive && box->active_t > 0.0f) {
+                Render_Shape *rect = draw_rectangle(box->calculated_rectangle, v4f32(0.0f, 0.0f, 0.0f, 0.0f), 0.0f, 0.0f, 0.0f);
+                rect->colors[2] = v4f32(0.0f, 0.0f, 0.0f, 0.5f * box->active_t);
+                rect->colors[3] = v4f32(0.0f, 0.0f, 0.0f, 0.5f * box->active_t);
+            }
         }
 
-        if (box->flags & UI_BoxFlag_DrawActive && box->active_t > 0.0f) {
-            Render_Shape *rect = draw_rectangle(box->calculated_rectangle, v4f32(0.0f, 0.0f, 0.0f, 0.0f), 0.0f, 0.0f, 0.0f);
-            rect->colors[2] = v4f32(0.0f, 0.0f, 0.0f, 0.5f * box->active_t);
-            rect->colors[3] = v4f32(0.0f, 0.0f, 0.0f, 0.5f * box->active_t);
+        if (box->flags & UI_BoxFlag_DrawText) {
+            V2F32 origin = box->calculated_rectangle.min;
+            F32 advance = 0.0f;
+            for (U64 i = 0; i < box->text.letter_count; ++i) {
+                FontCache_Letter *letter = &box->text.letters[i];
+                draw_glyph(
+                    r2f32(
+                        f32_floor(origin.x + letter->offset.x + advance),
+                        f32_floor(origin.y + letter->offset.y),
+                        f32_floor(origin.x + letter->offset.x + advance + letter->size.x),
+                        f32_floor(origin.y + letter->offset.y + letter->size.y)
+                    ),
+                    letter->uvs,
+                    letter->texture,
+                    box->text_color
+                );
+                advance += letter->advance;
+            }
         }
-    }
 
-    if (box->flags & UI_BoxFlag_DrawText) {
-        V2F32 origin = box->calculated_rectangle.min;
-        F32 advance = 0.0f;
-        for (U64 i = 0; i < box->text.letter_count; ++i) {
-            FontCache_Letter *letter = &box->text.letters[i];
-            draw_glyph(
-                r2f32(
-                    f32_floor(origin.x + letter->offset.x + advance),
-                    f32_floor(origin.y + letter->offset.y),
-                    f32_floor(origin.x + letter->offset.x + advance + letter->size.x),
-                    f32_floor(origin.y + letter->offset.y + letter->size.y)
-                ),
-                letter->uvs,
-                letter->texture,
-                box->text_color
-            );
-            advance += letter->advance;
+        if (box->draw_function) {
+            box->draw_function(box, box->draw_data);
         }
-    }
 
-    if (box->draw_function) {
-        box->draw_function(box, box->draw_data);
-    }
+        if (box->flags & UI_BoxFlag_Clip) {
+            R2F32 top_clip = draw_clip_top();
+            R2F32 new_clip = r2f32_intersect(top_clip, box->calculated_rectangle);
+            draw_clip_push(new_clip);
+        }
 
-    if (box->flags & UI_BoxFlag_DrawBorder) {
-        draw_rectangle(box->calculated_rectangle, box->border_color, 0.0f, 1.0f, 1.0f);
-    }
+        UI_BoxIterator iterator = ui_box_iterator_depth_first_post_order(box);
 
-    if (box->flags & UI_BoxFlag_Disabled) {
-        draw_rectangle(box->calculated_rectangle, v4f32(0.2f, 0.2f, 0.2f, 0.75f), 0.0f, 0.0f, 0.0f);
-    }
+        // NOTE(simon): We use `<=` because we need to pop our state when
+        // moving to our siblings. Traversing siblings sets both `push_count`
+        // and `pop_count` to 0.
+        U32 pop_index = 0;
+        for (UI_Box *parent = box; pop_index <= iterator.pop_count; parent = parent->parent, ++pop_index) {
+            if (parent == box && iterator.push_count) {
+                continue;
+            }
 
-    if (box->flags & UI_BoxFlag_Clip) {
-        R2F32 top_clip = draw_clip_top();
-        R2F32 new_clip = r2f32_intersect(top_clip, box->calculated_rectangle);
-        draw_clip_push(new_clip);
-    }
+            if (parent->flags & UI_BoxFlag_Clip) {
+                draw_clip_pop();
+            }
 
-    for (UI_Box *child = box->last; child != &global_ui_null_box; child = child->previous) {
-        draw_ui(child);
-    }
+            if (box->flags & UI_BoxFlag_DrawBorder) {
+                draw_rectangle(box->calculated_rectangle, box->border_color, 0.0f, 1.0f, 1.0f);
+            }
 
-    if (box->flags & UI_BoxFlag_Clip) {
-        draw_clip_pop();
+            if (box->flags & UI_BoxFlag_Disabled) {
+                draw_rectangle(box->calculated_rectangle, v4f32(0.2f, 0.2f, 0.2f, 0.75f), 0.0f, 0.0f, 0.0f);
+            }
+        }
+
+        box = iterator.next;
     }
 
     prof_function_end();
