@@ -91,6 +91,21 @@ internal UI_Size ui_size_pixels(F32 pixels, F32 strictness) {
     return result;
 }
 
+internal UI_Size ui_size_ems(F32 ems, F32 strictness) {
+    UI_Size result = { 0 };
+    result.kind = UI_Size_Pixels;
+
+    FontCache_Font *font = font_cache_font_from_path(ui_font_top());
+    U32 font_size = ui_font_size_top();
+
+    // TODO(simon): This isn't quite an EM just yet.
+    // TODO(simon): I don't like that we are resolution dependent here, can we move it into the font backend?
+    F32 resolution = 96.0f;
+    result.value = ems * (font->ascent - font->descent) * (F32) font_size * resolution / (72.0f * font->units_per_em);
+
+    return result;
+}
+
 internal UI_Size ui_size_parent_percent(F32 percent, F32 strictness) {
     UI_Size result = { 0 };
     result.kind = UI_Size_ParentPercent;

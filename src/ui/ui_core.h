@@ -266,6 +266,7 @@ internal UI_Key ui_key_from_string(Str8 string);
 internal UI_Key ui_key_from_string_format(CStr format, ...);
 
 internal UI_Size ui_size_pixels(F32 pixels, F32 strictness);
+internal UI_Size ui_size_ems(F32 ems, F32 strictness);
 internal UI_Size ui_size_parent_percent(F32 percent, F32 strictness);
 internal UI_Size ui_size_children_sum(F32 strictness);
 internal UI_Size ui_size_text_content(F32 padding, F32 strictness);
