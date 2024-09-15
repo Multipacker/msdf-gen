@@ -98,14 +98,13 @@ internal UI_Input ui_button_format(CStr format, ...) {
     return result;
 }
 
-// TODO(simon): Update to use the font height for the checkbox.
 internal UI_Input ui_checkbox(B32 is_checked, Str8 label) {
     ui_width_next(ui_size_children_sum(1.0f));
     ui_height_next(ui_size_children_sum(1.0f));
     ui_row_begin();
 
-    ui_width_next(ui_size_pixels(20.0f, 1.0f));
-    ui_height_next(ui_size_pixels(20.0f, 1.0f));
+    ui_width_next(ui_size_ems(1.0f, 1.0f));
+    ui_height_next(ui_size_ems(1.0f, 1.0f));
     UI_Box *check = ui_create_box_from_string_format(
         UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawBorder | (is_checked ? UI_BoxFlag_DrawText : 0) |
         UI_BoxFlag_DrawHot | UI_BoxFlag_DrawActive |
@@ -113,7 +112,7 @@ internal UI_Input ui_checkbox(B32 is_checked, Str8 label) {
         "X###%.*s", str8_expand(label)
     );
 
-    ui_spacer_sized(ui_size_pixels(10.0f, 1.0f));
+    ui_spacer_sized(ui_size_ems(0.5f, 1.0f));
 
     ui_label(label);
     ui_row_end();
