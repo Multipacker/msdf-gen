@@ -99,6 +99,13 @@ struct UI_Box {
     F32 disabled_t;
 };
 
+typedef struct UI_BoxIterator UI_BoxIterator;
+struct UI_BoxIterator {
+    UI_Box *next;
+    U32 push_count;
+    U32 pop_count;
+};
+
 #define ui_define_stack(type_name, variable_name, type)                                                     \
     typedef struct UI_##type_name##StackNode UI_##type_name##StackNode;                                     \
     struct UI_##type_name##StackNode {                                                                      \

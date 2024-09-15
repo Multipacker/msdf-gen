@@ -575,6 +575,26 @@ internal UI_Box *ui_box_from_key(UI_Key key) {
     return result;
 }
 
+internal UI_BoxIterator ui_box_iterator_depth_first_post_order(UI_Box *box) {
+    UI_BoxIterator iterator = { 0 };
+    iterator.next = &global_ui_null_box;
+
+    if (box->last != &global_ui_null_box) {
+        iterator.next = box->last;
+        iterator.push_count = 1;
+    } else {
+        for (UI_Box *parent = box; parent != &global_ui_null_box; parent = parent->parent) {
+            if (parent->previous != &global_ui_null_box) {
+                iterator.next = parent->previous;
+                break;
+            }
+            ++iterator.pop_count;
+        }
+    }
+
+    return iterator;
+}
+
 internal UI_Box *ui_create_box_from_key(UI_BoxFlags flags, UI_Key key) {
     UI_Context *ui = global_ui_state;
     UI_Box *box = ui_box_from_key(key);
