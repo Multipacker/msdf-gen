@@ -22,6 +22,13 @@ struct UI_Size {
     F32 strictness;
 };
 
+typedef enum {
+    UI_TextAlign_Left,
+    UI_TextAlign_Center,
+    UI_TextAlign_Right,
+    UI_TextAlign_COUNT,
+} UI_TextAlign;
+
 typedef U64 UI_Key;
 
 typedef enum {
@@ -79,6 +86,7 @@ struct UI_Box {
     Str8                string;
     FontCache_Font     *font;
     U32                 font_size;
+    UI_TextAlign        text_align;
     Gfx_Cursor          hover_cursor;
     UI_BoxDrawFunction *draw_function;
     Void               *draw_data;
@@ -163,6 +171,7 @@ ui_define_stack(Str8,            str8,              Str8)
 ui_define_stack(Cursor,          cursor,            Gfx_Cursor)
 ui_define_stack(BoxDrawFunction, box_draw_function, UI_BoxDrawFunction *)
 ui_define_stack(Pointer,         pointer,           Void *)
+ui_define_stack(TextAlign,       text_align,        UI_TextAlign)
 
 typedef struct UI_BoxList UI_BoxList;
 struct UI_BoxList {
@@ -262,6 +271,7 @@ struct UI_Context {
     UI_CursorStack          hover_cursor_stack;
     UI_BoxDrawFunctionStack draw_function_stack;
     UI_PointerStack         draw_data_stack;
+    UI_TextAlignStack       text_align_stack;
 };
 
 internal Void ui_select_state(UI_Context *state);
@@ -292,6 +302,7 @@ internal UI_Box *ui_create_box_from_string(UI_BoxFlags flags, Str8 string);
 internal UI_Box *ui_create_box_from_string_format(UI_BoxFlags flags, CStr format, ...);
 
 internal Void     ui_box_set_string(UI_Box *box, Str8 string);
+internal V2F32    ui_box_text_location(UI_Box *box);
 internal UI_Input ui_input_from_box(UI_Box *box);
 
 internal Void ui_tooltip_begin(Void);
@@ -411,6 +422,13 @@ internal F32 ui_animation_fast_rate(Void);
 #define ui_font_size_next(size) ui_u32_stack_push(&global_ui_state->font_size_stack, size, true)
 #define ui_font_size_auto_pop() ui_u32_stack_auto_pop(&global_ui_state->font_size_stack)
 #define ui_font_size_top()      (global_ui_state->font_size_stack.top->item)
+
+#define ui_text_align_push(align) ui_text_align_stack_push(&global_ui_state->text_align_stack, align, false)
+#define ui_text_align_pop()       ui_text_align_stack_pop(&global_ui_state->text_align_stack)
+#define ui_text_align(align)      defer_loop(ui_text_align_push(align), ui_text_align_pop())
+#define ui_text_align_next(align) ui_text_align_stack_push(&global_ui_state->text_align_stack, align, true)
+#define ui_text_align_auto_pop()  ui_text_align_stack_auto_pop(&global_ui_state->text_align_stack)
+#define ui_text_align_top()       (global_ui_state->text_align_stack.top->item)
 
 #define ui_hover_cursor_push(cursor) ui_cursor_stack_push(&global_ui_state->hover_cursor_stack, cursor, false)
 #define ui_hover_cursor_pop()        ui_cursor_stack_pop(&global_ui_state->hover_cursor_stack)

@@ -259,7 +259,7 @@ internal Void draw_ui(UI_Box *root) {
         }
 
         if (box->flags & UI_BoxFlag_DrawText) {
-            V2F32 origin = box->calculated_rectangle.min;
+            V2F32 origin = ui_box_text_location(box);
             F32 advance = 0.0f;
             for (U64 i = 0; i < box->text.letter_count; ++i) {
                 FontCache_Letter *letter = &box->text.letters[i];

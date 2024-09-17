@@ -221,6 +221,7 @@ internal Void ui_begin(Gfx_EventList *events, F32 dt) {
     ui_extra_box_flags_push(0);
     ui_font_push(str8_literal("data/NotoSans-Regular.ttf"));
     ui_font_size_push(14);
+    ui_text_align_push(UI_TextAlign_Left);
     ui_hover_cursor_push(Gfx_Cursor_Pointer);
     ui_draw_function_push(0);
     ui_draw_data_push(0);
@@ -647,6 +648,7 @@ internal UI_Box *ui_create_box_from_key(UI_BoxFlags flags, UI_Key key) {
     box->layout_axis   = ui_layout_axis_top();
     box->font          = font_cache_font_from_path(ui_font_top());
     box->font_size     = ui_font_size_top();
+    box->text_align    = ui_text_align_top();
     box->hover_cursor  = ui_hover_cursor_top();
     box->draw_function = ui_draw_function_top();
     box->draw_data     = ui_draw_data_top();
@@ -675,6 +677,7 @@ internal UI_Box *ui_create_box_from_key(UI_BoxFlags flags, UI_Key key) {
     ui_fixed_y_auto_pop();
     ui_font_auto_pop();
     ui_font_size_auto_pop();
+    ui_text_align_auto_pop();
     ui_hover_cursor_auto_pop();
     ui_draw_function_auto_pop();
     ui_draw_data_auto_pop();
@@ -713,6 +716,33 @@ internal Void ui_box_set_string(UI_Box *box, Str8 string) {
     if (box->flags & UI_BoxFlag_DrawText) {
         box->text = font_cache_text(ui_frame_arena(), box->font, box->string, box->font_size);
     }
+}
+
+internal V2F32 ui_box_text_location(UI_Box *box) {
+    V2F32 result = { 0 };
+
+    // TODO(simon): Text should be drawn from the baseline
+    result.y = box->calculated_rectangle.min.y;
+
+    switch (box->text_align) {
+        case UI_TextAlign_Left: {
+            result.x = box->calculated_rectangle.min.x;
+        } break;
+        case UI_TextAlign_Center: {
+            result.x = (box->calculated_rectangle.max.x + box->calculated_rectangle.min.x) * 0.5f - box->text.size.x * 0.5f;
+            result.x = f32_max(box->calculated_rectangle.min.x, result.x);
+            result.x = f32_floor(result.x);
+        } break;
+        case UI_TextAlign_Right: {
+            result.x = box->calculated_rectangle.max.x - box->text.size.x;
+            result.x = f32_max(box->calculated_rectangle.min.x, result.x);
+            result.x = f32_floor(result.x);
+        } break;
+        case UI_TextAlign_COUNT: {
+        } break;
+    }
+
+    return result;
 }
 
 internal UI_Input ui_input_from_box(UI_Box *box) {

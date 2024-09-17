@@ -106,6 +106,7 @@ internal UI_Input ui_checkbox(B32 is_checked, Str8 label) {
     ui_width_next(ui_size_ems(1.0f, 1.0f));
     ui_height_next(ui_size_ems(1.0f, 1.0f));
     ui_hover_cursor_next(Gfx_Cursor_Hand);
+    ui_text_align_next(UI_TextAlign_Center);
     UI_Box *check = ui_create_box_from_string_format(
         UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawBorder | (is_checked ? UI_BoxFlag_DrawText : 0) |
         UI_BoxFlag_DrawHot | UI_BoxFlag_DrawActive |
