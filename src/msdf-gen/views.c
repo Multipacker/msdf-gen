@@ -368,10 +368,20 @@ PANEL_BUILD_FUNCTION(view_glyph) {
                 ui_spacer_sized(ui_size_pixels(5.0f, 1.0f));
 
                 ui_checkbox_b32(&state->render_raw, str8_literal("Draw raw"));
+
+                ui_label_format("Selected glyph: U+%.6X", global_state->selected_codepoint);
             }
+        }
+    }
+}
 
-            ui_label_format("Selected glyph: U+%.6X", global_state->selected_codepoint);
-
+PANEL_BUILD_FUNCTION(view_stats) {
+    ui_width(ui_size_parent_percent(1.0f, 1.0f))
+    ui_height(ui_size_parent_percent(1.0f, 1.0f))
+    ui_column() {
+        ui_text_color(theme->text_color)
+        ui_width(ui_size_text_content(0.0f, 1.0f))
+        ui_height(ui_size_text_content(0.0f, 1.0f)) {
             Render_Stats stats = render_get_stats();
             ui_label(str8_literal("Render stats"));
             ui_label_format("Batches: %u", stats.batch_count);

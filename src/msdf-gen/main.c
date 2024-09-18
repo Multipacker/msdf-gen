@@ -471,17 +471,26 @@ internal S32 os_run(Str8List arguments) {
     State *state = arena_push_struct(arena, State);
     state->arena = arena;
     state->ui = ui_create();
-    state->panel_root = arena_push_struct(state->arena, Panel);
+    state->panel_root = arena_push_struct_zero(state->arena, Panel);
     state->panel_root->percentage_of_parent = 1.0f;
     state->panel_root->split_axis = Axis2_X;
     {
         Panel *left = panel_create(state, view_glyph_list);
-        Panel *right = panel_create(state, view_glyph);
+        Panel *right = arena_push_struct_zero(state->arena, Panel);
+        right->split_axis = Axis2_Y;
         left->percentage_of_parent = 0.75f;
         right->percentage_of_parent = 0.25f;
         left->parent = right->parent = state->panel_root;
         dll_push_back(state->panel_root->first, state->panel_root->last, left);
         dll_push_back(state->panel_root->first, state->panel_root->last, right);
+
+        Panel *top    = panel_create(state, view_glyph);
+        Panel *bottom = panel_create(state, view_stats);
+        top->percentage_of_parent = 0.75f;
+        bottom->percentage_of_parent = 0.75f;
+        top->parent = bottom->parent = right;
+        dll_push_back(right->first, right->last, top);
+        dll_push_back(right->first, right->last, bottom);
     }
     state->running = true;
     global_state = state;
