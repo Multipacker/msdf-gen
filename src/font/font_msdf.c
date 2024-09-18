@@ -719,10 +719,8 @@ internal MSDF_RasterResult msdf_generate(Arena *arena, TTF_Font *font, U32 codep
     MSDF_Glyph glyph = ttf_expand_contours_to_msdf(scratch.arena, font, glyph_index);
     TTF_HmtxMetrics metrics = ttf_get_metrics(font, glyph_index);
 
-    result.x_min             = (F32)  glyph.x_min / (F32) font->funits_per_em;
-    result.y_min             = (F32) -glyph.y_max / (F32) font->funits_per_em;
-    result.x_max             = (F32)  glyph.x_max / (F32) font->funits_per_em;
-    result.y_max             = (F32) -glyph.y_min / (F32) font->funits_per_em;
+    result.min = v2f32_scale(v2f32((F32) glyph.x_min, (F32) -glyph.y_max), 1.0f / (F32) font->funits_per_em);
+    result.max = v2f32_scale(v2f32((F32) glyph.x_max, (F32) -glyph.y_min), 1.0f / (F32) font->funits_per_em);
     result.advance_width     = (F32) metrics.advance_width / (F32) font->funits_per_em;
     result.left_side_bearing = (F32) metrics.left_side_bearing / (F32) font->funits_per_em;
 

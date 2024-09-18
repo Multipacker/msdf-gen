@@ -168,12 +168,11 @@ internal Glyph *font_get_glyph(Font *font, U32 codepoint) {
         // UVs needing to include a 1/2 texel border for rendering. This
         // makes sure that the glyphs have the same visual size.
         F32 scale = ((F32) font->glyph_size - 1.0f) / ((F32) font->glyph_size - 2.0f) - 1.0f;
-        F32 width_adjustment  = (raster_result.x_max - raster_result.x_min) * scale * 0.5f;
-        F32 height_adjustment = (raster_result.y_max - raster_result.y_min) * scale * 0.5f;
+        V2F32 adjustment = v2f32_scale(v2f32_subtract(raster_result.max, raster_result.min), 0.5f * scale);
 
         result->advance_pt = raster_result.advance_width;
-        result->min_pt = v2f32(raster_result.x_min - width_adjustment, raster_result.y_min - height_adjustment);
-        result->max_pt = v2f32(raster_result.x_max + width_adjustment, raster_result.y_max + height_adjustment);
+        result->min_pt = v2f32_subtract(raster_result.min, adjustment);
+        result->max_pt = v2f32_add(raster_result.max, adjustment);
         result->uv_min = v2f32(
             ((F32) atlas_position.x + 0.5f) / (F32) font->atlas_size,
             ((F32) atlas_position.y + 0.5f) / (F32) font->atlas_size

@@ -66,10 +66,8 @@ internal MSDF_RasterResult raster_generate(Arena *arena, Font_Raster *font, U32 
         int left_side_bearing = 0;
         stbtt_GetGlyphHMetrics(&font->font_info, glyph_index, &advance_width, &left_side_bearing);
 
-        result.x_min             = (F32) x_min;
-        result.y_min             = (F32) y_min;
-        result.x_max             = (F32) x_max;
-        result.y_max             = (F32) y_max;
+        result.min               = v2f32((F32) x_min, (F32) y_min);
+        result.max               = v2f32((F32) x_max, (F32) y_max);
         result.size              = v2u32((U32) width, (U32) height);
         result.advance_width     = scale * (F32) advance_width;
         result.left_side_bearing = scale * (F32) left_side_bearing;

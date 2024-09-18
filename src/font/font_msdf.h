@@ -71,10 +71,8 @@ typedef struct {
 
 typedef struct MSDF_RasterResult MSDF_RasterResult;
 struct MSDF_RasterResult {
-    F32 x_min;
-    F32 y_min;
-    F32 x_max;
-    F32 y_max;
+    V2F32 min;
+    V2F32 max;
 
     F32 advance_width;
     F32 left_side_bearing;

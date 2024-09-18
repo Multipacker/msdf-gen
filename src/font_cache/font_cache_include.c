@@ -259,7 +259,7 @@ internal FontCache_Text font_cache_text(Arena *arena, FontCache_Font *font, Str8
                 (F32) (glyph->region.min.y + raster_result.size.y) / (F32) atlas_size.y
             );
             glyph->texture           = selected_atlas->texture;
-            glyph->offset            = v2f32((F32) raster_result.left_side_bearing, (F32) raster_result.y_min);
+            glyph->offset            = v2f32((F32) raster_result.left_side_bearing, (F32) raster_result.min.y);
             glyph->size              = v2f32((F32) raster_result.size.width, (F32) raster_result.size.height);
             glyph->advance_width     = raster_result.advance_width;
 
