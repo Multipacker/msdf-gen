@@ -103,8 +103,8 @@ internal UI_Input ui_checkbox(B32 is_checked, Str8 label) {
     ui_height_next(ui_size_children_sum(1.0f));
     ui_row_begin();
 
-    ui_width_next(ui_size_ems(1.0f, 1.0f));
-    ui_height_next(ui_size_ems(1.0f, 1.0f));
+    ui_width_next(ui_size_ems(1.2f, 1.0f));
+    ui_height_next(ui_size_ems(1.2f, 1.0f));
     ui_hover_cursor_next(Gfx_Cursor_Hand);
     ui_text_align_next(UI_TextAlign_Center);
     UI_Box *check = ui_create_box_from_string_format(
@@ -116,6 +116,8 @@ internal UI_Input ui_checkbox(B32 is_checked, Str8 label) {
 
     ui_spacer_sized(ui_size_ems(0.5f, 1.0f));
 
+    ui_width_next(ui_size_text_content(0.0f, 1.0f));
+    ui_height_next(ui_size_ems(1.2f, 1.0f));
     ui_label(label);
     ui_row_end();
 
