@@ -714,7 +714,7 @@ internal Void ui_box_set_string(UI_Box *box, Str8 string) {
 internal V2F32 ui_box_text_location(UI_Box *box) {
     V2F32 result = { 0 };
 
-    result.y = box->calculated_rectangle.min.y + box->text.ascent;
+    result.y = (box->calculated_rectangle.min.y + box->calculated_rectangle.max.y) * 0.5f + (box->text.ascent + box->text.descent) * 0.5f;
 
     switch (box->text_align) {
         case UI_TextAlign_Left: {
