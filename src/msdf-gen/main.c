@@ -31,7 +31,6 @@
  * * Bake the UI font into the executable
  * * Add support for tabs that can be moved around
  * * Align outlines and the MSDF correctly in the glyph view
- * * Make font size in the UI layer be in pixels per em.
  *
  * TODO long term
  * * Allow multiple codepoints to map to the same glyph, alternatively allow
@@ -361,6 +360,9 @@ internal Void update(Void) {
 
     Theme *theme = &global_themes[1];
 
+    // NOTE(simon): 14 pts * 96 pixels per inch / 72 points per inch
+    ui_font_size_push((U32) (14.0f * 96.0f / 72.0f));
+
     R2F32 root_rectangle = r2f32(0.0f, 0.0f, (F32) client_area.x, (F32) client_area.y);
     F32 panel_pad = 2.0f;
 
@@ -447,6 +449,7 @@ internal Void update(Void) {
         }
     }
 
+    ui_font_size_pop();
     ui_end();
     draw_clip(r2f32(0.0f, 0.0f, (F32) client_area.width, (F32) client_area.height)) {
         draw_ui(state->ui->root);

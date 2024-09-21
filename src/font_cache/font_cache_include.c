@@ -193,6 +193,7 @@ internal FontCache_Font *font_cache_font_from_path(Str8 path) {
 
 
 
+// NOTE(simon): `size` is in pixels per em
 internal FontCache_Text font_cache_text(Arena *arena, FontCache_Font *font, Str8 text, U32 size) {
     FontCache_State *state = &global_font_cache_state;
 
@@ -200,10 +201,8 @@ internal FontCache_Text font_cache_text(Arena *arena, FontCache_Font *font, Str8
 
     result.letters = arena_push_array_zero(arena, FontCache_Letter, text.size);
 
-    // TODO(simon): I don't like that we are resolution dependent here, can we move it into the font backend?
-    F32 resolution = 96.0f;
-    result.ascent  = font->ascent  * (F32) size * resolution / (72.0f * font->units_per_em);
-    result.descent = font->descent * (F32) size * resolution / (72.0f * font->units_per_em);
+    result.ascent  = font->ascent  * (F32) size / font->units_per_em;
+    result.descent = font->descent * (F32) size / font->units_per_em;
     result.size.height = result.ascent - result.descent;
 
     U8 *ptr = text.data;
