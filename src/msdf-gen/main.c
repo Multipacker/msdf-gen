@@ -26,6 +26,18 @@
  * offset = v2f32_subtract(mouse, v2f32_scale(v2f32_subtract(mouse, offset), old_zoom / zoom));
 */
 
+/*
+ * TODO before next release:
+ * * Bake the UI font into the executable
+ * * Add support for tabs that can be moved around
+ * * Align outlines and the MSDF correctly in the glyph view
+ * * Make font size in the UI layer be in pixels per em.
+ *
+ * TODO long term
+ * * Allow multiple codepoints to map to the same glyph, alternatively allow
+ *   marking glyphs as missing as that is the main use case
+ */
+
 typedef struct Theme Theme;
 struct Theme {
     Str8 name;
