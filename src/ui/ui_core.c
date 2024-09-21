@@ -721,8 +721,7 @@ internal Void ui_box_set_string(UI_Box *box, Str8 string) {
 internal V2F32 ui_box_text_location(UI_Box *box) {
     V2F32 result = { 0 };
 
-    // TODO(simon): Text should be drawn from the baseline
-    result.y = box->calculated_rectangle.min.y;
+    result.y = box->calculated_rectangle.min.y + box->text.ascent;
 
     switch (box->text_align) {
         case UI_TextAlign_Left: {

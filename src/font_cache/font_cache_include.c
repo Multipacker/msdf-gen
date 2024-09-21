@@ -272,7 +272,7 @@ internal FontCache_Text font_cache_text(Arena *arena, FontCache_Font *font, Str8
 
         FontCache_Letter *letter = &result.letters[result.letter_count++];
         letter->texture = glyph->texture;
-        letter->offset  = v2f32_add(glyph->offset, v2f32(0, result.ascent));
+        letter->offset  = glyph->offset;
         letter->size    = glyph->size;
         letter->uvs     = glyph->uvs;
         letter->advance = glyph->advance_width;
