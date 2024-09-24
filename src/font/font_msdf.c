@@ -719,8 +719,8 @@ internal MSDF_RasterResult msdf_generate(Arena *arena, TTF_Font *font, U32 codep
     MSDF_Glyph glyph = ttf_expand_contours_to_msdf(scratch.arena, font, glyph_index);
     TTF_HmtxMetrics metrics = ttf_get_metrics(font, glyph_index);
 
-    result.min = v2f32_scale(v2f32((F32) glyph.x_min, (F32) -glyph.y_max), 1.0f / (F32) font->funits_per_em);
-    result.max = v2f32_scale(v2f32((F32) glyph.x_max, (F32) -glyph.y_min), 1.0f / (F32) font->funits_per_em);
+    result.min = v2f32_scale(v2f32((F32) glyph.min.x, (F32) -glyph.max.y), 1.0f / (F32) font->funits_per_em);
+    result.max = v2f32_scale(v2f32((F32) glyph.max.x, (F32) -glyph.min.y), 1.0f / (F32) font->funits_per_em);
     result.advance_width     = (F32) metrics.advance_width / (F32) font->funits_per_em;
     result.left_side_bearing = (F32) metrics.left_side_bearing / (F32) font->funits_per_em;
 
@@ -762,17 +762,17 @@ internal MSDF_RasterResult msdf_generate(Arena *arena, TTF_Font *font, U32 codep
     // for the them.
     U32 padding = 1;
 
-    F32 x_scale = (F32) (render_size - 2 * padding) / (F32) (glyph.x_max - glyph.x_min);
-    F32 y_scale = (F32) (render_size - 2 * padding) / (F32) (glyph.y_max - glyph.y_min);
+    F32 x_scale = (F32) (render_size - 2 * padding) / (F32) (glyph.max.x - glyph.min.x);
+    F32 y_scale = (F32) (render_size - 2 * padding) / (F32) (glyph.max.y - glyph.min.y);
 
     for (MSDF_Segment *line = lines.first; line; line = line->next) {
         line->p0 = v2f32(
-            ((line->p0.x  - (F32) glyph.x_min) * x_scale + (F32) padding) / (F32) render_size,
-            (((F32) glyph.y_max - line->p0.y)  * y_scale + (F32) padding) / (F32) render_size
+            ((line->p0.x  - (F32) glyph.min.x) * x_scale + (F32) padding) / (F32) render_size,
+            (((F32) glyph.max.y - line->p0.y)  * y_scale + (F32) padding) / (F32) render_size
         );
         line->p1 = v2f32(
-            ((line->p1.x  - (F32) glyph.x_min) * x_scale + (F32) padding) / (F32) render_size,
-            (((F32) glyph.y_max - line->p1.y)  * y_scale + (F32) padding) / (F32) render_size
+            ((line->p1.x  - (F32) glyph.min.x) * x_scale + (F32) padding) / (F32) render_size,
+            (((F32) glyph.max.y - line->p1.y)  * y_scale + (F32) padding) / (F32) render_size
         );
 
         V2F32 min = v2f32_min(line->p0, line->p1);
@@ -784,16 +784,16 @@ internal MSDF_RasterResult msdf_generate(Arena *arena, TTF_Font *font, U32 codep
     }
     for (MSDF_Segment *bezier = quad_beziers.first; bezier; bezier = bezier->next) {
         bezier->p0 = v2f32(
-            ((bezier->p0.x - (F32) glyph.x_min)  * x_scale + (F32) padding) / (F32) render_size,
-            (((F32) glyph.y_max  - bezier->p0.y) * y_scale + (F32) padding) / (F32) render_size
+            ((bezier->p0.x - (F32) glyph.min.x)  * x_scale + (F32) padding) / (F32) render_size,
+            (((F32) glyph.max.y  - bezier->p0.y) * y_scale + (F32) padding) / (F32) render_size
         );
         bezier->p1 = v2f32(
-            ((bezier->p1.x - (F32) glyph.x_min)  * x_scale + (F32) padding) / (F32) render_size,
-            (((F32) glyph.y_max  - bezier->p1.y) * y_scale + (F32) padding) / (F32) render_size
+            ((bezier->p1.x - (F32) glyph.min.x)  * x_scale + (F32) padding) / (F32) render_size,
+            (((F32) glyph.max.y  - bezier->p1.y) * y_scale + (F32) padding) / (F32) render_size
         );
         bezier->p2 = v2f32(
-            ((bezier->p2.x - (F32) glyph.x_min)  * x_scale + (F32) padding) / (F32) render_size,
-            (((F32) glyph.y_max  - bezier->p2.y) * y_scale + (F32) padding) / (F32) render_size
+            ((bezier->p2.x - (F32) glyph.min.x)  * x_scale + (F32) padding) / (F32) render_size,
+            (((F32) glyph.max.y  - bezier->p2.y) * y_scale + (F32) padding) / (F32) render_size
         );
 
         V2F32 min = v2f32_min(v2f32_min(bezier->p0, bezier->p1), bezier->p2);

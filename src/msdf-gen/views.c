@@ -59,11 +59,11 @@ internal UI_BOX_DRAW_FUNCTION(draw_ui_glyph_outline) {
     MSDF_Glyph glyph = ttf_expand_contours_to_msdf(scratch.arena, parameters->font, glyph_index);
 
     V2F32 box_size = v2f32_subtract(box->calculated_rectangle.max, box->calculated_rectangle.min);
-    V2F32 glyph_size = v2f32((F32) (glyph.x_max - glyph.x_min), (F32) (glyph.y_max - glyph.y_min));
+    V2F32 glyph_size = v2f32((F32) (glyph.max.x - glyph.min.x), (F32) (glyph.max.y - glyph.min.y));
 
     M3F32 center_glyph = m3f32_translation(v2f32(
-        (F32) -glyph.x_min - glyph_size.x / 2.0f,
-        (F32) -glyph.y_min - glyph_size.y / 2.0f
+        (F32) -glyph.min.x - glyph_size.x / 2.0f,
+        (F32) -glyph.min.y - glyph_size.y / 2.0f
     ));
 
     F32 point_size = 5.0f;

@@ -799,10 +799,10 @@ internal MSDF_Glyph ttf_expand_contours_to_msdf(Arena *arena, TTF_Font *font, U3
         os_console_print(str8_join(scratch.arena, &glyph.errors));
     }
 
-    result.x_min = glyph.x_min;
-    result.y_min = glyph.y_min;
-    result.x_max = glyph.x_max;
-    result.y_max = glyph.y_max;
+    result.min.x = glyph.x_min;
+    result.min.y = glyph.y_min;
+    result.max.x = glyph.x_max;
+    result.max.y = glyph.y_max;
 
     for (U32 contour_index = 0, point_index = 0; contour_index < glyph.contour_count; ++contour_index) {
         MSDF_Contour *contour = arena_push_struct_zero(arena, MSDF_Contour);

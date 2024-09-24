@@ -57,10 +57,8 @@ struct MSDF_Glyph {
     MSDF_Contour *first_contour;
     MSDF_Contour *last_contour;
 
-    S32 x_min;
-    S32 y_min;
-    S32 x_max;
-    S32 y_max;
+    V2S32 min;
+    V2S32 max;
 };
 
 typedef struct {
