@@ -614,27 +614,19 @@ internal Void msdf_correct_contour_orientation(MSDF_Glyph *glyph) {
         next = contour->next;
 
         if (contour->flags & MSDF_ContourFlag_Flip) {
-            MSDF_Segment *first_segment = 0;
-            MSDF_Segment *last_segment  = 0;
+            // Flip all links and points for all segments.
+            for (MSDF_Segment *segment = contour->first_segment, *next_segment = 0; segment; segment = next_segment) {
+                next_segment = segment->next;
 
-            for (MSDF_Segment *segment = contour->last_segment, *previous; segment; segment = previous) {
-                previous = segment->previous;
-
+                swap(segment->next, segment->previous, MSDF_Segment *);
                 if (segment->kind == MSDF_Segment_Line) {
-                    V2F32 temp = segment->p0;
-                    segment->p0 = segment->p1;
-                    segment->p1 = temp;
+                    swap(segment->p0, segment->p1, V2F32);
                 } else if (segment->kind == MSDF_Segment_QuadraticBezier) {
-                    V2F32 temp = segment->p0;
-                    segment->p0 = segment->p2;
-                    segment->p2 = temp;
+                    swap(segment->p0, segment->p2, V2F32);
                 }
-
-                dll_push_back(first_segment, last_segment, segment);
             }
 
-            contour->first_segment = first_segment;
-            contour->last_segment  = last_segment;
+            swap(contour->first_segment, contour->last_segment, MSDF_Segment *);
         }
 
         if (contour->flags & MSDF_ContourFlag_Keep) {
