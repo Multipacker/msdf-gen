@@ -176,7 +176,7 @@ internal Glyph *font_get_glyph(Font *font, U32 codepoint) {
         render_texture_update(font->atlas, atlas_position, v2u32(font->glyph_size, font->glyph_size), raster_result.data);
 
         // This adjustment increases the size of glyphs to acount for the
-        // UVs needing to include a 1/2 texel border for rendering. This
+        // source needing to include a 1/2 texel border for rendering. This
         // makes sure that the glyphs have the same visual size.
         F32 scale = ((F32) font->glyph_size - 1.0f) / ((F32) font->glyph_size - 2.0f) - 1.0f;
         V2F32 adjustment = v2f32_scale(v2f32_subtract(raster_result.max, raster_result.min), 0.5f * scale);
@@ -185,12 +185,12 @@ internal Glyph *font_get_glyph(Font *font, U32 codepoint) {
         result->min_pt = v2f32_subtract(raster_result.min, adjustment);
         result->max_pt = v2f32_add(raster_result.max, adjustment);
         result->uv_min = v2f32(
-            ((F32) atlas_position.x + 0.5f) / (F32) font->atlas_size,
-            ((F32) atlas_position.y + 0.5f) / (F32) font->atlas_size
+            (F32) atlas_position.x + 0.5f,
+            (F32) atlas_position.y + 0.5f
         );
         result->uv_max = v2f32(
-            ((F32) atlas_position.x + (F32) font->glyph_size - 0.5f) / (F32) font->atlas_size,
-            ((F32) atlas_position.y + (F32) font->glyph_size - 0.5f) / (F32) font->atlas_size
+            (F32) atlas_position.x + (F32) font->glyph_size - 0.5f,
+            (F32) atlas_position.y + (F32) font->glyph_size - 0.5f
         );
 
         dll_push_back(glyphs->first, glyphs->last, result);
@@ -238,7 +238,7 @@ internal Void draw_text(FontCache_Font *font, V2F32 origin, Str8 string, U32 siz
                 origin.x + letter->offset.x + advance + letter->size.x,
                 origin.y + letter->offset.y + letter->size.y
             ),
-            letter->uvs,
+            letter->source,
             letter->texture,
             v4f32(1.0f, 1.0f, 1.0f, 1.0f)
         );
@@ -280,7 +280,7 @@ internal Void draw_ui(UI_Box *root) {
                         f32_floor(origin.x + letter->offset.x + advance + letter->size.x),
                         f32_floor(origin.y + letter->offset.y + letter->size.y)
                     ),
-                    letter->uvs,
+                    letter->source,
                     letter->texture,
                     box->text_color
                 );

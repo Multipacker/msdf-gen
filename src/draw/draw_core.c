@@ -95,7 +95,7 @@ internal Render_Shape *draw_circle(V2F32 center, F32 radius, V4F32 color, F32 th
     return result;
 }
 
-internal Render_Shape *draw_texture(R2F32 rectangle, R2F32 uvs, Render_Texture texture, V4F32 color, F32 radius, F32 thickness, F32 softness, Render_ShapeFlags flags) {
+internal Render_Shape *draw_texture(R2F32 rectangle, R2F32 source, Render_Texture texture, V4F32 color, F32 radius, F32 thickness, F32 softness, Render_ShapeFlags flags) {
     Draw_Context *draw = &global_draw_context;
 
     Render_Batch *batch = draw->batches.last;
@@ -115,7 +115,7 @@ internal Render_Shape *draw_texture(R2F32 rectangle, R2F32 uvs, Render_Texture t
     Render_Shape *result = render_shape_list_push(draw->arena, &batch->shapes);
 
     result->position  = rectangle;
-    result->uvs       = uvs;
+    result->source    = source;
     result->colors[0] = color;
     result->colors[1] = color;
     result->colors[2] = color;
@@ -131,18 +131,18 @@ internal Render_Shape *draw_texture(R2F32 rectangle, R2F32 uvs, Render_Texture t
     return result;
 }
 
-internal Render_Shape *draw_image(R2F32 rectangle, R2F32 uvs, Render_Texture texture, V4F32 color, F32 radius, F32 thickness, F32 softness) {
-    Render_Shape *result = draw_texture(rectangle, uvs, texture, color, radius, thickness, softness, Render_ShapeFlag_Texture);
+internal Render_Shape *draw_image(R2F32 rectangle, R2F32 source, Render_Texture texture, V4F32 color, F32 radius, F32 thickness, F32 softness) {
+    Render_Shape *result = draw_texture(rectangle, source, texture, color, radius, thickness, softness, Render_ShapeFlag_Texture);
     return result;
 }
 
-internal Render_Shape *draw_glyph(R2F32 rectangle, R2F32 uvs, Render_Texture atlas, V4F32 color) {
-    Render_Shape *result = draw_texture(rectangle, uvs, atlas, color, 0.0f, 0.0f, 0.0f, Render_ShapeFlag_AlphaMask);
+internal Render_Shape *draw_glyph(R2F32 rectangle, R2F32 source, Render_Texture atlas, V4F32 color) {
+    Render_Shape *result = draw_texture(rectangle, source, atlas, color, 0.0f, 0.0f, 0.0f, Render_ShapeFlag_AlphaMask);
     return result;
 }
 
-internal Render_Shape *draw_msdf(R2F32 rectangle, R2F32 uvs, Render_Texture atlas, V4F32 color) {
-    Render_Shape *result = draw_texture(rectangle, uvs, atlas, color, 0.0f, 0.0f, 0.0f, Render_ShapeFlag_MSDF);
+internal Render_Shape *draw_msdf(R2F32 rectangle, R2F32 source, Render_Texture atlas, V4F32 color) {
+    Render_Shape *result = draw_texture(rectangle, source, atlas, color, 0.0f, 0.0f, 0.0f, Render_ShapeFlag_MSDF);
     return result;
 }
 

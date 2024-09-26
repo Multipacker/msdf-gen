@@ -59,11 +59,11 @@ internal Void draw_begin_frame(Void);
 internal Void draw_submit(Void);
 
 internal Render_Shape *draw_rectangle(R2F32 rectangle, V4F32 color, F32 radius, F32 thickness, F32 softness);
-internal Render_Shape *draw_texture(R2F32 rectangle, R2F32 uvs, Render_Texture texture, V4F32 color, F32 radius, F32 thickness, F32 softness, Render_ShapeFlags flags);
+internal Render_Shape *draw_texture(R2F32 rectangle, R2F32 source, Render_Texture texture, V4F32 color, F32 radius, F32 thickness, F32 softness, Render_ShapeFlags flags);
 
-internal Render_Shape *draw_image(R2F32 rectangle, R2F32 uvs, Render_Texture texture, V4F32 color, F32 radius, F32 thickness, F32 softness);
-internal Render_Shape *draw_glyph(R2F32 rectangle, R2F32 uvs, Render_Texture atlas, V4F32 color);
-internal Render_Shape *draw_msdf(R2F32 rectangle, R2F32 uvs, Render_Texture atlas, V4F32 color);
+internal Render_Shape *draw_image(R2F32 rectangle, R2F32 source, Render_Texture texture, V4F32 color, F32 radius, F32 thickness, F32 softness);
+internal Render_Shape *draw_glyph(R2F32 rectangle, R2F32 source, Render_Texture atlas, V4F32 color);
+internal Render_Shape *draw_msdf(R2F32 rectangle, R2F32 source, Render_Texture atlas, V4F32 color);
 
 internal Render_Shape *draw_line(V2F32 p0, V2F32 p1, V4F32 color, F32 radius, F32 thickness, F32 softness);
 internal Void          draw_bezier(V2F32 p0, V2F32 p1, V2F32 p2, V4F32 color, F32 radius, F32 thickness, F32 softness);

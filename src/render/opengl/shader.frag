@@ -8,7 +8,7 @@
 layout(origin_upper_left) in vec4 gl_FragCoord;
 
 in      vec4  vert_color;
-in      vec2  vert_uv;
+in      vec2  vert_source;
 in flat uint  vert_flags;
 in flat float vert_thickness;
 in flat float vert_softness;
@@ -36,16 +36,16 @@ void main() {
     float alpha = 1.0f;
 
     if ((vert_flags & Render_ShapeFlag_Texture) != 0) {
-        texture_sample = vec4(texture(uniform_sampler, vert_uv).rgb, 1.0);
+        texture_sample = vec4(texture(uniform_sampler, vert_source / textureSize(uniform_sampler, 0)).rgb, 1.0);
     }
 
     if ((vert_flags & Render_ShapeFlag_MSDF) != 0) {
-        vec4 msdf_sample = texture(uniform_sampler, vert_uv);
+        vec4 msdf_sample = texture(uniform_sampler, vert_source / textureSize(uniform_sampler, 0));
         float distance = median_of_3(msdf_sample.r, msdf_sample.g, msdf_sample.b) - 0.5;
 
         alpha = clamp(distance / fwidth(distance) + 0.5, 0.0, 1.0);
     } else if ((vert_flags & Render_ShapeFlag_AlphaMask) != 0) {
-        alpha = texture(uniform_sampler, vert_uv).r;
+        alpha = texture(uniform_sampler, vert_source / textureSize(uniform_sampler, 0)).r;
     } else {
         int   corner_index = int(0.5 * sign(vert_position.x) + sign(vert_position.y) + 1.5);
         float outer_radius = vert_radies[corner_index];

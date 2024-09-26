@@ -251,11 +251,11 @@ internal FontCache_Text font_cache_text(Arena *arena, FontCache_Font *font, Str8
             glyph->codepoint  = decode.codepoint;
             glyph->point_size = size;
             glyph->region     = font_cache_atlas_allocate(state->arena, selected_atlas, raster_result.size);
-            glyph->uvs        = r2f32(
-                (F32) glyph->region.min.x / (F32) atlas_size.x,
-                (F32) glyph->region.min.y / (F32) atlas_size.y,
-                (F32) (glyph->region.min.x + raster_result.size.x) / (F32) atlas_size.x,
-                (F32) (glyph->region.min.y + raster_result.size.y) / (F32) atlas_size.y
+            glyph->source     = r2f32(
+                (F32) glyph->region.min.x,
+                (F32) glyph->region.min.y,
+                (F32) (glyph->region.min.x + raster_result.size.x),
+                (F32) (glyph->region.min.y + raster_result.size.y)
             );
             glyph->texture           = selected_atlas->texture;
             glyph->offset            = v2f32((F32) raster_result.left_side_bearing, (F32) raster_result.min.y);
@@ -273,7 +273,7 @@ internal FontCache_Text font_cache_text(Arena *arena, FontCache_Font *font, Str8
         letter->texture = glyph->texture;
         letter->offset  = glyph->offset;
         letter->size    = glyph->size;
-        letter->uvs     = glyph->uvs;
+        letter->source  = glyph->source;
         letter->advance = glyph->advance_width;
 
         result.size.width += glyph->advance_width;

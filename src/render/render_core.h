@@ -21,7 +21,7 @@ typedef enum {
 typedef struct Render_Shape Render_Shape;
 struct Render_Shape {
     R2F32 position;
-    R2F32 uvs;
+    R2F32 source;
     V4F32 colors[4];
     F32   radies[4];
     F32   thickness;

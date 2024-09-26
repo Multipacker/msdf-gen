@@ -51,7 +51,7 @@ struct FontCache_Glyph {
     U32 point_size;
 
     R2U32 region;
-    R2F32 uvs;
+    R2F32 source;
     Render_Texture texture;
 
     V2F32 offset;
@@ -84,7 +84,7 @@ struct FontCache_Letter {
     Render_Texture texture;
     V2F32          offset;
     V2F32          size;
-    R2F32          uvs;
+    R2F32          source;
     F32            advance;
 };
 

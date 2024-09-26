@@ -7,14 +7,14 @@
 
 layout(location = 0) in vec4  instance_position;
 layout(location = 1) in mat4  instance_colors;
-layout(location = 5) in vec4  instance_uvs;
+layout(location = 5) in vec4  instance_source;
 layout(location = 6) in uint  instance_flags;
 layout(location = 7) in float instance_thickness;
 layout(location = 8) in float instance_softness;
 layout(location = 9) in vec4  instance_radies;
 
 out      vec4  vert_color;
-out      vec2  vert_uv;
+out      vec2  vert_source;
 out flat uint  vert_flags;
 out flat float vert_thickness;
 out flat float vert_softness;
@@ -62,18 +62,18 @@ void main() {
         position  = center + half_size * verticies[gl_VertexID];
     }
 
-    vec2 uv_min = instance_uvs.xy;
-    vec2 uv_max = instance_uvs.zw;
+    vec2 source_min = instance_source.xy;
+    vec2 source_max = instance_source.zw;
 
-    vec2 uv_center    = 0.5 * (uv_max + uv_min);
-    vec2 uv_half_size = 0.5 * (uv_max - uv_min);
-    vec2 uv           = uv_center + uv_half_size * verticies[gl_VertexID];
+    vec2 source_center    = 0.5 * (source_max + source_min);
+    vec2 source_half_size = 0.5 * (source_max - source_min);
+    vec2 source           = source_center + source_half_size * verticies[gl_VertexID];
 
     vec2 transformed_position = (uniform_transform * vec3(position, 1.0f)).xy;
 
     gl_Position    = uniform_projection * vec4(transformed_position, 0.0, 1.0);
     vert_color     = instance_colors[gl_VertexID];
-    vert_uv        = uv;
+    vert_source    = source;
     vert_flags     = instance_flags;
     vert_thickness = instance_thickness;
     vert_softness  = instance_softness;
