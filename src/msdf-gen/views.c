@@ -30,7 +30,7 @@ internal UI_BOX_DRAW_FUNCTION(draw_ui_msdf) {
         r2f32(min_pt.x, min_pt.y, max_pt.x, max_pt.y),
         (R2F32) { glyph->uv_min, glyph->uv_max, },
         ui_draw_msdf->font->atlas,
-        v4f32(1.0f, 1.0f, 1.0f, 1.0f),
+        box->text_color,
         0.0f, 0.0f, 0.0f,
         ui_draw_msdf->render_raw ? Render_ShapeFlag_Texture : Render_ShapeFlag_MSDF
     );
@@ -93,14 +93,25 @@ internal UI_BOX_DRAW_FUNCTION(draw_ui_glyph_outline) {
             V2F32 min_pt = m3f32_multiply_v2f32(msdf_transform, msdf_glyph->min_pt);
             V2F32 max_pt = m3f32_multiply_v2f32(msdf_transform, msdf_glyph->max_pt);
 
-            draw_texture(
-                r2f32(min_pt.x, min_pt.y, max_pt.x, max_pt.y),
-                (R2F32) { msdf_glyph->uv_min, msdf_glyph->uv_max, },
-                parameters->msdf_font->atlas,
-                v4f32(1.0f, 1.0f, 1.0f, 1.0f),
-                0.0f, 0.0f, 0.0f,
-                parameters->flags & UIDrawGlyphOutline_Flag_DrawMSDF ? Render_ShapeFlag_MSDF : Render_ShapeFlag_Texture
-            );
+            if (parameters->flags & UIDrawGlyphOutline_Flag_DrawMSDF) {
+                draw_texture(
+                    r2f32(min_pt.x, min_pt.y, max_pt.x, max_pt.y),
+                    (R2F32) { msdf_glyph->uv_min, msdf_glyph->uv_max, },
+                    parameters->msdf_font->atlas,
+                    box->text_color,
+                    0.0f, 0.0f, 0.0f,
+                    Render_ShapeFlag_MSDF
+                );
+            } else {
+                draw_texture(
+                    r2f32(min_pt.x, min_pt.y, max_pt.x, max_pt.y),
+                    (R2F32) { msdf_glyph->uv_min, msdf_glyph->uv_max, },
+                    parameters->msdf_font->atlas,
+                    v4f32(1.0f, 1.0f, 1.0f, 1.0f),
+                    0.0f, 0.0f, 0.0f,
+                    Render_ShapeFlag_Texture
+                );
+            }
         }
 
         if (parameters->flags & (UIDrawGlyphOutline_Flag_DrawOutline | UIDrawGlyphOutline_Flag_DrawPoints)) {
@@ -267,6 +278,7 @@ PANEL_BUILD_FUNCTION(view_glyph_list) {
         ui_row() {
             ui_width(ui_size_pixels(width, 1.0f))
             ui_height(ui_size_parent_percent(1.0f, 1.0f))
+            ui_text_color(theme->text_color)
             ui_draw_function(draw_ui_msdf)
             ui_draw_data(draw_msdf)
             ui_hover_cursor(Gfx_Cursor_Hand)
@@ -335,6 +347,7 @@ PANEL_BUILD_FUNCTION(view_glyph) {
         ui_border_color(theme->border_color) {
             ui_width_next(ui_size_parent_percent(1.0f, 0.0f));
             ui_height_next(ui_size_parent_percent(1.0f, 0.0f));
+            ui_text_color_next(theme->text_color);
             ui_draw_function_next(draw_ui_glyph_outline);
             UIDrawGlyphOutline *glyph_outline = arena_push_struct_zero(ui_frame_arena(), UIDrawGlyphOutline);
             glyph_outline->font = global_state->ttf_font;
