@@ -58,8 +58,7 @@ struct Glyph {
     V2F32 min_pt;
     V2F32 max_pt;
     F32   advance_pt;
-    V2F32 uv_min;
-    V2F32 uv_max;
+    R2F32 uv;
 };
 
 global Glyph global_glyph_null = { 0 };
@@ -198,11 +197,9 @@ internal Glyph *font_get_glyph(Font *font, U32 codepoint) {
         result->advance_pt = raster_result.advance_width;
         result->min_pt = v2f32_subtract(raster_result.min, adjustment);
         result->max_pt = v2f32_add(raster_result.max, adjustment);
-        result->uv_min = v2f32(
+        result->uv = r2f32(
             (F32) atlas_position.x + 0.5f,
-            (F32) atlas_position.y + 0.5f
-        );
-        result->uv_max = v2f32(
+            (F32) atlas_position.y + 0.5f,
             (F32) atlas_position.x + (F32) font->glyph_size - 0.5f,
             (F32) atlas_position.y + (F32) font->glyph_size - 0.5f
         );
@@ -229,7 +226,7 @@ internal Void draw_text_msdf(Font *font, V2F32 position, F32 point_size, Str8 te
                 text_point.x + glyph->max_pt.x * point_size,
                 text_point.y + glyph->max_pt.y * point_size
             ),
-            (R2F32) { glyph->uv_min, glyph->uv_max, },
+            glyph->uv,
             font->atlas,
             v4f32(1.0f, 1.0f, 1.0f, 1.0f)
         );

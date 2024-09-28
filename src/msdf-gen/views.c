@@ -28,7 +28,7 @@ internal UI_BOX_DRAW_FUNCTION(draw_ui_msdf) {
 
     draw_texture(
         r2f32(min_pt.x, min_pt.y, max_pt.x, max_pt.y),
-        (R2F32) { glyph->uv_min, glyph->uv_max, },
+        glyph->uv,
         ui_draw_msdf->font->atlas,
         box->text_color,
         0.0f, 0.0f, 0.0f,
@@ -96,7 +96,7 @@ internal UI_BOX_DRAW_FUNCTION(draw_ui_glyph_outline) {
             if (parameters->flags & UIDrawGlyphOutline_Flag_DrawMSDF) {
                 draw_texture(
                     r2f32(min_pt.x, min_pt.y, max_pt.x, max_pt.y),
-                    (R2F32) { msdf_glyph->uv_min, msdf_glyph->uv_max, },
+                    msdf_glyph->uv,
                     parameters->msdf_font->atlas,
                     box->text_color,
                     0.0f, 0.0f, 0.0f,
@@ -105,7 +105,7 @@ internal UI_BOX_DRAW_FUNCTION(draw_ui_glyph_outline) {
             } else {
                 draw_texture(
                     r2f32(min_pt.x, min_pt.y, max_pt.x, max_pt.y),
-                    (R2F32) { msdf_glyph->uv_min, msdf_glyph->uv_max, },
+                    msdf_glyph->uv,
                     parameters->msdf_font->atlas,
                     v4f32(1.0f, 1.0f, 1.0f, 1.0f),
                     0.0f, 0.0f, 0.0f,
