@@ -313,12 +313,12 @@ internal Void draw_ui(UI_Box *root) {
                 draw_clip_pop();
             }
 
-            if (box->flags & UI_BoxFlag_DrawBorder) {
-                draw_rectangle(box->calculated_rectangle, box->border_color, 0.0f, 1.0f, 1.0f);
+            if (parent->flags & UI_BoxFlag_DrawBorder) {
+                draw_rectangle(parent->calculated_rectangle, parent->border_color, 0.0f, 1.0f, 1.0f);
             }
 
-            if (box->flags & UI_BoxFlag_Disabled) {
-                draw_rectangle(box->calculated_rectangle, v4f32(0.2f, 0.2f, 0.2f, 0.75f), 0.0f, 0.0f, 0.0f);
+            if (parent->flags & UI_BoxFlag_Disabled) {
+                draw_rectangle(parent->calculated_rectangle, v4f32(0.2f, 0.2f, 0.2f, 0.75f), 0.0f, 0.0f, 0.0f);
             }
         }
 
