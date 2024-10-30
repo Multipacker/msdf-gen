@@ -90,6 +90,15 @@ typedef struct Panel Panel;
 #define PANEL_BUILD_FUNCTION(name) Void name(Panel *panel, Theme *theme, R2F32 panel_rectangle)
 typedef PANEL_BUILD_FUNCTION(PanelBuildFunction);
 
+typedef struct Tab Tab;
+struct Tab {
+    Tab *next;
+    Tab *previous;
+
+    Str8 name;
+    Arena *arena;
+};
+
 struct Panel {
     Panel *next;
     Panel *previous;
@@ -98,6 +107,9 @@ struct Panel {
     Panel *parent;
     F32    percentage_of_parent;
     Axis2  split_axis;
+
+    Tab *tab_first;
+    Tab *tab_last;
 
     Arena *arena;
     Void  *view_state;
@@ -119,6 +131,8 @@ struct State {
 
     Panel *panel_root;
     Panel *panel_freelist;
+
+    Tab *tab_freelist;
 
     Font *font;
     TTF_Font *ttf_font;
@@ -361,7 +375,7 @@ internal Void update(Void) {
     Theme *theme = &global_themes[1];
 
     // NOTE(simon): 14 pts * 96 pixels per inch / 72 points per inch
-    ui_font_size_push((U32) (14.0f * 96.0f / 72.0f));
+    ui_font_size_push((U32) (11.0f * 96.0f / 72.0f));
 
     R2F32 root_rectangle = r2f32(0.0f, 0.0f, (F32) client_area.x, (F32) client_area.y);
     F32 panel_pad = 2.0f;
@@ -431,17 +445,78 @@ internal Void update(Void) {
         R2F32 panel_rectangle = r2f32_pad(rectangle_from_panel(panel, root_rectangle), -panel_pad);
 
         if (!panel->first) {
-            ui_fixed_position_next(panel_rectangle.min);
-            ui_width_next(ui_size_pixels(r2f32_size(panel_rectangle).width, 1.0f));
-            ui_height_next(ui_size_pixels(r2f32_size(panel_rectangle).height, 1.0f));
-            UI_Box *panel_box = ui_create_box_from_string_format(
+            UI_Size tab_height = ui_size_ems(1.5f, 1.0f);
+            R2F32 tab_bar_rectangle = r2f32(panel_rectangle.min.x, panel_rectangle.min.y, panel_rectangle.max.x, panel_rectangle.min.y + tab_height.value);
+            R2F32 content_rectangle = r2f32(panel_rectangle.min.x, panel_rectangle.min.y + tab_height.value, panel_rectangle.max.x, panel_rectangle.max.y);
+
+            ui_fixed_position_next(tab_bar_rectangle.min);
+            ui_width_next(ui_size_pixels(r2f32_size(tab_bar_rectangle).width, 1.0f));
+            ui_height_next(ui_size_pixels(r2f32_size(tab_bar_rectangle).height, 1.0f));
+            ui_layout_axis_next(Axis2_X);
+            UI_Box *tab_bar_box = ui_create_box_from_string_format(
+                UI_BoxFlag_DrawBackground | UI_BoxFlag_Clickable | UI_BoxFlag_FloatingPosition | UI_BoxFlag_OverflowX | UI_BoxFlag_Clip,
+                "###tab_bar_box_%p", panel
+            );
+
+            ui_color(theme->element_color)
+            ui_border_color(theme->border_color)
+            ui_width(ui_size_children_sum(1.0f))
+            ui_height(tab_height)
+            ui_layout_axis(Axis2_X)
+            ui_parent(tab_bar_box) {
+                for (Tab *tab = panel->tab_first; tab; tab = tab->next) {
+                    ui_hover_cursor_next(Gfx_Cursor_Hand);
+                    UI_Box *tab_box = ui_create_box_from_string_format(
+                        UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawBorder | UI_BoxFlag_Clickable | UI_BoxFlag_DrawHot | UI_BoxFlag_DrawActive,
+                        "###tab_%p", tab
+                    );
+
+                    ui_parent(tab_box) {
+                        ui_text_align_next(UI_TextAlign_Left);
+                        ui_width_next(ui_size_text_content(5.0f, 1.0f));
+                        ui_label(tab->name);
+
+                        ui_width_next(ui_size_ems(1.5f, 1.0f));
+                        ui_text_align_next(UI_TextAlign_Center);
+                        ui_hover_cursor_next(Gfx_Cursor_Hand);
+                        UI_Box *close_box = ui_create_box_from_string_format(
+                            UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawText |
+                            UI_BoxFlag_DrawHot | UI_BoxFlag_DrawActive |
+                            UI_BoxFlag_Clickable,
+                            "X##_tab_%p", tab
+                        );
+                        UI_Input close_input = ui_input_from_box(close_box);
+                    }
+
+                    UI_Input input = ui_input_from_box(tab_box);
+
+                    if (input.input_flags & UI_InputFlag_Hovering) {
+                        ui_tooltip() {
+                            ui_color_next(theme->border_color);
+                            ui_extra_box_flags_next(UI_BoxFlag_DrawBackground);
+                            ui_width_next(ui_size_text_content(5.0f, 1.0f));
+                            ui_height_next(ui_size_text_content(0.0f, 1.0f));
+                            ui_label(tab->name);
+                        }
+                    }
+
+                    if (tab->next) {
+                        ui_spacer_sized(ui_size_pixels(5.0f, 1.0f));
+                    }
+                }
+            }
+
+            ui_fixed_position_next(content_rectangle.min);
+            ui_width_next(ui_size_pixels(r2f32_size(content_rectangle).width, 1.0f));
+            ui_height_next(ui_size_pixels(r2f32_size(content_rectangle).height, 1.0f));
+            UI_Box *content_box = ui_create_box_from_string_format(
                 UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawBorder | UI_BoxFlag_Clickable | UI_BoxFlag_FloatingPosition | UI_BoxFlag_Clip,
                 "###panel_box_%p", panel
             );
 
-            ui_parent(panel_box) {
+            ui_parent(content_box) {
                 if (panel->build_view) {
-                    panel->build_view(panel, theme, panel_rectangle);
+                    panel->build_view(panel, theme, content_rectangle);
                 } else {
                     // TODO(simon): Empty panel UI.
                 }
@@ -497,6 +572,13 @@ internal S32 os_run(Str8List arguments) {
         left->parent = right->parent = state->panel_root;
         dll_push_back(state->panel_root->first, state->panel_root->last, left);
         dll_push_back(state->panel_root->first, state->panel_root->last, right);
+
+        for (U32 i = 0; i < 10; ++i) {
+            Arena_Temporary scratch = arena_get_scratch(0, 0);
+            Tab *tab = tab_create(state, str8_format(scratch. arena, "Test tab %u", i));
+            dll_push_back(left->tab_first, left->tab_last, tab);
+            arena_end_temporary(scratch);
+        }
 
         Panel *top    = panel_create(state, view_glyph);
         Panel *bottom = panel_create(state, view_stats);

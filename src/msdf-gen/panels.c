@@ -1,3 +1,24 @@
+internal Tab *tab_create(State *state, Str8 name) {
+    Tab *tab = state->tab_freelist;
+    if (tab) {
+        sll_stack_pop(state->tab_freelist);
+    } else {
+        tab = arena_push_struct_zero(state->arena, Tab);
+    }
+
+    memory_zero_struct(tab);
+
+    tab->arena = arena_create();
+    tab->name  = str8_copy(tab->arena, name);
+
+    return tab;
+}
+
+internal Void tab_free(State *state, Tab *tab) {
+    arena_destroy(tab->arena);
+    sll_stack_push(state->tab_freelist, tab);
+}
+
 internal Panel *panel_create(State *state, PanelBuildFunction *build_view) {
     Panel *panel = state->panel_freelist;
     if (panel) {
