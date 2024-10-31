@@ -87,7 +87,17 @@ struct Font {
 typedef struct Panel Panel;
 typedef struct Tab Tab;
 
+#define PANEL_BUILD_FUNCTION(name) Void name(Panel *panel, Theme *theme, R2F32 panel_rectangle)
+typedef PANEL_BUILD_FUNCTION(PanelBuildFunction);
+
+typedef struct {
+    Str8 name;
+    Str8 display_name;
+    PanelBuildFunction *build;
+} TabSpecification;
+
 typedef enum {
+    Command_OpenTab,
     Command_CloseTab,
 } CommandKind;
 
@@ -95,6 +105,7 @@ typedef struct {
     CommandKind kind;
     Tab   *tab;
     Panel *panel;
+    Str8   tab_specification;
 } Command;
 
 typedef struct CommandNode CommandNode;
@@ -107,9 +118,6 @@ typedef struct {
     CommandNode *first;
     CommandNode *last;
 } CommandList;
-
-#define PANEL_BUILD_FUNCTION(name) Void name(Panel *panel, Theme *theme, R2F32 panel_rectangle)
-typedef PANEL_BUILD_FUNCTION(PanelBuildFunction);
 
 struct Tab {
     Tab *next;
@@ -143,6 +151,8 @@ struct PanelIterator {
     U32 pop_count;
 };
 
+#include "views.h"
+
 typedef struct State State;
 struct State {
     Arena *arena;
@@ -153,6 +163,8 @@ struct State {
     Panel *panel_freelist;
 
     Tab *tab_freelist;
+
+    Panel *active_panel;
 
     Font *font;
     TTF_Font *ttf_font;
@@ -378,9 +390,35 @@ internal Void draw_ui(UI_Box *root) {
 internal Void update(Void) {
     State *state = global_state;
 
+    Arena_Temporary scratch = arena_get_scratch(0, 0);
+    Gfx_EventList events = gfx_get_events(scratch.arena);
+
+    for (Gfx_Event *event = events.first, *next; event; event = next) {
+        next = event->next;
+        B32 consume = false;;
+
+        if (event->kind == Gfx_EventKind_KeyPress && event->key == Gfx_Key_T && (event->key_modifiers & Gfx_KeyModifier_Control)) {
+            consume = true;
+
+            Command *command = push_command(Command_OpenTab);
+            command->panel = state->active_panel;
+            command->tab_specification = str8_literal("RenderStats");
+        }
+
+        if (consume) {
+            dll_remove(events.first, events.last, event);
+        }
+    }
+
     // NOTE(simon): Execute commands
     for (CommandNode *node = state->commands.first; node; node = node->next) {
         switch (node->command.kind) {
+            case Command_OpenTab: {
+                TabSpecification *tab_spec = tab_specification_from_string(node->command.tab_specification);
+                Tab *tab = tab_create(state, tab_spec->display_name);
+                Panel *panel = node->command.panel;
+                dll_push_back(panel->tab_first, panel->tab_last, tab);
+            } break;
             case Command_CloseTab: {
                 panel_remove_tab(state, node->command.panel, node->command.tab);
                 tab_free(state, node->command.tab);
@@ -405,9 +443,6 @@ internal Void update(Void) {
         global_themes[1].border_color     = color_from_srgba_u32(0x495057FF); // OC Gray 7
         global_themes[1].text_color       = color_from_srgba_u32(0xF8F9FAFF); // OC Gray 0
     }
-
-    Arena_Temporary scratch = arena_get_scratch(0, 0);
-    Gfx_EventList events = gfx_get_events(scratch.arena);
 
     V2U32 client_area = gfx_get_window_client_area();
     render_begin(client_area);
@@ -620,6 +655,9 @@ internal S32 os_run(Str8List arguments) {
         left->parent = right->parent = state->panel_root;
         dll_push_back(state->panel_root->first, state->panel_root->last, left);
         dll_push_back(state->panel_root->first, state->panel_root->last, right);
+
+        // TODO(simon): This should be updated when the user navigates the interface
+        state->active_panel = left;
 
         for (U32 i = 0; i < 10; ++i) {
             Arena_Temporary scratch = arena_get_scratch(0, 0);

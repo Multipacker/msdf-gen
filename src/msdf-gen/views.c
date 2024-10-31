@@ -1,3 +1,22 @@
+TabKind tab_kind_from_string(Str8 string) {
+    TabKind result = Tab_Null;
+
+    for (TabKind kind = 0; kind < Tab_COUNT; ++kind) {
+        if (str8_equal(string, tab_specifications[kind].name)) {
+            result = kind;
+            break;
+        }
+    }
+
+    return result;
+}
+
+TabSpecification *tab_specification_from_string(Str8 string) {
+    TabKind tab_kind = tab_kind_from_string(string);
+    TabSpecification *result = &tab_specifications[tab_kind];
+    return result;
+}
+
 typedef struct UIDrawMSDF UIDrawMSDF;
 struct UIDrawMSDF {
     Font *font;
