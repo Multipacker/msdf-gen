@@ -85,11 +85,32 @@ struct Font {
 };
 
 typedef struct Panel Panel;
+typedef struct Tab Tab;
+
+typedef enum {
+    Command_CloseTab,
+} CommandKind;
+
+typedef struct {
+    CommandKind kind;
+    Tab   *tab;
+    Panel *panel;
+} Command;
+
+typedef struct CommandNode CommandNode;
+struct CommandNode {
+    CommandNode *next;
+    Command command;
+};
+
+typedef struct {
+    CommandNode *first;
+    CommandNode *last;
+} CommandList;
 
 #define PANEL_BUILD_FUNCTION(name) Void name(Panel *panel, Theme *theme, R2F32 panel_rectangle)
 typedef PANEL_BUILD_FUNCTION(PanelBuildFunction);
 
-typedef struct Tab Tab;
 struct Tab {
     Tab *next;
     Tab *previous;
@@ -137,9 +158,21 @@ struct State {
     TTF_Font *ttf_font;
     U32 selected_codepoint;
     B32 running;
+
+    Arena *command_arena;
+    CommandList commands;
 };
 
 global State *global_state;
+
+internal Command *push_command(CommandKind kind) {
+    State *state = global_state;
+
+    CommandNode *node = arena_push_struct_zero(state->command_arena, CommandNode);
+    node->command.kind = kind;
+    sll_queue_push(state->commands.first, state->commands.last, node);
+    return &node->command;
+}
 
 internal Font *font_create(Str8 font_path, U32 glyph_size, U32 glyphs_per_row) {
     Arena *arena = arena_create();
@@ -343,6 +376,21 @@ internal Void draw_ui(UI_Box *root) {
 #include "views.c"
 
 internal Void update(Void) {
+    State *state = global_state;
+
+    // NOTE(simon): Execute commands
+    for (CommandNode *node = state->commands.first; node; node = node->next) {
+        switch (node->command.kind) {
+            case Command_CloseTab: {
+                panel_remove_tab(state, node->command.panel, node->command.tab);
+                tab_free(state, node->command.tab);
+            } break;
+        }
+    }
+    arena_reset(state->command_arena);
+    state->commands.first = 0;
+    state->commands.last = 0;
+
     // NOTE(simon): Themes
     {
         global_themes[0].name = str8_literal("Light theme");
@@ -357,8 +405,6 @@ internal Void update(Void) {
         global_themes[1].border_color     = color_from_srgba_u32(0x495057FF); // OC Gray 7
         global_themes[1].text_color       = color_from_srgba_u32(0xF8F9FAFF); // OC Gray 0
     }
-
-    State *state = global_state;
 
     Arena_Temporary scratch = arena_get_scratch(0, 0);
     Gfx_EventList events = gfx_get_events(scratch.arena);
@@ -464,7 +510,7 @@ internal Void update(Void) {
                 for (Tab *tab = panel->tab_first; tab; tab = tab->next) {
                     ui_hover_cursor_next(Gfx_Cursor_Hand);
                     UI_Box *tab_box = ui_create_box_from_string_format(
-                        UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawBorder | UI_BoxFlag_Clickable | UI_BoxFlag_DrawHot | UI_BoxFlag_DrawActive,
+                        UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawBorder | UI_BoxFlag_Clickable | UI_BoxFlag_DrawHot | UI_BoxFlag_DrawActive | UI_BoxFlag_AnimateX,
                         "###tab_%p", tab
                     );
 
@@ -483,6 +529,11 @@ internal Void update(Void) {
                             "X##_tab_%p", tab
                         );
                         UI_Input close_input = ui_input_from_box(close_box);
+                        if (close_input.input_flags & UI_InputFlag_LeftClicked) {
+                            Command *command = push_command(Command_CloseTab);
+                            command->tab   = tab;
+                            command->panel = panel;
+                        }
                     }
 
                     UI_Input input = ui_input_from_box(tab_box);
@@ -586,6 +637,9 @@ internal S32 os_run(Str8List arguments) {
         dll_push_back(right->first, right->last, bottom);
     }
     state->running = true;
+
+    state->command_arena = arena_create();
+
     global_state = state;
 
     gfx_create(str8_literal("MSDF-gen"), 1280, 720);

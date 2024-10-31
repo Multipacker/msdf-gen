@@ -1,3 +1,5 @@
+// NOTE(simon): Tab functions
+
 internal Tab *tab_create(State *state, Str8 name) {
     Tab *tab = state->tab_freelist;
     if (tab) {
@@ -18,6 +20,8 @@ internal Void tab_free(State *state, Tab *tab) {
     arena_destroy(tab->arena);
     sll_stack_push(state->tab_freelist, tab);
 }
+
+// NOTE(simon): Panel functions
 
 internal Panel *panel_create(State *state, PanelBuildFunction *build_view) {
     Panel *panel = state->panel_freelist;
@@ -102,4 +106,11 @@ internal R2F32 rectangle_from_panel(Panel *panel, R2F32 root_rectangle) {
 
     arena_end_temporary(scratch);
     return result;
+}
+
+// NOTE(simon): Panel-tab functions
+
+internal Void panel_remove_tab(State *state, Panel *panel, Tab *tab) {
+    dll_remove(panel->tab_first, panel->tab_last, tab);
+    tab_free(state, tab);
 }
