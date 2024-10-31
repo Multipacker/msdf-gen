@@ -112,5 +112,4 @@ internal R2F32 rectangle_from_panel(Panel *panel, R2F32 root_rectangle) {
 
 internal Void panel_remove_tab(State *state, Panel *panel, Tab *tab) {
     dll_remove(panel->tab_first, panel->tab_last, tab);
-    tab_free(state, tab);
 }
