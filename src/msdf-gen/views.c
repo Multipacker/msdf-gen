@@ -355,7 +355,7 @@ PANEL_BUILD_FUNCTION(view_glyph) {
         B32 render_raw;
     };
 
-    ViewState *state = (ViewState *) panel_get_state(panel, sizeof(ViewState));
+    ViewState *state = (ViewState *) tab_get_state(tab, sizeof(ViewState));
 
     ui_width(ui_size_parent_percent(1.0f, 1.0f))
     ui_height(ui_size_parent_percent(1.0f, 1.0f))

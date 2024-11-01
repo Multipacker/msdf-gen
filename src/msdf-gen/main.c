@@ -87,7 +87,7 @@ struct Font {
 typedef struct Panel Panel;
 typedef struct Tab Tab;
 
-#define PANEL_BUILD_FUNCTION(name) Void name(Panel *panel, Theme *theme, R2F32 panel_rectangle)
+#define PANEL_BUILD_FUNCTION(name) Void name(Tab *tab, Theme *theme, R2F32 panel_rectangle)
 typedef PANEL_BUILD_FUNCTION(PanelBuildFunction);
 
 typedef struct {
@@ -125,6 +125,8 @@ struct Tab {
 
     Str8 name;
     Arena *arena;
+    Void  *view_state;
+    PanelBuildFunction *build_view;
 };
 
 struct Panel {
@@ -138,10 +140,7 @@ struct Panel {
 
     Tab *tab_first;
     Tab *tab_last;
-
-    Arena *arena;
-    Void  *view_state;
-    PanelBuildFunction *build_view;
+    Tab *active_tab;
 };
 
 typedef struct PanelIterator PanelIterator;
@@ -395,7 +394,7 @@ internal Void update(Void) {
 
     for (Gfx_Event *event = events.first, *next; event; event = next) {
         next = event->next;
-        B32 consume = false;;
+        B32 consume = false;
 
         if (event->kind == Gfx_EventKind_KeyPress && event->key == Gfx_Key_T && (event->key_modifiers & Gfx_KeyModifier_Control)) {
             consume = true;
@@ -403,6 +402,12 @@ internal Void update(Void) {
             Command *command = push_command(Command_OpenTab);
             command->panel = state->active_panel;
             command->tab_specification = str8_literal("RenderStats");
+        } else if (event->kind == Gfx_EventKind_KeyPress && event->key == Gfx_Key_W && (event->key_modifiers & Gfx_KeyModifier_Control)) {
+            consume = true;
+
+            Command *command = push_command(Command_CloseTab);
+            command->panel = state->active_panel;
+            command->tab = state->active_panel->active_tab;
         }
 
         if (consume) {
@@ -416,8 +421,11 @@ internal Void update(Void) {
             case Command_OpenTab: {
                 TabSpecification *tab_spec = tab_specification_from_string(node->command.tab_specification);
                 Tab *tab = tab_create(state, tab_spec->display_name);
+                tab->build_view = tab_spec->build;
+
                 Panel *panel = node->command.panel;
                 dll_push_back(panel->tab_first, panel->tab_last, tab);
+                panel->active_tab = tab;
             } break;
             case Command_CloseTab: {
                 panel_remove_tab(state, node->command.panel, node->command.tab);
@@ -543,6 +551,10 @@ internal Void update(Void) {
             ui_layout_axis(Axis2_X)
             ui_parent(tab_bar_box) {
                 for (Tab *tab = panel->tab_first; tab; tab = tab->next) {
+                    if (tab == panel->active_tab) {
+                        ui_border_color_next(color_from_srgba_u32(0x40C057FF));
+                    }
+
                     ui_hover_cursor_next(Gfx_Cursor_Hand);
                     UI_Box *tab_box = ui_create_box_from_string_format(
                         UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawBorder | UI_BoxFlag_Clickable | UI_BoxFlag_DrawHot | UI_BoxFlag_DrawActive | UI_BoxFlag_AnimateX,
@@ -598,8 +610,8 @@ internal Void update(Void) {
             );
 
             ui_parent(content_box) {
-                if (panel->build_view) {
-                    panel->build_view(panel, theme, content_rectangle);
+                if (panel->active_tab && panel->active_tab->build_view) {
+                    panel->active_tab->build_view(panel->active_tab, theme, content_rectangle);
                 } else {
                     // TODO(simon): Empty panel UI.
                 }
@@ -642,12 +654,22 @@ internal S32 os_run(Str8List arguments) {
     Arena *arena = arena_create();
     State *state = arena_push_struct(arena, State);
     state->arena = arena;
+    global_state = state;
+
+    state->command_arena = arena_create();
+
     state->ui = ui_create();
     state->panel_root = arena_push_struct_zero(state->arena, Panel);
     state->panel_root->percentage_of_parent = 1.0f;
     state->panel_root->split_axis = Axis2_X;
     {
-        Panel *left = panel_create(state, view_glyph_list);
+        Panel *left = panel_create(state);
+        {
+            Command *command = push_command(Command_OpenTab);
+            command->panel = left;
+            command->tab_specification = str8_literal("GlyphList");
+        }
+
         Panel *right = arena_push_struct_zero(state->arena, Panel);
         right->split_axis = Axis2_Y;
         left->percentage_of_parent = 0.75f;
@@ -659,26 +681,25 @@ internal S32 os_run(Str8List arguments) {
         // TODO(simon): This should be updated when the user navigates the interface
         state->active_panel = left;
 
-        for (U32 i = 0; i < 10; ++i) {
-            Arena_Temporary scratch = arena_get_scratch(0, 0);
-            Tab *tab = tab_create(state, str8_format(scratch. arena, "Test tab %u", i));
-            dll_push_back(left->tab_first, left->tab_last, tab);
-            arena_end_temporary(scratch);
+        Panel *top = panel_create(state);
+        {
+            Command *command = push_command(Command_OpenTab);
+            command->panel = top;
+            command->tab_specification = str8_literal("GlyphView");
         }
-
-        Panel *top    = panel_create(state, view_glyph);
-        Panel *bottom = panel_create(state, view_stats);
+        Panel *bottom = panel_create(state);
+        {
+            Command *command = push_command(Command_OpenTab);
+            command->panel = bottom;
+            command->tab_specification = str8_literal("RenderStats");
+        }
         top->percentage_of_parent = 0.75f;
-        bottom->percentage_of_parent = 0.75f;
+        bottom->percentage_of_parent = 0.25f;
         top->parent = bottom->parent = right;
         dll_push_back(right->first, right->last, top);
         dll_push_back(right->first, right->last, bottom);
     }
     state->running = true;
-
-    state->command_arena = arena_create();
-
-    global_state = state;
 
     gfx_create(str8_literal("MSDF-gen"), 1280, 720);
     render_init();

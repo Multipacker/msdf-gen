@@ -21,9 +21,20 @@ internal Void tab_free(State *state, Tab *tab) {
     sll_stack_push(state->tab_freelist, tab);
 }
 
+internal Void *tab_get_state(Tab *tab, U64 size) {
+    Void *state = tab->view_state;
+
+    if (!state) {
+        state = arena_push_zero(tab->arena, size, 16);
+        tab->view_state = state;
+    }
+
+    return state;
+}
+
 // NOTE(simon): Panel functions
 
-internal Panel *panel_create(State *state, PanelBuildFunction *build_view) {
+internal Panel *panel_create(State *state) {
     Panel *panel = state->panel_freelist;
     if (panel) {
         sll_stack_pop(state->panel_freelist);
@@ -33,21 +44,7 @@ internal Panel *panel_create(State *state, PanelBuildFunction *build_view) {
 
     memory_zero_struct(panel);
 
-    panel->arena = arena_create();
-    panel->build_view = build_view;
-
     return panel;
-}
-
-internal Void *panel_get_state(Panel *panel, U64 size) {
-    Void *state = panel->view_state;
-
-    if (!state) {
-        state = arena_push_zero(panel->arena, size, 16);
-        panel->view_state = state;
-    }
-
-    return state;
 }
 
 internal PanelIterator panel_iterator_depth_first_pre_order(Panel *panel) {
@@ -111,5 +108,12 @@ internal R2F32 rectangle_from_panel(Panel *panel, R2F32 root_rectangle) {
 // NOTE(simon): Panel-tab functions
 
 internal Void panel_remove_tab(State *state, Panel *panel, Tab *tab) {
+    if (panel->active_tab == tab) {
+        if (tab->next) {
+            panel->active_tab = tab->next;
+        } else {
+            panel->active_tab = tab->previous;
+        }
+    }
     dll_remove(panel->tab_first, panel->tab_last, tab);
 }
