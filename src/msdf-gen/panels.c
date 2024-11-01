@@ -111,8 +111,10 @@ internal Void panel_remove_tab(State *state, Panel *panel, Tab *tab) {
     if (panel->active_tab == tab) {
         if (tab->next) {
             panel->active_tab = tab->next;
-        } else {
+        } else if (tab->previous) {
             panel->active_tab = tab->previous;
+        } else {
+            panel->active_tab = 0;
         }
     }
     dll_remove(panel->tab_first, panel->tab_last, tab);

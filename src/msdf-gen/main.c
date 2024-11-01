@@ -97,9 +97,11 @@ typedef struct {
 } TabSpecification;
 
 typedef enum {
+    Command_FocusPanel,
     Command_OpenTab,
     Command_CloseTab,
-    Command_FocusPanel,
+    Command_PreviousTab,
+    Command_NextTab,
 } CommandKind;
 
 typedef struct {
@@ -409,6 +411,16 @@ internal Void update(Void) {
             Command *command = push_command(Command_CloseTab);
             command->panel = state->active_panel;
             command->tab = state->active_panel->active_tab;
+        } else if (event->kind == Gfx_EventKind_KeyPress && event->key == Gfx_Key_Tab && (event->key_modifiers & (Gfx_KeyModifier_Shift | Gfx_KeyModifier_Control)) == (Gfx_KeyModifier_Shift | Gfx_KeyModifier_Control)) {
+            consume = true;
+
+            Command *command = push_command(Command_PreviousTab);
+            command->panel = state->active_panel;
+        } else if (event->kind == Gfx_EventKind_KeyPress && event->key == Gfx_Key_Tab && (event->key_modifiers & Gfx_KeyModifier_Control)) {
+            consume = true;
+
+            Command *command = push_command(Command_NextTab);
+            command->panel = state->active_panel;
         }
 
         if (consume) {
@@ -429,8 +441,32 @@ internal Void update(Void) {
                 panel->active_tab = tab;
             } break;
             case Command_CloseTab: {
-                panel_remove_tab(state, node->command.panel, node->command.tab);
-                tab_free(state, node->command.tab);
+                if (node->command.tab) {
+                    panel_remove_tab(state, node->command.panel, node->command.tab);
+                    tab_free(state, node->command.tab);
+                }
+            } break;
+            case Command_PreviousTab: {
+                Panel *panel = node->command.panel;
+                Tab *next_tab = panel->active_tab;
+                if (panel->active_tab->previous) {
+                    next_tab = panel->active_tab->previous;
+                } else if (panel->tab_last) {
+                    next_tab = panel->tab_last;
+                }
+
+                panel->active_tab = next_tab;
+            } break;
+            case Command_NextTab: {
+                Panel *panel = node->command.panel;
+                Tab *next_tab = panel->active_tab;
+                if (panel->active_tab->next) {
+                    next_tab = panel->active_tab->next;
+                } else if (panel->tab_first) {
+                    next_tab = panel->tab_first;
+                }
+
+                panel->active_tab = next_tab;
             } break;
             case Command_FocusPanel: {
                 state->active_panel = node->command.panel;
@@ -439,7 +475,7 @@ internal Void update(Void) {
     }
     arena_reset(state->command_arena);
     state->commands.first = 0;
-    state->commands.last = 0;
+    state->commands.last  = 0;
 
     // NOTE(simon): Themes
     {
