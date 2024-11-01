@@ -99,6 +99,7 @@ typedef struct {
 typedef enum {
     Command_OpenTab,
     Command_CloseTab,
+    Command_FocusPanel,
 } CommandKind;
 
 typedef struct {
@@ -431,6 +432,9 @@ internal Void update(Void) {
                 panel_remove_tab(state, node->command.panel, node->command.tab);
                 tab_free(state, node->command.tab);
             } break;
+            case Command_FocusPanel: {
+                state->active_panel = node->command.panel;
+            } break;
         }
     }
     arena_reset(state->command_arena);
@@ -531,6 +535,8 @@ internal Void update(Void) {
         R2F32 panel_rectangle = r2f32_pad(rectangle_from_panel(panel, root_rectangle), -panel_pad);
 
         if (!panel->first) {
+            Tab *next_active_tab = panel->active_tab;
+
             UI_Size tab_height = ui_size_ems(1.5f, 1.0f);
             R2F32 tab_bar_rectangle = r2f32(panel_rectangle.min.x, panel_rectangle.min.y, panel_rectangle.max.x, panel_rectangle.min.y + tab_height.value);
             R2F32 content_rectangle = r2f32(panel_rectangle.min.x, panel_rectangle.min.y + tab_height.value, panel_rectangle.max.x, panel_rectangle.max.y);
@@ -595,6 +601,12 @@ internal Void update(Void) {
                         }
                     }
 
+                    if (input.input_flags & UI_InputFlag_LeftClicked) {
+                        Command *command = push_command(Command_FocusPanel);
+                        command->panel = panel;
+                        next_active_tab = tab;
+                    }
+
                     if (tab->next) {
                         ui_spacer_sized(ui_size_pixels(5.0f, 1.0f));
                     }
@@ -616,6 +628,15 @@ internal Void update(Void) {
                     // TODO(simon): Empty panel UI.
                 }
             }
+
+            // NOTE(simon): Consume fallthrough events.
+            UI_Input content_input = ui_input_from_box(content_box);
+            if (content_input.input_flags & UI_InputFlag_LeftClicked) {
+                Command *command = push_command(Command_FocusPanel);
+                command->panel = panel;
+            }
+
+            panel->active_tab = next_active_tab;
         }
     }
 
