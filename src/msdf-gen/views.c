@@ -187,6 +187,13 @@ PANEL_BUILD_FUNCTION(view_glyph_list) {
     F32 scrollbar_width = 15.0f;
     F32 container_width = panel_size.x - scrollbar_width;
 
+    typedef struct {
+        U32 scroll_codepoint;
+        F32 scroll_offset;
+    } GlyphListState;
+
+    GlyphListState *state = tab_get_state(tab, sizeof(*state));
+
     // NOTE(simon): Scroll region
     ui_width_next(ui_size_pixels(panel_size.x, 1.0f));
     ui_height_next(ui_size_pixels(panel_size.y, 1.0f));
@@ -194,18 +201,12 @@ PANEL_BUILD_FUNCTION(view_glyph_list) {
     UI_Box *region = ui_create_box_from_string(UI_BoxFlag_OverflowY | UI_BoxFlag_Scrollable, str8_literal("region"));
     ui_parent_push(region);
 
-
     // NOTE(simon): Scroll container
     ui_color_next(theme->background_color);
     ui_width_next(ui_size_pixels(container_width, 1.0f));
     ui_height_next(ui_size_pixels(panel_size.y, 1.0f));
     ui_layout_axis_next(Axis2_Y);
     UI_Box *container = ui_create_box_from_string(UI_BoxFlag_DrawBackground, str8_literal("glyphs"));
-
-
-
-    local U32 scroll_codepoint = 0;
-    local F32 scroll_offset = 0.0f;
 
     U32 first_codepoint = 0x000000;
     U32 last_codepoint  = 4096;
@@ -221,16 +222,14 @@ PANEL_BUILD_FUNCTION(view_glyph_list) {
     S32 first_row = 0;
     S32 last_row  = (S32) ((last_codepoint + codepoints_per_row - 1) / codepoints_per_row);
 
-    S32 scroll_row = (S32) (scroll_codepoint / codepoints_per_row);
+    S32 scroll_row = (S32) (state->scroll_codepoint / codepoints_per_row);
     S32 target_row = scroll_row;
 
-    S32 top_row    = scroll_row + (S32) (scroll_offset < 0.0f ? f32_ceil(scroll_offset - 1.0f) : f32_floor(scroll_offset));
+    S32 top_row    = scroll_row + (S32) (state->scroll_offset < 0.0f ? f32_ceil(state->scroll_offset - 1.0f) : f32_floor(state->scroll_offset));
     S32 bottom_row = s32_min(top_row + (S32) f32_ceil(panel_size.y / height) + 1, last_row);
-    container->view_offset.y = height * (f32_mod(scroll_offset, 1.0f) + (scroll_offset < 0.0f));
+    container->view_offset.y = height * (f32_mod(state->scroll_offset, 1.0f) + (state->scroll_offset < 0.0f));
 
     S32 selected_row = (S32) (global_state->selected_codepoint / codepoints_per_row);
-
-
 
     // NOTE(simon): Scrollbar container
     ui_color_next(theme->background_color);
@@ -242,10 +241,10 @@ PANEL_BUILD_FUNCTION(view_glyph_list) {
 
     ui_width(ui_size_parent_percent(1.0f, 1.0f))
     ui_parent(scroll_container) {
-        F32 rows_above   = (F32) (scroll_row - first_row) + scroll_offset;
+        F32 rows_above   = (F32) (scroll_row - first_row) + state->scroll_offset;
         F32 visible_rows = container->calculated_size.height / height;
         F32 row_count    = (F32) (last_row - first_row) + visible_rows - 1.0f;
-        F32 rows_below   = (F32) (last_row - first_row) - 1.0f - (F32) scroll_row - scroll_offset;
+        F32 rows_below   = (F32) (last_row - first_row) - 1.0f - (F32) scroll_row - state->scroll_offset;
 
         ui_hover_cursor_next(Gfx_Cursor_Hand);
         ui_height_next(ui_size_parent_percent(rows_above / row_count, 1.0f));
@@ -339,12 +338,12 @@ PANEL_BUILD_FUNCTION(view_glyph_list) {
 
     // NOTE(simon): Updating scroll
     target_row = s32_min(s32_max(first_row, target_row), last_row - 1);
-    scroll_offset += (F32) scroll_row - (F32) target_row;
+    state->scroll_offset += (F32) scroll_row - (F32) target_row;
     scroll_row = target_row;
-    scroll_codepoint = (U32) scroll_row * codepoints_per_row;
+    state->scroll_codepoint = (U32) scroll_row * codepoints_per_row;
 
     // NOTE(simon): Animation
-    scroll_offset += -scroll_offset * ui_animation_slow_rate();
+    state->scroll_offset += -state->scroll_offset * ui_animation_slow_rate();
 }
 
 PANEL_BUILD_FUNCTION(view_glyph) {
