@@ -18,7 +18,7 @@ typedef enum {
 } TabKind;
 #undef X
 
-#define X(name, display_name, build) { str8_literal(#name), str8_literal(display_name), build, },
+#define X(name, display_name, build) { str8_literal_compile(#name), str8_literal_compile(display_name), build, },
 global TabSpecification tab_specifications[] = {
     TABS
 };
