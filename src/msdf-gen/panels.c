@@ -47,6 +47,14 @@ internal Panel *panel_create(State *state) {
     return panel;
 }
 
+internal Void panel_free(State *state, Panel *panel) {
+    for (Tab *tab = panel->tab_first; tab; tab = tab->next) {
+        tab_free(state, tab);
+    }
+
+    sll_stack_push(state->panel_freelist, panel);
+}
+
 internal PanelIterator panel_iterator_depth_first_pre_order(Panel *panel) {
     PanelIterator iterator = { 0 };
 
@@ -103,6 +111,18 @@ internal R2F32 rectangle_from_panel(Panel *panel, R2F32 root_rectangle) {
 
     arena_end_temporary(scratch);
     return result;
+}
+
+internal Void panel_insert(Panel *parent, Panel *previous, Panel *child) {
+    dll_insert_next_previous_zero(parent->first, parent->last, previous, child, next, previous, 0);
+    ++parent->child_count;
+    child->parent = parent;
+}
+
+internal Void panel_remove(Panel *parent, Panel *child) {
+    dll_remove(parent->first, parent->last, child);
+    child->next = child->previous = child->parent = 0;
+    --parent->child_count;
 }
 
 // NOTE(simon): Panel-tab functions

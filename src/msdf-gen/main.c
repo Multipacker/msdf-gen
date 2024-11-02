@@ -98,6 +98,7 @@ typedef struct {
 
 typedef enum {
     Command_FocusPanel,
+    Command_ClosePanel,
     Command_OpenTab,
     Command_CloseTab,
     Command_PreviousTab,
@@ -140,6 +141,7 @@ struct Panel {
     Panel *parent;
     F32    percentage_of_parent;
     Axis2  split_axis;
+    U32    child_count;
 
     Tab *tab_first;
     Tab *tab_last;
@@ -431,6 +433,86 @@ internal Void update(Void) {
     // NOTE(simon): Execute commands
     for (CommandNode *node = state->commands.first; node; node = node->next) {
         switch (node->command.kind) {
+            case Command_FocusPanel: {
+                state->active_panel = node->command.panel;
+            } break;
+            case Command_ClosePanel: {
+                Panel *panel = node->command.panel;
+                Panel *parent = panel->parent;
+
+                if (parent) {
+                    if (parent->child_count == 2) {
+                        // NOTE(simon): Merge the panel that we keep with our grandparent.
+                        Panel *discard_child = panel;
+                        Panel *keep_child    = parent->first == discard_child ? parent->last : parent->first;
+                        Panel *grandparent   = parent->parent;
+                        Panel *previous      = parent->previous;
+                        F32 parent_percentage = parent->percentage_of_parent;
+
+                        panel_remove(parent, keep_child);
+
+                        // NOTE(simon): Insert the panel we are keeping into the tree.
+                        keep_child->percentage_of_parent = parent->percentage_of_parent;
+                        if (grandparent) {
+                            panel_remove(grandparent, parent);
+                            panel_insert(grandparent, previous, keep_child);
+                        } else {
+                            state->panel_root = keep_child;
+                        }
+
+                        // NOTE(simon): Update active panel, recursing into children if needed.
+                        if (state->active_panel == discard_child) {
+                            state->active_panel = keep_child;
+                            while (state->active_panel->first) {
+                                state->active_panel = state->active_panel->first;
+                            }
+                        }
+
+                        panel_free(state, discard_child);
+                        panel_free(state, parent);
+
+                        // NOTE(simon): If the split axis of keep child and grandparent are the same, merge their children.
+                        if (grandparent && keep_child->first && grandparent->split_axis == keep_child->split_axis) {
+                            Panel *child_previous = keep_child->previous;
+                            panel_remove(grandparent, keep_child);
+
+                            for (Panel *child = keep_child->first, *next; child; child = next) {
+                                next = child->next;
+
+                                panel_remove(keep_child, child);
+                                panel_insert(grandparent, child_previous, child);
+                                child_previous = child;
+                                child->percentage_of_parent *= keep_child->percentage_of_parent;
+                            }
+
+                            panel_free(state, keep_child);
+                        }
+                    } else {
+                        // NOTE(simon): Remove panel and adjust children to fill the empty space.
+                        Panel *next = 0;
+                        if (panel->next) {
+                            next = panel->next;
+                        } else if (panel->previous) {
+                            next = panel->previous;
+                        }
+                        panel_remove(parent, panel);
+
+                        for (Panel *child = parent->first; child; child = child->next) {
+                            child->percentage_of_parent /= 1.0f - panel->percentage_of_parent;
+                        }
+
+                        // NOTE(simon): Update active panel, recursing into children if needed.
+                        if (state->active_panel == panel) {
+                            state->active_panel = next;
+                            while (state->active_panel->first) {
+                                state->active_panel = state->active_panel->first;
+                            }
+                        }
+
+                        panel_free(state, panel);
+                    }
+                }
+            } break;
             case Command_OpenTab: {
                 TabSpecification *tab_spec = tab_specification_from_string(node->command.tab_specification);
                 Tab *tab = tab_create(state, tab_spec->display_name);
@@ -467,9 +549,6 @@ internal Void update(Void) {
                 }
 
                 panel->active_tab = next_tab;
-            } break;
-            case Command_FocusPanel: {
-                state->active_panel = node->command.panel;
             } break;
         }
     }
@@ -649,6 +728,9 @@ internal Void update(Void) {
                 }
             }
 
+            if (panel == state->active_panel) {
+                ui_border_color_next(color_from_srgba_u32(0x40C057FF));
+            }
             ui_fixed_position_next(content_rectangle.min);
             ui_width_next(ui_size_pixels(r2f32_size(content_rectangle).width, 1.0f));
             ui_height_next(ui_size_pixels(r2f32_size(content_rectangle).height, 1.0f));
@@ -661,7 +743,25 @@ internal Void update(Void) {
                 if (panel->active_tab && panel->active_tab->build_view) {
                     panel->active_tab->build_view(panel->active_tab, theme, content_rectangle);
                 } else {
-                    // TODO(simon): Empty panel UI.
+                    ui_width(ui_size_parent_percent(1.0f, 1.0f))
+                    ui_height(ui_size_parent_percent(1.0f, 1.0f))
+                    ui_column() {
+                        ui_spacer_sized(ui_size_fill());
+                        ui_height(ui_size_children_sum(1.0f))
+                        ui_row() {
+                            ui_spacer_sized(ui_size_fill());
+                            ui_width_next(ui_size_text_content(5.0f, 1.0f));
+                            ui_height_next(ui_size_text_content(0.0f, 1.0f));
+                            UI_Input close_input = ui_button_format("Close panel###%p", panel);
+                            if (close_input.input_flags & UI_InputFlag_LeftClicked) {
+                                Command *command = push_command(Command_ClosePanel);
+                                command->panel = panel;
+                            }
+
+                            ui_spacer_sized(ui_size_fill());
+                        }
+                        ui_spacer_sized(ui_size_fill());
+                    }
                 }
             }
 
@@ -727,13 +827,15 @@ internal S32 os_run(Str8List arguments) {
             command->tab_specification = str8_literal("GlyphList");
         }
 
-        Panel *right = arena_push_struct_zero(state->arena, Panel);
+        Panel *right = panel_create(state);
+        Panel *far_right = panel_create(state);
         right->split_axis = Axis2_Y;
-        left->percentage_of_parent = 0.75f;
+        left->percentage_of_parent = 0.65f;
         right->percentage_of_parent = 0.25f;
-        left->parent = right->parent = state->panel_root;
-        dll_push_back(state->panel_root->first, state->panel_root->last, left);
-        dll_push_back(state->panel_root->first, state->panel_root->last, right);
+        far_right->percentage_of_parent = 0.1f;
+        panel_insert(state->panel_root, 0, left);
+        panel_insert(state->panel_root, left, right);
+        panel_insert(state->panel_root, right, far_right);
 
         // TODO(simon): This should be updated when the user navigates the interface
         state->active_panel = left;
@@ -744,17 +846,27 @@ internal S32 os_run(Str8List arguments) {
             command->panel = top;
             command->tab_specification = str8_literal("GlyphView");
         }
+        Panel *middle = panel_create(state);
+        middle->split_axis = Axis2_X;
+        {
+            Panel *middle_left = panel_create(state);
+            Panel *middle_right = panel_create(state);
+            middle_left->percentage_of_parent = middle_right->percentage_of_parent = 0.5f;
+            panel_insert(middle, 0, middle_left);
+            panel_insert(middle, middle_left, middle_right);
+        }
         Panel *bottom = panel_create(state);
         {
             Command *command = push_command(Command_OpenTab);
             command->panel = bottom;
             command->tab_specification = str8_literal("RenderStats");
         }
-        top->percentage_of_parent = 0.75f;
+        top->percentage_of_parent = 0.65f;
+        middle->percentage_of_parent = 0.1f;
         bottom->percentage_of_parent = 0.25f;
-        top->parent = bottom->parent = right;
-        dll_push_back(right->first, right->last, top);
-        dll_push_back(right->first, right->last, bottom);
+        panel_insert(right, 0, top);
+        panel_insert(right, top, middle);
+        panel_insert(right, middle, bottom);
     }
     state->running = true;
 
