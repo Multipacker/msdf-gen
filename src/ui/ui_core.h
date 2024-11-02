@@ -307,7 +307,7 @@ internal UI_Input ui_input_from_box(UI_Box *box);
 
 internal Void ui_tooltip_begin(Void);
 internal Void ui_tooltip_end(Void);
-#define ui_tooltip(ui) defer_loop(ui_tooltip_begin(ui), ui_tooltip_end(ui))
+#define ui_tooltip() defer_loop(ui_tooltip_begin(), ui_tooltip_end())
 
 internal Void ui_context_menu_open(UI_Key context_key, UI_Key anchor_key, V2F32 anchor_offset);
 internal Void ui_context_menu_close(Void);
