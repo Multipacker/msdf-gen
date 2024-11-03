@@ -353,52 +353,57 @@ internal Void render_submit(Render_BatchList batches) {
         ++gfx->current_stats.batch_count;
         gfx->current_stats.shape_count += batch->shapes.shape_count;
 
-        glScissor(
-            (GLint) batch->clip.min.x,
-            (GLint) gfx->resolution.y - (GLint) batch->clip.max.y,
-            (GLsizei) (batch->clip.max.x - batch->clip.min.x),
-            (GLsizei) (batch->clip.max.y - batch->clip.min.y)
-        );
+        GLsizei width  = (GLsizei) (batch->clip.max.x - batch->clip.min.x);
+        GLsizei height = (GLsizei) (batch->clip.max.y - batch->clip.min.y);
 
-        glBindTextureUnit(0, opengl_texture_id_from_texture(batch->texture));
-        glProgramUniformMatrix3fv(gfx->program, gfx->uniform_transform_location, 1, GL_TRUE, &batch->transform.m[0][0]);
+        if (width > 0 && height > 0) {
+            glScissor(
+                (GLint) batch->clip.min.x,
+                (GLint) gfx->resolution.y - (GLint) batch->clip.max.y,
+                width,
+                height
+            );
 
-        GLuint vbo = 0;
-        B32 specifically_sized = false;
-        U64 byte_size = batch->shapes.shape_count * sizeof(Render_Shape);
-        gfx->current_stats.bytes_uploaded_to_gpu += byte_size;
+            glBindTextureUnit(0, opengl_texture_id_from_texture(batch->texture));
+            glProgramUniformMatrix3fv(gfx->program, gfx->uniform_transform_location, 1, GL_TRUE, &batch->transform.m[0][0]);
 
-        // NOTE(simon): Select an appropriate buffer.
-        if (byte_size <= kilobytes(64)) {
-            vbo = gfx->vbo_64kb;
-        } else if (byte_size <= kilobytes(256)) {
-            vbo = gfx->vbo_256kb;
-        } else if (byte_size <= megabytes(1)) {
-            vbo = gfx->vbo_1mb;
-        } else if (byte_size <= megabytes(4)) {
-            vbo = gfx->vbo_4mb;
-        } else {
-            specifically_sized = true;
-            glCreateBuffers(1, &vbo);
-            glNamedBufferData(vbo, (GLsizeiptr) byte_size, 0, GL_STREAM_DRAW);
-        }
+            GLuint vbo = 0;
+            B32 specifically_sized = false;
+            U64 byte_size = batch->shapes.shape_count * sizeof(Render_Shape);
+            gfx->current_stats.bytes_uploaded_to_gpu += byte_size;
 
-        // NOTE(simon): Update buffer data
-        U8 *mapped_buffer = (U8 *) glMapNamedBuffer(vbo, GL_WRITE_ONLY);
-        U8 *ptr = mapped_buffer;
-        for (Render_ShapeChunk *chunk = batch->shapes.first; chunk; chunk = chunk->next) {
-            memory_copy(ptr, chunk->shapes, chunk->count * sizeof(Render_Shape));
-            ptr += chunk->count * sizeof(Render_Shape);
-        }
-        glUnmapNamedBuffer(vbo);
+            // NOTE(simon): Select an appropriate buffer.
+            if (byte_size <= kilobytes(64)) {
+                vbo = gfx->vbo_64kb;
+            } else if (byte_size <= kilobytes(256)) {
+                vbo = gfx->vbo_256kb;
+            } else if (byte_size <= megabytes(1)) {
+                vbo = gfx->vbo_1mb;
+            } else if (byte_size <= megabytes(4)) {
+                vbo = gfx->vbo_4mb;
+            } else {
+                specifically_sized = true;
+                glCreateBuffers(1, &vbo);
+                glNamedBufferData(vbo, (GLsizeiptr) byte_size, 0, GL_STREAM_DRAW);
+            }
 
-        glVertexArrayVertexBuffer(gfx->vao, 0, vbo, 0, sizeof(Render_Shape));
+            // NOTE(simon): Update buffer data
+            U8 *mapped_buffer = (U8 *) glMapNamedBuffer(vbo, GL_WRITE_ONLY);
+            U8 *ptr = mapped_buffer;
+            for (Render_ShapeChunk *chunk = batch->shapes.first; chunk; chunk = chunk->next) {
+                memory_copy(ptr, chunk->shapes, chunk->count * sizeof(Render_Shape));
+                ptr += chunk->count * sizeof(Render_Shape);
+            }
+            glUnmapNamedBuffer(vbo);
 
-        glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, (GLsizei) batch->shapes.shape_count);
+            glVertexArrayVertexBuffer(gfx->vao, 0, vbo, 0, sizeof(Render_Shape));
 
-        // NOTE(simon): Delete specifically sized buffer.
-        if (specifically_sized) {
-            glDeleteBuffers(1, &vbo);
+            glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, (GLsizei) batch->shapes.shape_count);
+
+            // NOTE(simon): Delete specifically sized buffer.
+            if (specifically_sized) {
+                glDeleteBuffers(1, &vbo);
+            }
         }
 
         prof_zone_end(prof_batch);
