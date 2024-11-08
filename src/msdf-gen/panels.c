@@ -127,7 +127,7 @@ internal Void panel_remove(Panel *parent, Panel *child) {
 
 // NOTE(simon): Panel-tab functions
 
-internal Void panel_remove_tab(State *state, Panel *panel, Tab *tab) {
+internal Void panel_remove_tab(Panel *panel, Tab *tab) {
     if (panel->active_tab == tab) {
         if (tab->next) {
             panel->active_tab = tab->next;
@@ -138,4 +138,10 @@ internal Void panel_remove_tab(State *state, Panel *panel, Tab *tab) {
         }
     }
     dll_remove(panel->tab_first, panel->tab_last, tab);
+}
+
+internal Void panel_insert_tab(Panel *panel, Tab *previous_tab, Tab *tab) {
+    dll_insert_next_previous_zero(panel->tab_first, panel->tab_last, previous_tab, tab, next, previous, 0);
+    panel->active_tab = tab;
+    ++panel->child_count;
 }

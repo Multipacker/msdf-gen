@@ -181,11 +181,13 @@ struct State {
 
 global State *global_state;
 
-internal Command *push_command(CommandKind kind) {
+#define push_command(_kind, ...) push_command_internal((Command) { .kind = _kind, __VA_ARGS__ })
+
+internal Command *push_command_internal(Command command) {
     State *state = global_state;
 
     CommandNode *node = arena_push_struct_zero(state->command_arena, CommandNode);
-    node->command.kind = kind;
+    node->command = command;
     sll_queue_push(state->commands.first, state->commands.last, node);
     return &node->command;
 }
@@ -403,26 +405,16 @@ internal Void update(Void) {
 
         if (event->kind == Gfx_EventKind_KeyPress && event->key == Gfx_Key_T && (event->key_modifiers & Gfx_KeyModifier_Control)) {
             consume = true;
-
-            Command *command = push_command(Command_OpenTab);
-            command->panel = state->active_panel;
-            command->tab_specification = str8_literal("RenderStats");
+            push_command(Command_OpenTab, .panel = state->active_panel, .tab_specification = str8_literal("RenderStats"));
         } else if (event->kind == Gfx_EventKind_KeyPress && event->key == Gfx_Key_W && (event->key_modifiers & Gfx_KeyModifier_Control)) {
             consume = true;
-
-            Command *command = push_command(Command_CloseTab);
-            command->panel = state->active_panel;
-            command->tab = state->active_panel->active_tab;
+            push_command(Command_CloseTab, .panel = state->active_panel, .tab = state->active_panel->active_tab);
         } else if (event->kind == Gfx_EventKind_KeyPress && event->key == Gfx_Key_Tab && (event->key_modifiers & (Gfx_KeyModifier_Shift | Gfx_KeyModifier_Control)) == (Gfx_KeyModifier_Shift | Gfx_KeyModifier_Control)) {
             consume = true;
-
-            Command *command = push_command(Command_PreviousTab);
-            command->panel = state->active_panel;
+            push_command(Command_PreviousTab, .panel = state->active_panel);
         } else if (event->kind == Gfx_EventKind_KeyPress && event->key == Gfx_Key_Tab && (event->key_modifiers & Gfx_KeyModifier_Control)) {
             consume = true;
-
-            Command *command = push_command(Command_NextTab);
-            command->panel = state->active_panel;
+            push_command(Command_NextTab, .panel = state->active_panel);
         }
 
         if (consume) {
@@ -519,12 +511,11 @@ internal Void update(Void) {
                 tab->build_view = tab_spec->build;
 
                 Panel *panel = node->command.panel;
-                dll_push_back(panel->tab_first, panel->tab_last, tab);
-                panel->active_tab = tab;
+                panel_insert_tab(panel, panel->tab_last, tab);
             } break;
             case Command_CloseTab: {
                 if (node->command.tab) {
-                    panel_remove_tab(state, node->command.panel, node->command.tab);
+                    panel_remove_tab(node->command.panel, node->command.tab);
                     tab_free(state, node->command.tab);
                 }
             } break;
@@ -698,9 +689,7 @@ internal Void update(Void) {
                         );
                         UI_Input close_input = ui_input_from_box(close_box);
                         if (close_input.input_flags & UI_InputFlag_LeftClicked) {
-                            Command *command = push_command(Command_CloseTab);
-                            command->tab   = tab;
-                            command->panel = panel;
+                            push_command(Command_CloseTab, .tab = tab, .panel = panel);
                         }
                     }
 
@@ -716,9 +705,8 @@ internal Void update(Void) {
                         }
                     }
 
-                    if (input.input_flags & UI_InputFlag_LeftClicked) {
-                        Command *command = push_command(Command_FocusPanel);
-                        command->panel = panel;
+                    if (input.input_flags & UI_InputFlag_LeftPressed) {
+                        push_command(Command_FocusPanel, .panel = panel);
                         next_active_tab = tab;
                     }
 
@@ -754,8 +742,7 @@ internal Void update(Void) {
                             ui_height_next(ui_size_text_content(0.0f, 1.0f));
                             UI_Input close_input = ui_button_format("Close panel###%p", panel);
                             if (close_input.input_flags & UI_InputFlag_LeftClicked) {
-                                Command *command = push_command(Command_ClosePanel);
-                                command->panel = panel;
+                                push_command(Command_ClosePanel, .panel = panel);
                             }
 
                             ui_spacer_sized(ui_size_fill());
@@ -768,8 +755,7 @@ internal Void update(Void) {
             // NOTE(simon): Consume fallthrough events.
             UI_Input content_input = ui_input_from_box(content_box);
             if (content_input.input_flags & UI_InputFlag_LeftClicked) {
-                Command *command = push_command(Command_FocusPanel);
-                command->panel = panel;
+                push_command(Command_FocusPanel, .panel = panel);
             }
 
             panel->active_tab = next_active_tab;
@@ -821,11 +807,7 @@ internal S32 os_run(Str8List arguments) {
     state->panel_root->split_axis = Axis2_X;
     {
         Panel *left = panel_create(state);
-        {
-            Command *command = push_command(Command_OpenTab);
-            command->panel = left;
-            command->tab_specification = str8_literal("GlyphList");
-        }
+        push_command(Command_OpenTab, .panel = left, .tab_specification = str8_literal("GlyphList"));
 
         Panel *right = panel_create(state);
         Panel *far_right = panel_create(state);
@@ -841,11 +823,8 @@ internal S32 os_run(Str8List arguments) {
         state->active_panel = left;
 
         Panel *top = panel_create(state);
-        {
-            Command *command = push_command(Command_OpenTab);
-            command->panel = top;
-            command->tab_specification = str8_literal("GlyphView");
-        }
+        push_command(Command_OpenTab, .panel = top, .tab_specification = str8_literal("GlyphView"));
+
         Panel *middle = panel_create(state);
         middle->split_axis = Axis2_X;
         {
@@ -855,12 +834,10 @@ internal S32 os_run(Str8List arguments) {
             panel_insert(middle, 0, middle_left);
             panel_insert(middle, middle_left, middle_right);
         }
+
         Panel *bottom = panel_create(state);
-        {
-            Command *command = push_command(Command_OpenTab);
-            command->panel = bottom;
-            command->tab_specification = str8_literal("RenderStats");
-        }
+        push_command(Command_OpenTab, .panel = bottom, .tab_specification = str8_literal("RenderStats"));
+
         top->percentage_of_parent = 0.65f;
         middle->percentage_of_parent = 0.1f;
         bottom->percentage_of_parent = 0.25f;
