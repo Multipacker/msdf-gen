@@ -649,7 +649,8 @@ internal Void update(Void) {
             ui_width_next(ui_size_ems(60.0f, 1.0f));
             ui_height_next(ui_size_ems(40.0f, 1.0f));
             ui_layout_axis_next(Axis2_Y);
-            UI_Box *container = ui_create_box_from_string(0, str8_literal("###drag_preview"));
+            ui_color_next(theme->element_color);
+            UI_Box *container = ui_create_box_from_string(UI_BoxFlag_DrawBackground | UI_BoxFlag_Clip, str8_literal("###drag_preview"));
             ui_parent(container) {
                 DragTabData *data = ui_get_drag_data(DragTabData);
                 if (data->tab && data->tab->build_view) {
