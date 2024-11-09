@@ -163,6 +163,12 @@ struct PanelIterator {
 
 #include "views.h"
 
+typedef enum {
+    DragState_None,
+    DragState_Dragging,
+    DragState_Dropping,
+} DragState;
+
 typedef struct State State;
 struct State {
     Arena *arena;
@@ -175,6 +181,9 @@ struct State {
     Tab *tab_freelist;
 
     Panel *active_panel;
+
+    // NOTE(simon): Drag and drop state
+    DragState drag_state;
 
     Font *font;
     TTF_Font *ttf_font;
@@ -399,6 +408,32 @@ internal Void draw_ui(UI_Box *root) {
 #include "panels.c"
 #include "views.c"
 
+internal B32 drag_is_active(Void) {
+    State *state = global_state;
+    B32 result = (state->drag_state == DragState_Dragging || state->drag_state == DragState_Dropping);
+    return result;
+}
+
+internal Void drag_begin(Void) {
+    State *state = global_state;
+
+    if (!drag_is_active()) {
+        state->drag_state = DragState_Dragging;
+    }
+}
+
+internal B32 drag_drop(Void) {
+    State *state = global_state;
+
+    B32 result = false;
+    if (state->drag_state == DragState_Dropping) {
+        result = true;
+        state->drag_state = DragState_None;
+    }
+
+    return result;
+}
+
 internal Void update(Void) {
     State *state = global_state;
 
@@ -422,6 +457,10 @@ internal Void update(Void) {
         } else if (event->kind == Gfx_EventKind_KeyPress && event->key == Gfx_Key_Tab && (event->key_modifiers & Gfx_KeyModifier_Control)) {
             consume = true;
             push_command(Command_NextTab, .panel = state->active_panel);
+        }
+
+        if (drag_is_active() && event->kind == Gfx_EventKind_KeyRelease && event->key == Gfx_Key_MouseLeft) {
+            state->drag_state = DragState_Dropping;
         }
 
         if (consume) {
@@ -598,6 +637,28 @@ internal Void update(Void) {
     ui_font_size_push((U32) (11.0f * 96.0f / 72.0f));
 
     R2F32 root_rectangle = r2f32(0.0f, 0.0f, (F32) client_area.x, (F32) client_area.y);
+
+    typedef struct DragTabData DragTabData;
+    struct DragTabData {
+        Panel *panel;
+        Tab   *tab;
+    };
+
+    if (drag_is_active()) {
+        ui_tooltip() {
+            ui_width_next(ui_size_ems(60.0f, 1.0f));
+            ui_height_next(ui_size_ems(40.0f, 1.0f));
+            ui_layout_axis_next(Axis2_Y);
+            UI_Box *container = ui_create_box_from_string(0, str8_literal("###drag_preview"));
+            ui_parent(container) {
+                DragTabData *data = ui_get_drag_data(DragTabData);
+                if (data->tab && data->tab->build_view) {
+                    data->tab->build_view(data->tab, theme, container->calculated_rectangle);
+                }
+            }
+        }
+    }
+
     F32 panel_pad = 2.0f;
 
     // NOTE(simon): Build non-leaf panel UI.
@@ -737,6 +798,15 @@ internal Void update(Void) {
                     if (tab->next) {
                         ui_spacer_sized(ui_size_pixels(5.0f, 1.0f));
                     }
+
+                    if (input.input_flags & UI_InputFlag_LeftDragging && !drag_is_active()) {
+                        DragTabData data = {
+                            .panel = panel,
+                            .tab = tab,
+                        };
+                        ui_set_drag_data(&data);
+                        drag_begin();
+                    }
                 }
             }
 
@@ -747,7 +817,7 @@ internal Void update(Void) {
             ui_width_next(ui_size_pixels(r2f32_size(content_rectangle).width, 1.0f));
             ui_height_next(ui_size_pixels(r2f32_size(content_rectangle).height, 1.0f));
             UI_Box *content_box = ui_create_box_from_string_format(
-                UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawBorder | UI_BoxFlag_Clickable | UI_BoxFlag_FloatingPosition | UI_BoxFlag_Clip,
+                UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawBorder | UI_BoxFlag_Clickable | UI_BoxFlag_DropTarget | UI_BoxFlag_FloatingPosition | UI_BoxFlag_Clip,
                 "###panel_box_%p", panel
             );
 
@@ -780,6 +850,16 @@ internal Void update(Void) {
             UI_Input content_input = ui_input_from_box(content_box);
             if (content_input.input_flags & UI_InputFlag_LeftClicked) {
                 push_command(Command_FocusPanel, .panel = panel);
+            }
+            if (ui_drop_hot_key() == content_box->key && drag_drop()) {
+                DragTabData *data = ui_get_drag_data(DragTabData);
+                push_command(
+                    Command_MoveTab,
+                    .panel = data->panel,
+                    .tab   = data->tab,
+                    .destination_panel = panel,
+                    .previous_tab      = panel->active_tab,
+                );
             }
 
             panel->active_tab = next_active_tab;
