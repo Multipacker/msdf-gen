@@ -263,6 +263,8 @@ internal Void ui_begin(Gfx_EventList *events, F32 dt) {
         ui->hot_key = global_ui_null_key;
     }
 
+    ui->drop_hot_key = global_ui_null_key;
+
     prof_function_end();
 }
 
@@ -832,6 +834,17 @@ internal UI_Input ui_input_from_box(UI_Box *box) {
         }
     }
 
+    // NOTE(simon): If hovering over a drop target, set us as the hot drop
+    // target.
+    if (
+        box->flags & UI_BoxFlag_DropTarget &&
+        r2f32_contains(bounds, ui->mouse) &&
+        !r2f32_contains(exclude_bounds, ui->mouse) &&
+        ui_keys_match(ui->drop_hot_key, global_ui_null_key)
+       ) {
+        ui->drop_hot_key = box->key;
+    }
+
     if (box->flags & UI_BoxFlag_Clickable && ui_keys_match(ui->active_key, box->key)) {
         result.input_flags |= UI_InputFlag_Dragging;
     }
@@ -892,6 +905,11 @@ internal B32 ui_context_menu_begin(UI_Key context_key) {
 
 internal Void ui_context_menu_end(Void) {
     ui_parent_pop();
+}
+
+internal UI_Key ui_drop_hot_key(Void) {
+    UI_Context *ui = global_ui_state;
+    return ui->drop_hot_key;
 }
 
 internal V2F32 ui_drag_delta(Void) {
