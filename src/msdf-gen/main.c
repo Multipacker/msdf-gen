@@ -37,6 +37,23 @@
  *   marking glyphs as missing as that is the main use case
  */
 
+/*
+ * FIXME:
+ * * UI active and hot keys should be per mouse button, not one for the whole UI
+ * * Releasing mouse butttons outside of the window on windows doesn't generate
+ *   release events.
+ * * Releasing mouse butttons outside of the window on linux doesn't generate
+ *   release events until you return the mouse pointer to the window.
+ * * Pressing right or middle click during a panel resize creates black boxes.
+ * * Window doens't repaint while resizing the window on windows.
+ * * Scroll position of glyph view jumps occasionaly while switching tabs
+ *   (probably because the box keys are tied to the panel???)
+ * * Tabs and panels should be referenced through handles and not pointers to
+ *   avoid crashes.
+ * * Visualization of active and hot elements runs even when you right click on
+ *   a button.
+ */
+
 typedef struct Theme Theme;
 struct Theme {
     Str8 name;
