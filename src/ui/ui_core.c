@@ -127,6 +127,7 @@ internal UI_Size ui_size_text_content(F32 padding, F32 strictness) {
 internal UI_Context *ui_create(Void) {
     Arena *arena = arena_create();
     UI_Context *ui = arena_push_struct_zero(arena, UI_Context);
+    ui->drag_arena = arena_create();
 
     ui->permanent_arena = arena;
     for (U32 i = 0; i < array_count(ui->frame_arenas); ++i) {
@@ -897,6 +898,28 @@ internal V2F32 ui_drag_delta(Void) {
     UI_Context *ui = global_ui_state;
     V2F32 result = v2f32_subtract(ui->mouse, ui->drag_start);
     return result;
+}
+
+internal Str8 ui_get_drag_data_str8(U64 min_size) {
+    UI_Context *ui = global_ui_state;
+
+    if (ui->drag_data.size < min_size) {
+        Arena_Temporary scratch = arena_get_scratch(0, 0);
+        Str8 data = {
+            .data = arena_push_array(scratch.arena, U8, min_size),
+            .size = min_size,
+        };
+        ui_set_drag_data_str8(data);
+        arena_end_temporary(scratch);
+    }
+
+    return ui->drag_data;
+}
+
+internal Void ui_set_drag_data_str8(Str8 data) {
+    UI_Context *ui = global_ui_state;
+    arena_pop_to(ui->drag_arena, 0);
+    ui->drag_data = str8_copy(ui->drag_arena, data);
 }
 
 internal F32 ui_animation_slow_rate(Void) {

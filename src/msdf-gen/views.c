@@ -267,10 +267,11 @@ PANEL_BUILD_FUNCTION(view_glyph_list) {
 
         UI_Input scroll_input = ui_input_from_box(scroll);
         if (scroll_input.input_flags & UI_InputFlag_Dragging) {
-            local S32 start_row = 0;
             if (scroll_input.input_flags & UI_InputFlag_Pressed) {
-                start_row = top_row;
+                ui_set_drag_data(&top_row);
             }
+
+            S32 start_row = *ui_get_drag_data(S32);
 
             F32 scroll_size = panel_size.y - scroll->calculated_size.height;
             F32 drag_percent = ui_drag_delta().y / scroll_size;

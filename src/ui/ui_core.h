@@ -242,6 +242,8 @@ struct UI_Context {
     UI_Key hot_key;
     UI_Key active_key;
     V2F32  drag_start;
+    Arena *drag_arena;
+    Str8   drag_data;
 
     // NOTE(simon): Tooltip state.
     F32 tooltip_t;
@@ -321,6 +323,10 @@ internal Void ui_context_menu_end(Void);
     )
 
 internal V2F32 ui_drag_delta(Void);
+internal Str8  ui_get_drag_data_str8(U64 min_size);
+internal Void  ui_set_drag_data_str8(Str8 data);
+#define ui_get_drag_data(type) ((type *) ui_get_drag_data_str8(sizeof(type)).data)
+#define ui_set_drag_data(ptr) ui_set_drag_data_str8(str8((U8 *) (ptr), sizeof(*(ptr))))
 
 internal F32 ui_animation_slow_rate(Void);
 internal F32 ui_animation_fast_rate(Void);
