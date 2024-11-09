@@ -103,12 +103,18 @@ typedef enum {
     Command_CloseTab,
     Command_PreviousTab,
     Command_NextTab,
+    Command_MoveTab,
 } CommandKind;
 
 typedef struct {
     CommandKind kind;
+    // NOTE(simon): What are we acting on?
     Tab   *tab;
     Panel *panel;
+    // NOTE(simon): Where are we goind?
+    Panel *destination_panel;
+    Tab   *previous_tab;
+
     Str8   tab_specification;
 } Command;
 
@@ -399,6 +405,7 @@ internal Void update(Void) {
     Arena_Temporary scratch = arena_get_scratch(0, 0);
     Gfx_EventList events = gfx_get_events(scratch.arena);
 
+    // NOTE(simon): Conseme events.
     for (Gfx_Event *event = events.first, *next; event; event = next) {
         next = event->next;
         B32 consume = false;
@@ -540,6 +547,23 @@ internal Void update(Void) {
                 }
 
                 panel->active_tab = next_tab;
+            } break;
+            case Command_MoveTab: {
+                Panel *panel = node->command.panel;
+                Tab   *tab   = node->command.tab;
+                Panel *destination_panel = node->command.destination_panel;
+                Tab   *previous_tab      = node->command.previous_tab;
+
+                if (panel && destination_panel && tab != previous_tab) {
+                    panel_remove_tab(panel, tab);
+                    panel_insert_tab(destination_panel, previous_tab, tab);
+                    state->active_panel = destination_panel;
+
+                    if (!panel->tab_first && panel != state->panel_root) {
+                        push_command(Command_ClosePanel, .panel = panel);
+                    }
+                }
+
             } break;
         }
     }
