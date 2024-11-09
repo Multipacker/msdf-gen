@@ -339,7 +339,9 @@ internal Void render_begin(V2U32 resolution) {
     );
     glProgramUniformMatrix4fv(gfx->program, gfx->uniform_projection_location, 1, GL_TRUE, &projection.m[0][0]);
 
+    glDisable(GL_SCISSOR_TEST);
     glClear(GL_COLOR_BUFFER_BIT);
+    glEnable(GL_SCISSOR_TEST);
 }
 
 internal Void render_submit(Render_BatchList batches) {
