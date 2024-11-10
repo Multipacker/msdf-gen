@@ -40,8 +40,6 @@
 /*
  * FIXME:
  * * UI active and hot keys should be per mouse button, not one for the whole UI
- * * Releasing mouse butttons outside of the window on windows doesn't generate
- *   release events.
  * * Pressing right or middle click during a panel resize creates black boxes.
  * * Window doens't repaint while resizing the window on windows.
  * * Scroll position of glyph view jumps occasionaly while switching tabs

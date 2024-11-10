@@ -1,6 +1,15 @@
 global Arena        *win32_event_arena;
 global Gfx_EventList win32_event_list;
 
+typedef struct Gfx_Win32State Gfx_Win32State;
+struct Gfx_Win32State {
+    HWND hwnd;
+    HDC  hdc;
+    U32 buttons_pressed;
+};
+
+global Gfx_Win32State global_gfx_win32_state;
+
 internal LRESULT CALLBACK win32_window_proc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam) {
     LRESULT result = 0;
 
@@ -26,29 +35,49 @@ internal LRESULT CALLBACK win32_window_proc(HWND hwnd, UINT message, WPARAM wpar
                 event->position.x = LOWORD(lparam);
                 event->position.y = HIWORD(lparam);
             } break;
-            case WM_LBUTTONUP: case WM_LBUTTONDOWN: {
-                event->kind = message == WM_LBUTTONUP ? Gfx_EventKind_KeyRelease : Gfx_EventKind_KeyPress;
-                event->key = Gfx_Key_MouseLeft;
-                event->key_modifiers |= (GetAsyncKeyState(VK_SHIFT)   & 0x8000) ? Gfx_KeyModifier_Shift   : 0;
-                event->key_modifiers |= (GetAsyncKeyState(VK_CONTROL) & 0x8000) ? Gfx_KeyModifier_Control : 0;
-                event->position.x = LOWORD(lparam);
-                event->position.y = HIWORD(lparam);
-            } break;
-            case WM_MBUTTONUP: case WM_MBUTTONDOWN: {
-                event->kind = message == WM_MBUTTONUP ? Gfx_EventKind_KeyRelease : Gfx_EventKind_KeyPress;
-                event->key = Gfx_Key_MouseMiddle;
-                event->key_modifiers |= (GetAsyncKeyState(VK_SHIFT)   & 0x8000) ? Gfx_KeyModifier_Shift   : 0;
-                event->key_modifiers |= (GetAsyncKeyState(VK_CONTROL) & 0x8000) ? Gfx_KeyModifier_Control : 0;
-                event->position.x = LOWORD(lparam);
-                event->position.y = HIWORD(lparam);
-            } break;
+            case WM_LBUTTONUP: case WM_LBUTTONDOWN:
+            case WM_MBUTTONUP: case WM_MBUTTONDOWN:
             case WM_RBUTTONUP: case WM_RBUTTONDOWN: {
-                event->kind = message == WM_RBUTTONUP ? Gfx_EventKind_KeyRelease : Gfx_EventKind_KeyPress;
-                event->key = Gfx_Key_MouseRight;
+                B32 pressed = false;
+                switch (message) {
+                    case WM_LBUTTONUP:   case WM_MBUTTONUP:   case WM_RBUTTONUP:   pressed = false; break;
+                    case WM_LBUTTONDOWN: case WM_MBUTTONDOWN: case WM_RBUTTONDOWN: pressed = true;  break;
+                    default: {
+                        // NOTE(simon): Impossible to reach.
+                    } break;
+                }
+
+                U32 button = 0;
+                switch (message) {
+                    case WM_LBUTTONUP: case WM_LBUTTONDOWN: button = 0; break;
+                    case WM_MBUTTONUP: case WM_MBUTTONDOWN: button = 1; break;
+                    case WM_RBUTTONUP: case WM_RBUTTONDOWN: button = 2; break;
+                    default: {
+                        // NOTE(simon): Impossible to reach.
+                    } break;
+                }
+
+                Gfx_Key buttons[] = {
+                    Gfx_Key_MouseLeft,
+                    Gfx_Key_MouseRight,
+                    Gfx_Key_MouseMiddle,
+                };
+
+                event->kind = pressed ? Gfx_EventKind_KeyPress : Gfx_EventKind_KeyRelease;
+                event->key = buttons[button];
                 event->key_modifiers |= (GetAsyncKeyState(VK_SHIFT)   & 0x8000) ? Gfx_KeyModifier_Shift   : 0;
                 event->key_modifiers |= (GetAsyncKeyState(VK_CONTROL) & 0x8000) ? Gfx_KeyModifier_Control : 0;
                 event->position.x = LOWORD(lparam);
                 event->position.y = HIWORD(lparam);
+
+                // NOTE(simon): Determine whether or not the mouse captured.
+                global_gfx_win32_state.buttons_pressed &= ~(1 << button);
+                global_gfx_win32_state.buttons_pressed |= pressed << button;
+                if (global_gfx_win32_state.buttons_pressed) {
+                    SetCapture(hwnd);
+                } else {
+                    ReleaseCapture();
+                }
             } break;
             case WM_SYSKEYUP: case WM_SYSKEYDOWN: case WM_KEYUP: case WM_KEYDOWN: {
                 U32 vk_code = (U32) wparam;
@@ -75,14 +104,6 @@ internal LRESULT CALLBACK win32_window_proc(HWND hwnd, UINT message, WPARAM wpar
 
     return result;
 }
-
-typedef struct Gfx_Win32State Gfx_Win32State;
-struct Gfx_Win32State {
-    HWND hwnd;
-    HDC  hdc;
-};
-
-global Gfx_Win32State global_gfx_win32_state;
 
 internal Void gfx_create(Str8 title, U32 width, U32 height) {
     Gfx_Win32State *state = &global_gfx_win32_state;
