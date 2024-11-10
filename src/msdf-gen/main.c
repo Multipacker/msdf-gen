@@ -48,8 +48,6 @@
  * * Window doens't repaint while resizing the window on windows.
  * * Scroll position of glyph view jumps occasionaly while switching tabs
  *   (probably because the box keys are tied to the panel???)
- * * Tabs and panels should be referenced through handles and not pointers to
- *   avoid crashes.
  * * Visualization of active and hot elements runs even when you right click on
  *   a button.
  * * Middle clicking on resizing borders causes panels to disappear.
@@ -116,6 +114,12 @@ typedef struct {
     PanelBuildFunction *build;
 } TabSpecification;
 
+typedef struct Handle Handle;
+struct Handle {
+    Void *data;
+    U64 generation;
+};
+
 typedef enum {
     Command_FocusPanel,
     Command_ClosePanel,
@@ -129,11 +133,11 @@ typedef enum {
 typedef struct {
     CommandKind kind;
     // NOTE(simon): What are we acting on?
-    Tab   *tab;
-    Panel *panel;
+    Handle tab;
+    Handle panel;
     // NOTE(simon): Where are we goind?
-    Panel *destination_panel;
-    Tab   *previous_tab;
+    Handle destination_panel;
+    Handle previous_tab;
 
     Str8   tab_specification;
 } Command;
@@ -157,6 +161,8 @@ struct Tab {
     Arena *arena;
     Void  *view_state;
     PanelBuildFunction *build_view;
+
+    U64 generation;
 };
 
 struct Panel {
@@ -171,7 +177,10 @@ struct Panel {
 
     Tab *tab_first;
     Tab *tab_last;
-    Tab *active_tab;
+
+    Handle active_tab;
+
+    U64 generation;
 };
 
 typedef struct PanelIterator PanelIterator;
@@ -200,7 +209,7 @@ struct State {
 
     Tab *tab_freelist;
 
-    Panel *active_panel;
+    Handle active_panel;
 
     // NOTE(simon): Drag and drop state
     DragState drag_state;
@@ -225,6 +234,47 @@ internal Command *push_command_internal(Command command) {
     node->command = command;
     sll_queue_push(state->commands.first, state->commands.last, node);
     return &node->command;
+}
+
+internal Tab *tab_from_handle(Handle handle) {
+    Tab *result = (Tab *) handle.data;
+
+    if (result && handle.generation != result->generation) {
+        result = 0;
+    }
+
+    return result;
+}
+
+internal Handle handle_from_tab(Tab *tab) {
+    Handle result = { 0 };
+
+    if (tab) {
+        result.data = tab;
+        result.generation = tab->generation;
+    }
+
+    return result;
+}
+
+internal Panel *panel_from_handle(Handle handle) {
+    Panel *result = (Panel *) handle.data;
+
+    if (result && handle.generation != result->generation) {
+        result = 0;
+    }
+    return result;
+}
+
+internal Handle handle_from_panel(Panel *panel) {
+    Handle result = { 0 };
+
+    if (panel) {
+        result.data = panel;
+        result.generation = panel->generation;
+    }
+
+    return result;
 }
 
 internal Font *font_create(Str8 font_path, U32 glyph_size, U32 glyphs_per_row) {
@@ -454,6 +504,14 @@ internal B32 drag_drop(Void) {
     return result;
 }
 
+internal Void drag_cancel(Void) {
+    State *state = global_state;
+
+    if (drag_is_active()) {
+        state->drag_state = DragState_None;
+    }
+}
+
 internal Void update(Void) {
     State *state = global_state;
 
@@ -470,7 +528,7 @@ internal Void update(Void) {
             push_command(Command_OpenTab, .panel = state->active_panel, .tab_specification = str8_literal("RenderStats"));
         } else if (event->kind == Gfx_EventKind_KeyPress && event->key == Gfx_Key_W && (event->key_modifiers & Gfx_KeyModifier_Control)) {
             consume = true;
-            push_command(Command_CloseTab, .panel = state->active_panel, .tab = state->active_panel->active_tab);
+            push_command(Command_CloseTab, .panel = state->active_panel, .tab = panel_from_handle(state->active_panel)->active_tab);
         } else if (event->kind == Gfx_EventKind_KeyPress && event->key == Gfx_Key_Tab && (event->key_modifiers & (Gfx_KeyModifier_Shift | Gfx_KeyModifier_Control)) == (Gfx_KeyModifier_Shift | Gfx_KeyModifier_Control)) {
             consume = true;
             push_command(Command_PreviousTab, .panel = state->active_panel);
@@ -495,10 +553,10 @@ internal Void update(Void) {
                 state->active_panel = node->command.panel;
             } break;
             case Command_ClosePanel: {
-                Panel *panel = node->command.panel;
-                Panel *parent = panel->parent;
+                Panel *panel = panel_from_handle(node->command.panel);
 
-                if (parent) {
+                if (panel && panel->parent) {
+                    Panel *parent = panel->parent;
                     if (parent->child_count == 2) {
                         // NOTE(simon): Merge the panel that we keep with our grandparent.
                         Panel *discard_child = panel;
@@ -519,11 +577,12 @@ internal Void update(Void) {
                         }
 
                         // NOTE(simon): Update active panel, recursing into children if needed.
-                        if (state->active_panel == discard_child) {
-                            state->active_panel = keep_child;
-                            while (state->active_panel->first) {
-                                state->active_panel = state->active_panel->first;
+                        if (panel_from_handle(state->active_panel) == discard_child) {
+                            Panel *next_panel = keep_child;
+                            while (next_panel->first) {
+                                next_panel = next_panel->first;
                             }
+                            state->active_panel = handle_from_panel(next_panel);
                         }
 
                         panel_free(state, discard_child);
@@ -560,11 +619,12 @@ internal Void update(Void) {
                         }
 
                         // NOTE(simon): Update active panel, recursing into children if needed.
-                        if (state->active_panel == panel) {
-                            state->active_panel = next;
-                            while (state->active_panel->first) {
-                                state->active_panel = state->active_panel->first;
+                        if (panel_from_handle(state->active_panel) == panel) {
+                            Panel *next_panel = next;
+                            while (next_panel->first) {
+                                next_panel = next_panel->first;
                             }
+                            state->active_panel = handle_from_panel(next_panel);
                         }
 
                         panel_free(state, panel);
@@ -572,54 +632,61 @@ internal Void update(Void) {
                 }
             } break;
             case Command_OpenTab: {
-                TabSpecification *tab_spec = tab_specification_from_string(node->command.tab_specification);
-                Tab *tab = tab_create(state, tab_spec->display_name);
-                tab->build_view = tab_spec->build;
-
-                Panel *panel = node->command.panel;
-                panel_insert_tab(panel, panel->tab_last, tab);
+                Panel *panel = panel_from_handle(node->command.panel);
+                if (panel) {
+                    TabSpecification *tab_spec = tab_specification_from_string(node->command.tab_specification);
+                    Tab *tab = tab_create(state, tab_spec->display_name);
+                    tab->build_view = tab_spec->build;
+                    panel_insert_tab(panel, panel->tab_last, tab);
+                }
             } break;
             case Command_CloseTab: {
-                if (node->command.tab) {
-                    panel_remove_tab(node->command.panel, node->command.tab);
-                    tab_free(state, node->command.tab);
+                Panel *panel = panel_from_handle(node->command.panel);
+                Tab *tab = tab_from_handle(node->command.tab);
+                if (panel && tab) {
+                    panel_remove_tab(panel, tab);
+                    tab_free(state, tab);
                 }
             } break;
             case Command_PreviousTab: {
-                Panel *panel = node->command.panel;
-                Tab *next_tab = panel->active_tab;
-                if (panel->active_tab->previous) {
-                    next_tab = panel->active_tab->previous;
-                } else if (panel->tab_last) {
-                    next_tab = panel->tab_last;
-                }
+                Panel *panel = panel_from_handle(node->command.panel);
+                if (panel) {
+                    Tab *next_tab = tab_from_handle(panel->active_tab);
+                    if (next_tab->previous) {
+                        next_tab = next_tab->previous;
+                    } else if (panel->tab_last) {
+                        next_tab = panel->tab_last;
+                    }
 
-                panel->active_tab = next_tab;
+                    panel->active_tab = handle_from_tab(next_tab);
+                }
             } break;
             case Command_NextTab: {
-                Panel *panel = node->command.panel;
-                Tab *next_tab = panel->active_tab;
-                if (panel->active_tab->next) {
-                    next_tab = panel->active_tab->next;
-                } else if (panel->tab_first) {
-                    next_tab = panel->tab_first;
-                }
+                Panel *panel = panel_from_handle(node->command.panel);
+                if (panel) {
+                    Tab *next_tab = tab_from_handle(panel->active_tab);
+                    if (next_tab->next) {
+                        next_tab = next_tab->next;
+                    } else if (panel->tab_first) {
+                        next_tab = panel->tab_first;
+                    }
 
-                panel->active_tab = next_tab;
+                    panel->active_tab = handle_from_tab(next_tab);
+                }
             } break;
             case Command_MoveTab: {
-                Panel *panel = node->command.panel;
-                Tab   *tab   = node->command.tab;
-                Panel *destination_panel = node->command.destination_panel;
-                Tab   *previous_tab      = node->command.previous_tab;
+                Panel *panel = panel_from_handle(node->command.panel);
+                Tab   *tab   = tab_from_handle(node->command.tab);
+                Panel *destination_panel = panel_from_handle(node->command.destination_panel);
+                Tab   *previous_tab      = tab_from_handle(node->command.previous_tab);
 
-                if (panel && destination_panel && tab != previous_tab) {
+                if (panel && destination_panel && tab && tab != previous_tab) {
                     panel_remove_tab(panel, tab);
                     panel_insert_tab(destination_panel, previous_tab, tab);
-                    state->active_panel = destination_panel;
+                    state->active_panel = handle_from_panel(destination_panel);
 
                     if (!panel->tab_first && panel != state->panel_root) {
-                        push_command(Command_ClosePanel, .panel = panel);
+                        push_command(Command_ClosePanel, .panel = node->command.panel);
                     }
                 }
 
@@ -660,23 +727,26 @@ internal Void update(Void) {
 
     typedef struct DragTabData DragTabData;
     struct DragTabData {
-        Panel *panel;
-        Tab   *tab;
+        Handle panel;
+        Handle tab;
     };
 
     if (drag_is_active()) {
-        ui_tooltip() {
-            ui_width_next(ui_size_ems(60.0f, 1.0f));
-            ui_height_next(ui_size_ems(40.0f, 1.0f));
-            ui_layout_axis_next(Axis2_Y);
-            ui_color_next(theme->element_color);
-            UI_Box *container = ui_create_box_from_string(UI_BoxFlag_DrawBackground | UI_BoxFlag_Clip, str8_literal("###drag_preview"));
-            ui_parent(container) {
-                DragTabData *data = ui_get_drag_data(DragTabData);
-                if (data->tab && data->tab->build_view) {
-                    data->tab->build_view(data->tab, theme, container->calculated_rectangle);
+        DragTabData *data = ui_get_drag_data(DragTabData);
+        Tab *tab = tab_from_handle(data->tab);
+        if (tab && tab->build_view) {
+            ui_tooltip() {
+                ui_width_next(ui_size_ems(60.0f, 1.0f));
+                ui_height_next(ui_size_ems(40.0f, 1.0f));
+                ui_layout_axis_next(Axis2_Y);
+                ui_color_next(theme->element_color);
+                UI_Box *container = ui_create_box_from_string(UI_BoxFlag_DrawBackground | UI_BoxFlag_Clip, str8_literal("###drag_preview"));
+                ui_parent(container) {
+                    tab->build_view(tab, theme, container->calculated_rectangle);
                 }
             }
+        } else {
+            drag_cancel();
         }
     }
 
@@ -747,7 +817,7 @@ internal Void update(Void) {
         R2F32 panel_rectangle = r2f32_pad(rectangle_from_panel(panel, root_rectangle), -panel_pad);
 
         if (!panel->first) {
-            Tab *next_active_tab = panel->active_tab;
+            Tab *next_active_tab = tab_from_handle(panel->active_tab);
 
             UI_Size tab_height = ui_size_ems(1.5f, 1.0f);
             R2F32 tab_bar_rectangle = r2f32(panel_rectangle.min.x, panel_rectangle.min.y, panel_rectangle.max.x, panel_rectangle.min.y + tab_height.value);
@@ -769,7 +839,7 @@ internal Void update(Void) {
             ui_layout_axis(Axis2_X)
             ui_parent(tab_bar_box) {
                 for (Tab *tab = panel->tab_first; tab; tab = tab->next) {
-                    if (tab == panel->active_tab) {
+                    if (tab == tab_from_handle(panel->active_tab)) {
                         ui_border_color_next(color_from_srgba_u32(0x40C057FF));
                     }
 
@@ -795,7 +865,7 @@ internal Void update(Void) {
                         );
                         UI_Input close_input = ui_input_from_box(close_box);
                         if (close_input.input_flags & UI_InputFlag_LeftClicked) {
-                            push_command(Command_CloseTab, .tab = tab, .panel = panel);
+                            push_command(Command_CloseTab, .tab = handle_from_tab(tab), .panel = handle_from_panel(panel));
                         }
                     }
 
@@ -812,7 +882,7 @@ internal Void update(Void) {
                     }
 
                     if (input.input_flags & UI_InputFlag_LeftPressed) {
-                        push_command(Command_FocusPanel, .panel = panel);
+                        push_command(Command_FocusPanel, .panel = handle_from_panel(panel));
                         next_active_tab = tab;
                     }
 
@@ -822,8 +892,8 @@ internal Void update(Void) {
 
                     if (input.input_flags & UI_InputFlag_LeftDragging && !drag_is_active()) {
                         DragTabData data = {
-                            .panel = panel,
-                            .tab = tab,
+                            .panel = handle_from_panel(panel),
+                            .tab = handle_from_tab(tab),
                         };
                         ui_set_drag_data(&data);
                         drag_begin();
@@ -831,7 +901,7 @@ internal Void update(Void) {
                 }
             }
 
-            if (panel == state->active_panel) {
+            if (panel == panel_from_handle(state->active_panel)) {
                 ui_border_color_next(color_from_srgba_u32(0x40C057FF));
             }
             ui_fixed_position_next(content_rectangle.min);
@@ -843,8 +913,9 @@ internal Void update(Void) {
             );
 
             ui_parent(content_box) {
-                if (panel->active_tab && panel->active_tab->build_view) {
-                    panel->active_tab->build_view(panel->active_tab, theme, content_rectangle);
+                Tab *tab = tab_from_handle(panel->active_tab);
+                if (tab && tab->build_view) {
+                    tab->build_view(tab, theme, content_rectangle);
                 } else {
                     ui_width(ui_size_parent_percent(1.0f, 1.0f))
                     ui_height(ui_size_parent_percent(1.0f, 1.0f))
@@ -857,7 +928,7 @@ internal Void update(Void) {
                             ui_height_next(ui_size_text_content(0.0f, 1.0f));
                             UI_Input close_input = ui_button_format("Close panel###%p", panel);
                             if (close_input.input_flags & UI_InputFlag_LeftClicked) {
-                                push_command(Command_ClosePanel, .panel = panel);
+                                push_command(Command_ClosePanel, .panel = handle_from_panel(panel));
                             }
 
                             ui_spacer_sized(ui_size_fill());
@@ -870,7 +941,7 @@ internal Void update(Void) {
             // NOTE(simon): Consume fallthrough events.
             UI_Input content_input = ui_input_from_box(content_box);
             if (content_input.input_flags & UI_InputFlag_LeftClicked) {
-                push_command(Command_FocusPanel, .panel = panel);
+                push_command(Command_FocusPanel, .panel = handle_from_panel(panel));
             }
             if (ui_drop_hot_key() == content_box->key && drag_drop()) {
                 DragTabData *data = ui_get_drag_data(DragTabData);
@@ -878,12 +949,12 @@ internal Void update(Void) {
                     Command_MoveTab,
                     .panel = data->panel,
                     .tab   = data->tab,
-                    .destination_panel = panel,
+                    .destination_panel = handle_from_panel(panel),
                     .previous_tab      = panel->active_tab,
                 );
             }
 
-            panel->active_tab = next_active_tab;
+            panel->active_tab = handle_from_tab(next_active_tab);
         }
     }
 
@@ -932,7 +1003,7 @@ internal S32 os_run(Str8List arguments) {
     state->panel_root->split_axis = Axis2_X;
     {
         Panel *left = panel_create(state);
-        push_command(Command_OpenTab, .panel = left, .tab_specification = str8_literal("GlyphList"));
+        push_command(Command_OpenTab, .panel = handle_from_panel(left), .tab_specification = str8_literal("GlyphList"));
 
         Panel *right = panel_create(state);
         Panel *far_right = panel_create(state);
@@ -945,10 +1016,10 @@ internal S32 os_run(Str8List arguments) {
         panel_insert(state->panel_root, right, far_right);
 
         // TODO(simon): This should be updated when the user navigates the interface
-        state->active_panel = left;
+        state->active_panel = handle_from_panel(left);
 
         Panel *top = panel_create(state);
-        push_command(Command_OpenTab, .panel = top, .tab_specification = str8_literal("GlyphView"));
+        push_command(Command_OpenTab, .panel = handle_from_panel(top), .tab_specification = str8_literal("GlyphView"));
 
         Panel *middle = panel_create(state);
         middle->split_axis = Axis2_X;
@@ -961,7 +1032,7 @@ internal S32 os_run(Str8List arguments) {
         }
 
         Panel *bottom = panel_create(state);
-        push_command(Command_OpenTab, .panel = bottom, .tab_specification = str8_literal("RenderStats"));
+        push_command(Command_OpenTab, .panel = handle_from_panel(bottom), .tab_specification = str8_literal("RenderStats"));
 
         top->percentage_of_parent = 0.65f;
         middle->percentage_of_parent = 0.1f;

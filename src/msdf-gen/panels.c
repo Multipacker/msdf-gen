@@ -1,14 +1,19 @@
 // NOTE(simon): Tab functions
 
 internal Tab *tab_create(State *state, Str8 name) {
+    U64 generation = 0;
+
     Tab *tab = state->tab_freelist;
     if (tab) {
         sll_stack_pop(state->tab_freelist);
+        generation = tab->generation;
     } else {
         tab = arena_push_struct_zero(state->arena, Tab);
     }
 
     memory_zero_struct(tab);
+
+    tab->generation = generation;
 
     tab->arena = arena_create();
     tab->name  = str8_copy(tab->arena, name);
@@ -18,6 +23,7 @@ internal Tab *tab_create(State *state, Str8 name) {
 
 internal Void tab_free(State *state, Tab *tab) {
     arena_destroy(tab->arena);
+    ++tab->generation;
     sll_stack_push(state->tab_freelist, tab);
 }
 
@@ -35,14 +41,18 @@ internal Void *tab_get_state(Tab *tab, U64 size) {
 // NOTE(simon): Panel functions
 
 internal Panel *panel_create(State *state) {
+    U64 generation = 0;
+
     Panel *panel = state->panel_freelist;
     if (panel) {
         sll_stack_pop(state->panel_freelist);
+        generation = panel->generation;
     } else {
         panel = arena_push_struct_zero(state->arena, Panel);
     }
 
     memory_zero_struct(panel);
+    panel->generation = generation;
 
     return panel;
 }
@@ -52,6 +62,7 @@ internal Void panel_free(State *state, Panel *panel) {
         tab_free(state, tab);
     }
 
+    ++panel->generation;
     sll_stack_push(state->panel_freelist, panel);
 }
 
@@ -128,13 +139,13 @@ internal Void panel_remove(Panel *parent, Panel *child) {
 // NOTE(simon): Panel-tab functions
 
 internal Void panel_remove_tab(Panel *panel, Tab *tab) {
-    if (panel->active_tab == tab) {
+    if (tab_from_handle(panel->active_tab) == tab) {
         if (tab->next) {
-            panel->active_tab = tab->next;
+            panel->active_tab = handle_from_tab(tab->next);
         } else if (tab->previous) {
-            panel->active_tab = tab->previous;
+            panel->active_tab = handle_from_tab(tab->previous);
         } else {
-            panel->active_tab = 0;
+            panel->active_tab = handle_from_tab(0);
         }
     }
     dll_remove(panel->tab_first, panel->tab_last, tab);
@@ -142,6 +153,6 @@ internal Void panel_remove_tab(Panel *panel, Tab *tab) {
 
 internal Void panel_insert_tab(Panel *panel, Tab *previous_tab, Tab *tab) {
     dll_insert_next_previous_zero(panel->tab_first, panel->tab_last, previous_tab, tab, next, previous, 0);
-    panel->active_tab = tab;
+    panel->active_tab = handle_from_tab(tab);
     ++panel->child_count;
 }
