@@ -778,10 +778,12 @@ internal Void update(Void) {
                 Panel *min_child = child;
                 Panel *max_child = child->next;
 
-                local V2F32 drag_data = { 0 };
                 if (input.input_flags & UI_InputFlag_LeftPressed) {
-                    drag_data = v2f32(min_child->percentage_of_parent, max_child->percentage_of_parent);
+                    V2F32 drag_data = v2f32(min_child->percentage_of_parent, max_child->percentage_of_parent);
+                    ui_set_drag_data(&drag_data);
                 }
+
+                V2F32 drag_data = *ui_get_drag_data(V2F32);
 
                 F32 min_child_percentage_pre_drag = drag_data.x;
                 F32 max_child_percentage_pre_drag = drag_data.y;
