@@ -210,13 +210,13 @@ internal Void os_exit(S32 exit_code) {
     ExitProcess(exit_code);
 }
 
-int main(int argument_count, char *arguments[]) {
+int wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int nShowCmd) {
     arena_init_scratch();
 
     win32_permanent_arena = arena_create();
 
-    for (int i = 0; i < argument_count; ++i) {
-        Str8 argument = str8_cstr(arguments[i]);
+    for (int i = 0; i < __argc; ++i) {
+        Str8 argument = str8_from_str16(win32_permanent_arena, str16_cstr16(__wargv[i]));
         str8_list_push(win32_permanent_arena, &win32_argument_list, argument);
     }
 

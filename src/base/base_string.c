@@ -54,6 +54,18 @@ internal Str8 str8_copy_cstr(Arena *arena, U8 *data) {
     return result;
 }
 
+internal Str16 str16_cstr16(CStr16 data) {
+    Str16 result;
+    result.data = (U16 *) data;
+    result.size = 0;
+
+    while (result.data[result.size]) {
+        ++result.size;
+    }
+
+    return result;
+}
+
 internal Str8 str8_prefix(Str8 string, U64 size) {
     U64 clamped_size = u64_min(size, string.size);
 
