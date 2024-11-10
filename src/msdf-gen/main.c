@@ -42,8 +42,6 @@
  * * UI active and hot keys should be per mouse button, not one for the whole UI
  * * Releasing mouse butttons outside of the window on windows doesn't generate
  *   release events.
- * * Releasing mouse butttons outside of the window on linux doesn't generate
- *   release events until you return the mouse pointer to the window.
  * * Pressing right or middle click during a panel resize creates black boxes.
  * * Window doens't repaint while resizing the window on windows.
  * * Scroll position of glyph view jumps occasionaly while switching tabs
@@ -979,6 +977,11 @@ internal Void update(Void) {
         if (consumed) {
             dll_remove(events.first, events.last, event);
         }
+    }
+
+    // NOTE(simon): Cancel drag and drop if nothing caught it.
+    if (state->drag_state == DragState_Dropping) {
+        state->drag_state = DragState_None;
     }
 
     arena_end_temporary(scratch);
