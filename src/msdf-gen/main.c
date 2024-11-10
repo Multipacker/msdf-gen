@@ -50,7 +50,6 @@
  *   (probably because the box keys are tied to the panel???)
  * * Visualization of active and hot elements runs even when you right click on
  *   a button.
- * * Middle clicking on resizing borders causes panels to disappear.
  * * Tabbars are not clipped to the panels section of the screen, so they can
  *   overlap other panels.
  */
