@@ -2,6 +2,11 @@ global PFNWGLCHOOSEPIXELFORMATARBPROC    wglChoosePixelFormatARB;
 global PFNWGLCREATECONTEXTATTRIBSARBPROC wglCreateContextAttribsARB;
 global PFNWGLSWAPINTERVALEXTPROC         wglSwapIntervalEXT;
 
+// NOTE(simon): Stupid solution to enable high performance graphics on Nvidia
+// and AMD GPUs.
+_declspec(dllexport) DWORD NvOptimusEnablement = 1;
+_declspec(dllexport) int AmdPowerXpressRequestHighPerformance = 1;
+
 internal B32 render_init(Void) {
     B32 success = false;
     Arena_Temporary scratch = arena_get_scratch(0, 0);
