@@ -532,7 +532,7 @@ internal TTF_Glyph ttf_get_glyph_outlines(Arena *arena, TTF_Font *font, U32 glyp
     }
 
     if (contour_count > 0) {
-        if ((U32) contour_count < font->contour_capacity) {
+        if ((U32) contour_count <= font->contour_capacity) {
             if (glyph_data.size >= read_index + (U64) contour_count * sizeof(U16)) {
                 result.contour_count = (U32) contour_count;
 
