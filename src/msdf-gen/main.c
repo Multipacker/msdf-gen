@@ -41,7 +41,6 @@
  * FIXME:
  * * UI active and hot keys should be per mouse button, not one for the whole UI
  * * Pressing right or middle click during a panel resize creates black boxes.
- * * Window doens't repaint while resizing the window on windows.
  * * Scroll position of glyph view jumps occasionaly while switching tabs
  *   (probably because the box keys are tied to the panel???)
  * * Visualization of active and hot elements runs even when you right click on
@@ -1049,6 +1048,7 @@ internal S32 os_run(Str8List arguments) {
     render_init();
     render_create();
     font_cache_create();
+    gfx_set_update_function(update);
 
     state->font = font_create(arguments.first->next->string, 32, 64);
     state->ttf_font = ttf_load(arena, arguments.first->next->string);

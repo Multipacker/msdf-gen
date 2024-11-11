@@ -6,6 +6,7 @@ struct Gfx_Win32State {
     HWND hwnd;
     HDC  hdc;
     U32 buttons_pressed;
+    VoidFunction *update;
 };
 
 global Gfx_Win32State global_gfx_win32_state;
@@ -22,6 +23,20 @@ internal LRESULT CALLBACK win32_window_proc(HWND hwnd, UINT message, WPARAM wpar
             } break;
             case WM_SIZE: {
                 event->kind = Gfx_EventKind_Resize;
+                if (global_gfx_win32_state.update) {
+                    PAINTSTRUCT ps = { 0 };
+                    BeginPaint(hwnd, &ps);
+                    global_gfx_win32_state.update();
+                    EndPaint(hwnd, &ps);
+                }
+            } break;
+            case WM_PAINT: {
+                if (global_gfx_win32_state.update) {
+                    PAINTSTRUCT ps = { 0 };
+                    BeginPaint(hwnd, &ps);
+                    global_gfx_win32_state.update();
+                    EndPaint(hwnd, &ps);
+                }
             } break;
             case WM_MOUSEWHEEL: {
                 event->kind = Gfx_EventKind_Scroll;
@@ -209,4 +224,8 @@ internal Void gfx_set_cursor(Gfx_Cursor cursor) {
     if (selected_cursor) {
         SetCursor(selected_cursor);
     }
+}
+
+internal Void gfx_set_update_function(VoidFunction *update) {
+    global_gfx_win32_state.update = update;
 }

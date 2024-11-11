@@ -205,3 +205,6 @@ internal Void gfx_set_cursor(Gfx_Cursor cursor) {
         SDL_SetCursor(selected_cursor);
     }
 }
+
+internal Void gfx_set_update_function(VoidFunction *update) {
+}

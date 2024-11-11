@@ -132,5 +132,6 @@ internal Gfx_EventList gfx_get_events(Arena *arena);
 internal V2F32         gfx_get_mouse_position(Void);
 internal Void          gfx_swap_buffers(Void);
 internal Void          gfx_set_cursor(Gfx_Cursor cursor);
+internal Void          gfx_set_update_function(VoidFunction *update);
 
 #endif // GRAPHICS_CORE_H
