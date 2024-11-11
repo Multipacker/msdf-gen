@@ -43,6 +43,8 @@
  * * Pressing right or middle click during a panel resize creates black boxes.
  * * Scroll position of glyph view jumps occasionaly while switching tabs
  *   (probably because the box keys are tied to the panel???)
+ * * On Windows, the mouse cursor doesn't change correctly when trying to
+ *   resize the window
  * * Visualization of active and hot elements runs even when you right click on
  *   a button.
  * * Tabbars are not clipped to the panels section of the screen, so they can
