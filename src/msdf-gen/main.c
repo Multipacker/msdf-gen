@@ -892,7 +892,7 @@ internal Void update(Void) {
                         ui_spacer_sized(ui_size_pixels(5.0f, 1.0f));
                     }
 
-                    if (input.input_flags & UI_InputFlag_LeftDragging && !drag_is_active()) {
+                    if (input.input_flags & UI_InputFlag_LeftDragging && !drag_is_active() && v2f32_length(ui_drag_delta()) > 10.0f) {
                         DragTabData data = {
                             .panel = handle_from_panel(panel),
                             .tab = handle_from_tab(tab),
