@@ -60,8 +60,21 @@ internal Str8 ui_display_part_from_string(Str8 string) {
     return result;
 }
 
-internal UI_Key ui_key_from_string(Str8 string) {
-    UI_Key result = 6180339887498948482;
+internal UI_Key ui_active_seed_key(Void) {
+    UI_Box *parent_seed = &global_ui_null_box;
+
+    for (UI_Box *parent = ui_parent_top(); parent != &global_ui_null_box; parent = parent->parent) {
+        if (!ui_keys_match(parent->key, global_ui_null_key)) {
+            parent_seed = parent;
+            break;
+        }
+    }
+
+    return parent_seed->key;
+}
+
+internal UI_Key ui_key_from_string(UI_Key seed, Str8 string) {
+    UI_Key result = seed;
     for (U64 i = 0; i < string.size; ++i) {
         result ^= string.data[i];
         result *= 1111111111111111111;
@@ -69,7 +82,7 @@ internal UI_Key ui_key_from_string(Str8 string) {
     return (result ^ result >> 32) | 1;
 }
 
-internal UI_Key ui_key_from_string_format(CStr format, ...) {
+internal UI_Key ui_key_from_string_format(UI_Key seed, CStr format, ...) {
     Arena_Temporary scratch = arena_get_scratch(0, 0);
 
     va_list arguments;
@@ -77,7 +90,7 @@ internal UI_Key ui_key_from_string_format(CStr format, ...) {
     Str8 string = str8_format_list(scratch.arena, format, arguments);
     va_end(arguments);
 
-    UI_Key result = ui_key_from_string(string);
+    UI_Key result = ui_key_from_string(seed, string);
 
     arena_end_temporary(scratch);
     return result;
@@ -704,7 +717,7 @@ internal UI_Box *ui_create_box(UI_BoxFlags flags) {
 }
 
 internal UI_Box *ui_create_box_from_string(UI_BoxFlags flags, Str8 string) {
-    UI_Key key = ui_key_from_string(ui_hash_part_from_string(string));
+    UI_Key key = ui_key_from_string(ui_active_seed_key(), ui_hash_part_from_string(string));
     UI_Box *result = ui_create_box_from_key(flags, key);
     ui_box_set_string(result, ui_display_part_from_string(string));
     return result;

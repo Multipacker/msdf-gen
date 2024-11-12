@@ -292,8 +292,10 @@ internal Void ui_select_state(UI_Context *state);
 internal Str8 ui_hash_part_from_string(Str8 string);
 internal Str8 ui_display_part_from_string(Str8 string);
 
-internal UI_Key ui_key_from_string(Str8 string);
-internal UI_Key ui_key_from_string_format(CStr format, ...);
+internal UI_Key ui_key_from_string(UI_Key seed, Str8 string);
+internal UI_Key ui_key_from_string_format(UI_Key seed, CStr format, ...);
+
+internal UI_Key ui_active_seed_key(Void);
 
 internal UI_Size ui_size_pixels(F32 pixels, F32 strictness);
 internal UI_Size ui_size_ems(F32 ems, F32 strictness);
