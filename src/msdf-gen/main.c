@@ -541,18 +541,24 @@ internal Void update(Void) {
         next = event->next;
         B32 consume = false;
 
-        if (event->kind == Gfx_EventKind_KeyPress && event->key == Gfx_Key_T && (event->key_modifiers & Gfx_KeyModifier_Control)) {
+        if (event->kind == Gfx_EventKind_KeyPress && event->key == Gfx_Key_T && event->key_modifiers == Gfx_KeyModifier_Control) {
             consume = true;
             push_command(Command_OpenTab, .panel = state->active_panel, .tab_specification = str8_literal("RenderStats"));
-        } else if (event->kind == Gfx_EventKind_KeyPress && event->key == Gfx_Key_W && (event->key_modifiers & Gfx_KeyModifier_Control)) {
+        } else if (event->kind == Gfx_EventKind_KeyPress && event->key == Gfx_Key_W && event->key_modifiers == Gfx_KeyModifier_Control) {
             consume = true;
             push_command(Command_CloseTab, .panel = state->active_panel, .tab = panel_from_handle(state->active_panel)->active_tab);
-        } else if (event->kind == Gfx_EventKind_KeyPress && event->key == Gfx_Key_Tab && (event->key_modifiers & (Gfx_KeyModifier_Shift | Gfx_KeyModifier_Control)) == (Gfx_KeyModifier_Shift | Gfx_KeyModifier_Control)) {
+        } else if (event->kind == Gfx_EventKind_KeyPress && event->key == Gfx_Key_Tab && event->key_modifiers == (Gfx_KeyModifier_Shift | Gfx_KeyModifier_Control)) {
             consume = true;
             push_command(Command_PreviousTab, .panel = state->active_panel);
-        } else if (event->kind == Gfx_EventKind_KeyPress && event->key == Gfx_Key_Tab && (event->key_modifiers & Gfx_KeyModifier_Control)) {
+        } else if (event->kind == Gfx_EventKind_KeyPress && event->key == Gfx_Key_Tab && event->key_modifiers == Gfx_KeyModifier_Control) {
             consume = true;
             push_command(Command_NextTab, .panel = state->active_panel);
+        } else if (event->kind == Gfx_EventKind_KeyPress && event->key == Gfx_Key_N && event->key_modifiers == Gfx_KeyModifier_Control) {
+            consume = true;
+            state->theme_index = (state->theme_index + 1) % array_count(global_themes);
+        } else if (event->kind == Gfx_EventKind_KeyPress && event->key == Gfx_Key_P && event->key_modifiers == Gfx_KeyModifier_Control) {
+            consume = true;
+            state->theme_index = (state->theme_index + array_count(global_themes) - 1) % array_count(global_themes);
         }
 
         if (drag_is_active() && event->kind == Gfx_EventKind_KeyRelease && event->key == Gfx_Key_MouseLeft) {
@@ -968,6 +974,22 @@ internal Void update(Void) {
     }
     draw_submit();
     render_end();
+
+    // NOTE(simon): Animate theme
+    {
+        Theme *target_theme = &global_themes[state->theme_index];
+        for (ThemeColor palette = 0; palette < ThemeColor_COUNT; ++palette) {
+            for (UI_Color color_index = 0; color_index < UI_Color_COUNT; ++color_index) {
+                V4F32 *color = &state->theme.colors[palette].colors[color_index];
+                V4F32 *target_color = &target_theme->colors[palette].colors[color_index];
+
+                color->r += (target_color->r - color->r) * ui_animation_fast_rate();
+                color->g += (target_color->g - color->g) * ui_animation_fast_rate();
+                color->b += (target_color->b - color->b) * ui_animation_fast_rate();
+                color->a += (target_color->a - color->a) * ui_animation_fast_rate();
+            }
+        }
+    }
 
     for (Gfx_Event *event = events.first, *next; event; event = next) {
         next = event->next;
