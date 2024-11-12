@@ -382,9 +382,13 @@ PANEL_BUILD_FUNCTION(view_glyph) {
             ui_create_box(UI_BoxFlag_DrawBorder);
 
             ui_palette(global_state->theme.button) {
+                ui_spacer_sized(ui_size_ems(0.5f, 1.0f));
                 ui_checkbox_b32(&state->render_outline, str8_literal("Draw outlines"));
+                ui_spacer_sized(ui_size_ems(0.5f, 1.0f));
                 ui_checkbox_b32(&state->render_points, str8_literal("Draw points"));
+                ui_spacer_sized(ui_size_ems(0.5f, 1.0f));
                 ui_checkbox_b32(&state->render_raw, str8_literal("Draw raw"));
+                ui_spacer_sized(ui_size_ems(0.5f, 1.0f));
                 ui_label_format("Selected glyph: U+%.6X", global_state->selected_codepoint);
             }
         }
