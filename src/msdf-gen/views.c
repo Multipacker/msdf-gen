@@ -87,7 +87,7 @@ internal UI_BOX_DRAW_FUNCTION(draw_ui_glyph_outline) {
 
     F32 point_size = 5.0f;
 
-    F32 scale_to_fit = f32_min((box_size.x - 2.0f * point_size) / glyph_size.x, (box_size.y - 2.0f * point_size) / glyph_size.y);
+    F32 scale_to_fit = f32_min(box_size.x / glyph_size.x, box_size.y / glyph_size.y);
     M3F32 scale = m3f32_scale(v2f32(scale_to_fit, -scale_to_fit));
 
     M3F32 center_box = m3f32_translation(v2f32_add(box->calculated_rectangle.min, v2f32_scale(box_size, 0.5f)));
@@ -231,7 +231,7 @@ PANEL_BUILD_FUNCTION(view_glyph_list) {
     S32 selected_row = (S32) (global_state->selected_codepoint / codepoints_per_row);
 
     // NOTE(simon): Scrollbar container
-    ui_palette_next(theme->scroll_container);
+    ui_palette_next(global_state->theme.scroll_container);
     ui_width_next(ui_size_pixels(scrollbar_width, 1.0f));
     ui_height_next(ui_size_pixels(panel_size.y, 1.0f));
     ui_layout_axis_next(Axis2_Y);
@@ -249,7 +249,7 @@ PANEL_BUILD_FUNCTION(view_glyph_list) {
         UI_Box *scroll_before = ui_create_box_from_string(UI_BoxFlag_Clickable, str8_literal("before"));
 
         ui_hover_cursor_next(Gfx_Cursor_Hand);
-        ui_palette_next(theme->scroll_bar);
+        ui_palette_next(global_state->theme.scroll_bar);
         ui_height_next(ui_size_parent_percent(visible_rows / row_count, 1.0f));
         UI_Box *scroll = ui_create_box_from_string(UI_BoxFlag_Clickable | UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawBorder | UI_BoxFlag_DrawHot | UI_BoxFlag_DrawActive, str8_literal("scroll"));
 
@@ -286,7 +286,7 @@ PANEL_BUILD_FUNCTION(view_glyph_list) {
     UIDrawMSDF *draw_msdf = arena_push_struct_zero(ui_frame_arena(), UIDrawMSDF);
     draw_msdf->font = global_state->font;
 
-    ui_palette_push(theme->button);
+    ui_palette_push(global_state->theme.button);
     for (S32 row = top_row; row < bottom_row; ++row) {
         ui_width_next(ui_size_parent_percent(1.0f, 1.0f));
         ui_height_next(ui_size_pixels(height, 1.0f));
@@ -356,7 +356,7 @@ PANEL_BUILD_FUNCTION(view_glyph) {
     ui_column() {
         ui_width(ui_size_text_content(0.0f, 1.0f))
         ui_height(ui_size_text_content(0.0f, 1.0f))
-        ui_palette(theme->button) {
+        ui_palette(global_state->theme.button) {
             ui_width_next(ui_size_parent_percent(1.0f, 0.0f));
             ui_height_next(ui_size_parent_percent(1.0f, 0.0f));
             ui_draw_function_next(draw_ui_glyph_outline);
@@ -381,7 +381,7 @@ PANEL_BUILD_FUNCTION(view_glyph) {
             ui_draw_data_next(glyph_outline);
             ui_create_box(UI_BoxFlag_DrawBorder);
 
-            ui_palette(theme->button) {
+            ui_palette(global_state->theme.button) {
                 ui_checkbox_b32(&state->render_outline, str8_literal("Draw outlines"));
                 ui_checkbox_b32(&state->render_points, str8_literal("Draw points"));
                 ui_checkbox_b32(&state->render_raw, str8_literal("Draw raw"));
@@ -395,7 +395,7 @@ PANEL_BUILD_FUNCTION(view_stats) {
     ui_width(ui_size_parent_percent(1.0f, 1.0f))
     ui_height(ui_size_parent_percent(1.0f, 1.0f))
     ui_column() {
-        ui_palette(theme->text)
+        ui_palette(global_state->theme.text)
         ui_width(ui_size_text_content(0.0f, 1.0f))
         ui_height(ui_size_text_content(0.0f, 1.0f)) {
             Render_Stats stats = render_get_stats();

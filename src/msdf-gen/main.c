@@ -55,6 +55,7 @@ typedef enum {
     ThemeColor_ActiveTab,
     ThemeColor_TabBar,
     ThemeColor_Overlay,
+    ThemeColor_PanelBoundary,
     ThemeColor_COUNT,
 } ThemeColor;
 
@@ -73,11 +74,12 @@ struct Theme {
             UI_Palette active_tab;
             UI_Palette tab_bar;
             UI_Palette overlay;
+            UI_Palette panel_boundary;
         };
     };
 };
 
-global Theme global_themes[2];
+global Theme global_themes[6];
 
 typedef struct Glyph Glyph;
 struct Glyph {
@@ -118,7 +120,7 @@ struct Font {
 typedef struct Panel Panel;
 typedef struct Tab Tab;
 
-#define PANEL_BUILD_FUNCTION(name) Void name(Tab *tab, Theme *theme, R2F32 panel_rectangle)
+#define PANEL_BUILD_FUNCTION(name) Void name(Tab *tab, R2F32 panel_rectangle)
 typedef PANEL_BUILD_FUNCTION(PanelBuildFunction);
 
 typedef struct {
@@ -234,6 +236,9 @@ struct State {
 
     Arena *command_arena;
     CommandList commands;
+
+    Theme theme;
+    U32 theme_index;
 };
 
 global State *global_state;
@@ -710,79 +715,11 @@ internal Void update(Void) {
     state->commands.first = 0;
     state->commands.last  = 0;
 
-    // NOTE(simon): Themes
-    {
-        global_themes[0].name = str8_literal("Light theme");
-        //global_themes[0].background_color = color_from_srgba_u32(0xF8F9FAFF); // OC Gray 0
-        //global_themes[0].element_color    = color_from_srgba_u32(0xE9ECEFFF); // OC Gray 2
-        //global_themes[0].border_color     = color_from_srgba_u32(0xCED4DAFF); // OC Gray 4
-        //global_themes[0].text_color       = color_from_srgba_u32(0x495057FF); // OC Gray 7
-        global_themes[0].scroll_container.background = color_from_srgba_u32(0xF8F9FAFF); // OC Gray 0
-        global_themes[0].scroll_container.border     = color_from_srgba_u32(0xCED4DAFF); // OC Gray 4
-
-        global_themes[0].scroll_bar.background = color_from_srgba_u32(0xF8F9FAFF); // OC Gray 0
-        global_themes[0].scroll_bar.border     = color_from_srgba_u32(0xCED4DAFF); // OC Gray 4
-
-        global_themes[0].button.background = color_from_srgba_u32(0xF8F9FAFF); // OC Gray 0
-        global_themes[0].button.border     = color_from_srgba_u32(0xCED4DAFF); // OC Gray 4
-        global_themes[0].button.text       = color_from_srgba_u32(0x212529FF); // OC Gray 9
-
-        global_themes[0].text.text = color_from_srgba_u32(0x212529FF); // OC Gray 9
-
-        global_themes[0].panel.background = color_from_srgba_u32(0xF8F9FAFF); // OC Gray 0
-        global_themes[0].panel.border     = color_from_srgba_u32(0xCED4DAFF); // OC Gray 4
-
-        global_themes[0].tab_bar.background = color_from_srgba_u32(0xF8F9FAFF); // OC Gray 0
-        global_themes[0].tab_bar.border     = color_from_srgba_u32(0xCED4DAFF); // OC Gray 4
-
-        global_themes[0].tab.background = color_from_srgba_u32(0xF8F9FAFF); // OC Gray 0
-        global_themes[0].tab.border     = color_from_srgba_u32(0xCED4DAFF); // OC Gray 4
-        global_themes[0].tab.text       = color_from_srgba_u32(0x212529FF); // OC Gray 9
-
-        global_themes[0].active_tab.background = color_from_srgba_u32(0xF8F9FAFF); // OC Gray 0
-        global_themes[0].active_tab.border     = color_from_srgba_u32(0xCED4DAFF); // OC Gray 4
-        global_themes[0].active_tab.text       = color_from_srgba_u32(0x212529FF); // OC Gray 9
-
-        global_themes[0].overlay.background = v4f32(0.0f, 0.0f, 0.0f, 0.3f);
-
-        global_themes[1].name = str8_literal("Dark theme"),
-
-        global_themes[1].scroll_container.background = color_from_srgba_u32(0x343A40FF); // OC Gray 8
-        global_themes[1].scroll_container.border     = color_from_srgba_u32(0x495057FF); // OC Gray 7
-
-        global_themes[1].scroll_bar.background = color_from_srgba_u32(0x495057FF); // OC Gray 7
-        global_themes[1].scroll_bar.border     = color_from_srgba_u32(0x868E96FF); // OC Gray 6
-
-        global_themes[1].button.background = color_from_srgba_u32(0x343A40FF); // OC Gray 8
-        global_themes[1].button.border     = color_from_srgba_u32(0x495057FF); // OC Gray 7
-        global_themes[1].button.text       = color_from_srgba_u32(0xF8F9FAFF); // OC Gray 0
-                                                                               //
-        global_themes[1].text.text = color_from_srgba_u32(0xF8F9FAFF); // OC Gray 0
-
-        global_themes[1].panel.background = color_from_srgba_u32(0x212529FF); // OC Gray 9
-        global_themes[1].panel.border     = color_from_srgba_u32(0x343A40FF); // OC Gray 8
-
-        global_themes[1].tab_bar.background = color_from_srgba_u32(0x212529FF); // OC Gray 9
-        global_themes[1].tab_bar.border     = color_from_srgba_u32(0x343A40FF); // OC Gray 8
-
-        global_themes[1].tab.background = color_from_srgba_u32(0x343A40FF); // OC Gray 8
-        global_themes[1].tab.border     = color_from_srgba_u32(0x495057FF); // OC Gray 7
-        global_themes[1].tab.text       = color_from_srgba_u32(0xF8F9FAFF); // OC Gray 0
-
-        global_themes[1].active_tab.background = color_from_srgba_u32(0x495057FF); // OC Gray 7
-        global_themes[1].active_tab.border     = color_from_srgba_u32(0x868E96FF); // OC Gray 6
-        global_themes[1].active_tab.text       = color_from_srgba_u32(0xF8F9FAFF); // OC Gray 0
-
-        global_themes[1].overlay.background = v4f32(0.0f, 0.0f, 0.0f, 0.3f);
-    }
-
     V2U32 client_area = gfx_get_window_client_area();
     render_begin(client_area);
     draw_begin_frame();
     ui_select_state(state->ui);
     ui_begin(&events, 1.0f / 60.0f);
-
-    Theme *theme = &global_themes[1];
 
     // NOTE(simon): 14 pts * 96 pixels per inch / 72 points per inch
     ui_font_size_push((U32) (11.0f * 96.0f / 72.0f));
@@ -803,10 +740,10 @@ internal Void update(Void) {
                 ui_width_next(ui_size_ems(60.0f, 1.0f));
                 ui_height_next(ui_size_ems(40.0f, 1.0f));
                 ui_layout_axis_next(Axis2_Y);
-                ui_palette_next(theme->panel);
+                ui_palette_next(state->theme.panel);
                 UI_Box *container = ui_create_box_from_string(UI_BoxFlag_DrawBackground | UI_BoxFlag_Clip, str8_literal("###drag_preview"));
                 ui_parent(container) {
-                    tab->build_view(tab, theme, container->calculated_rectangle);
+                    tab->build_view(tab, container->calculated_rectangle);
                 }
             }
         } else {
@@ -828,12 +765,13 @@ internal Void update(Void) {
             boundary_rectangle.min.values[panel->split_axis] -= panel_pad;
             boundary_rectangle.max.values[panel->split_axis] += panel_pad;
 
+            ui_palette_next(state->theme.panel_boundary);
             ui_fixed_position_next(boundary_rectangle.min);
             ui_width_next(ui_size_pixels(r2f32_size(boundary_rectangle).width, 1.0f));
             ui_height_next(ui_size_pixels(r2f32_size(boundary_rectangle).height, 1.0f));
             ui_hover_cursor_next(panel->split_axis == Axis2_X ? Gfx_Cursor_SizeWE : Gfx_Cursor_SizeNS);
             UI_Box *boundary_box = ui_create_box_from_string_format(
-                UI_BoxFlag_Clickable | UI_BoxFlag_FloatingPosition,
+                UI_BoxFlag_DrawBackground | UI_BoxFlag_Clickable | UI_BoxFlag_FloatingPosition,
                 "###panel_boundary_%p", child
             );
             UI_Input input = ui_input_from_box(boundary_box);
@@ -876,7 +814,7 @@ internal Void update(Void) {
     }
 
     // NOTE(simon): Build leaf panel UI.
-    ui_palette(theme->panel)
+    ui_palette(state->theme.panel)
     ui_layout_axis(Axis2_Y)
     for (Panel *panel = state->panel_root; panel; panel = panel_iterator_depth_first_pre_order(panel).next) {
         R2F32 panel_rectangle = r2f32_pad(rectangle_from_panel(panel, root_rectangle), -panel_pad);
@@ -889,14 +827,14 @@ internal Void update(Void) {
             R2F32 content_rectangle = r2f32(panel_rectangle.min.x, panel_rectangle.min.y + tab_height.value, panel_rectangle.max.x, panel_rectangle.max.y);
 
             if (panel != panel_from_handle(state->active_panel)) {
-                ui_palette_next(theme->overlay);
+                ui_palette_next(state->theme.overlay);
                 ui_fixed_position_next(content_rectangle.min);
                 ui_width_next(ui_size_pixels(r2f32_size(content_rectangle).width, 1.0f));
                 ui_height_next(ui_size_pixels(r2f32_size(content_rectangle).height, 1.0f));
                 ui_create_box(UI_BoxFlag_DrawBackground | UI_BoxFlag_FloatingPosition);
             }
 
-            ui_palette_next(theme->tab_bar);
+            ui_palette_next(state->theme.tab_bar);
             ui_fixed_position_next(tab_bar_rectangle.min);
             ui_width_next(ui_size_pixels(r2f32_size(tab_bar_rectangle).width, 1.0f));
             ui_height_next(ui_size_pixels(r2f32_size(tab_bar_rectangle).height, 1.0f));
@@ -906,14 +844,14 @@ internal Void update(Void) {
                 "###tab_bar_box_%p", panel
             );
 
-            ui_palette(theme->tab)
+            ui_palette(state->theme.tab)
             ui_width(ui_size_children_sum(1.0f))
             ui_height(tab_height)
             ui_layout_axis(Axis2_X)
             ui_parent(tab_bar_box) {
                 for (Tab *tab = panel->tab_first; tab; tab = tab->next) {
                     if (tab == tab_from_handle(panel->active_tab)) {
-                        ui_palette_push(theme->active_tab);
+                        ui_palette_push(state->theme.active_tab);
                     }
 
                     ui_hover_cursor_next(Gfx_Cursor_Hand);
@@ -979,7 +917,7 @@ internal Void update(Void) {
             ui_parent(content_box) {
                 Tab *tab = tab_from_handle(panel->active_tab);
                 if (tab && tab->build_view) {
-                    tab->build_view(tab, theme, content_rectangle);
+                    tab->build_view(tab, content_rectangle);
                 } else {
                     ui_width(ui_size_parent_percent(1.0f, 1.0f))
                     ui_height(ui_size_parent_percent(1.0f, 1.0f))
@@ -990,7 +928,7 @@ internal Void update(Void) {
                             ui_spacer_sized(ui_size_fill());
                             ui_width_next(ui_size_text_content(5.0f, 1.0f));
                             ui_height_next(ui_size_text_content(0.0f, 1.0f));
-                            ui_palette_next(theme->button);
+                            ui_palette_next(state->theme.button);
                             UI_Input close_input = ui_button_format("Close panel###%p", panel);
                             if (close_input.input_flags & UI_InputFlag_LeftClicked) {
                                 push_command(Command_ClosePanel, .panel = handle_from_panel(panel));
@@ -1067,6 +1005,219 @@ internal S32 os_run(Str8List arguments) {
 
     state->command_arena = arena_create();
 
+    // NOTE(simon): Themes
+    {
+        {
+            Theme *theme = &global_themes[0];
+            theme->name = str8_literal("Light theme");
+
+            theme->scroll_container.background = color_from_srgba_u32(0xF8F9FAFF); // OC Gray 0
+            theme->scroll_container.border     = color_from_srgba_u32(0xCED4DAFF); // OC Gray 4
+
+            theme->scroll_bar.background = color_from_srgba_u32(0xF8F9FAFF); // OC Gray 0
+            theme->scroll_bar.border     = color_from_srgba_u32(0xCED4DAFF); // OC Gray 4
+
+            theme->button.background = color_from_srgba_u32(0xF8F9FAFF); // OC Gray 0
+            theme->button.border     = color_from_srgba_u32(0xCED4DAFF); // OC Gray 4
+            theme->button.text       = color_from_srgba_u32(0x212529FF); // OC Gray 9
+
+            theme->text.text = color_from_srgba_u32(0x212529FF); // OC Gray 9
+
+            theme->panel.background = color_from_srgba_u32(0xF8F9FAFF); // OC Gray 0
+            theme->panel.border     = color_from_srgba_u32(0xCED4DAFF); // OC Gray 4
+
+            theme->tab_bar.background = color_from_srgba_u32(0xF8F9FAFF); // OC Gray 0
+            theme->tab_bar.border     = color_from_srgba_u32(0xCED4DAFF); // OC Gray 4
+
+            theme->tab.background = color_from_srgba_u32(0xF8F9FAFF); // OC Gray 0
+            theme->tab.border     = color_from_srgba_u32(0xCED4DAFF); // OC Gray 4
+            theme->tab.text       = color_from_srgba_u32(0x212529FF); // OC Gray 9
+
+            theme->active_tab.background = color_from_srgba_u32(0xF8F9FAFF); // OC Gray 0
+            theme->active_tab.border     = color_from_srgba_u32(0xCED4DAFF); // OC Gray 4
+            theme->active_tab.text       = color_from_srgba_u32(0x212529FF); // OC Gray 9
+
+            theme->overlay.background = v4f32(0.0f, 0.0f, 0.0f, 0.3f);
+
+            theme->panel_boundary.background = color_from_srgba_u32(0x000000FF);
+        }
+
+        {
+            Theme *theme = &global_themes[1];
+            theme->name = str8_literal("Dark theme"),
+
+            theme->scroll_container.background = color_from_srgba_u32(0x343A40FF); // OC Gray 8
+            theme->scroll_container.border     = color_from_srgba_u32(0x495057FF); // OC Gray 7
+
+            theme->scroll_bar.background = color_from_srgba_u32(0x495057FF); // OC Gray 7
+            theme->scroll_bar.border     = color_from_srgba_u32(0x868E96FF); // OC Gray 6
+
+            theme->button.background = color_from_srgba_u32(0x343A40FF); // OC Gray 8
+            theme->button.border     = color_from_srgba_u32(0x495057FF); // OC Gray 7
+            theme->button.text       = color_from_srgba_u32(0xF8F9FAFF); // OC Gray 0
+
+            theme->text.text = color_from_srgba_u32(0xF8F9FAFF); // OC Gray 0
+
+            theme->panel.background = color_from_srgba_u32(0x212529FF); // OC Gray 9
+            theme->panel.border     = color_from_srgba_u32(0x343A40FF); // OC Gray 8
+
+            theme->tab_bar.background = color_from_srgba_u32(0x212529FF); // OC Gray 9
+            theme->tab_bar.border     = color_from_srgba_u32(0x343A40FF); // OC Gray 8
+
+            theme->tab.background = color_from_srgba_u32(0x343A40FF); // OC Gray 8
+            theme->tab.border     = color_from_srgba_u32(0x495057FF); // OC Gray 7
+            theme->tab.text       = color_from_srgba_u32(0xF8F9FAFF); // OC Gray 0
+
+            theme->active_tab.background = color_from_srgba_u32(0x495057FF); // OC Gray 7
+            theme->active_tab.border     = color_from_srgba_u32(0x868E96FF); // OC Gray 6
+            theme->active_tab.text       = color_from_srgba_u32(0xF8F9FAFF); // OC Gray 0
+
+            theme->overlay.background = v4f32(0.0f, 0.0f, 0.0f, 0.3f);
+
+            theme->panel_boundary.background = color_from_srgba_u32(0x000000FF);
+        }
+
+        {
+            Theme *theme = &global_themes[2];
+            theme->name = str8_literal("Catppuccin Latte"),
+
+            theme->scroll_container.background = color_from_srgba_u32(0xeff1f5ff); // Base
+            theme->scroll_container.border     = color_from_srgba_u32(0x9ca0b0ff); // Overlay0
+
+            theme->scroll_bar.background = color_from_srgba_u32(0xccd0daff); // Surface0
+            theme->scroll_bar.border     = color_from_srgba_u32(0x9ca0b0ff); // Overlay0
+
+            theme->button.background = color_from_srgba_u32(0xbcc0ccff); // Surface1
+            theme->button.border     = color_from_srgba_u32(0x8c8fa1ff); // Overlay1
+            theme->button.text       = color_from_srgba_u32(0x4c4f69ff); // Text
+
+            theme->text.text = color_from_srgba_u32(0x4c4f69ff); // Text
+
+            theme->panel.background = color_from_srgba_u32(0xeff1f5ff); // Base
+            theme->panel.border     = color_from_srgba_u32(0x9ca0b0ff); // Overlay0
+
+            theme->tab_bar.background = color_from_srgba_u32(0xeff1f5ff); // Base
+            theme->tab_bar.border     = color_from_srgba_u32(0x9ca0b0ff); // Overlay0
+
+            theme->tab.background = color_from_srgba_u32(0xccd0daff); // Surface0
+            theme->tab.border     = color_from_srgba_u32(0x9ca0b0ff); // Overlay0
+            theme->tab.text       = color_from_srgba_u32(0x4c4f69ff); // Text
+
+            theme->active_tab.background = color_from_srgba_u32(0xbcc0ccff); // Surface1
+            theme->active_tab.border     = color_from_srgba_u32(0x8c8fa1ff); // Overlay1
+            theme->active_tab.text       = color_from_srgba_u32(0x4c4f69ff); // Text
+
+            theme->overlay.background = v4f32(0.0f, 0.0f, 0.0f, 0.3f);
+
+            theme->panel_boundary.background = color_from_srgba_u32(0xdce0e8ff); // Crust
+        }
+
+        {
+            Theme *theme = &global_themes[3];
+            theme->name = str8_literal("Catppuccin Frappé"),
+
+            theme->scroll_container.background = color_from_srgba_u32(0x303446ff); // Base
+            theme->scroll_container.border     = color_from_srgba_u32(0x737994ff); // Overlay0
+
+            theme->scroll_bar.background = color_from_srgba_u32(0x414559ff); // Surface0
+            theme->scroll_bar.border     = color_from_srgba_u32(0x737994ff); // Overlay0
+
+            theme->button.background = color_from_srgba_u32(0x51576dff); // Surface1
+            theme->button.border     = color_from_srgba_u32(0x838ba7ff); // Overlay1
+            theme->button.text       = color_from_srgba_u32(0xc6d0f5ff); // Text
+
+            theme->text.text = color_from_srgba_u32(0xc6d0f5ff); // Text
+
+            theme->panel.background = color_from_srgba_u32(0x303446ff); // Base
+            theme->panel.border     = color_from_srgba_u32(0x737994ff); // Overlay0
+
+            theme->tab_bar.background = color_from_srgba_u32(0x303446ff); // Base
+            theme->tab_bar.border     = color_from_srgba_u32(0x737994ff); // Overlay0
+
+            theme->tab.background = color_from_srgba_u32(0x414559ff); // Surface0
+            theme->tab.border     = color_from_srgba_u32(0x737994ff); // Overlay0
+            theme->tab.text       = color_from_srgba_u32(0xc6d0f5ff); // Text
+
+            theme->active_tab.background = color_from_srgba_u32(0x51576dff); // Surface1
+            theme->active_tab.border     = color_from_srgba_u32(0x838ba7ff); // Overlay1
+            theme->active_tab.text       = color_from_srgba_u32(0xc6d0f5ff); // Text
+
+            theme->overlay.background = v4f32(0.0f, 0.0f, 0.0f, 0.3f);
+
+            theme->panel_boundary.background = color_from_srgba_u32(0x232634ff); // Crust
+        }
+
+        {
+            Theme *theme = &global_themes[4];
+            theme->name = str8_literal("Catppuccin Macchiato"),
+
+            theme->scroll_container.background = color_from_srgba_u32(0x24273aff); // Base
+            theme->scroll_container.border     = color_from_srgba_u32(0x6e738dff); // Overlay0
+
+            theme->scroll_bar.background = color_from_srgba_u32(0x363a4fff); // Surface0
+            theme->scroll_bar.border     = color_from_srgba_u32(0x6e738dff); // Overlay0
+
+            theme->button.background = color_from_srgba_u32(0x494d64ff); // Surface1
+            theme->button.border     = color_from_srgba_u32(0x8087a2ff); // Overlay1
+            theme->button.text       = color_from_srgba_u32(0xcad3f5ff); // Text
+
+            theme->text.text = color_from_srgba_u32(0xcad3f5ff); // Text
+
+            theme->panel.background = color_from_srgba_u32(0x24273aff); // Base
+            theme->panel.border     = color_from_srgba_u32(0x6e738dff); // Overlay0
+
+            theme->tab_bar.background = color_from_srgba_u32(0x24273aff); // Base
+            theme->tab_bar.border     = color_from_srgba_u32(0x6e738dff); // Overlay0
+
+            theme->tab.background = color_from_srgba_u32(0x363a4fff); // Surface0
+            theme->tab.border     = color_from_srgba_u32(0x6e738dff); // Overlay0
+            theme->tab.text       = color_from_srgba_u32(0xcad3f5ff); // Text
+
+            theme->active_tab.background = color_from_srgba_u32(0x494d64ff); // Surface1
+            theme->active_tab.border     = color_from_srgba_u32(0x8087a2ff); // Overlay1
+            theme->active_tab.text       = color_from_srgba_u32(0xcad3f5ff); // Text
+
+            theme->overlay.background = v4f32(0.0f, 0.0f, 0.0f, 0.3f);
+
+            theme->panel_boundary.background = color_from_srgba_u32(0x181926ff); // Crust
+        }
+
+        {
+            Theme *theme = &global_themes[5];
+            theme->name = str8_literal("Catppuccin Mocha"),
+
+            theme->scroll_container.background = color_from_srgba_u32(0x1e1e2eff); // Base
+            theme->scroll_container.border     = color_from_srgba_u32(0x6c7086ff); // Overlay0
+
+            theme->scroll_bar.background = color_from_srgba_u32(0x313244ff); // Surface0
+            theme->scroll_bar.border     = color_from_srgba_u32(0x6c7086ff); // Overlay0
+
+            theme->button.background = color_from_srgba_u32(0x45475aff); // Surface1
+            theme->button.border     = color_from_srgba_u32(0x7f849cff); // Overlay1
+            theme->button.text       = color_from_srgba_u32(0xcdd6f4ff); // Text
+
+            theme->text.text = color_from_srgba_u32(0xcdd6f4ff); // Text
+
+            theme->panel.background = color_from_srgba_u32(0x1e1e2eff); // Base
+            theme->panel.border     = color_from_srgba_u32(0x6c7086ff); // Overlay0
+
+            theme->tab_bar.background = color_from_srgba_u32(0x1e1e2eff); // Base
+            theme->tab_bar.border     = color_from_srgba_u32(0x6c7086ff); // Overlay0
+
+            theme->tab.background = color_from_srgba_u32(0x313244ff); // Surface0
+            theme->tab.border     = color_from_srgba_u32(0x6c7086ff); // Overlay0
+            theme->tab.text       = color_from_srgba_u32(0xcdd6f4ff); // Text
+
+            theme->active_tab.background = color_from_srgba_u32(0x45475aff); // Surface1
+            theme->active_tab.border     = color_from_srgba_u32(0x7f849cff); // Overlay1
+            theme->active_tab.text       = color_from_srgba_u32(0xcdd6f4ff); // Text
+
+            theme->overlay.background = v4f32(0.0f, 0.0f, 0.0f, 0.3f);
+
+            theme->panel_boundary.background = color_from_srgba_u32(0x11111bff); // Crust
+        }
+    }
+
     state->ui = ui_create();
     state->panel_root = arena_push_struct_zero(state->arena, Panel);
     state->panel_root->percentage_of_parent = 1.0f;
@@ -1111,7 +1262,11 @@ internal S32 os_run(Str8List arguments) {
         panel_insert(right, top, middle);
         panel_insert(right, middle, bottom);
     }
+
     state->running = true;
+
+    state->theme_index = 5;
+    state->theme = global_themes[state->theme_index];
 
     gfx_create(str8_literal("MSDF-gen"), 1280, 720);
     render_init();
