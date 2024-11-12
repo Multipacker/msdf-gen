@@ -72,6 +72,23 @@ typedef struct UI_Box UI_Box;
 #define UI_BOX_DRAW_FUNCTION(name) Void name(UI_Box *box, Void *data)
 typedef UI_BOX_DRAW_FUNCTION(UI_BoxDrawFunction);
 
+typedef enum {
+    UI_Color_Background,
+    UI_Color_Text,
+    UI_Color_Border,
+    UI_Color_COUNT,
+} UI_Color;
+
+typedef union UI_Palette UI_Palette;
+union UI_Palette {
+    V4F32 colors[UI_Color_COUNT];
+    struct {
+        V4F32 background;
+        V4F32 text;
+        V4F32 border;
+    };
+};
+
 struct UI_Box {
     UI_Box *parent;
     UI_Box *next;
@@ -87,9 +104,7 @@ struct UI_Box {
     UI_Size size[Axis2_COUNT];
 
     UI_BoxFlags         flags;
-    V4F32               color;
-    V4F32               border_color;
-    V4F32               text_color;
+    UI_Palette          palette;
     Axis2               layout_axis;
     Str8                string;
     FontCache_Font     *font;
@@ -169,7 +184,7 @@ struct UI_BoxIterator {
 internal Arena *ui_frame_arena(Void);
 
 ui_define_stack(Box,             box,               UI_Box *)
-ui_define_stack(V4F32,           v4f32,             V4F32)
+ui_define_stack(Palette,         palette,           UI_Palette)
 ui_define_stack(Size,            size,              UI_Size)
 ui_define_stack(Axis,            axis,              Axis2)
 ui_define_stack(BoxFlags,        box_flags,         UI_BoxFlags)
@@ -271,9 +286,7 @@ struct UI_Context {
 
     // NOTE(simon): Style stacks.
     UI_BoxStack             parent_stack;
-    UI_V4F32Stack           color_stack;
-    UI_V4F32Stack           border_color_stack;
-    UI_V4F32Stack           text_color_stack;
+    UI_PaletteStack         palette_stack;
     UI_SizeStack            size_stacks[Axis2_COUNT];
     UI_AxisStack            layout_axis_stack;
     UI_BoxFlagsStack        extra_box_flags_stack;
@@ -353,26 +366,12 @@ internal F32 ui_animation_fast_rate(Void);
 #define ui_parent_auto_pop()   ui_box_stack_auto_pop(&global_ui_state->parent_stack)
 #define ui_parent_top()        (global_ui_state->parent_stack.top->item)
 
-#define ui_color_push(color) ui_v4f32_stack_push(&global_ui_state->color_stack, color, false)
-#define ui_color_pop()       ui_v4f32_stack_pop(&global_ui_state->color_stack)
-#define ui_color(color)      defer_loop(ui_color_push(color), ui_color_pop())
-#define ui_color_next(color) ui_v4f32_stack_push(&global_ui_state->color_stack, color, true)
-#define ui_color_auto_pop()  ui_v4f32_stack_auto_pop(&global_ui_state->color_stack)
-#define ui_color_top()       (global_ui_state->color_stack.top->item)
-
-#define ui_border_color_push(color) ui_v4f32_stack_push(&global_ui_state->border_color_stack, color, false)
-#define ui_border_color_pop()       ui_v4f32_stack_pop(&global_ui_state->border_color_stack)
-#define ui_border_color(color)      defer_loop(ui_border_color_push(color), ui_border_color_pop())
-#define ui_border_color_next(color) ui_v4f32_stack_push(&global_ui_state->border_color_stack, color, true)
-#define ui_border_color_auto_pop()  ui_v4f32_stack_auto_pop(&global_ui_state->border_color_stack)
-#define ui_border_color_top()       (global_ui_state->border_color_stack.top->item)
-
-#define ui_text_color_push(color) ui_v4f32_stack_push(&global_ui_state->text_color_stack, color, false)
-#define ui_text_color_pop()       ui_v4f32_stack_pop(&global_ui_state->text_color_stack)
-#define ui_text_color(color)      defer_loop(ui_text_color_push(color), ui_text_color_pop())
-#define ui_text_color_next(color) ui_v4f32_stack_push(&global_ui_state->text_color_stack, color, true)
-#define ui_text_color_auto_pop()  ui_v4f32_stack_auto_pop(&global_ui_state->text_color_stack)
-#define ui_text_color_top()       (global_ui_state->text_color_stack.top->item)
+#define ui_palette_push(palette) ui_palette_stack_push(&global_ui_state->palette_stack, palette, false)
+#define ui_palette_pop()       ui_palette_stack_pop(&global_ui_state->palette_stack)
+#define ui_palette(palette)      defer_loop(ui_palette_push(palette), ui_palette_pop())
+#define ui_palette_next(palette) ui_palette_stack_push(&global_ui_state->palette_stack, palette, true)
+#define ui_palette_auto_pop()  ui_palette_stack_auto_pop(&global_ui_state->palette_stack)
+#define ui_palette_top()       (global_ui_state->palette_stack.top->item)
 
 #define ui_width_push(size) ui_size_stack_push(&global_ui_state->size_stacks[Axis2_X], size, false)
 #define ui_width_pop()      ui_size_stack_pop(&global_ui_state->size_stacks[Axis2_X])

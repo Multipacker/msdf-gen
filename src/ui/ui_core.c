@@ -162,9 +162,7 @@ internal Void ui_begin(Gfx_EventList *events, F32 dt) {
 
     // NOTE(simon): Reset stacks
     memory_zero_struct(&ui->parent_stack);
-    memory_zero_struct(&ui->color_stack);
-    memory_zero_struct(&ui->border_color_stack);
-    memory_zero_struct(&ui->text_color_stack);
+    memory_zero_struct(&ui->palette_stack);
     memory_zero_struct(&ui->size_stacks);
     memory_zero_struct(&ui->layout_axis_stack);
     memory_zero_struct(&ui->extra_box_flags_stack);
@@ -187,9 +185,7 @@ internal Void ui_begin(Gfx_EventList *events, F32 dt) {
 
     // NOTE(simon): Give default values to all stacks
     ui_parent_next(&global_ui_null_box);
-    ui_color_push(v4f32(0.0f, 0.0f, 0.0f, 0.0f));
-    ui_border_color_push(v4f32(0.0f, 0.0f, 0.0f, 0.0f));
-    ui_text_color_push(v4f32(1.0f, 1.0f, 1.0f, 1.0f));
+    ui_palette_push((UI_Palette) { 0 });
     ui_width_push(ui_size_pixels(0.0f, 0.0f));
     ui_height_push(ui_size_pixels(0.0f, 0.0f));
     ui_layout_axis_push(Axis2_X);
@@ -636,9 +632,7 @@ internal UI_Box *ui_create_box_from_key(UI_BoxFlags flags, UI_Key key) {
     box->size[Axis2_X] = ui_width_top();
     box->size[Axis2_Y] = ui_height_top();
     box->flags         = flags | ui_extra_box_flags_top();
-    box->color         = ui_color_top();
-    box->border_color  = ui_border_color_top();
-    box->text_color    = ui_text_color_top();
+    box->palette       = ui_palette_top();
     box->layout_axis   = ui_layout_axis_top();
     box->font          = font_cache_font_from_path(ui_font_top());
     box->font_size     = ui_font_size_top();
@@ -660,9 +654,7 @@ internal UI_Box *ui_create_box_from_key(UI_BoxFlags flags, UI_Key key) {
 
     // NOTE(simon): Handle autopops
     ui_parent_auto_pop();
-    ui_color_auto_pop();
-    ui_border_color_auto_pop();
-    ui_text_color_auto_pop();
+    ui_palette_auto_pop();
     ui_width_auto_pop();
     ui_height_auto_pop();
     ui_layout_axis_auto_pop();
@@ -900,8 +892,7 @@ internal B32 ui_context_menu_begin(UI_Key context_key) {
     ui_parent_push(ui->context_menu_root);
     B32 result = ui_keys_match(context_key, ui->context_menu_key);
     if (result) {
-        ui->context_menu_root->color        = ui_color_top();
-        ui->context_menu_root->border_color = ui_border_color_top();
+        ui->context_menu_root->palette = ui_palette_top();
         ui->context_menu_used_this_frame    = true;
     }
     return result;

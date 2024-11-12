@@ -49,7 +49,7 @@ internal UI_BOX_DRAW_FUNCTION(draw_ui_msdf) {
         r2f32(min_pt.x, min_pt.y, max_pt.x, max_pt.y),
         glyph->uv,
         ui_draw_msdf->font->atlas,
-        box->text_color,
+        box->palette.text,
         0.0f, 0.0f, 0.0f,
         ui_draw_msdf->render_raw ? Render_ShapeFlag_Texture : Render_ShapeFlag_MSDF
     );
@@ -117,7 +117,7 @@ internal UI_BOX_DRAW_FUNCTION(draw_ui_glyph_outline) {
                     r2f32(min_pt.x, min_pt.y, max_pt.x, max_pt.y),
                     msdf_glyph->uv,
                     parameters->msdf_font->atlas,
-                    box->text_color,
+                    box->palette.text,
                     0.0f, 0.0f, 0.0f,
                     Render_ShapeFlag_MSDF
                 );
@@ -202,11 +202,10 @@ PANEL_BUILD_FUNCTION(view_glyph_list) {
     ui_parent_push(region);
 
     // NOTE(simon): Scroll container
-    ui_color_next(theme->background_color);
     ui_width_next(ui_size_pixels(container_width, 1.0f));
     ui_height_next(ui_size_pixels(panel_size.y, 1.0f));
     ui_layout_axis_next(Axis2_Y);
-    UI_Box *container = ui_create_box_from_string(UI_BoxFlag_DrawBackground, str8_literal("glyphs"));
+    UI_Box *container = ui_create_box_from_string(0, str8_literal("glyphs"));
 
     U32 first_codepoint = 0x000000;
     U32 last_codepoint  = 4096;
@@ -232,8 +231,7 @@ PANEL_BUILD_FUNCTION(view_glyph_list) {
     S32 selected_row = (S32) (global_state->selected_codepoint / codepoints_per_row);
 
     // NOTE(simon): Scrollbar container
-    ui_color_next(theme->background_color);
-    ui_border_color_next(theme->border_color);
+    ui_palette_next(theme->scroll_container);
     ui_width_next(ui_size_pixels(scrollbar_width, 1.0f));
     ui_height_next(ui_size_pixels(panel_size.y, 1.0f));
     ui_layout_axis_next(Axis2_Y);
@@ -251,8 +249,7 @@ PANEL_BUILD_FUNCTION(view_glyph_list) {
         UI_Box *scroll_before = ui_create_box_from_string(UI_BoxFlag_Clickable, str8_literal("before"));
 
         ui_hover_cursor_next(Gfx_Cursor_Hand);
-        ui_color_next(theme->element_color);
-        ui_border_color_next(theme->border_color);
+        ui_palette_next(theme->scroll_bar);
         ui_height_next(ui_size_parent_percent(visible_rows / row_count, 1.0f));
         UI_Box *scroll = ui_create_box_from_string(UI_BoxFlag_Clickable | UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawBorder | UI_BoxFlag_DrawHot | UI_BoxFlag_DrawActive, str8_literal("scroll"));
 
@@ -289,15 +286,13 @@ PANEL_BUILD_FUNCTION(view_glyph_list) {
     UIDrawMSDF *draw_msdf = arena_push_struct_zero(ui_frame_arena(), UIDrawMSDF);
     draw_msdf->font = global_state->font;
 
-    ui_color_push(theme->element_color);
-    ui_border_color_push(theme->border_color);
+    ui_palette_push(theme->button);
     for (S32 row = top_row; row < bottom_row; ++row) {
         ui_width_next(ui_size_parent_percent(1.0f, 1.0f));
         ui_height_next(ui_size_pixels(height, 1.0f));
         ui_row() {
             ui_width(ui_size_pixels(width, 1.0f))
             ui_height(ui_size_parent_percent(1.0f, 1.0f))
-            ui_text_color(theme->text_color)
             ui_draw_function(draw_ui_msdf)
             ui_draw_data(draw_msdf)
             ui_hover_cursor(Gfx_Cursor_Hand)
@@ -325,8 +320,7 @@ PANEL_BUILD_FUNCTION(view_glyph_list) {
             }
         }
     }
-    ui_border_color_pop();
-    ui_color_pop();
+    ui_palette_pop();
 
     // NOTE(simon): Container
     ui_parent_pop();
@@ -362,11 +356,9 @@ PANEL_BUILD_FUNCTION(view_glyph) {
     ui_column() {
         ui_width(ui_size_text_content(0.0f, 1.0f))
         ui_height(ui_size_text_content(0.0f, 1.0f))
-        ui_color(theme->element_color)
-        ui_border_color(theme->border_color) {
+        ui_palette(theme->button) {
             ui_width_next(ui_size_parent_percent(1.0f, 0.0f));
             ui_height_next(ui_size_parent_percent(1.0f, 0.0f));
-            ui_text_color_next(theme->text_color);
             ui_draw_function_next(draw_ui_glyph_outline);
             UIDrawGlyphOutline *glyph_outline = arena_push_struct_zero(ui_frame_arena(), UIDrawGlyphOutline);
             glyph_outline->font = global_state->ttf_font;
@@ -389,8 +381,7 @@ PANEL_BUILD_FUNCTION(view_glyph) {
             ui_draw_data_next(glyph_outline);
             ui_create_box(UI_BoxFlag_DrawBorder);
 
-            ui_color(theme->element_color)
-            ui_text_color(theme->text_color) {
+            ui_palette(theme->button) {
                 ui_checkbox_b32(&state->render_outline, str8_literal("Draw outlines"));
                 ui_checkbox_b32(&state->render_points, str8_literal("Draw points"));
                 ui_checkbox_b32(&state->render_raw, str8_literal("Draw raw"));
@@ -404,7 +395,7 @@ PANEL_BUILD_FUNCTION(view_stats) {
     ui_width(ui_size_parent_percent(1.0f, 1.0f))
     ui_height(ui_size_parent_percent(1.0f, 1.0f))
     ui_column() {
-        ui_text_color(theme->text_color)
+        ui_palette(theme->text)
         ui_width(ui_size_text_content(0.0f, 1.0f))
         ui_height(ui_size_text_content(0.0f, 1.0f)) {
             Render_Stats stats = render_get_stats();

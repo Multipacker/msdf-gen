@@ -45,13 +45,36 @@
  *   overlap other panels.
  */
 
+typedef enum {
+    ThemeColor_ScrollContainer,
+    ThemeColor_ScrollBar,
+    ThemeColor_Button,
+    ThemeColor_Text,
+    ThemeColor_Panel,
+    ThemeColor_Tab,
+    ThemeColor_ActiveTab,
+    ThemeColor_TabBar,
+    ThemeColor_Overlay,
+    ThemeColor_COUNT,
+} ThemeColor;
+
 typedef struct Theme Theme;
 struct Theme {
     Str8 name;
-    V4F32 background_color;
-    V4F32 element_color;
-    V4F32 border_color;
-    V4F32 text_color;
+    union {
+        UI_Palette colors[ThemeColor_COUNT];
+        struct {
+            UI_Palette scroll_container;
+            UI_Palette scroll_bar;
+            UI_Palette button;
+            UI_Palette text;
+            UI_Palette panel;
+            UI_Palette tab;
+            UI_Palette active_tab;
+            UI_Palette tab_bar;
+            UI_Palette overlay;
+        };
+    };
 };
 
 global Theme global_themes[2];
@@ -390,7 +413,7 @@ internal Void draw_ui(UI_Box *root) {
 
     for (UI_Box *box = root; box != &global_ui_null_box;) {
         if (box->flags & UI_BoxFlag_DrawBackground) {
-            draw_rectangle(box->calculated_rectangle, box->color, 0.0f, 0.0f, 0.0f);
+            draw_rectangle(box->calculated_rectangle, box->palette.background, 0.0f, 0.0f, 0.0f);
 
             if (box->flags & UI_BoxFlag_DrawHot && box->hot_t > 0.0f) {
                 Render_Shape *rect = draw_rectangle(box->calculated_rectangle, v4f32(0.0f, 0.0f, 0.0f, 0.0f), 0.0f, 0.0f, 0.0f);
@@ -419,7 +442,7 @@ internal Void draw_ui(UI_Box *root) {
                     ),
                     letter->source,
                     letter->texture,
-                    box->text_color
+                    box->palette.text
                 );
                 advance += letter->advance;
             }
@@ -451,7 +474,7 @@ internal Void draw_ui(UI_Box *root) {
             }
 
             if (parent->flags & UI_BoxFlag_DrawBorder) {
-                draw_rectangle(parent->calculated_rectangle, parent->border_color, 0.0f, 1.0f, 1.0f);
+                draw_rectangle(parent->calculated_rectangle, parent->palette.border, 0.0f, 1.0f, 1.0f);
             }
 
             if (parent->flags & UI_BoxFlag_Disabled) {
@@ -690,16 +713,67 @@ internal Void update(Void) {
     // NOTE(simon): Themes
     {
         global_themes[0].name = str8_literal("Light theme");
-        global_themes[0].background_color = color_from_srgba_u32(0xF8F9FAFF); // OC Gray 0
-        global_themes[0].element_color    = color_from_srgba_u32(0xE9ECEFFF); // OC Gray 2
-        global_themes[0].border_color     = color_from_srgba_u32(0xCED4DAFF); // OC Gray 4
-        global_themes[0].text_color       = color_from_srgba_u32(0x495057FF); // OC Gray 7
+        //global_themes[0].background_color = color_from_srgba_u32(0xF8F9FAFF); // OC Gray 0
+        //global_themes[0].element_color    = color_from_srgba_u32(0xE9ECEFFF); // OC Gray 2
+        //global_themes[0].border_color     = color_from_srgba_u32(0xCED4DAFF); // OC Gray 4
+        //global_themes[0].text_color       = color_from_srgba_u32(0x495057FF); // OC Gray 7
+        global_themes[0].scroll_container.background = color_from_srgba_u32(0xF8F9FAFF); // OC Gray 0
+        global_themes[0].scroll_container.border     = color_from_srgba_u32(0xCED4DAFF); // OC Gray 4
+
+        global_themes[0].scroll_bar.background = color_from_srgba_u32(0xF8F9FAFF); // OC Gray 0
+        global_themes[0].scroll_bar.border     = color_from_srgba_u32(0xCED4DAFF); // OC Gray 4
+
+        global_themes[0].button.background = color_from_srgba_u32(0xF8F9FAFF); // OC Gray 0
+        global_themes[0].button.border     = color_from_srgba_u32(0xCED4DAFF); // OC Gray 4
+        global_themes[0].button.text       = color_from_srgba_u32(0x212529FF); // OC Gray 9
+
+        global_themes[0].text.text = color_from_srgba_u32(0x212529FF); // OC Gray 9
+
+        global_themes[0].panel.background = color_from_srgba_u32(0xF8F9FAFF); // OC Gray 0
+        global_themes[0].panel.border     = color_from_srgba_u32(0xCED4DAFF); // OC Gray 4
+
+        global_themes[0].tab_bar.background = color_from_srgba_u32(0xF8F9FAFF); // OC Gray 0
+        global_themes[0].tab_bar.border     = color_from_srgba_u32(0xCED4DAFF); // OC Gray 4
+
+        global_themes[0].tab.background = color_from_srgba_u32(0xF8F9FAFF); // OC Gray 0
+        global_themes[0].tab.border     = color_from_srgba_u32(0xCED4DAFF); // OC Gray 4
+        global_themes[0].tab.text       = color_from_srgba_u32(0x212529FF); // OC Gray 9
+
+        global_themes[0].active_tab.background = color_from_srgba_u32(0xF8F9FAFF); // OC Gray 0
+        global_themes[0].active_tab.border     = color_from_srgba_u32(0xCED4DAFF); // OC Gray 4
+        global_themes[0].active_tab.text       = color_from_srgba_u32(0x212529FF); // OC Gray 9
+
+        global_themes[0].overlay.background = v4f32(0.0f, 0.0f, 0.0f, 0.3f);
 
         global_themes[1].name = str8_literal("Dark theme"),
-        global_themes[1].background_color = color_from_srgba_u32(0x212529FF); // OC Gray 9
-        global_themes[1].element_color    = color_from_srgba_u32(0x343A40FF); // OC Gray 8
-        global_themes[1].border_color     = color_from_srgba_u32(0x495057FF); // OC Gray 7
-        global_themes[1].text_color       = color_from_srgba_u32(0xF8F9FAFF); // OC Gray 0
+
+        global_themes[1].scroll_container.background = color_from_srgba_u32(0x343A40FF); // OC Gray 8
+        global_themes[1].scroll_container.border     = color_from_srgba_u32(0x495057FF); // OC Gray 7
+
+        global_themes[1].scroll_bar.background = color_from_srgba_u32(0x495057FF); // OC Gray 7
+        global_themes[1].scroll_bar.border     = color_from_srgba_u32(0x868E96FF); // OC Gray 6
+
+        global_themes[1].button.background = color_from_srgba_u32(0x343A40FF); // OC Gray 8
+        global_themes[1].button.border     = color_from_srgba_u32(0x495057FF); // OC Gray 7
+        global_themes[1].button.text       = color_from_srgba_u32(0xF8F9FAFF); // OC Gray 0
+                                                                               //
+        global_themes[1].text.text = color_from_srgba_u32(0xF8F9FAFF); // OC Gray 0
+
+        global_themes[1].panel.background = color_from_srgba_u32(0x212529FF); // OC Gray 9
+        global_themes[1].panel.border     = color_from_srgba_u32(0x343A40FF); // OC Gray 8
+
+        global_themes[1].tab_bar.background = color_from_srgba_u32(0x212529FF); // OC Gray 9
+        global_themes[1].tab_bar.border     = color_from_srgba_u32(0x343A40FF); // OC Gray 8
+
+        global_themes[1].tab.background = color_from_srgba_u32(0x343A40FF); // OC Gray 8
+        global_themes[1].tab.border     = color_from_srgba_u32(0x495057FF); // OC Gray 7
+        global_themes[1].tab.text       = color_from_srgba_u32(0xF8F9FAFF); // OC Gray 0
+
+        global_themes[1].active_tab.background = color_from_srgba_u32(0x495057FF); // OC Gray 7
+        global_themes[1].active_tab.border     = color_from_srgba_u32(0x868E96FF); // OC Gray 6
+        global_themes[1].active_tab.text       = color_from_srgba_u32(0xF8F9FAFF); // OC Gray 0
+
+        global_themes[1].overlay.background = v4f32(0.0f, 0.0f, 0.0f, 0.3f);
     }
 
     V2U32 client_area = gfx_get_window_client_area();
@@ -729,7 +803,7 @@ internal Void update(Void) {
                 ui_width_next(ui_size_ems(60.0f, 1.0f));
                 ui_height_next(ui_size_ems(40.0f, 1.0f));
                 ui_layout_axis_next(Axis2_Y);
-                ui_color_next(theme->element_color);
+                ui_palette_next(theme->panel);
                 UI_Box *container = ui_create_box_from_string(UI_BoxFlag_DrawBackground | UI_BoxFlag_Clip, str8_literal("###drag_preview"));
                 ui_parent(container) {
                     tab->build_view(tab, theme, container->calculated_rectangle);
@@ -802,8 +876,7 @@ internal Void update(Void) {
     }
 
     // NOTE(simon): Build leaf panel UI.
-    ui_color(theme->background_color)
-    ui_border_color(theme->border_color)
+    ui_palette(theme->panel)
     ui_layout_axis(Axis2_Y)
     for (Panel *panel = state->panel_root; panel; panel = panel_iterator_depth_first_pre_order(panel).next) {
         R2F32 panel_rectangle = r2f32_pad(rectangle_from_panel(panel, root_rectangle), -panel_pad);
@@ -816,13 +889,14 @@ internal Void update(Void) {
             R2F32 content_rectangle = r2f32(panel_rectangle.min.x, panel_rectangle.min.y + tab_height.value, panel_rectangle.max.x, panel_rectangle.max.y);
 
             if (panel != panel_from_handle(state->active_panel)) {
-                ui_color_next(v4f32(0.0f, 0.0f, 0.0f, 0.3f));
+                ui_palette_next(theme->overlay);
                 ui_fixed_position_next(content_rectangle.min);
                 ui_width_next(ui_size_pixels(r2f32_size(content_rectangle).width, 1.0f));
                 ui_height_next(ui_size_pixels(r2f32_size(content_rectangle).height, 1.0f));
                 ui_create_box(UI_BoxFlag_DrawBackground | UI_BoxFlag_FloatingPosition);
             }
 
+            ui_palette_next(theme->tab_bar);
             ui_fixed_position_next(tab_bar_rectangle.min);
             ui_width_next(ui_size_pixels(r2f32_size(tab_bar_rectangle).width, 1.0f));
             ui_height_next(ui_size_pixels(r2f32_size(tab_bar_rectangle).height, 1.0f));
@@ -832,15 +906,14 @@ internal Void update(Void) {
                 "###tab_bar_box_%p", panel
             );
 
-            ui_color(theme->element_color)
-            ui_border_color(theme->border_color)
+            ui_palette(theme->tab)
             ui_width(ui_size_children_sum(1.0f))
             ui_height(tab_height)
             ui_layout_axis(Axis2_X)
             ui_parent(tab_bar_box) {
                 for (Tab *tab = panel->tab_first; tab; tab = tab->next) {
                     if (tab == tab_from_handle(panel->active_tab)) {
-                        ui_border_color_next(color_from_srgba_u32(0x40C057FF));
+                        ui_palette_push(theme->active_tab);
                     }
 
                     ui_hover_cursor_next(Gfx_Cursor_Hand);
@@ -871,16 +944,6 @@ internal Void update(Void) {
 
                     UI_Input input = ui_input_from_box(tab_box);
 
-                    if (input.input_flags & UI_InputFlag_Hovering) {
-                        ui_tooltip() {
-                            ui_color_next(theme->border_color);
-                            ui_extra_box_flags_next(UI_BoxFlag_DrawBackground);
-                            ui_width_next(ui_size_text_content(5.0f, 1.0f));
-                            ui_height_next(ui_size_text_content(0.0f, 1.0f));
-                            ui_label(tab->name);
-                        }
-                    }
-
                     if (input.input_flags & UI_InputFlag_LeftPressed) {
                         push_command(Command_FocusPanel, .panel = handle_from_panel(panel));
                         next_active_tab = tab;
@@ -898,12 +961,13 @@ internal Void update(Void) {
                         ui_set_drag_data(&data);
                         drag_begin();
                     }
+
+                    if (tab == tab_from_handle(panel->active_tab)) {
+                        ui_palette_pop();
+                    }
                 }
             }
 
-            if (panel == panel_from_handle(state->active_panel)) {
-                ui_border_color_next(color_from_srgba_u32(0x40C057FF));
-            }
             ui_fixed_position_next(content_rectangle.min);
             ui_width_next(ui_size_pixels(r2f32_size(content_rectangle).width, 1.0f));
             ui_height_next(ui_size_pixels(r2f32_size(content_rectangle).height, 1.0f));
@@ -926,6 +990,7 @@ internal Void update(Void) {
                             ui_spacer_sized(ui_size_fill());
                             ui_width_next(ui_size_text_content(5.0f, 1.0f));
                             ui_height_next(ui_size_text_content(0.0f, 1.0f));
+                            ui_palette_next(theme->button);
                             UI_Input close_input = ui_button_format("Close panel###%p", panel);
                             if (close_input.input_flags & UI_InputFlag_LeftClicked) {
                                 push_command(Command_ClosePanel, .panel = handle_from_panel(panel));
