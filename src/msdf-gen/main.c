@@ -834,9 +834,9 @@ internal Void update(Void) {
 
             if (panel != panel_from_handle(state->active_panel)) {
                 ui_palette_next(state->theme.overlay);
-                ui_fixed_position_next(content_rectangle.min);
-                ui_width_next(ui_size_pixels(r2f32_size(content_rectangle).width, 1.0f));
-                ui_height_next(ui_size_pixels(r2f32_size(content_rectangle).height, 1.0f));
+                ui_fixed_position_next(panel_rectangle.min);
+                ui_width_next(ui_size_pixels(r2f32_size(panel_rectangle).width, 1.0f));
+                ui_height_next(ui_size_pixels(r2f32_size(panel_rectangle).height, 1.0f));
                 ui_create_box(UI_BoxFlag_DrawBackground | UI_BoxFlag_FloatingPosition);
             }
 
@@ -846,7 +846,7 @@ internal Void update(Void) {
             ui_height_next(ui_size_pixels(r2f32_size(tab_bar_rectangle).height, 1.0f));
             ui_layout_axis_next(Axis2_X);
             UI_Box *tab_bar_box = ui_create_box_from_string_format(
-                UI_BoxFlag_DrawBackground | UI_BoxFlag_Clickable | UI_BoxFlag_FloatingPosition | UI_BoxFlag_OverflowX | UI_BoxFlag_Clip,
+                UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawBorder | UI_BoxFlag_Clickable | UI_BoxFlag_FloatingPosition | UI_BoxFlag_OverflowX | UI_BoxFlag_Clip,
                 "###tab_bar_box_%p", panel
             );
 
