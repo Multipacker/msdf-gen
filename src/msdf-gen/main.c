@@ -983,10 +983,10 @@ internal Void update(Void) {
                 V4F32 *color = &state->theme.colors[palette].colors[color_index];
                 V4F32 *target_color = &target_theme->colors[palette].colors[color_index];
 
-                color->r += (target_color->r - color->r) * ui_animation_fast_rate();
-                color->g += (target_color->g - color->g) * ui_animation_fast_rate();
-                color->b += (target_color->b - color->b) * ui_animation_fast_rate();
-                color->a += (target_color->a - color->a) * ui_animation_fast_rate();
+                color->r += (target_color->r - color->r) * ui_animation_slow_rate();
+                color->g += (target_color->g - color->g) * ui_animation_slow_rate();
+                color->b += (target_color->b - color->b) * ui_animation_slow_rate();
+                color->a += (target_color->a - color->a) * ui_animation_slow_rate();
             }
         }
     }
