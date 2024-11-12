@@ -1066,7 +1066,7 @@ internal S32 os_run(Str8List arguments) {
 
         {
             Theme *theme = &global_themes[1];
-            theme->name = str8_literal("Dark theme"),
+            theme->name = str8_literal("Dark theme");
 
             theme->scroll_container.background = color_from_srgba_u32(0x343A40FF); // OC Gray 8
             theme->scroll_container.border     = color_from_srgba_u32(0x495057FF); // OC Gray 7
@@ -1101,142 +1101,250 @@ internal S32 os_run(Str8List arguments) {
 
         {
             Theme *theme = &global_themes[2];
-            theme->name = str8_literal("Catppuccin Latte"),
+            theme->name = str8_literal("Catppuccin Latte");
 
-            theme->scroll_container.background = color_from_srgba_u32(0xeff1f5ff); // Base
-            theme->scroll_container.border     = color_from_srgba_u32(0x9ca0b0ff); // Overlay0
+            V4F32 rosewater = color_from_srgba_u32(0xDC8A78FF);
+            V4F32 flamingo  = color_from_srgba_u32(0xDD7878FF);
+            V4F32 pink      = color_from_srgba_u32(0xEA76CBFF);
+            V4F32 mauve     = color_from_srgba_u32(0x8839EFFF);
+            V4F32 red       = color_from_srgba_u32(0xD20F39FF);
+            V4F32 maroon    = color_from_srgba_u32(0xE64553FF);
+            V4F32 peach     = color_from_srgba_u32(0xFE640BFF);
+            V4F32 yellow    = color_from_srgba_u32(0xDF8E1DFF);
+            V4F32 green     = color_from_srgba_u32(0x40A02BFF);
+            V4F32 teal      = color_from_srgba_u32(0x179299FF);
+            V4F32 sky       = color_from_srgba_u32(0x04A5E5FF);
+            V4F32 sapphire  = color_from_srgba_u32(0x209FB5FF);
+            V4F32 blue      = color_from_srgba_u32(0x1E66F5FF);
+            V4F32 lavender  = color_from_srgba_u32(0x7287FDFF);
+            V4F32 text      = color_from_srgba_u32(0x4C4F69FF);
+            V4F32 subtext1  = color_from_srgba_u32(0x5C5F77FF);
+            V4F32 subtext0  = color_from_srgba_u32(0x6C6F85FF);
+            V4F32 overlay2  = color_from_srgba_u32(0x7C7F93FF);
+            V4F32 overlay1  = color_from_srgba_u32(0x8C8FA1FF);
+            V4F32 overlay0  = color_from_srgba_u32(0x9CA0B0FF);
+            V4F32 surface2  = color_from_srgba_u32(0xACB0BEFF);
+            V4F32 surface1  = color_from_srgba_u32(0xBCC0CCFF);
+            V4F32 surface0  = color_from_srgba_u32(0xCCD0DAFF);
+            V4F32 base      = color_from_srgba_u32(0xEFF1F5FF);
+            V4F32 mantle    = color_from_srgba_u32(0xE6E9EFFF);
+            V4F32 crust     = color_from_srgba_u32(0xDCE0E8FF);
 
-            theme->scroll_bar.background = color_from_srgba_u32(0xccd0daff); // Surface0
-            theme->scroll_bar.border     = color_from_srgba_u32(0x9ca0b0ff); // Overlay0
+            theme->scroll_container.background = mantle;
+            theme->scroll_container.border     = mantle;
 
-            theme->button.background = color_from_srgba_u32(0xbcc0ccff); // Surface1
-            theme->button.border     = color_from_srgba_u32(0x8c8fa1ff); // Overlay1
-            theme->button.text       = color_from_srgba_u32(0x4c4f69ff); // Text
+            theme->scroll_bar.background = surface0;
+            theme->scroll_bar.border     = surface0;
 
-            theme->text.text = color_from_srgba_u32(0x4c4f69ff); // Text
+            theme->button.background = surface0;
+            theme->button.border     = surface0;
+            theme->button.text       = text;
 
-            theme->panel.background = color_from_srgba_u32(0xeff1f5ff); // Base
-            theme->panel.border     = color_from_srgba_u32(0x9ca0b0ff); // Overlay0
+            theme->text.text = text;
 
-            theme->tab_bar.background = color_from_srgba_u32(0xeff1f5ff); // Base
-            theme->tab_bar.border     = color_from_srgba_u32(0x9ca0b0ff); // Overlay0
+            theme->panel.background = base;
+            theme->panel.border     = base;
 
-            theme->tab.background = color_from_srgba_u32(0xccd0daff); // Surface0
-            theme->tab.border     = color_from_srgba_u32(0x9ca0b0ff); // Overlay0
-            theme->tab.text       = color_from_srgba_u32(0x4c4f69ff); // Text
+            theme->tab_bar.background = mantle;
+            theme->tab_bar.border     = mantle;
 
-            theme->active_tab.background = color_from_srgba_u32(0xbcc0ccff); // Surface1
-            theme->active_tab.border     = color_from_srgba_u32(0x8c8fa1ff); // Overlay1
-            theme->active_tab.text       = color_from_srgba_u32(0x4c4f69ff); // Text
+            theme->tab.background = base;
+            theme->tab.border     = base;
+            theme->tab.text       = text;
+
+            theme->active_tab.background = surface0;
+            theme->active_tab.border     = surface0;
+            theme->active_tab.text       = text;
 
             theme->overlay.background = v4f32(0.0f, 0.0f, 0.0f, 0.3f);
 
-            theme->panel_boundary.background = color_from_srgba_u32(0xdce0e8ff); // Crust
+            theme->panel_boundary.background = crust;
         }
 
         {
             Theme *theme = &global_themes[3];
-            theme->name = str8_literal("Catppuccin Frappé"),
+            theme->name = str8_literal("Catppuccin Frappé");
 
-            theme->scroll_container.background = color_from_srgba_u32(0x303446ff); // Base
-            theme->scroll_container.border     = color_from_srgba_u32(0x737994ff); // Overlay0
+            V4F32 rosewater = color_from_srgba_u32(0xF2D5CFFF);
+            V4F32 flamingo  = color_from_srgba_u32(0xEEBEBEFF);
+            V4F32 pink      = color_from_srgba_u32(0xF4B8E4FF);
+            V4F32 mauve     = color_from_srgba_u32(0xCA9EE6FF);
+            V4F32 red       = color_from_srgba_u32(0xE78284FF);
+            V4F32 maroon    = color_from_srgba_u32(0xEA999CFF);
+            V4F32 peach     = color_from_srgba_u32(0xEF9F76FF);
+            V4F32 yellow    = color_from_srgba_u32(0xE5C890FF);
+            V4F32 green     = color_from_srgba_u32(0xA6D189FF);
+            V4F32 teal      = color_from_srgba_u32(0x81C8BEFF);
+            V4F32 sky       = color_from_srgba_u32(0x99D1DBFF);
+            V4F32 sapphire  = color_from_srgba_u32(0x85C1DCFF);
+            V4F32 blue      = color_from_srgba_u32(0x8CAAEEFF);
+            V4F32 lavender  = color_from_srgba_u32(0xBABBF1FF);
+            V4F32 text      = color_from_srgba_u32(0xC6D0F5FF);
+            V4F32 subtext1  = color_from_srgba_u32(0xB5BFE2FF);
+            V4F32 subtext0  = color_from_srgba_u32(0xA5ADCEFF);
+            V4F32 overlay2  = color_from_srgba_u32(0x949CBBFF);
+            V4F32 overlay1  = color_from_srgba_u32(0x838BA7FF);
+            V4F32 overlay0  = color_from_srgba_u32(0x737994FF);
+            V4F32 surface2  = color_from_srgba_u32(0x626880FF);
+            V4F32 surface1  = color_from_srgba_u32(0x51576DFF);
+            V4F32 surface0  = color_from_srgba_u32(0x414559FF);
+            V4F32 base      = color_from_srgba_u32(0x303446FF);
+            V4F32 mantle    = color_from_srgba_u32(0x292C3CFF);
+            V4F32 crust     = color_from_srgba_u32(0x232634FF);
 
-            theme->scroll_bar.background = color_from_srgba_u32(0x414559ff); // Surface0
-            theme->scroll_bar.border     = color_from_srgba_u32(0x737994ff); // Overlay0
+            theme->scroll_container.background = mantle;
+            theme->scroll_container.border     = mantle;
 
-            theme->button.background = color_from_srgba_u32(0x51576dff); // Surface1
-            theme->button.border     = color_from_srgba_u32(0x838ba7ff); // Overlay1
-            theme->button.text       = color_from_srgba_u32(0xc6d0f5ff); // Text
+            theme->scroll_bar.background = surface0;
+            theme->scroll_bar.border     = surface0;
 
-            theme->text.text = color_from_srgba_u32(0xc6d0f5ff); // Text
+            theme->button.background = surface0;
+            theme->button.border     = surface0;
+            theme->button.text       = text;
 
-            theme->panel.background = color_from_srgba_u32(0x303446ff); // Base
-            theme->panel.border     = color_from_srgba_u32(0x737994ff); // Overlay0
+            theme->text.text = text;
 
-            theme->tab_bar.background = color_from_srgba_u32(0x303446ff); // Base
-            theme->tab_bar.border     = color_from_srgba_u32(0x737994ff); // Overlay0
+            theme->panel.background = base;
+            theme->panel.border     = base;
 
-            theme->tab.background = color_from_srgba_u32(0x414559ff); // Surface0
-            theme->tab.border     = color_from_srgba_u32(0x737994ff); // Overlay0
-            theme->tab.text       = color_from_srgba_u32(0xc6d0f5ff); // Text
+            theme->tab_bar.background = mantle;
+            theme->tab_bar.border     = mantle;
 
-            theme->active_tab.background = color_from_srgba_u32(0x51576dff); // Surface1
-            theme->active_tab.border     = color_from_srgba_u32(0x838ba7ff); // Overlay1
-            theme->active_tab.text       = color_from_srgba_u32(0xc6d0f5ff); // Text
+            theme->tab.background = base;
+            theme->tab.border     = base;
+            theme->tab.text       = text;
+
+            theme->active_tab.background = surface0;
+            theme->active_tab.border     = surface0;
+            theme->active_tab.text       = text;
 
             theme->overlay.background = v4f32(0.0f, 0.0f, 0.0f, 0.3f);
 
-            theme->panel_boundary.background = color_from_srgba_u32(0x232634ff); // Crust
+            theme->panel_boundary.background = crust;
         }
 
         {
             Theme *theme = &global_themes[4];
-            theme->name = str8_literal("Catppuccin Macchiato"),
+            theme->name = str8_literal("Catppuccin Macchiato");
 
-            theme->scroll_container.background = color_from_srgba_u32(0x24273aff); // Base
-            theme->scroll_container.border     = color_from_srgba_u32(0x6e738dff); // Overlay0
+            V4F32 rosewater = color_from_srgba_u32(0xF4DBD6FF);
+            V4F32 flamingo  = color_from_srgba_u32(0xF0C6C6FF);
+            V4F32 pink      = color_from_srgba_u32(0xF5BDE6FF);
+            V4F32 mauve     = color_from_srgba_u32(0xC6A0F6FF);
+            V4F32 red       = color_from_srgba_u32(0xED8796FF);
+            V4F32 maroon    = color_from_srgba_u32(0xEE99A0FF);
+            V4F32 peach     = color_from_srgba_u32(0xF5A97FFF);
+            V4F32 yellow    = color_from_srgba_u32(0xEED49FFF);
+            V4F32 green     = color_from_srgba_u32(0xA6DA95FF);
+            V4F32 teal      = color_from_srgba_u32(0x8BD5CAFF);
+            V4F32 sky       = color_from_srgba_u32(0x91D7E3FF);
+            V4F32 sapphire  = color_from_srgba_u32(0x7DC4E4FF);
+            V4F32 blue      = color_from_srgba_u32(0x8AADF4FF);
+            V4F32 lavender  = color_from_srgba_u32(0xB7BDF8FF);
+            V4F32 text      = color_from_srgba_u32(0xCAD3F5FF);
+            V4F32 subtext1  = color_from_srgba_u32(0xB8C0E0FF);
+            V4F32 subtext0  = color_from_srgba_u32(0xA5ADCBFF);
+            V4F32 overlay2  = color_from_srgba_u32(0x939AB7FF);
+            V4F32 overlay1  = color_from_srgba_u32(0x8087A2FF);
+            V4F32 overlay0  = color_from_srgba_u32(0x6E738DFF);
+            V4F32 surface2  = color_from_srgba_u32(0x5B6078FF);
+            V4F32 surface1  = color_from_srgba_u32(0x494D64FF);
+            V4F32 surface0  = color_from_srgba_u32(0x363A4FFF);
+            V4F32 base      = color_from_srgba_u32(0x24273AFF);
+            V4F32 mantle    = color_from_srgba_u32(0x1E2030FF);
+            V4F32 crust     = color_from_srgba_u32(0x181926FF);
 
-            theme->scroll_bar.background = color_from_srgba_u32(0x363a4fff); // Surface0
-            theme->scroll_bar.border     = color_from_srgba_u32(0x6e738dff); // Overlay0
+            theme->scroll_container.background = mantle;
+            theme->scroll_container.border     = mantle;
 
-            theme->button.background = color_from_srgba_u32(0x494d64ff); // Surface1
-            theme->button.border     = color_from_srgba_u32(0x8087a2ff); // Overlay1
-            theme->button.text       = color_from_srgba_u32(0xcad3f5ff); // Text
+            theme->scroll_bar.background = surface0;
+            theme->scroll_bar.border     = surface0;
 
-            theme->text.text = color_from_srgba_u32(0xcad3f5ff); // Text
+            theme->button.background = surface0;
+            theme->button.border     = surface0;
+            theme->button.text       = text;
 
-            theme->panel.background = color_from_srgba_u32(0x24273aff); // Base
-            theme->panel.border     = color_from_srgba_u32(0x6e738dff); // Overlay0
+            theme->text.text = text;
 
-            theme->tab_bar.background = color_from_srgba_u32(0x24273aff); // Base
-            theme->tab_bar.border     = color_from_srgba_u32(0x6e738dff); // Overlay0
+            theme->panel.background = base;
+            theme->panel.border     = base;
 
-            theme->tab.background = color_from_srgba_u32(0x363a4fff); // Surface0
-            theme->tab.border     = color_from_srgba_u32(0x6e738dff); // Overlay0
-            theme->tab.text       = color_from_srgba_u32(0xcad3f5ff); // Text
+            theme->tab_bar.background = mantle;
+            theme->tab_bar.border     = mantle;
 
-            theme->active_tab.background = color_from_srgba_u32(0x494d64ff); // Surface1
-            theme->active_tab.border     = color_from_srgba_u32(0x8087a2ff); // Overlay1
-            theme->active_tab.text       = color_from_srgba_u32(0xcad3f5ff); // Text
+            theme->tab.background = base;
+            theme->tab.border     = base;
+            theme->tab.text       = text;
+
+            theme->active_tab.background = surface0;
+            theme->active_tab.border     = surface0;
+            theme->active_tab.text       = text;
 
             theme->overlay.background = v4f32(0.0f, 0.0f, 0.0f, 0.3f);
 
-            theme->panel_boundary.background = color_from_srgba_u32(0x181926ff); // Crust
+            theme->panel_boundary.background = crust;
         }
 
         {
             Theme *theme = &global_themes[5];
-            theme->name = str8_literal("Catppuccin Mocha"),
+            theme->name = str8_literal("Catppuccin Mocha");
 
-            theme->scroll_container.background = color_from_srgba_u32(0x1e1e2eff); // Base
-            theme->scroll_container.border     = color_from_srgba_u32(0x6c7086ff); // Overlay0
+            V4F32 rosewater = color_from_srgba_u32(0xF5E0DCFF);
+            V4F32 flamingo  = color_from_srgba_u32(0xF2CDCDFF);
+            V4F32 pink      = color_from_srgba_u32(0xF5C2E7FF);
+            V4F32 mauve     = color_from_srgba_u32(0xCBA6F7FF);
+            V4F32 red       = color_from_srgba_u32(0xF38BA8FF);
+            V4F32 maroon    = color_from_srgba_u32(0xEBA0ACFF);
+            V4F32 peach     = color_from_srgba_u32(0xFAB387FF);
+            V4F32 yellow    = color_from_srgba_u32(0xF9E2AFFF);
+            V4F32 green     = color_from_srgba_u32(0xA6E3A1FF);
+            V4F32 teal      = color_from_srgba_u32(0x94E2D5FF);
+            V4F32 sky       = color_from_srgba_u32(0x89DCEBFF);
+            V4F32 sapphire  = color_from_srgba_u32(0x74C7ECFF);
+            V4F32 blue      = color_from_srgba_u32(0x89B4FAFF);
+            V4F32 lavender  = color_from_srgba_u32(0xB4BEFEFF);
+            V4F32 text      = color_from_srgba_u32(0xCDD6F4FF);
+            V4F32 subtext1  = color_from_srgba_u32(0xBAC2DEFF);
+            V4F32 subtext0  = color_from_srgba_u32(0xA6ADC8FF);
+            V4F32 overlay2  = color_from_srgba_u32(0x9399B2FF);
+            V4F32 overlay1  = color_from_srgba_u32(0x7F849CFF);
+            V4F32 overlay0  = color_from_srgba_u32(0x6C7086FF);
+            V4F32 surface2  = color_from_srgba_u32(0x585B70FF);
+            V4F32 surface1  = color_from_srgba_u32(0x45475AFF);
+            V4F32 surface0  = color_from_srgba_u32(0x313244FF);
+            V4F32 base      = color_from_srgba_u32(0x1E1E2EFF);
+            V4F32 mantle    = color_from_srgba_u32(0x181825FF);
+            V4F32 crust     = color_from_srgba_u32(0x11111BFF);
 
-            theme->scroll_bar.background = color_from_srgba_u32(0x313244ff); // Surface0
-            theme->scroll_bar.border     = color_from_srgba_u32(0x6c7086ff); // Overlay0
+            theme->scroll_container.background = mantle;
+            theme->scroll_container.border     = mantle;
 
-            theme->button.background = color_from_srgba_u32(0x45475aff); // Surface1
-            theme->button.border     = color_from_srgba_u32(0x7f849cff); // Overlay1
-            theme->button.text       = color_from_srgba_u32(0xcdd6f4ff); // Text
+            theme->scroll_bar.background = surface0;
+            theme->scroll_bar.border     = surface0;
 
-            theme->text.text = color_from_srgba_u32(0xcdd6f4ff); // Text
+            theme->button.background = surface0;
+            theme->button.border     = surface0;
+            theme->button.text       = text;
 
-            theme->panel.background = color_from_srgba_u32(0x1e1e2eff); // Base
-            theme->panel.border     = color_from_srgba_u32(0x6c7086ff); // Overlay0
+            theme->text.text = text;
 
-            theme->tab_bar.background = color_from_srgba_u32(0x1e1e2eff); // Base
-            theme->tab_bar.border     = color_from_srgba_u32(0x6c7086ff); // Overlay0
+            theme->panel.background = base;
+            theme->panel.border     = base;
 
-            theme->tab.background = color_from_srgba_u32(0x313244ff); // Surface0
-            theme->tab.border     = color_from_srgba_u32(0x6c7086ff); // Overlay0
-            theme->tab.text       = color_from_srgba_u32(0xcdd6f4ff); // Text
+            theme->tab_bar.background = mantle;
+            theme->tab_bar.border     = mantle;
 
-            theme->active_tab.background = color_from_srgba_u32(0x45475aff); // Surface1
-            theme->active_tab.border     = color_from_srgba_u32(0x7f849cff); // Overlay1
-            theme->active_tab.text       = color_from_srgba_u32(0xcdd6f4ff); // Text
+            theme->tab.background = base;
+            theme->tab.border     = base;
+            theme->tab.text       = text;
+
+            theme->active_tab.background = surface0;
+            theme->active_tab.border     = surface0;
+            theme->active_tab.text       = text;
 
             theme->overlay.background = v4f32(0.0f, 0.0f, 0.0f, 0.3f);
 
-            theme->panel_boundary.background = color_from_srgba_u32(0x11111bff); // Crust
+            theme->panel_boundary.background = crust;
         }
     }
 
