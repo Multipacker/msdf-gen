@@ -817,6 +817,14 @@ internal Void update(Void) {
             R2F32 tab_bar_rectangle = r2f32(panel_rectangle.min.x, panel_rectangle.min.y, panel_rectangle.max.x, panel_rectangle.min.y + tab_height.value);
             R2F32 content_rectangle = r2f32(panel_rectangle.min.x, panel_rectangle.min.y + tab_height.value, panel_rectangle.max.x, panel_rectangle.max.y);
 
+            if (panel != panel_from_handle(state->active_panel)) {
+                ui_color_next(v4f32(0.0f, 0.0f, 0.0f, 0.3f));
+                ui_fixed_position_next(content_rectangle.min);
+                ui_width_next(ui_size_pixels(r2f32_size(content_rectangle).width, 1.0f));
+                ui_height_next(ui_size_pixels(r2f32_size(content_rectangle).height, 1.0f));
+                ui_create_box(UI_BoxFlag_DrawBackground | UI_BoxFlag_FloatingPosition);
+            }
+
             ui_fixed_position_next(tab_bar_rectangle.min);
             ui_width_next(ui_size_pixels(r2f32_size(tab_bar_rectangle).width, 1.0f));
             ui_height_next(ui_size_pixels(r2f32_size(tab_bar_rectangle).height, 1.0f));
