@@ -251,16 +251,25 @@ internal Void ui_begin(Gfx_EventList *events, F32 dt) {
     }
 
     // NOTE(simon): Reset active key if the active box is disabled or pruned.
-    if (!ui_keys_match(ui->active_key, global_ui_null_key)) {
-        UI_Box *box = ui_box_from_key(ui->active_key);
-        if (box == &global_ui_null_box || box->flags & UI_BoxFlag_Disabled) {
-            ui->active_key = global_ui_null_key;
+    for (UI_MouseButton button = 0; button < UI_MouseButton_COUNT; ++button) {
+        // TODO(simon): This first check could probably be removed because of null values.
+        if (!ui_keys_match(ui->active_key[button], global_ui_null_key)) {
+            UI_Box *box = ui_box_from_key(ui->active_key[button]);
+            if (box == &global_ui_null_box || box->flags & UI_BoxFlag_Disabled) {
+                ui->active_key[button] = global_ui_null_key;
+            }
         }
     }
 
     // NOTE(simon): Reset hot key if there is no active key.
-    if (ui_keys_match(ui->active_key, global_ui_null_key)) {
-        ui->hot_key = global_ui_null_key;
+    {
+        B32 is_active = false;
+        for (UI_MouseButton button = 0; button < UI_MouseButton_COUNT; ++button) {
+            is_active |= !ui_keys_match(ui->active_key[button], global_ui_null_key);
+        }
+        if (!is_active) {
+            ui->hot_key = global_ui_null_key;
+        }
     }
 
     ui->drop_hot_key = global_ui_null_key;
@@ -457,6 +466,12 @@ internal Void ui_end(Void) {
     // NOTE(simon): Redo layout for tooltip and context menu.
     {
         UI_Box *update_roots[] = { ui->tooltip_root, ui->context_menu_root, };
+        B32 force_contain[] = {
+            ui_keys_match(ui->active_key[UI_MouseButton_Left], global_ui_null_key) &&
+            ui_keys_match(ui->active_key[UI_MouseButton_Middle], global_ui_null_key) &&
+            ui_keys_match(ui->active_key[UI_MouseButton_Right], global_ui_null_key),
+            1,
+        };
         for (U32 i = 0; i < array_count(update_roots); ++i) {
             UI_Box *root = update_roots[i];
 
@@ -464,11 +479,13 @@ internal Void ui_end(Void) {
                 // NOTE(simon): Move the root to always be on screen.
                 F32 max_coordinate = ui->root->calculated_size.values[axis];
                 F32 size = root->calculated_size.values[axis];
-                if (root->calculated_position.values[axis] + size > max_coordinate) {
-                    root->calculated_position.values[axis] = max_coordinate - size;
-                }
-                if (root->calculated_position.values[axis] < 0.0f) {
-                    root->calculated_position.values[axis] = 0.0f;
+                if (force_contain[i]) {
+                    if (root->calculated_position.values[axis] + size > max_coordinate) {
+                        root->calculated_position.values[axis] = max_coordinate - size;
+                    }
+                    if (root->calculated_position.values[axis] < 0.0f) {
+                        root->calculated_position.values[axis] = 0.0f;
+                    }
                 }
 
                 // NOTE(simon): Redo layout.
@@ -488,8 +505,8 @@ internal Void ui_end(Void) {
         for (U32 i = 0; i < UI_BOX_TABLE_SIZE; ++i) {
             UI_BoxList boxes = ui->box_table[i];
             for (UI_Box *box = boxes.first; box; box = box->hash_next) {
-                B32 is_hot      = ui_keys_match(ui->hot_key,    box->key);
-                B32 is_active   = ui_keys_match(ui->active_key, box->key);
+                B32 is_hot      = ui_keys_match(ui->hot_key, box->key);
+                B32 is_active   = ui_keys_match(ui->active_key[UI_MouseButton_Left], box->key);
                 B32 is_disabled = box->flags & UI_BoxFlag_Disabled;
 
                 box->animated_position.x += (box->calculated_position.x - box->animated_position.x) * ui->fast_rate;
@@ -790,7 +807,7 @@ internal UI_Input ui_input_from_box(UI_Box *box) {
         // NOTE(simon): Clicked in bounds.
         if (box->flags & UI_BoxFlag_Clickable && is_mouse_key && event->kind == Gfx_EventKind_KeyPress && is_in_bounds) {
             result.input_flags |= (UI_InputFlag) (UI_InputFlag_LeftPressed << mouse_key);
-            ui->active_key = box->key;
+            ui->active_key[mouse_key] = box->key;
             ui->hot_key = box->key;
             ui->drag_start = event->position;
             consumed = true;
@@ -802,11 +819,11 @@ internal UI_Input ui_input_from_box(UI_Box *box) {
             is_mouse_key &&
             event->kind == Gfx_EventKind_KeyRelease &&
             is_in_bounds &&
-            ui_keys_match(ui->active_key, box->key)
+            ui_keys_match(ui->active_key[mouse_key], box->key)
         ) {
             result.input_flags |= (UI_InputFlag) (UI_InputFlag_LeftReleased << mouse_key);
             result.input_flags |= (UI_InputFlag) (UI_InputFlag_LeftClicked << mouse_key);
-            ui->active_key = global_ui_null_key;
+            ui->active_key[mouse_key] = global_ui_null_key;
             consumed = true;
         }
 
@@ -816,10 +833,10 @@ internal UI_Input ui_input_from_box(UI_Box *box) {
             is_mouse_key &&
             event->kind == Gfx_EventKind_KeyRelease &&
             !is_in_bounds &&
-            ui_keys_match(ui->active_key, box->key)
+            ui_keys_match(ui->active_key[mouse_key], box->key)
         ) {
             result.input_flags |= (UI_InputFlag) (UI_InputFlag_LeftReleased << mouse_key);
-            ui->active_key = global_ui_null_key;
+            ui->active_key[mouse_key] = global_ui_null_key;
             ui->hot_key = global_ui_null_key;
             consumed = true;
         }
@@ -845,8 +862,12 @@ internal UI_Input ui_input_from_box(UI_Box *box) {
         ui->drop_hot_key = box->key;
     }
 
-    if (box->flags & UI_BoxFlag_Clickable && ui_keys_match(ui->active_key, box->key)) {
-        result.input_flags |= UI_InputFlag_Dragging;
+    if (box->flags & UI_BoxFlag_Clickable) {
+        for (UI_MouseButton button = 0; button < UI_MouseButton_COUNT; ++button) {
+            if (result.input_flags & (UI_InputFlag) (UI_InputFlag_LeftPressed << button) || ui_keys_match(ui->active_key[button], box->key)) {
+                result.input_flags |= (UI_InputFlag) (UI_InputFlag_LeftDragging << button);
+            }
+        }
     }
 
     if (
@@ -854,7 +875,9 @@ internal UI_Input ui_input_from_box(UI_Box *box) {
         !r2f32_contains(exclude_bounds, ui->mouse) &&
         box->flags & UI_BoxFlag_Clickable &&
         (ui_keys_match(ui->hot_key, global_ui_null_key) || ui_keys_match(ui->hot_key, box->key)) &&
-        (ui_keys_match(ui->active_key, global_ui_null_key) || ui_keys_match(ui->active_key, box->key))
+        (ui_keys_match(ui->active_key[UI_MouseButton_Left],   global_ui_null_key) || ui_keys_match(ui->active_key[UI_MouseButton_Left],   box->key)) &&
+        (ui_keys_match(ui->active_key[UI_MouseButton_Middle], global_ui_null_key) || ui_keys_match(ui->active_key[UI_MouseButton_Middle], box->key)) &&
+        (ui_keys_match(ui->active_key[UI_MouseButton_Right],  global_ui_null_key) || ui_keys_match(ui->active_key[UI_MouseButton_Right],  box->key))
     ) {
         ui->hot_key = box->key;
         result.input_flags |= UI_InputFlag_Hovering;

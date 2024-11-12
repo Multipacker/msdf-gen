@@ -60,6 +60,13 @@ typedef enum {
     UI_BoxFlag_FloatingPosition = UI_BoxFlag_FloatingX | UI_BoxFlag_FloatingY,
 } UI_BoxFlags;
 
+typedef enum {
+    UI_MouseButton_Left,
+    UI_MouseButton_Middle,
+    UI_MouseButton_Right,
+    UI_MouseButton_COUNT,
+} UI_MouseButton;
+
 typedef struct UI_Box UI_Box;
 
 #define UI_BOX_DRAW_FUNCTION(name) Void name(UI_Box *box, Void *data)
@@ -241,7 +248,7 @@ struct UI_Context {
     F32 slow_rate;
 
     UI_Key hot_key;
-    UI_Key active_key;
+    UI_Key active_key[UI_MouseButton_COUNT];
     UI_Key drop_hot_key;
 
     // NOTE(simon): Drag data
