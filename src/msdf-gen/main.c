@@ -861,7 +861,9 @@ internal Void update(Void) {
             ui_width(ui_size_children_sum(1.0f))
             ui_height(tab_height)
             ui_layout_axis(Axis2_X)
-            ui_parent(tab_bar_box) {
+            ui_parent(tab_bar_box)
+            ui_corner_radius_00(10.0f)
+            ui_corner_radius_01(10.0f) {
                 for (Tab *tab = panel->tab_first; tab; tab = tab->next) {
                     if (tab == tab_from_handle(panel->active_tab)) {
                         ui_palette_push(state->theme.active_tab);
@@ -942,6 +944,7 @@ internal Void update(Void) {
                             ui_width_next(ui_size_text_content(5.0f, 1.0f));
                             ui_height_next(ui_size_text_content(0.0f, 1.0f));
                             ui_palette_next(state->theme.button);
+                            ui_corner_radius_next(5.0f);
                             UI_Input close_input = ui_button_format("Close panel###%p", panel);
                             if (close_input.input_flags & UI_InputFlag_LeftClicked) {
                                 push_command(Command_ClosePanel, .panel = handle_from_panel(panel));
