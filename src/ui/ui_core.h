@@ -113,6 +113,7 @@ struct UI_Box {
     Gfx_Cursor          hover_cursor;
     UI_BoxDrawFunction *draw_function;
     Void               *draw_data;
+    F32                 corner_radies[Corner_COUNT];
 
     FontCache_Text text;
     V2F32 calculated_size;
@@ -298,6 +299,7 @@ struct UI_Context {
     UI_BoxDrawFunctionStack draw_function_stack;
     UI_PointerStack         draw_data_stack;
     UI_TextAlignStack       text_align_stack;
+    UI_F32Stack             corner_radius_stacks[Corner_COUNT];
 };
 
 internal Void ui_select_state(UI_Context *state);
@@ -470,5 +472,38 @@ internal F32 ui_animation_fast_rate(Void);
 #define ui_draw_data_next(data) ui_pointer_stack_push(&global_ui_state->draw_data_stack, data, true)
 #define ui_draw_data_auto_pop() ui_pointer_stack_auto_pop(&global_ui_state->draw_data_stack)
 #define ui_draw_data_top()      (global_ui_state->draw_data_stack.top->item)
+
+#define ui_corner_radius_00_push(radius) ui_f32_stack_push(&global_ui_state->corner_radius_stacks[Corner_00], radius, false)
+#define ui_corner_radius_00_pop()        ui_f32_stack_pop(&global_ui_state->corner_radius_stacks[Corner_00])
+#define ui_corner_radius_00(radius)      defer_loop(ui_corner_radius_00_push(radius), ui_corner_radius_00_pop())
+#define ui_corner_radius_00_next(radius) ui_f32_stack_push(&global_ui_state->corner_radius_stacks[Corner_00], radius, true)
+#define ui_corner_radius_00_auto_pop()   ui_f32_stack_auto_pop(&global_ui_state->corner_radius_stacks[Corner_00])
+#define ui_corner_radius_00_top()        (global_ui_state->corner_radius_stacks[Corner_00].top->item)
+
+#define ui_corner_radius_01_push(radius) ui_f32_stack_push(&global_ui_state->corner_radius_stacks[Corner_01], radius, false)
+#define ui_corner_radius_01_pop()        ui_f32_stack_pop(&global_ui_state->corner_radius_stacks[Corner_01])
+#define ui_corner_radius_01(radius)      defer_loop(ui_corner_radius_01_push(radius), ui_corner_radius_01_pop())
+#define ui_corner_radius_01_next(radius) ui_f32_stack_push(&global_ui_state->corner_radius_stacks[Corner_01], radius, true)
+#define ui_corner_radius_01_auto_pop()   ui_f32_stack_auto_pop(&global_ui_state->corner_radius_stacks[Corner_01])
+#define ui_corner_radius_01_top()        (global_ui_state->corner_radius_stacks[Corner_01].top->item)
+
+#define ui_corner_radius_10_push(radius) ui_f32_stack_push(&global_ui_state->corner_radius_stacks[Corner_10], radius, false)
+#define ui_corner_radius_10_pop()        ui_f32_stack_pop(&global_ui_state->corner_radius_stacks[Corner_10])
+#define ui_corner_radius_10(radius)      defer_loop(ui_corner_radius_10_push(radius), ui_corner_radius_10_pop())
+#define ui_corner_radius_10_next(radius) ui_f32_stack_push(&global_ui_state->corner_radius_stacks[Corner_10], radius, true)
+#define ui_corner_radius_10_auto_pop()   ui_f32_stack_auto_pop(&global_ui_state->corner_radius_stacks[Corner_10])
+#define ui_corner_radius_10_top()        (global_ui_state->corner_radius_stacks[Corner_10].top->item)
+
+#define ui_corner_radius_11_push(radius) ui_f32_stack_push(&global_ui_state->corner_radius_stacks[Corner_11], radius, false)
+#define ui_corner_radius_11_pop()        ui_f32_stack_pop(&global_ui_state->corner_radius_stacks[Corner_11])
+#define ui_corner_radius_11(radius)      defer_loop(ui_corner_radius_11_push(radius), ui_corner_radius_11_pop())
+#define ui_corner_radius_11_next(radius) ui_f32_stack_push(&global_ui_state->corner_radius_stacks[Corner_11], radius, true)
+#define ui_corner_radius_11_auto_pop()   ui_f32_stack_auto_pop(&global_ui_state->corner_radius_stacks[Corner_11])
+#define ui_corner_radius_11_top()        (global_ui_state->corner_radius_stacks[Corner_11].top->item)
+
+#define ui_corner_radius_push(radius) (ui_corner_radius_00_push(radius), ui_corner_radius_01_push(radius), ui_corner_radius_10_push(radius), ui_corner_radius_11_push(radius))
+#define ui_corner_radius_pop()        (ui_corner_radius_00_pop(), ui_corner_radius_01_pop(), ui_corner_radius_10_pop(), ui_corner_radius_11_pop())
+#define ui_corner_radius(radius)      defer_loop(ui_corner_radius_push(radius), ui_corner_radius_pop())
+#define ui_corner_radius_next(radius) (ui_corner_radius_00_next(radius), ui_corner_radius_01_next(radius), ui_corner_radius_10_next(radius), ui_corner_radius_11_next(radius))
 
 #endif // UI_CORE_H

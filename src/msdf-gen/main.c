@@ -418,18 +418,23 @@ internal Void draw_ui(UI_Box *root) {
 
     for (UI_Box *box = root; box != &global_ui_null_box;) {
         if (box->flags & UI_BoxFlag_DrawBackground) {
-            draw_rectangle(box->calculated_rectangle, box->palette.background, 0.0f, 0.0f, 0.0f);
+            {
+                Render_Shape *shape = draw_rectangle(box->calculated_rectangle, box->palette.background, 0.0f, 0.0f, 1.0f);
+                memory_copy(shape->radies, box->corner_radies, sizeof(shape->radies));
+            }
 
             if (box->flags & UI_BoxFlag_DrawHot && box->hot_t > 0.0f) {
-                Render_Shape *rect = draw_rectangle(box->calculated_rectangle, v4f32(0.0f, 0.0f, 0.0f, 0.0f), 0.0f, 0.0f, 0.0f);
+                Render_Shape *rect = draw_rectangle(box->calculated_rectangle, v4f32(0.0f, 0.0f, 0.0f, 0.0f), 0.0f, 0.0f, 1.0f);
                 rect->colors[0] = v4f32(1.0f, 1.0f, 1.0f, 0.5f * box->hot_t);
                 rect->colors[1] = v4f32(1.0f, 1.0f, 1.0f, 0.5f * box->hot_t);
+                memory_copy(rect->radies, box->corner_radies, sizeof(rect->radies));
             }
 
             if (box->flags & UI_BoxFlag_DrawActive && box->active_t > 0.0f) {
-                Render_Shape *rect = draw_rectangle(box->calculated_rectangle, v4f32(0.0f, 0.0f, 0.0f, 0.0f), 0.0f, 0.0f, 0.0f);
+                Render_Shape *rect = draw_rectangle(box->calculated_rectangle, v4f32(0.0f, 0.0f, 0.0f, 0.0f), 0.0f, 0.0f, 1.0f);
                 rect->colors[2] = v4f32(0.0f, 0.0f, 0.0f, 0.5f * box->active_t);
                 rect->colors[3] = v4f32(0.0f, 0.0f, 0.0f, 0.5f * box->active_t);
+                memory_copy(rect->radies, box->corner_radies, sizeof(rect->radies));
             }
         }
 
@@ -479,11 +484,13 @@ internal Void draw_ui(UI_Box *root) {
             }
 
             if (parent->flags & UI_BoxFlag_DrawBorder) {
-                draw_rectangle(parent->calculated_rectangle, parent->palette.border, 0.0f, 1.0f, 1.0f);
+                Render_Shape *shape = draw_rectangle(parent->calculated_rectangle, parent->palette.border, 0.0f, 1.0f, 1.0f);
+                memory_copy(shape->radies, box->corner_radies, sizeof(shape->radies));
             }
 
             if (parent->flags & UI_BoxFlag_Disabled) {
-                draw_rectangle(parent->calculated_rectangle, v4f32(0.2f, 0.2f, 0.2f, 0.75f), 0.0f, 0.0f, 0.0f);
+                Render_Shape *shape = draw_rectangle(parent->calculated_rectangle, v4f32(0.2f, 0.2f, 0.2f, 0.75f), 0.0f, 0.0f, 1.0f);
+                memory_copy(shape->radies, box->corner_radies, sizeof(shape->radies));
             }
         }
 

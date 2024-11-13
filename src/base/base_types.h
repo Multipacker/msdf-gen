@@ -107,6 +107,14 @@ typedef enum {
     Axis2_COUNT,
 } Axis2;
 
+typedef enum {
+    Corner_00,
+    Corner_01,
+    Corner_10,
+    Corner_11,
+    Corner_COUNT,
+} Corner;
+
 #define axis2_flip(axis) ((Axis2) (1 - (axis)))
 
 global S8  S8_MIN  = 0x80;

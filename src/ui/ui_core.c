@@ -173,6 +173,7 @@ internal Void ui_begin(Gfx_EventList *events, F32 dt) {
     memory_zero_struct(&ui->hover_cursor_stack);
     memory_zero_struct(&ui->draw_function_stack);
     memory_zero_struct(&ui->draw_data_stack);
+    memory_zero_struct(&ui->corner_radius_stacks);
 
     ui->mouse = gfx_get_mouse_position();
     ui->events = events;
@@ -196,6 +197,10 @@ internal Void ui_begin(Gfx_EventList *events, F32 dt) {
     ui_hover_cursor_push(Gfx_Cursor_Pointer);
     ui_draw_function_push(0);
     ui_draw_data_push(0);
+    ui_corner_radius_00_push(0.0f);
+    ui_corner_radius_01_push(0.0f);
+    ui_corner_radius_10_push(0.0f);
+    ui_corner_radius_11_push(0.0f);
 
     // NOTE(simon): Build root
     {
@@ -640,6 +645,10 @@ internal UI_Box *ui_create_box_from_key(UI_BoxFlags flags, UI_Key key) {
     box->hover_cursor  = ui_hover_cursor_top();
     box->draw_function = ui_draw_function_top();
     box->draw_data     = ui_draw_data_top();
+    box->corner_radies[Corner_00] = ui_corner_radius_00_top();
+    box->corner_radies[Corner_01] = ui_corner_radius_01_top();
+    box->corner_radies[Corner_10] = ui_corner_radius_10_top();
+    box->corner_radies[Corner_11] = ui_corner_radius_11_top();
 
     if (ui->fixed_x_stack.top) {
         box->flags |= UI_BoxFlag_FloatingX;
@@ -667,6 +676,10 @@ internal UI_Box *ui_create_box_from_key(UI_BoxFlags flags, UI_Key key) {
     ui_hover_cursor_auto_pop();
     ui_draw_function_auto_pop();
     ui_draw_data_auto_pop();
+    ui_corner_radius_00_auto_pop();
+    ui_corner_radius_01_auto_pop();
+    ui_corner_radius_10_auto_pop();
+    ui_corner_radius_11_auto_pop();
 
     return box;
 }
