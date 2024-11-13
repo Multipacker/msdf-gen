@@ -56,7 +56,7 @@ void main() {
             inner_distance = sdf_box(vert_position, vert_half_size - inner_radius - vert_thickness) - inner_radius;
         }
         float distance = max(outer_distance, -inner_distance);
-        alpha = 1.0 - smoothstep(-vert_softness, vert_softness, distance);
+        alpha = 1.0 - smoothstep(0, vert_softness, distance);
     }
 
     frag_color = texture_sample * vert_color * vec4(1.0, 1.0, 1.0, alpha);
