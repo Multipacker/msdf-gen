@@ -263,8 +263,8 @@ PANEL_BUILD_FUNCTION(view_glyph_list) {
         }
 
         UI_Input scroll_input = ui_input_from_box(scroll);
-        if (scroll_input.input_flags & UI_InputFlag_Dragging) {
-            if (scroll_input.input_flags & UI_InputFlag_Pressed) {
+        if (scroll_input.input_flags & UI_InputFlag_LeftDragging) {
+            if (scroll_input.input_flags & UI_InputFlag_LeftPressed) {
                 ui_set_drag_data(&top_row);
             }
 
