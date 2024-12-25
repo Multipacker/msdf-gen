@@ -487,7 +487,7 @@ internal Void draw_ui(UI_Box *root) {
 
             if (parent->flags & UI_BoxFlag_DrawBorder) {
                 Render_Shape *shape = draw_rectangle(parent->calculated_rectangle, parent->palette.border, 0.0f, 1.0f, 1.0f);
-                memory_copy(shape->radies, box->corner_radies, sizeof(shape->radies));
+                memory_copy(shape->radies, parent->corner_radies, sizeof(shape->radies));
             }
 
             if (parent->flags & UI_BoxFlag_Disabled) {
