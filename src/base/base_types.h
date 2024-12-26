@@ -102,12 +102,30 @@ struct FileProperties {
 };
 
 typedef enum {
+    Side_Invalid = -1,
+    Side_Min,
+    Side_Max,
+    Side_COUNT,
+} Side;
+
+typedef enum {
+    Axis2_Invalid = -1,
     Axis2_X,
     Axis2_Y,
     Axis2_COUNT,
 } Axis2;
 
 typedef enum {
+    Direction2_Invalid = -1,
+    Direction2_Left,
+    Direction2_Up,
+    Direction2_Right,
+    Direction2_Down,
+    Direction2_COUNT,
+} Direction2;
+
+typedef enum {
+    Corner_Invalid = -1,
     Corner_00,
     Corner_01,
     Corner_10,
@@ -116,6 +134,9 @@ typedef enum {
 } Corner;
 
 #define axis2_flip(axis) ((Axis2) (1 - (axis)))
+#define side_flip(side) ((Side) (1 - (side)))
+#define side_from_direction2(direction) (((direction) & 0x02) ? Side_Max : Side_Min)
+#define axis2_from_direction2(direction) (((direction) & 0x01) ? Axis2_Y : Axis2_X)
 
 global S8  S8_MIN  = 0x80;
 global S16 S16_MIN = 0x8000;
