@@ -785,7 +785,7 @@ internal UI_Input ui_input_from_box(UI_Box *box) {
         next = event->next;
         B32 consumed = false;
 
-        B32 is_in_bounds = r2f32_contains(bounds, event->position) && !r2f32_contains(exclude_bounds, event->position);
+        B32 is_in_bounds = r2f32_contains_v2f32(bounds, event->position) && !r2f32_contains_v2f32(exclude_bounds, event->position);
         UI_MouseButtonKind mouse_key = UI_MouseButtonKind_Left;
         B32 is_mouse_key = false;
         switch (event->key) {
@@ -846,8 +846,8 @@ internal UI_Input ui_input_from_box(UI_Box *box) {
     // target.
     if (
         box->flags & UI_BoxFlag_DropTarget &&
-        r2f32_contains(bounds, ui->mouse) &&
-        !r2f32_contains(exclude_bounds, ui->mouse) &&
+        r2f32_contains_v2f32(bounds, ui->mouse) &&
+        !r2f32_contains_v2f32(exclude_bounds, ui->mouse) &&
         ui_keys_match(ui->drop_hot_key, global_ui_null_key)
        ) {
         ui->drop_hot_key = box->key;
@@ -862,8 +862,8 @@ internal UI_Input ui_input_from_box(UI_Box *box) {
     }
 
     if (
-        r2f32_contains(bounds, ui->mouse) &&
-        !r2f32_contains(exclude_bounds, ui->mouse) &&
+        r2f32_contains_v2f32(bounds, ui->mouse) &&
+        !r2f32_contains_v2f32(exclude_bounds, ui->mouse) &&
         box->flags & UI_BoxFlag_Clickable &&
         (ui_keys_match(ui->hot_key, global_ui_null_key) || ui_keys_match(ui->hot_key, box->key)) &&
         (ui_keys_match(ui->active_key[UI_MouseButton_Left],   global_ui_null_key) || ui_keys_match(ui->active_key[UI_MouseButton_Left],   box->key)) &&

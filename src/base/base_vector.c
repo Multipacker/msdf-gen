@@ -480,6 +480,111 @@ internal V2F32 v2f32_max(V2F32 a, V2F32 b) {
 
 
 
+internal V2F64 v2f64(F64 x, F64 y) {
+    V2F64 result;
+
+    result.x = x;
+    result.y = y;
+
+    return result;
+}
+
+internal V2F64 v2f64_add(V2F64 a, V2F64 b) {
+    V2F64 result = { 0 };
+
+    result.x = a.x + b.x;
+    result.y = a.y + b.y;
+
+    return result;
+}
+
+internal V2F64 v2f64_subtract(V2F64 a, V2F64 b) {
+    V2F64 result = { 0 };
+
+    result.x = a.x - b.x;
+    result.y = a.y - b.y;
+
+    return result;
+}
+
+internal V2F64 v2f64_scale(V2F64 vector, F64 scale) {
+    V2F64 result = { 0 };
+
+    result.x = scale * vector.x;
+    result.y = scale * vector.y;
+
+    return result;
+}
+
+internal F64 v2f64_length_squared(V2F64 vector) {
+    F64 result = vector.x * vector.x + vector.y * vector.y;
+    return result;
+}
+
+internal F64 v2f64_length(V2F64 vector) {
+    F64 result = f64_sqrt(vector.x * vector.x + vector.y * vector.y);
+    return result;
+}
+
+internal V2F64 v2f64_normalize(V2F64 vector) {
+    F64 length = v2f64_length(vector);
+
+    V2F64 result = { 0 };
+
+    if (length > F64_EPSILON) {
+        result.x = vector.x / length;
+        result.y = vector.y / length;
+    }
+
+    return result;
+}
+
+internal F64 v2f64_dot(V2F64 a, V2F64 b) {
+    return a.x * b.x + a.y * b.y;
+}
+
+internal F64 v2f64_cross(V2F64 a, V2F64 b) {
+    return a.x * b.y - a.y * b.x;
+}
+
+internal V2F64 v2f64_negate(V2F64 vector) {
+    V2F64 result = { 0 };
+
+    result.x = -vector.x;
+    result.y = -vector.y;
+
+    return result;
+}
+
+internal V2F64 v2f64_perpendicular(V2F64 vector) {
+    V2F64 result = { 0 };
+
+    result.x =  vector.y;
+    result.y = -vector.x;
+
+    return result;
+}
+
+internal V2F64 v2f64_min(V2F64 a, V2F64 b) {
+    V2F64 result = { 0 };
+
+    result.x = f64_min(a.x, b.x);
+    result.y = f64_min(a.y, b.y);
+
+    return result;
+}
+
+internal V2F64 v2f64_max(V2F64 a, V2F64 b) {
+    V2F64 result = { 0 };
+
+    result.x = f64_max(a.x, b.x);
+    result.y = f64_max(a.y, b.y);
+
+    return result;
+}
+
+
+
 internal V3F32 v3f32(F32 x, F32 y, F32 z) {
     V3F32 result = { 0 };
 
@@ -749,6 +854,40 @@ internal R2U8 r2u8(U8 min_x, U8 min_y, U8 max_x, U8 max_y) {
     return result;
 }
 
+internal R2U8 r2u8_from_position_size(V2U8 position, V2U8 size) {
+    R2U8 result = { 0 };
+
+    result.min = position;
+    result.max = v2u8_add(position, size);
+
+    return result;
+}
+
+internal R2U8 r2u8_intersect(R2U8 a, R2U8 b) {
+    R2U8 result = { 0 };
+
+    result.min.x = u8_max(a.min.x, b.min.x);
+    result.min.y = u8_max(a.min.y, b.min.y);
+    result.max.x = u8_min(a.max.x, b.max.x);
+    result.max.y = u8_min(a.max.y, b.max.y);
+
+    return result;
+}
+
+internal B32 r2u8_contains_v2u8(R2U8 bounds, V2U8 point) {
+    B32 contains_x = bounds.min.x <= point.x && point.x < bounds.max.x;
+    B32 contains_y = bounds.min.y <= point.y && point.y < bounds.max.y;
+    B32 result     = contains_x && contains_y;
+    return result;
+}
+
+internal B32 r2u8_contains_r2u8(R2U8 a, R2U8 b) {
+    B32 contains_x = a.min.x <= b.min.x && b.max.x <= a.max.x;
+    B32 contains_y = a.min.y <= b.min.y && b.max.y <= a.max.y;
+    B32 contains = contains_x && contains_y;
+    return contains;
+}
+
 internal R2U8 r2u8_pad(R2U8 range, U8 pad) {
     R2U8 result = { 0 };
 
@@ -768,6 +907,14 @@ internal V2U8 r2u8_size(R2U8 range) {
     return result;
 }
 
+internal V2U8 r2u8_center(R2U8 range) {
+    V2U8 result = v2u8(
+        (range.min.x + range.max.x) / 2,
+        (range.min.y + range.max.y) / 2
+    );
+    return result;
+}
+
 
 
 internal R2U16 r2u16(U16 min_x, U16 min_y, U16 max_x, U16 max_y) {
@@ -779,6 +926,40 @@ internal R2U16 r2u16(U16 min_x, U16 min_y, U16 max_x, U16 max_y) {
     result.max.y = max_y;
 
     return result;
+}
+
+internal R2U16 r2u16_from_position_size(V2U16 position, V2U16 size) {
+    R2U16 result = { 0 };
+
+    result.min = position;
+    result.max = v2u16_add(position, size);
+
+    return result;
+}
+
+internal R2U16 r2u16_intersect(R2U16 a, R2U16 b) {
+    R2U16 result = { 0 };
+
+    result.min.x = u16_max(a.min.x, b.min.x);
+    result.min.y = u16_max(a.min.y, b.min.y);
+    result.max.x = u16_min(a.max.x, b.max.x);
+    result.max.y = u16_min(a.max.y, b.max.y);
+
+    return result;
+}
+
+internal B32 r2u16_contains_v2u16(R2U16 bounds, V2U16 point) {
+    B32 contains_x = bounds.min.x <= point.x && point.x < bounds.max.x;
+    B32 contains_y = bounds.min.y <= point.y && point.y < bounds.max.y;
+    B32 result     = contains_x && contains_y;
+    return result;
+}
+
+internal B32 r2u16_contains_r2u16(R2U16 a, R2U16 b) {
+    B32 contains_x = a.min.x <= b.min.x && b.max.x <= a.max.x;
+    B32 contains_y = a.min.y <= b.min.y && b.max.y <= a.max.y;
+    B32 contains = contains_x && contains_y;
+    return contains;
 }
 
 internal R2U16 r2u16_pad(R2U16 range, U16 pad) {
@@ -796,6 +977,14 @@ internal V2U16 r2u16_size(R2U16 range) {
     V2U16 result = v2u16(
         range.max.x - range.min.x,
         range.max.y - range.min.y
+    );
+    return result;
+}
+
+internal V2U16 r2u16_center(R2U16 range) {
+    V2U16 result = v2u16(
+        (range.min.x + range.max.x) / 2,
+        (range.min.y + range.max.y) / 2
     );
     return result;
 }
@@ -819,6 +1008,24 @@ internal R2U32 r2u32_from_position_size(V2U32 position, V2U32 size) {
     result.min = position;
     result.max = v2u32_add(position, size);
 
+    return result;
+}
+
+internal R2U32 r2u32_intersect(R2U32 a, R2U32 b) {
+    R2U32 result = { 0 };
+
+    result.min.x = u32_max(a.min.x, b.min.x);
+    result.min.y = u32_max(a.min.y, b.min.y);
+    result.max.x = u32_min(a.max.x, b.max.x);
+    result.max.y = u32_min(a.max.y, b.max.y);
+
+    return result;
+}
+
+internal B32 r2u32_contains_v2u32(R2U32 bounds, V2U32 point) {
+    B32 contains_x = bounds.min.x <= point.x && point.x < bounds.max.x;
+    B32 contains_y = bounds.min.y <= point.y && point.y < bounds.max.y;
+    B32 result     = contains_x && contains_y;
     return result;
 }
 
@@ -848,6 +1055,14 @@ internal V2U32 r2u32_size(R2U32 range) {
     return result;
 }
 
+internal V2U32 r2u32_center(R2U32 range) {
+    V2U32 result = v2u32(
+        (range.min.x + range.max.x) / 2,
+        (range.min.y + range.max.y) / 2
+    );
+    return result;
+}
+
 
 
 internal R2U64 r2u64(U64 min_x, U64 min_y, U64 max_x, U64 max_y) {
@@ -859,6 +1074,40 @@ internal R2U64 r2u64(U64 min_x, U64 min_y, U64 max_x, U64 max_y) {
     result.max.y = max_y;
 
     return result;
+}
+
+internal R2U64 r2u64_from_position_size(V2U64 position, V2U64 size) {
+    R2U64 result = { 0 };
+
+    result.min = position;
+    result.max = v2u64_add(position, size);
+
+    return result;
+}
+
+internal R2U64 r2u64_intersect(R2U64 a, R2U64 b) {
+    R2U64 result = { 0 };
+
+    result.min.x = u64_max(a.min.x, b.min.x);
+    result.min.y = u64_max(a.min.y, b.min.y);
+    result.max.x = u64_min(a.max.x, b.max.x);
+    result.max.y = u64_min(a.max.y, b.max.y);
+
+    return result;
+}
+
+internal B32 r2u64_contains_v2u64(R2U64 bounds, V2U64 point) {
+    B32 contains_x = bounds.min.x <= point.x && point.x < bounds.max.x;
+    B32 contains_y = bounds.min.y <= point.y && point.y < bounds.max.y;
+    B32 result     = contains_x && contains_y;
+    return result;
+}
+
+internal B32 r2u64_contains_r2u64(R2U64 a, R2U64 b) {
+    B32 contains_x = a.min.x <= b.min.x && b.max.x <= a.max.x;
+    B32 contains_y = a.min.y <= b.min.y && b.max.y <= a.max.y;
+    B32 contains = contains_x && contains_y;
+    return contains;
 }
 
 internal R2U64 r2u64_pad(R2U64 range, U64 pad) {
@@ -880,6 +1129,14 @@ internal V2U64 r2u64_size(R2U64 range) {
     return result;
 }
 
+internal V2U64 r2u64_center(R2U64 range) {
+    V2U64 result = v2u64(
+        (range.min.x + range.max.x) / 2,
+        (range.min.y + range.max.y) / 2
+    );
+    return result;
+}
+
 
 
 internal R2S8 r2s8(S8 min_x, S8 min_y, S8 max_x, S8 max_y) {
@@ -891,6 +1148,40 @@ internal R2S8 r2s8(S8 min_x, S8 min_y, S8 max_x, S8 max_y) {
     result.max.y = max_y;
 
     return result;
+}
+
+internal R2S8 r2s8_from_position_size(V2S8 position, V2S8 size) {
+    R2S8 result = { 0 };
+
+    result.min = position;
+    result.max = v2s8_add(position, size);
+
+    return result;
+}
+
+internal R2S8 r2s8_intersect(R2S8 a, R2S8 b) {
+    R2S8 result = { 0 };
+
+    result.min.x = s8_max(a.min.x, b.min.x);
+    result.min.y = s8_max(a.min.y, b.min.y);
+    result.max.x = s8_min(a.max.x, b.max.x);
+    result.max.y = s8_min(a.max.y, b.max.y);
+
+    return result;
+}
+
+internal B32 r2s8_contains_v2s8(R2S8 bounds, V2S8 point) {
+    B32 contains_x = bounds.min.x <= point.x && point.x < bounds.max.x;
+    B32 contains_y = bounds.min.y <= point.y && point.y < bounds.max.y;
+    B32 result     = contains_x && contains_y;
+    return result;
+}
+
+internal B32 r2s8_contains_r2s8(R2S8 a, R2S8 b) {
+    B32 contains_x = a.min.x <= b.min.x && b.max.x <= a.max.x;
+    B32 contains_y = a.min.y <= b.min.y && b.max.y <= a.max.y;
+    B32 contains = contains_x && contains_y;
+    return contains;
 }
 
 internal R2S8 r2s8_pad(R2S8 range, S8 pad) {
@@ -912,6 +1203,14 @@ internal V2S8 r2s8_size(R2S8 range) {
     return result;
 }
 
+internal V2S8 r2s8_center(R2S8 range) {
+    V2S8 result = v2s8(
+        (range.min.x + range.max.x) / 2,
+        (range.min.y + range.max.y) / 2
+    );
+    return result;
+}
+
 
 
 internal R2S16 r2s16(S16 min_x, S16 min_y, S16 max_x, S16 max_y) {
@@ -923,6 +1222,40 @@ internal R2S16 r2s16(S16 min_x, S16 min_y, S16 max_x, S16 max_y) {
     result.max.y = max_y;
 
     return result;
+}
+
+internal R2S16 r2s16_from_position_size(V2S16 position, V2S16 size) {
+    R2S16 result = { 0 };
+
+    result.min = position;
+    result.max = v2s16_add(position, size);
+
+    return result;
+}
+
+internal R2S16 r2s16_intersect(R2S16 a, R2S16 b) {
+    R2S16 result = { 0 };
+
+    result.min.x = s16_max(a.min.x, b.min.x);
+    result.min.y = s16_max(a.min.y, b.min.y);
+    result.max.x = s16_min(a.max.x, b.max.x);
+    result.max.y = s16_min(a.max.y, b.max.y);
+
+    return result;
+}
+
+internal B32 r2s16_contains_v2s16(R2S16 bounds, V2S16 point) {
+    B32 contains_x = bounds.min.x <= point.x && point.x < bounds.max.x;
+    B32 contains_y = bounds.min.y <= point.y && point.y < bounds.max.y;
+    B32 result     = contains_x && contains_y;
+    return result;
+}
+
+internal B32 r2s16_contains_r2s16(R2S16 a, R2S16 b) {
+    B32 contains_x = a.min.x <= b.min.x && b.max.x <= a.max.x;
+    B32 contains_y = a.min.y <= b.min.y && b.max.y <= a.max.y;
+    B32 contains = contains_x && contains_y;
+    return contains;
 }
 
 internal R2S16 r2s16_pad(R2S16 range, S16 pad) {
@@ -944,6 +1277,14 @@ internal V2S16 r2s16_size(R2S16 range) {
     return result;
 }
 
+internal V2S16 r2s16_center(R2S16 range) {
+    V2S16 result = v2s16(
+        (range.min.x + range.max.x) / 2,
+        (range.min.y + range.max.y) / 2
+    );
+    return result;
+}
+
 
 
 internal R2S32 r2s32(S32 min_x, S32 min_y, S32 max_x, S32 max_y) {
@@ -955,6 +1296,40 @@ internal R2S32 r2s32(S32 min_x, S32 min_y, S32 max_x, S32 max_y) {
     result.max.y = max_y;
 
     return result;
+}
+
+internal R2S32 r2s32_from_position_size(V2S32 position, V2S32 size) {
+    R2S32 result = { 0 };
+
+    result.min = position;
+    result.max = v2s32_add(position, size);
+
+    return result;
+}
+
+internal R2S32 r2s32_intersect(R2S32 a, R2S32 b) {
+    R2S32 result = { 0 };
+
+    result.min.x = s32_max(a.min.x, b.min.x);
+    result.min.y = s32_max(a.min.y, b.min.y);
+    result.max.x = s32_min(a.max.x, b.max.x);
+    result.max.y = s32_min(a.max.y, b.max.y);
+
+    return result;
+}
+
+internal B32 r2s32_contains_v2s32(R2S32 bounds, V2S32 point) {
+    B32 contains_x = bounds.min.x <= point.x && point.x < bounds.max.x;
+    B32 contains_y = bounds.min.y <= point.y && point.y < bounds.max.y;
+    B32 result     = contains_x && contains_y;
+    return result;
+}
+
+internal B32 r2s32_contains_r2s32(R2S32 a, R2S32 b) {
+    B32 contains_x = a.min.x <= b.min.x && b.max.x <= a.max.x;
+    B32 contains_y = a.min.y <= b.min.y && b.max.y <= a.max.y;
+    B32 contains = contains_x && contains_y;
+    return contains;
 }
 
 internal R2S32 r2s32_pad(R2S32 range, S32 pad) {
@@ -976,6 +1351,14 @@ internal V2S32 r2s32_size(R2S32 range) {
     return result;
 }
 
+internal V2S32 r2s32_center(R2S32 range) {
+    V2S32 result = v2s32(
+        (range.min.x + range.max.x) / 2,
+        (range.min.y + range.max.y) / 2
+    );
+    return result;
+}
+
 
 
 internal R2S64 r2s64(S64 min_x, S64 min_y, S64 max_x, S64 max_y) {
@@ -987,6 +1370,40 @@ internal R2S64 r2s64(S64 min_x, S64 min_y, S64 max_x, S64 max_y) {
     result.max.y = max_y;
 
     return result;
+}
+
+internal R2S64 r2s64_from_position_size(V2S64 position, V2S64 size) {
+    R2S64 result = { 0 };
+
+    result.min = position;
+    result.max = v2s64_add(position, size);
+
+    return result;
+}
+
+internal R2S64 r2s64_intersect(R2S64 a, R2S64 b) {
+    R2S64 result = { 0 };
+
+    result.min.x = s64_max(a.min.x, b.min.x);
+    result.min.y = s64_max(a.min.y, b.min.y);
+    result.max.x = s64_min(a.max.x, b.max.x);
+    result.max.y = s64_min(a.max.y, b.max.y);
+
+    return result;
+}
+
+internal B32 r2s64_contains_v2s64(R2S64 bounds, V2S64 point) {
+    B32 contains_x = bounds.min.x <= point.x && point.x < bounds.max.x;
+    B32 contains_y = bounds.min.y <= point.y && point.y < bounds.max.y;
+    B32 result     = contains_x && contains_y;
+    return result;
+}
+
+internal B32 r2s64_contains_r2s64(R2S64 a, R2S64 b) {
+    B32 contains_x = a.min.x <= b.min.x && b.max.x <= a.max.x;
+    B32 contains_y = a.min.y <= b.min.y && b.max.y <= a.max.y;
+    B32 contains = contains_x && contains_y;
+    return contains;
 }
 
 internal R2S64 r2s64_pad(R2S64 range, S64 pad) {
@@ -1008,6 +1425,14 @@ internal V2S64 r2s64_size(R2S64 range) {
     return result;
 }
 
+internal V2S64 r2s64_center(R2S64 range) {
+    V2S64 result = v2s64(
+        (range.min.x + range.max.x) / 2,
+        (range.min.y + range.max.y) / 2
+    );
+    return result;
+}
+
 
 
 internal R2F32 r2f32(F32 min_x, F32 min_y, F32 max_x, F32 max_y) {
@@ -1017,6 +1442,15 @@ internal R2F32 r2f32(F32 min_x, F32 min_y, F32 max_x, F32 max_y) {
     result.min.y = min_y;
     result.max.x = max_x;
     result.max.y = max_y;
+
+    return result;
+}
+
+internal R2F32 r2f32_from_position_size(V2F32 position, V2F32 size) {
+    R2F32 result = { 0 };
+
+    result.min = position;
+    result.max = v2f32_add(position, size);
 
     return result;
 }
@@ -1032,11 +1466,18 @@ internal R2F32 r2f32_intersect(R2F32 a, R2F32 b) {
     return result;
 }
 
-internal B32 r2f32_contains(R2F32 bounds, V2F32 point) {
+internal B32 r2f32_contains_v2f32(R2F32 bounds, V2F32 point) {
     B32 contains_x = bounds.min.x <= point.x && point.x < bounds.max.x;
     B32 contains_y = bounds.min.y <= point.y && point.y < bounds.max.y;
     B32 result     = contains_x && contains_y;
     return result;
+}
+
+internal B32 r2f32_contains_r2f32(R2F32 a, R2F32 b) {
+    B32 contains_x = a.min.x <= b.min.x && b.max.x <= a.max.x;
+    B32 contains_y = a.min.y <= b.min.y && b.max.y <= a.max.y;
+    B32 contains = contains_x && contains_y;
+    return contains;
 }
 
 internal R2F32 r2f32_pad(R2F32 range, F32 pad) {
@@ -1059,6 +1500,83 @@ internal V2F32 r2f32_size(R2F32 range) {
 }
 
 internal V2F32 r2f32_center(R2F32 range) {
-    V2F32 result = v2f32_scale(v2f32_add(range.min, range.max), 0.5f);
+    V2F32 result = v2f32(
+        (range.min.x + range.max.x) / 2,
+        (range.min.y + range.max.y) / 2
+    );
+    return result;
+}
+
+
+
+internal R2F64 r2f64(F64 min_x, F64 min_y, F64 max_x, F64 max_y) {
+    R2F64 result = { 0 };
+
+    result.min.x = min_x;
+    result.min.y = min_y;
+    result.max.x = max_x;
+    result.max.y = max_y;
+
+    return result;
+}
+
+internal R2F64 r2f64_from_position_size(V2F64 position, V2F64 size) {
+    R2F64 result = { 0 };
+
+    result.min = position;
+    result.max = v2f64_add(position, size);
+
+    return result;
+}
+
+internal R2F64 r2f64_intersect(R2F64 a, R2F64 b) {
+    R2F64 result = { 0 };
+
+    result.min.x = f64_max(a.min.x, b.min.x);
+    result.min.y = f64_max(a.min.y, b.min.y);
+    result.max.x = f64_min(a.max.x, b.max.x);
+    result.max.y = f64_min(a.max.y, b.max.y);
+
+    return result;
+}
+
+internal B32 r2f64_contains_v2f64(R2F64 bounds, V2F64 point) {
+    B32 contains_x = bounds.min.x <= point.x && point.x < bounds.max.x;
+    B32 contains_y = bounds.min.y <= point.y && point.y < bounds.max.y;
+    B32 result     = contains_x && contains_y;
+    return result;
+}
+
+internal B32 r2f64_contains_r2f64(R2F64 a, R2F64 b) {
+    B32 contains_x = a.min.x <= b.min.x && b.max.x <= a.max.x;
+    B32 contains_y = a.min.y <= b.min.y && b.max.y <= a.max.y;
+    B32 contains = contains_x && contains_y;
+    return contains;
+}
+
+internal R2F64 r2f64_pad(R2F64 range, F64 pad) {
+    R2F64 result = { 0 };
+
+    result.min.x = range.min.x - pad;
+    result.min.y = range.min.y - pad;
+    result.max.x = range.max.x + pad;
+    result.max.y = range.max.y + pad;
+
+    return result;
+}
+
+internal V2F64 r2f64_size(R2F64 range) {
+    V2F64 result = v2f64(
+        range.max.x - range.min.x,
+        range.max.y - range.min.y
+    );
+    return result;
+}
+
+internal V2F64 r2f64_center(R2F64 range) {
+    V2F64 result = v2f64(
+        (range.min.x + range.max.x) / 2,
+        (range.min.y + range.max.y) / 2
+    );
     return result;
 }
