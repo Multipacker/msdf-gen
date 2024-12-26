@@ -1057,3 +1057,8 @@ internal V2F32 r2f32_size(R2F32 range) {
     );
     return result;
 }
+
+internal V2F32 r2f32_center(R2F32 range) {
+    V2F32 result = v2f32_scale(v2f32_add(range.min, range.max), 0.5f);
+    return result;
+}

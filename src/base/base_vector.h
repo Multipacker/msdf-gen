@@ -213,10 +213,13 @@ struct R2S64 {
     V2S64 max;
 };
 
-typedef struct R2F32 R2F32;
-struct R2F32 {
-    V2F32 min;
-    V2F32 max;
+typedef union R2F32 R2F32;
+union R2F32 {
+    struct {
+        V2F32 min;
+        V2F32 max;
+    };
+    V2F32 values[2];
 };
 
 internal V2U8 v2u8(U8 x, U8 y);
@@ -348,5 +351,6 @@ internal R2F32 r2f32_intersect(R2F32 a, R2F32 b);
 internal B32   r2f32_contains(R2F32 bounds, V2F32 point);
 internal R2F32 r2f32_pad(R2F32 range, F32 pad);
 internal V2F32 r2f32_size(R2F32 range);
+internal V2F32 r2f32_center(R2F32 range);
 
 #endif // BASE_VECTOR_H
