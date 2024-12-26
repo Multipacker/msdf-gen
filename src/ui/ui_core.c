@@ -73,6 +73,11 @@ internal UI_Key ui_active_seed_key(Void) {
     return parent_seed->key;
 }
 
+internal V2F32 ui_mouse(Void) {
+    UI_Context *ui = global_ui_state;
+    return ui->mouse;
+}
+
 internal UI_Key ui_key_from_string(UI_Key seed, Str8 string) {
     UI_Key result = seed;
     for (U64 i = 0; i < string.size; ++i) {

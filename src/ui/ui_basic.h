@@ -27,4 +27,7 @@ internal UI_Input ui_button_format(CStr format, ...);
 internal UI_Input ui_checkbox(B32 is_checked, Str8 label);
 internal Void     ui_checkbox_b32(B32 *is_checked, Str8 label);
 
+#define ui_padding(size) defer_loop(ui_spacer_sized(size), ui_spacer_sized(size))
+#define ui_center()      ui_padding(ui_size_parent_percent(1.0f, 0.0f))
+
 #endif //UI_BASIC_H
