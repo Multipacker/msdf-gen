@@ -85,16 +85,19 @@ internal PanelIterator panel_iterator_depth_first_pre_order(Panel *panel) {
     return iterator;
 }
 
-internal R2F32 rectangle_from_child_panel_parent_rectangle(Panel *child, R2F32 parent_rectangle) {
+internal R2F32 rectangle_from_child_panel_parent_rectangle(Panel *parent, Panel *child, R2F32 parent_rectangle) {
     R2F32 result = parent_rectangle;
 
-    Panel *parent = child->parent;
     if (parent) {
         V2F32 parent_size = r2f32_size(parent_rectangle);
-        for (Panel *panel = parent->first; panel != child; panel = panel->next) {
-            result.min.values[parent->split_axis] += panel->percentage_of_parent * parent_size.values[parent->split_axis];
+        result.max.values[parent->split_axis] = result.min.values[parent->split_axis];
+        for (Panel *panel = parent->first; panel; panel = panel->next) {
+            result.max.values[parent->split_axis] += panel->percentage_of_parent * parent_size.values[parent->split_axis];
+            if (panel == child) {
+                break;
+            }
+            result.min.values[parent->split_axis] = result.max.values[parent->split_axis];
         }
-        result.max.values[parent->split_axis] = result.min.values[parent->split_axis] + child->percentage_of_parent * parent_size.values[parent->split_axis];
     }
 
     return result;
@@ -117,7 +120,7 @@ internal R2F32 rectangle_from_panel(Panel *panel, R2F32 root_rectangle) {
 
     R2F32 result = root_rectangle;
     for (WalkNode *node = first_walk_node; node; node = node->next) {
-        result = rectangle_from_child_panel_parent_rectangle(node->child, result);
+        result = rectangle_from_child_panel_parent_rectangle(node->child->parent, node->child, result);
     }
 
     arena_end_temporary(scratch);
