@@ -410,3 +410,27 @@ PANEL_BUILD_FUNCTION(view_stats) {
         }
     }
 }
+
+PANEL_BUILD_FUNCTION(view_theme) {
+    ui_width(ui_size_fill())
+    ui_height(ui_size_fill())
+    ui_column() {
+        ui_width(ui_size_ems(10.0f, 1.0f))
+        ui_height(ui_size_ems(1.0f, 1.0f))
+        for (ThemeColor color = 0; color < ThemeColor_COUNT; ++color) {
+            ui_spacer_sized(ui_size_ems(0.5f, 1.0f));
+
+            ui_row() {
+                ui_palette_next(global_state->theme.text);
+                ui_text_align_next(UI_TextAlign_Right);
+                ui_label(theme_color_names[color]);
+                ui_spacer_sized(ui_size_ems(0.5f, 1.0f));
+                UI_Palette display = { 0 };
+                display.background = global_state->theme.colors[color].background;
+                display.border = v4f32(0.0f, 0.0f, 0.0f, 1.0f);
+                ui_palette_next(display);
+                ui_create_box(UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawBorder);
+            }
+        }
+    }
+}

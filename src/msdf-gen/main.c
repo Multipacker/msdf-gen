@@ -47,41 +47,44 @@
  *   visual bug
  */
 
+#define THEME_COLORS \
+    X(ScrollContainer, scroll_container, "Scroll container") \
+    X(ScrollBar,       scroll_bar,       "Scroll bar")       \
+    X(Button,          button,           "Button")           \
+    X(Text,            text,             "Text")             \
+    X(Panel,           panel,            "Panel")            \
+    X(Tab,             tab,              "Tab")              \
+    X(ActiveTab,       active_tab,       "Active tab")       \
+    X(TabBar,          tab_bar,          "Tab bar")          \
+    X(Overlay,         overlay,          "Overlay")          \
+    X(PanelBoundary,   panel_boundary,   "Panel boundary")   \
+    X(DropSite,        drop_site,        "Drop site")
+
+#define X(name, snake, display_name) ThemeColor_##name,
 typedef enum {
-    ThemeColor_ScrollContainer,
-    ThemeColor_ScrollBar,
-    ThemeColor_Button,
-    ThemeColor_Text,
-    ThemeColor_Panel,
-    ThemeColor_Tab,
-    ThemeColor_ActiveTab,
-    ThemeColor_TabBar,
-    ThemeColor_Overlay,
-    ThemeColor_PanelBoundary,
-    ThemeColor_DropSite,
+    THEME_COLORS
     ThemeColor_COUNT,
 } ThemeColor;
+#undef X
 
+#define X(name, snake, display_name) str8_literal_compile(display_name),
+global Str8 theme_color_names[] = {
+    THEME_COLORS
+};
+#undef X
+
+#define X(name, snake, display_name) UI_Palette snake;
 typedef struct Theme Theme;
 struct Theme {
     Str8 name;
     union {
         UI_Palette colors[ThemeColor_COUNT];
         struct {
-            UI_Palette scroll_container;
-            UI_Palette scroll_bar;
-            UI_Palette button;
-            UI_Palette text;
-            UI_Palette panel;
-            UI_Palette tab;
-            UI_Palette active_tab;
-            UI_Palette tab_bar;
-            UI_Palette overlay;
-            UI_Palette panel_boundary;
-            UI_Palette drop_site;
+            THEME_COLORS
         };
     };
 };
+#undef X
 
 global Theme global_themes[6];
 
@@ -1787,6 +1790,7 @@ internal S32 os_run(Str8List arguments) {
     state->panel_root->split_axis = Axis2_X;
     {
         Panel *left = panel_create(state);
+        push_command(Command_OpenTab, .panel = handle_from_panel(left), .tab_specification = str8_literal("Theme"));
         push_command(Command_OpenTab, .panel = handle_from_panel(left), .tab_specification = str8_literal("GlyphList"));
 
         Panel *right = panel_create(state);

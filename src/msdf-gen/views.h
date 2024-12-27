@@ -4,12 +4,14 @@
 PANEL_BUILD_FUNCTION(view_glyph_list);
 PANEL_BUILD_FUNCTION(view_glyph);
 PANEL_BUILD_FUNCTION(view_stats);
+PANEL_BUILD_FUNCTION(view_theme);
 
 #define TABS \
     X(Null,        "",                  0)               \
     X(GlyphList,   "Glyph list",        view_glyph_list) \
     X(GlyphView,   "Glyph view",        view_glyph)      \
-    X(RenderStats, "Render statistics", view_stats)
+    X(RenderStats, "Render statistics", view_stats)      \
+    X(Theme,       "Theme",             view_theme)
 
 #define X(name, ...) Tab_##name,
 typedef enum {
