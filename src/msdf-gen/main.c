@@ -29,8 +29,16 @@
 /*
  * TODO before next release:
  * * Bake the UI font into the executable
- * * Add support for tabs that can be moved around
  * * Align outlines and the MSDF correctly in the glyph view
+ * * Redo theming, again...
+ *   Colors should be specified in a theme, and then they are combined into
+ *   `UI_Palette`s in the program.
+ * * Offload MSDF generation to a background thread so that the main thread and
+ *   UI don't hang because we are generating glyphs.
+ * * Add drop-shadows to make it easier to distinguish foreground elements from
+ *   background ones.
+ * * Improve the look of the preview when dragging tabs
+ * * Improve the look of split indicators
  *
  * TODO long term
  * * Allow multiple codepoints to map to the same glyph, alternatively allow
@@ -45,6 +53,8 @@
  *   overlap other panels.
  * * Releasing a panel drag near the edge of the window causes a one frame
  *   visual bug
+ * * Text is sometimes laid out with incorrect spacing and is positioned wrong
+ *   vertically 
  */
 
 #define THEME_COLORS \
