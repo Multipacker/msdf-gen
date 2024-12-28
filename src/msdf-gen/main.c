@@ -30,15 +30,11 @@
  * TODO before next release:
  * * Bake the UI font into the executable
  * * Align outlines and the MSDF correctly in the glyph view
- * * Redo theming, again...
- *   Colors should be specified in a theme, and then they are combined into
- *   `UI_Palette`s in the program.
  * * Offload MSDF generation to a background thread so that the main thread and
  *   UI don't hang because we are generating glyphs.
  * * Add drop-shadows to make it easier to distinguish foreground elements from
  *   background ones.
  * * Improve the look of the preview when dragging tabs
- * * Improve the look of split indicators
  *
  * TODO long term
  * * Allow multiple codepoints to map to the same glyph, alternatively allow
@@ -55,40 +51,46 @@
  *   visual bug
  * * Text is sometimes laid out with incorrect spacing and is positioned wrong
  *   vertically 
+ * * While resizing panes, the resizing border lags behind by one frame.
  */
 
 #define THEME_COLORS \
-    X(ScrollContainer, scroll_container, "Scroll container") \
-    X(ScrollBar,       scroll_bar,       "Scroll bar")       \
-    X(Button,          button,           "Button")           \
-    X(Text,            text,             "Text")             \
-    X(Panel,           panel,            "Panel")            \
-    X(Tab,             tab,              "Tab")              \
-    X(ActiveTab,       active_tab,       "Active tab")       \
-    X(TabBar,          tab_bar,          "Tab bar")          \
-    X(Overlay,         overlay,          "Overlay")          \
-    X(PanelBoundary,   panel_boundary,   "Panel boundary")   \
-    X(DropSite,        drop_site,        "Drop site")
+    X(Text,                  text,                    "Text")                    \
+    X(Hover,                 hover,                   "Hover")                   \
+    X(DisabledOverlay,       disabled_overlay,        "Disabled overlay")        \
+    X(DropSiteOverlay,       drop_site_overlay,       "Drop site overlay")       \
+    X(InactivePanelOverlay,  inactive_panel_overlay,  "Inactive panel overlay")  \
+    X(BaseBackground,        base_background,         "Base background")         \
+    X(BaseBorder,            base_border,             "Base border")             \
+    X(TabBackground,         tab_background,          "Tab background")          \
+    X(TabBorder,             tab_border,              "Tab border")              \
+    X(InactiveTabBackground, inactive_tab_background, "Inactive tab background") \
+    X(InactiveTabBorder,     inactive_tab_border,     "Inactive tab border")     \
+    X(ButtonBackground,      button_background,       "Button background")       \
+    X(ButtonBorder,          button_border,           "Button border")           \
+    X(Outline,               outline,                 "Outline")                 \
+    X(OnCurve,               on_curve,                "On curve")                \
+    X(OffCurve,              off_curve,               "Off curve")
 
-#define X(name, snake, display_name) ThemeColor_##name,
+#define X(name, snake_name, display_name) ThemeColor_##name,
 typedef enum {
     THEME_COLORS
     ThemeColor_COUNT,
 } ThemeColor;
 #undef X
 
-#define X(name, snake, display_name) str8_literal_compile(display_name),
+#define X(name, snake_name, display_name) str8_literal_compile(display_name),
 global Str8 theme_color_names[] = {
     THEME_COLORS
 };
 #undef X
 
-#define X(name, snake, display_name) UI_Palette snake;
+#define X(name, snake_name, display_name) V4F32 snake_name;
 typedef struct Theme Theme;
 struct Theme {
     Str8 name;
     union {
-        UI_Palette colors[ThemeColor_COUNT];
+        V4F32 colors[ThemeColor_COUNT];
         struct {
             THEME_COLORS
         };
@@ -96,7 +98,16 @@ struct Theme {
 };
 #undef X
 
-global Theme global_themes[6];
+global Theme global_themes[4];
+
+typedef enum {
+    PaletteCode_Base,
+    PaletteCode_Button,
+    PaletteCode_Tab,
+    PaletteCode_InactiveTab,
+    PaletteCode_DropSiteOverlay,
+    PaletteCode_COUNT,
+} PaletteCode;
 
 typedef struct Glyph Glyph;
 struct Glyph {
@@ -257,7 +268,10 @@ struct State {
     CommandList commands;
 
     Theme theme;
+    Theme target_theme;
     U32 theme_index;
+
+    UI_Palette palettes[PaletteCode_COUNT];
 };
 
 global State *global_state;
@@ -432,6 +446,52 @@ internal Void draw_text(FontCache_Font *font, V2F32 origin, Str8 string, U32 siz
     arena_end_temporary(scratch);
 }
 
+internal B32 drag_is_active(Void) {
+    State *state = global_state;
+    B32 result = (state->drag_state == DragState_Dragging || state->drag_state == DragState_Dropping);
+    return result;
+}
+
+internal Void drag_begin(Void) {
+    State *state = global_state;
+
+    if (!drag_is_active()) {
+        state->drag_state = DragState_Dragging;
+    }
+}
+
+internal B32 drag_drop(Void) {
+    State *state = global_state;
+
+    B32 result = false;
+    if (state->drag_state == DragState_Dropping) {
+        result = true;
+        state->drag_state = DragState_None;
+    }
+
+    return result;
+}
+
+internal Void drag_cancel(Void) {
+    State *state = global_state;
+
+    if (drag_is_active()) {
+        state->drag_state = DragState_None;
+    }
+}
+
+internal V4F32 color_from_theme(ThemeColor color) {
+    State *state = global_state;
+    V4F32 result = state->theme.colors[color];
+    return result;
+}
+
+internal UI_Palette palette_from_code(PaletteCode code) {
+    State *state = global_state;
+    UI_Palette result = state->palettes[code];
+    return result;
+}
+
 internal Void draw_ui(UI_Box *root) {
     prof_function_begin();
 
@@ -444,8 +504,10 @@ internal Void draw_ui(UI_Box *root) {
 
             if (box->flags & UI_BoxFlag_DrawHot && box->hot_t > 0.0f) {
                 Render_Shape *rect = draw_rectangle(box->calculated_rectangle, v4f32(0.0f, 0.0f, 0.0f, 0.0f), 0.0f, 0.0f, 1.0f);
-                rect->colors[0] = v4f32(1.0f, 1.0f, 1.0f, 0.5f * box->hot_t);
-                rect->colors[1] = v4f32(1.0f, 1.0f, 1.0f, 0.5f * box->hot_t);
+                rect->colors[0] = color_from_theme(ThemeColor_Hover);
+                rect->colors[1] = color_from_theme(ThemeColor_Hover);
+                rect->colors[0].a *= box->hot_t;
+                rect->colors[1].a *= box->hot_t;
                 memory_copy(rect->radies, box->corner_radies, sizeof(rect->radies));
             }
 
@@ -508,7 +570,7 @@ internal Void draw_ui(UI_Box *root) {
             }
 
             if (parent->flags & UI_BoxFlag_Disabled) {
-                Render_Shape *shape = draw_rectangle(parent->calculated_rectangle, v4f32(0.2f, 0.2f, 0.2f, 0.75f), 0.0f, 0.0f, 1.0f);
+                Render_Shape *shape = draw_rectangle(parent->calculated_rectangle, color_from_theme(ThemeColor_DisabledOverlay), 0.0f, 0.0f, 1.0f);
                 memory_copy(shape->radies, box->corner_radies, sizeof(shape->radies));
             }
         }
@@ -521,40 +583,6 @@ internal Void draw_ui(UI_Box *root) {
 
 #include "panels.c"
 #include "views.c"
-
-internal B32 drag_is_active(Void) {
-    State *state = global_state;
-    B32 result = (state->drag_state == DragState_Dragging || state->drag_state == DragState_Dropping);
-    return result;
-}
-
-internal Void drag_begin(Void) {
-    State *state = global_state;
-
-    if (!drag_is_active()) {
-        state->drag_state = DragState_Dragging;
-    }
-}
-
-internal B32 drag_drop(Void) {
-    State *state = global_state;
-
-    B32 result = false;
-    if (state->drag_state == DragState_Dropping) {
-        result = true;
-        state->drag_state = DragState_None;
-    }
-
-    return result;
-}
-
-internal Void drag_cancel(Void) {
-    State *state = global_state;
-
-    if (drag_is_active()) {
-        state->drag_state = DragState_None;
-    }
-}
 
 internal Void update(Void) {
     State *state = global_state;
@@ -582,9 +610,11 @@ internal Void update(Void) {
         } else if (event->kind == Gfx_EventKind_KeyPress && event->key == Gfx_Key_N && event->key_modifiers == Gfx_KeyModifier_Control) {
             consume = true;
             state->theme_index = (state->theme_index + 1) % array_count(global_themes);
+            state->target_theme = global_themes[state->theme_index];
         } else if (event->kind == Gfx_EventKind_KeyPress && event->key == Gfx_Key_P && event->key_modifiers == Gfx_KeyModifier_Control) {
             consume = true;
             state->theme_index = (state->theme_index + array_count(global_themes) - 1) % array_count(global_themes);
+            state->target_theme = global_themes[state->theme_index];
         }
 
         if (drag_is_active() && event->kind == Gfx_EventKind_KeyRelease && event->key == Gfx_Key_MouseLeft) {
@@ -807,11 +837,30 @@ internal Void update(Void) {
     state->commands.first = 0;
     state->commands.last  = 0;
 
+    // NOTE(simon): Build palettes
+    state->palettes[PaletteCode_Base].background = state->theme.base_background;
+    state->palettes[PaletteCode_Base].border     = state->theme.base_border;
+    state->palettes[PaletteCode_Base].text       = state->theme.text;
+    state->palettes[PaletteCode_Button].background = state->theme.button_background;
+    state->palettes[PaletteCode_Button].border     = state->theme.button_border;
+    state->palettes[PaletteCode_Button].text       = state->theme.text;
+    state->palettes[PaletteCode_Tab].background = state->theme.tab_background;
+    state->palettes[PaletteCode_Tab].border     = state->theme.tab_border;
+    state->palettes[PaletteCode_Tab].text       = state->theme.text;
+    state->palettes[PaletteCode_InactiveTab].background = state->theme.inactive_tab_background;
+    state->palettes[PaletteCode_InactiveTab].border     = state->theme.inactive_tab_border;
+    state->palettes[PaletteCode_InactiveTab].text       = state->theme.text;
+    state->palettes[PaletteCode_DropSiteOverlay].background = state->theme.drop_site_overlay;
+    state->palettes[PaletteCode_DropSiteOverlay].border     = state->theme.drop_site_overlay;
+    state->palettes[PaletteCode_DropSiteOverlay].text       = state->theme.text;
+
     V2U32 client_area = gfx_get_window_client_area();
     render_begin(client_area);
     draw_begin_frame();
     ui_select_state(state->ui);
     ui_begin(&events, 1.0f / 60.0f);
+
+    ui_palette_push(palette_from_code(PaletteCode_Base));
 
     // NOTE(simon): 14 pts * 96 pixels per inch / 72 points per inch
     ui_font_size_push((U32) (11.0f * 96.0f / 72.0f));
@@ -833,7 +882,6 @@ internal Void update(Void) {
                 ui_height_next(ui_size_ems(40.0f, 1.0f));
                 ui_corner_radius_next(10.0f);
                 ui_layout_axis_next(Axis2_Y);
-                ui_palette_next(state->theme.panel);
                 UI_Box *preview_box = ui_create_box(UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawBorder);
                 ui_parent(preview_box) {
                     ui_corner_radius_00_next(10.0f);
@@ -841,7 +889,7 @@ internal Void update(Void) {
                     ui_text_align_next(UI_TextAlign_Left);
                     ui_width_next(ui_size_text_content(5.0f, 1.0f));
                     ui_height_next(ui_size_text_content(0.0f, 1.0f));
-                    ui_palette_next(state->theme.active_tab);
+                    ui_palette_next(palette_from_code(PaletteCode_Tab));
                     UI_Box *tab_box = ui_create_box_from_string(UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawBorder | UI_BoxFlag_DrawText, tab->name);
 
                     ui_spacer_sized(ui_size_pixels(10.0f, 1.0f));
@@ -903,18 +951,18 @@ internal Void update(Void) {
                     ui_parent(drop_site)
                     ui_width(ui_size_fill())
                     ui_height(ui_size_fill())
-                    ui_palette(state->theme.drop_site)
+                    ui_palette(palette_from_code(PaletteCode_DropSiteOverlay))
                     ui_padding(ui_size_pixels(padding, 1.0f))
                     ui_row()
                     ui_padding(ui_size_pixels(padding, 1.0f)) {
                         ui_layout_axis_next(split_axis);
 
                         if (ui_keys_match(key, ui_drop_hot_key())) {
-                            UI_Palette highlight = state->theme.drop_site;
-                            highlight.background.a = 0.8f;
-                            ui_palette_next(highlight);
+                            UI_Palette overlay = ui_palette_top();
+                            overlay.border = color_from_theme(ThemeColor_Hover);
+                            ui_palette_next(overlay);
                         }
-                        UI_Box *visualization = ui_create_box(UI_BoxFlag_DrawBackground);
+                        UI_Box *visualization = ui_create_box(UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawBorder);
                         ui_parent(visualization)
                         ui_padding(ui_size_pixels(padding, 1.0f))
                         {
@@ -922,9 +970,9 @@ internal Void update(Void) {
                             UI_Box *row_or_column = ui_create_box(0);
                             ui_parent(row_or_column)
                             ui_padding(ui_size_pixels(padding, 1.0f)) {
-                                ui_create_box(UI_BoxFlag_DrawBackground);
+                                ui_create_box(UI_BoxFlag_DrawBorder);
                                 ui_spacer_sized(ui_size_pixels(padding, 1.0f));
-                                ui_create_box(UI_BoxFlag_DrawBackground);
+                                ui_create_box(UI_BoxFlag_DrawBorder);
                             }
                         }
                     }
@@ -936,7 +984,7 @@ internal Void update(Void) {
                         future_split_rectangle.min.values[split_axis] = panel_rectangle.min.values[split_axis];
                         future_split_rectangle.max.values[split_axis] = panel_rectangle.max.values[split_axis];
 
-                        ui_palette_next(state->theme.drop_site);
+                        ui_palette_next(palette_from_code(PaletteCode_DropSiteOverlay));
                         ui_fixed_position_next(future_split_rectangle.min);
                         ui_width_next(ui_size_pixels(r2f32_size(future_split_rectangle).width, 1.0f));
                         ui_height_next(ui_size_pixels(r2f32_size(future_split_rectangle).height, 1.0f));
@@ -984,17 +1032,17 @@ internal Void update(Void) {
                 ui_parent(drop_site)
                 ui_width(ui_size_fill())
                 ui_height(ui_size_fill())
-                ui_palette(state->theme.drop_site)
+                ui_palette(palette_from_code(PaletteCode_DropSiteOverlay))
                 ui_padding(ui_size_pixels(padding, 1.0f))
                 ui_row()
                 ui_padding(ui_size_pixels(padding, 1.0f)) {
                     ui_layout_axis_next(axis2_flip(split_axis));
                         if (ui_keys_match(key, ui_drop_hot_key())) {
-                            UI_Palette highlight = state->theme.drop_site;
-                            highlight.background.a = 0.8f;
-                            ui_palette_next(highlight);
+                            UI_Palette overlay = ui_palette_top();
+                            overlay.border = color_from_theme(ThemeColor_Hover);
+                            ui_palette_next(overlay);
                         }
-                    UI_Box *visualization = ui_create_box(UI_BoxFlag_DrawBackground);
+                    UI_Box *visualization = ui_create_box(UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawBorder);
                     ui_parent(visualization)
                     ui_padding(ui_size_pixels(padding, 1.0f))
                     {
@@ -1002,9 +1050,9 @@ internal Void update(Void) {
                         UI_Box *row_or_column = ui_create_box(0);
                         ui_parent(row_or_column)
                         ui_padding(ui_size_pixels(padding, 1.0f)) {
-                            ui_create_box(UI_BoxFlag_DrawBackground);
+                            ui_create_box(UI_BoxFlag_DrawBorder);
                             ui_spacer_sized(ui_size_pixels(padding, 1.0f));
-                            ui_create_box(UI_BoxFlag_DrawBackground);
+                            ui_create_box(UI_BoxFlag_DrawBorder);
                         }
                     }
                 }
@@ -1016,7 +1064,7 @@ internal Void update(Void) {
                     future_split_rectangle.min.values[axis2_flip(split_axis)] = child_rectangle.min.values[axis2_flip(split_axis)];
                     future_split_rectangle.max.values[axis2_flip(split_axis)] = child_rectangle.max.values[axis2_flip(split_axis)];
 
-                    ui_palette_next(state->theme.drop_site);
+                    ui_palette_next(palette_from_code(PaletteCode_DropSiteOverlay));
                     ui_fixed_position_next(future_split_rectangle.min);
                     ui_width_next(ui_size_pixels(r2f32_size(future_split_rectangle).width, 1.0f));
                     ui_height_next(ui_size_pixels(r2f32_size(future_split_rectangle).height, 1.0f));
@@ -1054,7 +1102,6 @@ internal Void update(Void) {
             boundary_rectangle.min.values[panel->split_axis] -= panel_pad;
             boundary_rectangle.max.values[panel->split_axis] += panel_pad;
 
-            ui_palette_next(state->theme.panel_boundary);
             ui_fixed_position_next(boundary_rectangle.min);
             ui_width_next(ui_size_pixels(r2f32_size(boundary_rectangle).width, 1.0f));
             ui_height_next(ui_size_pixels(r2f32_size(boundary_rectangle).height, 1.0f));
@@ -1103,7 +1150,6 @@ internal Void update(Void) {
     }
 
     // NOTE(simon): Build leaf panel UI.
-    ui_palette(state->theme.panel)
     ui_layout_axis(Axis2_Y)
     for (Panel *panel = state->panel_root; panel; panel = panel_iterator_depth_first_pre_order(panel).next) {
         if (panel->first) {
@@ -1183,17 +1229,17 @@ internal Void update(Void) {
                 ui_parent(drop_site)
                 ui_width(ui_size_fill())
                 ui_height(ui_size_fill())
-                ui_palette(state->theme.drop_site)
+                ui_palette(palette_from_code(PaletteCode_DropSiteOverlay))
                 ui_padding(ui_size_pixels(padding, 1.0f))
                 ui_row()
                 ui_padding(ui_size_pixels(padding, 1.0f)) {
                     if (ui_keys_match(targets[i].key, ui_drop_hot_key())) {
-                        UI_Palette highlight = state->theme.drop_site;
-                        highlight.background.a = 0.8f;
-                        ui_palette_next(highlight);
+                        UI_Palette overlay = ui_palette_top();
+                        overlay.border = color_from_theme(ThemeColor_Hover);
+                        ui_palette_next(overlay);
                     }
                     ui_layout_axis_next(axis2_flip(axis));
-                    UI_Box *visualization = ui_create_box(UI_BoxFlag_DrawBackground);
+                    UI_Box *visualization = ui_create_box(UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawBorder);
                     ui_parent(visualization)
                     ui_width(ui_size_fill())
                     ui_height(ui_size_fill())
@@ -1203,16 +1249,16 @@ internal Void update(Void) {
                             UI_Box *row_or_column = ui_create_box(0);
                             ui_parent(row_or_column)
                             ui_padding(ui_size_pixels(padding, 1.0f)) {
-                                ui_create_box(UI_BoxFlag_DrawBackground);
+                                ui_create_box(UI_BoxFlag_DrawBorder);
                                 ui_spacer_sized(ui_size_pixels(padding, 1.0f));
-                                ui_create_box(UI_BoxFlag_DrawBackground);
+                                ui_create_box(UI_BoxFlag_DrawBorder);
                             }
                         } else {
                             ui_layout_axis_next(axis);
                             UI_Box *row_or_column = ui_create_box(0);
                             ui_parent(row_or_column)
                             ui_padding(ui_size_pixels(padding, 1.0f)) {
-                                ui_create_box(UI_BoxFlag_DrawBackground);
+                                ui_create_box(UI_BoxFlag_DrawBorder);
                             }
                         }
                     }
@@ -1249,7 +1295,7 @@ internal Void update(Void) {
                         future_split_rectangle.values[side_flip(split_side)].values[split_axis] = panel_center.values[split_axis];
                     }
 
-                    ui_palette_next(state->theme.drop_site);
+                    ui_palette_next(palette_from_code(PaletteCode_DropSiteOverlay));
                     ui_fixed_position_next(future_split_rectangle.min);
                     ui_width_next(ui_size_pixels(r2f32_size(future_split_rectangle).width, 1.0f));
                     ui_height_next(ui_size_pixels(r2f32_size(future_split_rectangle).height, 1.0f));
@@ -1265,14 +1311,15 @@ internal Void update(Void) {
         R2F32 content_rectangle = r2f32(panel_rectangle.min.x, panel_rectangle.min.y + tab_height.value, panel_rectangle.max.x, panel_rectangle.max.y);
 
         if (panel != panel_from_handle(state->active_panel)) {
-            ui_palette_next(state->theme.overlay);
+            UI_Palette overlay = ui_palette_top();
+            overlay.background = color_from_theme(ThemeColor_InactivePanelOverlay);
+            ui_palette_next(overlay);
             ui_fixed_position_next(panel_rectangle.min);
             ui_width_next(ui_size_pixels(r2f32_size(panel_rectangle).width, 1.0f));
             ui_height_next(ui_size_pixels(r2f32_size(panel_rectangle).height, 1.0f));
             ui_create_box(UI_BoxFlag_DrawBackground | UI_BoxFlag_FloatingPosition);
         }
 
-        ui_palette_next(state->theme.tab_bar);
         ui_fixed_position_next(tab_bar_rectangle.min);
         ui_width_next(ui_size_pixels(r2f32_size(tab_bar_rectangle).width, 1.0f));
         ui_height_next(ui_size_pixels(r2f32_size(tab_bar_rectangle).height, 1.0f));
@@ -1282,7 +1329,7 @@ internal Void update(Void) {
             "###tab_bar_box_%p", panel
         );
 
-        ui_palette(state->theme.tab)
+        ui_palette(palette_from_code(PaletteCode_InactiveTab))
         ui_width(ui_size_children_sum(1.0f))
         ui_height(tab_height)
         ui_layout_axis(Axis2_X)
@@ -1291,7 +1338,7 @@ internal Void update(Void) {
         ui_corner_radius_01(10.0f) {
             for (Tab *tab = panel->tab_first; tab; tab = tab->next) {
                 if (tab == tab_from_handle(panel->active_tab)) {
-                    ui_palette_push(state->theme.active_tab);
+                    ui_palette_push(palette_from_code(PaletteCode_Tab));
                 }
 
                 ui_hover_cursor_next(Gfx_Cursor_Hand);
@@ -1368,7 +1415,7 @@ internal Void update(Void) {
                         ui_spacer_sized(ui_size_fill());
                         ui_width_next(ui_size_text_content(5.0f, 1.0f));
                         ui_height_next(ui_size_text_content(0.0f, 1.0f));
-                        ui_palette_next(state->theme.button);
+                        ui_palette_next(palette_from_code(PaletteCode_Button));
                         ui_corner_radius_next(5.0f);
                         UI_Input close_input = ui_button_format("Close panel###%p", panel);
                         if (close_input.input_flags & UI_InputFlag_LeftClicked) {
@@ -1402,6 +1449,7 @@ internal Void update(Void) {
     }
 
     ui_font_size_pop();
+    ui_palette_pop();
     ui_end();
     draw_clip(r2f32(0.0f, 0.0f, (F32) client_area.width, (F32) client_area.height)) {
         draw_ui(state->ui->root);
@@ -1411,17 +1459,14 @@ internal Void update(Void) {
 
     // NOTE(simon): Animate theme
     {
-        Theme *target_theme = &global_themes[state->theme_index];
-        for (ThemeColor palette = 0; palette < ThemeColor_COUNT; ++palette) {
-            for (UI_Color color_index = 0; color_index < UI_Color_COUNT; ++color_index) {
-                V4F32 *color = &state->theme.colors[palette].colors[color_index];
-                V4F32 *target_color = &target_theme->colors[palette].colors[color_index];
+        for (ThemeColor color_index = 0; color_index < ThemeColor_COUNT; ++color_index) {
+            V4F32 *color = &state->theme.colors[color_index];
+            V4F32 *target_color = &state->target_theme.colors[color_index];
 
-                color->r += (target_color->r - color->r) * ui_animation_slow_rate();
-                color->g += (target_color->g - color->g) * ui_animation_slow_rate();
-                color->b += (target_color->b - color->b) * ui_animation_slow_rate();
-                color->a += (target_color->a - color->a) * ui_animation_slow_rate();
-            }
+            color->r += (target_color->r - color->r) * ui_animation_slow_rate();
+            color->g += (target_color->g - color->g) * ui_animation_slow_rate();
+            color->b += (target_color->b - color->b) * ui_animation_slow_rate();
+            color->a += (target_color->a - color->a) * ui_animation_slow_rate();
         }
     }
 
@@ -1465,80 +1510,6 @@ internal S32 os_run(Str8List arguments) {
     {
         {
             Theme *theme = &global_themes[0];
-            theme->name = str8_literal("Light theme");
-
-            theme->scroll_container.background = color_from_srgba_u32(0xF8F9FAFF); // OC Gray 0
-            theme->scroll_container.border     = color_from_srgba_u32(0xCED4DAFF); // OC Gray 4
-
-            theme->scroll_bar.background = color_from_srgba_u32(0xF8F9FAFF); // OC Gray 0
-            theme->scroll_bar.border     = color_from_srgba_u32(0xCED4DAFF); // OC Gray 4
-
-            theme->button.background = color_from_srgba_u32(0xF8F9FAFF); // OC Gray 0
-            theme->button.border     = color_from_srgba_u32(0xCED4DAFF); // OC Gray 4
-            theme->button.text       = color_from_srgba_u32(0x212529FF); // OC Gray 9
-
-            theme->text.text = color_from_srgba_u32(0x212529FF); // OC Gray 9
-
-            theme->panel.background = color_from_srgba_u32(0xF8F9FAFF); // OC Gray 0
-            theme->panel.border     = color_from_srgba_u32(0xCED4DAFF); // OC Gray 4
-
-            theme->tab_bar.background = color_from_srgba_u32(0xF8F9FAFF); // OC Gray 0
-            theme->tab_bar.border     = color_from_srgba_u32(0xCED4DAFF); // OC Gray 4
-
-            theme->tab.background = color_from_srgba_u32(0xF8F9FAFF); // OC Gray 0
-            theme->tab.border     = color_from_srgba_u32(0xCED4DAFF); // OC Gray 4
-            theme->tab.text       = color_from_srgba_u32(0x212529FF); // OC Gray 9
-
-            theme->active_tab.background = color_from_srgba_u32(0xF8F9FAFF); // OC Gray 0
-            theme->active_tab.border     = color_from_srgba_u32(0xCED4DAFF); // OC Gray 4
-            theme->active_tab.text       = color_from_srgba_u32(0x212529FF); // OC Gray 9
-
-            theme->overlay.background = v4f32(0.0f, 0.0f, 0.0f, 0.3f);
-
-            theme->panel_boundary.background = color_from_srgba_u32(0x000000FF);
-
-            theme->drop_site.background = v4f32(1.0f, 1.0f, 1.0f, 0.5f);
-        }
-
-        {
-            Theme *theme = &global_themes[1];
-            theme->name = str8_literal("Dark theme");
-
-            theme->scroll_container.background = color_from_srgba_u32(0x343A40FF); // OC Gray 8
-            theme->scroll_container.border     = color_from_srgba_u32(0x495057FF); // OC Gray 7
-
-            theme->scroll_bar.background = color_from_srgba_u32(0x495057FF); // OC Gray 7
-            theme->scroll_bar.border     = color_from_srgba_u32(0x868E96FF); // OC Gray 6
-
-            theme->button.background = color_from_srgba_u32(0x343A40FF); // OC Gray 8
-            theme->button.border     = color_from_srgba_u32(0x495057FF); // OC Gray 7
-            theme->button.text       = color_from_srgba_u32(0xF8F9FAFF); // OC Gray 0
-
-            theme->text.text = color_from_srgba_u32(0xF8F9FAFF); // OC Gray 0
-
-            theme->panel.background = color_from_srgba_u32(0x212529FF); // OC Gray 9
-            theme->panel.border     = color_from_srgba_u32(0x343A40FF); // OC Gray 8
-
-            theme->tab_bar.background = color_from_srgba_u32(0x212529FF); // OC Gray 9
-            theme->tab_bar.border     = color_from_srgba_u32(0x343A40FF); // OC Gray 8
-
-            theme->tab.background = color_from_srgba_u32(0x343A40FF); // OC Gray 8
-            theme->tab.border     = color_from_srgba_u32(0x495057FF); // OC Gray 7
-            theme->tab.text       = color_from_srgba_u32(0xF8F9FAFF); // OC Gray 0
-
-            theme->active_tab.background = color_from_srgba_u32(0x495057FF); // OC Gray 7
-            theme->active_tab.border     = color_from_srgba_u32(0x868E96FF); // OC Gray 6
-            theme->active_tab.text       = color_from_srgba_u32(0xF8F9FAFF); // OC Gray 0
-
-            theme->overlay.background = v4f32(0.0f, 0.0f, 0.0f, 0.3f);
-
-            theme->panel_boundary.background = color_from_srgba_u32(0x000000FF);
-
-            theme->drop_site.background = v4f32(1.0f, 1.0f, 1.0f, 0.5f);
-        }
-
-        {
-            Theme *theme = &global_themes[2];
             theme->name = str8_literal("Catppuccin Latte");
 
             V4F32 rosewater = color_from_srgba_u32(0xDC8A78FF);
@@ -1568,41 +1539,32 @@ internal S32 os_run(Str8List arguments) {
             V4F32 mantle    = color_from_srgba_u32(0xE6E9EFFF);
             V4F32 crust     = color_from_srgba_u32(0xDCE0E8FF);
 
-            theme->scroll_container.background = mantle;
-            theme->scroll_container.border     = mantle;
+            theme->text  = text;
+            theme->hover = overlay2;
 
-            theme->scroll_bar.background = surface0;
-            theme->scroll_bar.border     = surface0;
+            theme->disabled_overlay       = overlay0;
+            theme->disabled_overlay.a = 0.5f;
+            theme->drop_site_overlay      = overlay1;
+            theme->drop_site_overlay.a = 0.5f;
+            theme->inactive_panel_overlay = crust;
+            theme->inactive_panel_overlay.a = 0.5f;
 
-            theme->button.background = surface0;
-            theme->button.border     = surface0;
-            theme->button.text       = text;
+            theme->base_background         = base;
+            theme->base_border             = mantle;
+            theme->tab_background          = surface2;
+            theme->tab_border              = surface2;
+            theme->inactive_tab_background = surface1;
+            theme->inactive_tab_border     = surface1;
+            theme->button_background       = surface0;
+            theme->button_border           = surface0;
 
-            theme->text.text = text;
-
-            theme->panel.background = base;
-            theme->panel.border     = base;
-
-            theme->tab_bar.background = mantle;
-            theme->tab_bar.border     = mantle;
-
-            theme->tab.background = base;
-            theme->tab.border     = base;
-            theme->tab.text       = text;
-
-            theme->active_tab.background = surface0;
-            theme->active_tab.border     = surface0;
-            theme->active_tab.text       = text;
-
-            theme->overlay.background = v4f32(0.0f, 0.0f, 0.0f, 0.3f);
-
-            theme->panel_boundary.background = crust;
-
-            theme->drop_site.background = v4f32(1.0f, 1.0f, 1.0f, 0.5f);
+            theme->outline   = text;
+            theme->on_curve  = green;
+            theme->off_curve = red;
         }
 
         {
-            Theme *theme = &global_themes[3];
+            Theme *theme = &global_themes[1];
             theme->name = str8_literal("Catppuccin Frappé");
 
             V4F32 rosewater = color_from_srgba_u32(0xF2D5CFFF);
@@ -1632,41 +1594,32 @@ internal S32 os_run(Str8List arguments) {
             V4F32 mantle    = color_from_srgba_u32(0x292C3CFF);
             V4F32 crust     = color_from_srgba_u32(0x232634FF);
 
-            theme->scroll_container.background = mantle;
-            theme->scroll_container.border     = mantle;
+            theme->text  = text;
+            theme->hover = overlay2;
 
-            theme->scroll_bar.background = surface0;
-            theme->scroll_bar.border     = surface0;
+            theme->disabled_overlay       = overlay0;
+            theme->disabled_overlay.a = 0.5f;
+            theme->drop_site_overlay      = overlay1;
+            theme->drop_site_overlay.a = 0.5f;
+            theme->inactive_panel_overlay = crust;
+            theme->inactive_panel_overlay.a = 0.5f;
 
-            theme->button.background = surface0;
-            theme->button.border     = surface0;
-            theme->button.text       = text;
+            theme->base_background         = base;
+            theme->base_border             = mantle;
+            theme->tab_background          = surface2;
+            theme->tab_border              = surface2;
+            theme->inactive_tab_background = surface1;
+            theme->inactive_tab_border     = surface1;
+            theme->button_background       = surface0;
+            theme->button_border           = surface0;
 
-            theme->text.text = text;
-
-            theme->panel.background = base;
-            theme->panel.border     = base;
-
-            theme->tab_bar.background = mantle;
-            theme->tab_bar.border     = mantle;
-
-            theme->tab.background = base;
-            theme->tab.border     = base;
-            theme->tab.text       = text;
-
-            theme->active_tab.background = surface0;
-            theme->active_tab.border     = surface0;
-            theme->active_tab.text       = text;
-
-            theme->overlay.background = v4f32(0.0f, 0.0f, 0.0f, 0.3f);
-
-            theme->panel_boundary.background = crust;
-
-            theme->drop_site.background = v4f32(1.0f, 1.0f, 1.0f, 0.5f);
+            theme->outline   = text;
+            theme->on_curve  = green;
+            theme->off_curve = red;
         }
 
         {
-            Theme *theme = &global_themes[4];
+            Theme *theme = &global_themes[2];
             theme->name = str8_literal("Catppuccin Macchiato");
 
             V4F32 rosewater = color_from_srgba_u32(0xF4DBD6FF);
@@ -1696,41 +1649,32 @@ internal S32 os_run(Str8List arguments) {
             V4F32 mantle    = color_from_srgba_u32(0x1E2030FF);
             V4F32 crust     = color_from_srgba_u32(0x181926FF);
 
-            theme->scroll_container.background = mantle;
-            theme->scroll_container.border     = mantle;
+            theme->text  = text;
+            theme->hover = overlay2;
 
-            theme->scroll_bar.background = surface0;
-            theme->scroll_bar.border     = surface0;
+            theme->disabled_overlay       = overlay0;
+            theme->disabled_overlay.a = 0.5f;
+            theme->drop_site_overlay      = overlay1;
+            theme->drop_site_overlay.a = 0.5f;
+            theme->inactive_panel_overlay = crust;
+            theme->inactive_panel_overlay.a = 0.5f;
 
-            theme->button.background = surface0;
-            theme->button.border     = surface0;
-            theme->button.text       = text;
+            theme->base_background         = base;
+            theme->base_border             = mantle;
+            theme->tab_background          = surface2;
+            theme->tab_border              = surface2;
+            theme->inactive_tab_background = surface1;
+            theme->inactive_tab_border     = surface1;
+            theme->button_background       = surface0;
+            theme->button_border           = surface0;
 
-            theme->text.text = text;
-
-            theme->panel.background = base;
-            theme->panel.border     = base;
-
-            theme->tab_bar.background = mantle;
-            theme->tab_bar.border     = mantle;
-
-            theme->tab.background = base;
-            theme->tab.border     = base;
-            theme->tab.text       = text;
-
-            theme->active_tab.background = surface0;
-            theme->active_tab.border     = surface0;
-            theme->active_tab.text       = text;
-
-            theme->overlay.background = v4f32(0.0f, 0.0f, 0.0f, 0.3f);
-
-            theme->panel_boundary.background = crust;
-
-            theme->drop_site.background = v4f32(1.0f, 1.0f, 1.0f, 0.5f);
+            theme->outline   = text;
+            theme->on_curve  = green;
+            theme->off_curve = red;
         }
 
         {
-            Theme *theme = &global_themes[5];
+            Theme *theme = &global_themes[3];
             theme->name = str8_literal("Catppuccin Mocha");
 
             V4F32 rosewater = color_from_srgba_u32(0xF5E0DCFF);
@@ -1760,37 +1704,28 @@ internal S32 os_run(Str8List arguments) {
             V4F32 mantle    = color_from_srgba_u32(0x181825FF);
             V4F32 crust     = color_from_srgba_u32(0x11111BFF);
 
-            theme->scroll_container.background = mantle;
-            theme->scroll_container.border     = mantle;
+            theme->text  = text;
+            theme->hover = overlay2;
 
-            theme->scroll_bar.background = surface0;
-            theme->scroll_bar.border     = surface0;
+            theme->disabled_overlay       = overlay0;
+            theme->disabled_overlay.a = 0.5f;
+            theme->drop_site_overlay      = overlay1;
+            theme->drop_site_overlay.a = 0.5f;
+            theme->inactive_panel_overlay = crust;
+            theme->inactive_panel_overlay.a = 0.5f;
 
-            theme->button.background = surface0;
-            theme->button.border     = surface0;
-            theme->button.text       = text;
+            theme->base_background         = base;
+            theme->base_border             = mantle;
+            theme->tab_background          = surface2;
+            theme->tab_border              = surface2;
+            theme->inactive_tab_background = surface1;
+            theme->inactive_tab_border     = surface1;
+            theme->button_background       = surface0;
+            theme->button_border           = surface0;
 
-            theme->text.text = text;
-
-            theme->panel.background = base;
-            theme->panel.border     = base;
-
-            theme->tab_bar.background = mantle;
-            theme->tab_bar.border     = mantle;
-
-            theme->tab.background = base;
-            theme->tab.border     = base;
-            theme->tab.text       = text;
-
-            theme->active_tab.background = surface0;
-            theme->active_tab.border     = surface0;
-            theme->active_tab.text       = text;
-
-            theme->overlay.background = v4f32(0.0f, 0.0f, 0.0f, 0.3f);
-
-            theme->panel_boundary.background = crust;
-
-            theme->drop_site.background = v4f32(1.0f, 1.0f, 1.0f, 0.5f);
+            theme->outline   = text;
+            theme->on_curve  = green;
+            theme->off_curve = red;
         }
     }
 
@@ -1827,8 +1762,9 @@ internal S32 os_run(Str8List arguments) {
 
     state->running = true;
 
-    state->theme_index = 5;
+    state->theme_index = 3;
     state->theme = global_themes[state->theme_index];
+    state->target_theme = global_themes[state->theme_index];
 
     gfx_create(str8_literal("MSDF-gen"), 1280, 720);
     render_init();

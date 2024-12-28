@@ -142,10 +142,10 @@ internal UI_BOX_DRAW_FUNCTION(draw_ui_glyph_outline) {
                                 case MSDF_Segment_Null: {
                                 } break;
                                 case MSDF_Segment_Line: {
-                                    draw_line(segment->p0, segment->p1, v4f32(1.0f, 1.0f, 1.0f, 1.0f), 1.0f / scale_to_fit, 0.0f, 1.0f);
+                                    draw_line(segment->p0, segment->p1, color_from_theme(ThemeColor_Outline), 1.0f / scale_to_fit, 0.0f, 1.0f);
                                 } break;
                                 case MSDF_Segment_QuadraticBezier: {
-                                    draw_bezier(segment->p0, segment->p1, segment->p2, v4f32(1.0f, 1.0f, 1.0f, 1.0f), 1.0f / scale_to_fit, 0.0f, 1.0f);
+                                    draw_bezier(segment->p0, segment->p1, segment->p2, color_from_theme(ThemeColor_Outline), 1.0f / scale_to_fit, 0.0f, 1.0f);
                                 } break;
                                 case MSDF_Segment_COUNT: {
                                 } break;
@@ -161,13 +161,13 @@ internal UI_BOX_DRAW_FUNCTION(draw_ui_glyph_outline) {
                                 case MSDF_Segment_Null: {
                                 } break;
                                 case MSDF_Segment_Line: {
-                                    draw_circle(segment->p0, point_size / scale_to_fit, v4f32(0.0f, 1.0f, 0.0f, 1.0f), 0.0f, 1.0f);
-                                    draw_circle(segment->p1, point_size / scale_to_fit, v4f32(0.0f, 1.0f, 0.0f, 1.0f), 0.0f, 1.0f);
+                                    draw_circle(segment->p0, point_size / scale_to_fit, color_from_theme(ThemeColor_OnCurve), 0.0f, 1.0f);
+                                    draw_circle(segment->p1, point_size / scale_to_fit, color_from_theme(ThemeColor_OnCurve), 0.0f, 1.0f);
                                 } break;
                                 case MSDF_Segment_QuadraticBezier: {
-                                    draw_circle(segment->p0, point_size / scale_to_fit, v4f32(0.0f, 1.0f, 0.0f, 1.0f), 0.0f, 1.0f);
-                                    draw_circle(segment->p1, point_size / scale_to_fit, v4f32(1.0f, 0.0f, 0.0f, 1.0f), 0.0f, 1.0f);
-                                    draw_circle(segment->p2, point_size / scale_to_fit, v4f32(0.0f, 1.0f, 0.0f, 1.0f), 0.0f, 1.0f);
+                                    draw_circle(segment->p0, point_size / scale_to_fit, color_from_theme(ThemeColor_OnCurve), 0.0f, 1.0f);
+                                    draw_circle(segment->p1, point_size / scale_to_fit, color_from_theme(ThemeColor_OffCurve), 0.0f, 1.0f);
+                                    draw_circle(segment->p2, point_size / scale_to_fit, color_from_theme(ThemeColor_OnCurve), 0.0f, 1.0f);
                                 } break;
                                 case MSDF_Segment_COUNT: {
                                 } break;
@@ -231,7 +231,6 @@ PANEL_BUILD_FUNCTION(view_glyph_list) {
     S32 selected_row = (S32) (global_state->selected_codepoint / codepoints_per_row);
 
     // NOTE(simon): Scrollbar container
-    ui_palette_next(global_state->theme.scroll_container);
     ui_width_next(ui_size_pixels(scrollbar_width, 1.0f));
     ui_height_next(ui_size_pixels(panel_size.y, 1.0f));
     ui_layout_axis_next(Axis2_Y);
@@ -248,8 +247,8 @@ PANEL_BUILD_FUNCTION(view_glyph_list) {
         ui_height_next(ui_size_parent_percent(rows_above / row_count, 1.0f));
         UI_Box *scroll_before = ui_create_box_from_string(UI_BoxFlag_Clickable, str8_literal("before"));
 
+        ui_palette_next(palette_from_code(PaletteCode_Button));
         ui_hover_cursor_next(Gfx_Cursor_Hand);
-        ui_palette_next(global_state->theme.scroll_bar);
         ui_height_next(ui_size_parent_percent(visible_rows / row_count, 1.0f));
         UI_Box *scroll = ui_create_box_from_string(UI_BoxFlag_Clickable | UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawBorder | UI_BoxFlag_DrawHot | UI_BoxFlag_DrawActive, str8_literal("scroll"));
 
@@ -286,7 +285,7 @@ PANEL_BUILD_FUNCTION(view_glyph_list) {
     UIDrawMSDF *draw_msdf = arena_push_struct_zero(ui_frame_arena(), UIDrawMSDF);
     draw_msdf->font = global_state->font;
 
-    ui_palette_push(global_state->theme.button);
+    ui_palette_push(palette_from_code(PaletteCode_Button));
     for (S32 row = top_row; row < bottom_row; ++row) {
         ui_width_next(ui_size_parent_percent(1.0f, 1.0f));
         ui_height_next(ui_size_pixels(height, 1.0f));
@@ -356,7 +355,7 @@ PANEL_BUILD_FUNCTION(view_glyph) {
     ui_column() {
         ui_width(ui_size_text_content(0.0f, 1.0f))
         ui_height(ui_size_text_content(0.0f, 1.0f))
-        ui_palette(global_state->theme.button) {
+        ui_palette(palette_from_code(PaletteCode_Button)) {
             ui_width_next(ui_size_parent_percent(1.0f, 0.0f));
             ui_height_next(ui_size_parent_percent(1.0f, 0.0f));
             ui_draw_function_next(draw_ui_glyph_outline);
@@ -381,7 +380,7 @@ PANEL_BUILD_FUNCTION(view_glyph) {
             ui_draw_data_next(glyph_outline);
             ui_create_box(UI_BoxFlag_DrawBorder);
 
-            ui_palette(global_state->theme.button) {
+            ui_palette(palette_from_code(PaletteCode_Button)) {
                 ui_spacer_sized(ui_size_ems(0.5f, 1.0f));
                 ui_checkbox_b32(&state->render_outline, str8_literal("Draw outlines"));
                 ui_spacer_sized(ui_size_ems(0.5f, 1.0f));
@@ -399,7 +398,6 @@ PANEL_BUILD_FUNCTION(view_stats) {
     ui_width(ui_size_parent_percent(1.0f, 1.0f))
     ui_height(ui_size_parent_percent(1.0f, 1.0f))
     ui_column() {
-        ui_palette(global_state->theme.text)
         ui_width(ui_size_text_content(0.0f, 1.0f))
         ui_height(ui_size_text_content(0.0f, 1.0f)) {
             Render_Stats stats = render_get_stats();
@@ -415,19 +413,20 @@ PANEL_BUILD_FUNCTION(view_theme) {
     ui_width(ui_size_fill())
     ui_height(ui_size_fill())
     ui_column() {
-        ui_width(ui_size_ems(10.0f, 1.0f))
+        ui_width_next(ui_size_text_content(0.0f, 1.0f));
+        ui_height_next(ui_size_text_content(0.0f, 1.0f));
+        ui_label_format("Active theme: %.*s", str8_expand(global_themes[global_state->theme_index].name));
+        ui_width(ui_size_ems(15.0f, 1.0f))
         ui_height(ui_size_ems(1.0f, 1.0f))
         for (ThemeColor color = 0; color < ThemeColor_COUNT; ++color) {
             ui_spacer_sized(ui_size_ems(0.5f, 1.0f));
 
             ui_row() {
-                ui_palette_next(global_state->theme.text);
                 ui_text_align_next(UI_TextAlign_Right);
                 ui_label(theme_color_names[color]);
                 ui_spacer_sized(ui_size_ems(0.5f, 1.0f));
-                UI_Palette display = { 0 };
-                display.background = global_state->theme.colors[color].background;
-                display.border = v4f32(0.0f, 0.0f, 0.0f, 1.0f);
+                UI_Palette display = ui_palette_top();
+                display.background = color_from_theme(color);
                 ui_palette_next(display);
                 ui_create_box(UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawBorder);
             }
