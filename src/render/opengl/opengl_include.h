@@ -20,11 +20,6 @@ struct OpenGL_Context {
     V2U32            resolution;
     Render_Stats     previous_stats;
     Render_Stats     current_stats;
-
-    GLuint vbo_64kb;
-    GLuint vbo_256kb;
-    GLuint vbo_1mb;
-    GLuint vbo_4mb;
 };
 
 typedef struct {

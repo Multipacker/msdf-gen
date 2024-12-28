@@ -294,17 +294,6 @@ internal Void render_create(Void) {
     result->uniform_sampler_location    = glGetUniformLocation(result->program, "uniform_sampler");
     result->uniform_transform_location  = glGetUniformLocation(result->program, "uniform_transform");
 
-    GLuint vbos[4] = { 0 };
-    glCreateBuffers(array_count(vbos), vbos);
-    glNamedBufferData(vbos[0], kilobytes(64),  0, GL_DYNAMIC_DRAW);
-    glNamedBufferData(vbos[1], kilobytes(256), 0, GL_DYNAMIC_DRAW);
-    glNamedBufferData(vbos[2], megabytes(1),   0, GL_DYNAMIC_DRAW);
-    glNamedBufferData(vbos[3], megabytes(4),   0, GL_DYNAMIC_DRAW);
-    result->vbo_64kb  = vbos[0];
-    result->vbo_256kb = vbos[1];
-    result->vbo_1mb   = vbos[2];
-    result->vbo_4mb   = vbos[3];
-
     glCreateVertexArrays(1, &result->vao);
 
     opengl_vertex_array_instance_attribute_float(result->vao,   0, 4, GL_FLOAT,        GL_FALSE, member_offset(Render_Shape, position),  0);
@@ -369,25 +358,12 @@ internal Void render_submit(Render_BatchList batches) {
             glBindTextureUnit(0, opengl_texture_id_from_texture(batch->texture));
             glProgramUniformMatrix3fv(gfx->program, gfx->uniform_transform_location, 1, GL_TRUE, &batch->transform.m[0][0]);
 
-            GLuint vbo = 0;
-            B32 specifically_sized = false;
             U64 byte_size = batch->shapes.shape_count * sizeof(Render_Shape);
             gfx->current_stats.bytes_uploaded_to_gpu += byte_size;
 
-            // NOTE(simon): Select an appropriate buffer.
-            if (byte_size <= kilobytes(64)) {
-                vbo = gfx->vbo_64kb;
-            } else if (byte_size <= kilobytes(256)) {
-                vbo = gfx->vbo_256kb;
-            } else if (byte_size <= megabytes(1)) {
-                vbo = gfx->vbo_1mb;
-            } else if (byte_size <= megabytes(4)) {
-                vbo = gfx->vbo_4mb;
-            } else {
-                specifically_sized = true;
-                glCreateBuffers(1, &vbo);
-                glNamedBufferData(vbo, (GLsizeiptr) byte_size, 0, GL_STREAM_DRAW);
-            }
+            GLuint vbo = 0;
+            glCreateBuffers(1, &vbo);
+            glNamedBufferData(vbo, (GLsizeiptr) byte_size, 0, GL_STREAM_DRAW);
 
             // NOTE(simon): Update buffer data
             U8 *mapped_buffer = (U8 *) glMapNamedBuffer(vbo, GL_WRITE_ONLY);
@@ -403,9 +379,7 @@ internal Void render_submit(Render_BatchList batches) {
             glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, (GLsizei) batch->shapes.shape_count);
 
             // NOTE(simon): Delete specifically sized buffer.
-            if (specifically_sized) {
-                glDeleteBuffers(1, &vbo);
-            }
+            glDeleteBuffers(1, &vbo);
         }
 
         prof_zone_end(prof_batch);
