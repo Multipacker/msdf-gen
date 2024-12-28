@@ -101,6 +101,16 @@
 # define ARCH_ARM64 0
 #endif
 
+#ifndef DEBUG_BUILD
+# define DEBUG_BUILD 0
+#endif
+#ifndef RELEASE_BUILD
+# define RELEASE_BUILD 0
+#endif
+#ifndef PROFILE_BUILD
+# define PROFILE_BUILD 0
+#endif
+
 #if OS_LINUX
 // NOTE: This needs to be defined before we include any of the system headers.
 # define _GNU_SOURCE
