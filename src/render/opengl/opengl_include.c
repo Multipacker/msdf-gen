@@ -350,7 +350,7 @@ internal Void render_submit(Render_BatchList batches) {
     OpenGL_Context *gfx = &global_opengl_context;
 
     for (Render_Batch *batch = batches.first; batch; batch = batch->next) {
-        prof_zone_begin(prof_batch, "Batch");
+        prof_zone_begin(prof_batch, "batch");
 
         ++gfx->current_stats.batch_count;
         gfx->current_stats.shape_count += batch->shapes.shape_count;
