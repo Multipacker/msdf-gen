@@ -184,7 +184,7 @@ internal UI_BOX_DRAW_FUNCTION(draw_ui_glyph_outline) {
 
 PANEL_BUILD_FUNCTION(view_glyph_list) {
     V2F32 panel_size = r2f32_size(panel_rectangle);
-    F32 scrollbar_width = 15.0f;
+    F32 scrollbar_width = (F32) ui_font_size_top();
     F32 container_width = panel_size.x - scrollbar_width;
 
     typedef struct {

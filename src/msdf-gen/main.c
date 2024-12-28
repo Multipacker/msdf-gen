@@ -51,7 +51,6 @@
  *   visual bug
  * * Text is sometimes laid out with incorrect spacing and is positioned wrong
  *   vertically 
- * * While resizing panes, the resizing border lags behind by one frame.
  */
 
 #define THEME_COLORS \
@@ -872,7 +871,7 @@ internal Void update(Void) {
 
     ui_palette_push(palette_from_code(PaletteCode_Base));
 
-    // NOTE(simon): 14 pts * 96 pixels per inch / 72 points per inch
+    // NOTE(simon): 11 pts * 96 pixels per inch / 72 points per inch
     ui_font_size_push((U32) (11.0f * 96.0f / 72.0f));
 
     R2F32 root_rectangle = r2f32(0.0f, 0.0f, (F32) client_area.x, (F32) client_area.y);
@@ -1116,10 +1115,7 @@ internal Void update(Void) {
             ui_width_next(ui_size_pixels(r2f32_size(boundary_rectangle).width, 1.0f));
             ui_height_next(ui_size_pixels(r2f32_size(boundary_rectangle).height, 1.0f));
             ui_hover_cursor_next(panel->split_axis == Axis2_X ? Gfx_Cursor_SizeWE : Gfx_Cursor_SizeNS);
-            UI_Box *boundary_box = ui_create_box_from_string_format(
-                UI_BoxFlag_DrawBackground | UI_BoxFlag_Clickable | UI_BoxFlag_FloatingPosition,
-                "###panel_boundary_%p", child
-            );
+            UI_Box *boundary_box = ui_create_box_from_string_format(UI_BoxFlag_Clickable | UI_BoxFlag_FloatingPosition, "###panel_boundary_%p", child);
             UI_Input input = ui_input_from_box(boundary_box);
 
             if (input.input_flags & UI_InputFlag_LeftDragging) {
@@ -1579,7 +1575,7 @@ internal S32 os_run(Str8List arguments) {
             theme->drop_site_overlay      = overlay1;
             theme->drop_site_overlay.a = 0.5f;
             theme->inactive_panel_overlay = crust;
-            theme->inactive_panel_overlay.a = 0.5f;
+            theme->inactive_panel_overlay.a = 0.2f;
 
             theme->base_background         = base;
             theme->base_border             = mantle;
@@ -1590,7 +1586,7 @@ internal S32 os_run(Str8List arguments) {
             theme->button_background       = surface0;
             theme->button_border           = surface0;
 
-            theme->outline   = text;
+            theme->outline   = overlay0;
             theme->on_curve  = green;
             theme->off_curve = red;
         }
@@ -1645,7 +1641,7 @@ internal S32 os_run(Str8List arguments) {
             theme->button_background       = surface0;
             theme->button_border           = surface0;
 
-            theme->outline   = text;
+            theme->outline   = overlay0;
             theme->on_curve  = green;
             theme->off_curve = red;
         }
@@ -1700,7 +1696,7 @@ internal S32 os_run(Str8List arguments) {
             theme->button_background       = surface0;
             theme->button_border           = surface0;
 
-            theme->outline   = text;
+            theme->outline   = overlay0;
             theme->on_curve  = green;
             theme->off_curve = red;
         }
@@ -1755,7 +1751,7 @@ internal S32 os_run(Str8List arguments) {
             theme->button_background       = surface0;
             theme->button_border           = surface0;
 
-            theme->outline   = text;
+            theme->outline   = overlay0;
             theme->on_curve  = green;
             theme->off_curve = red;
         }
