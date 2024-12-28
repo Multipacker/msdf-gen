@@ -188,6 +188,7 @@ internal Void ui_begin(Gfx_EventList *events, F32 dt) {
 
     ui->is_tooltip_active = false;
     ui->context_menu_used_this_frame = false;
+    ui->is_animating = false;
 
     // NOTE(simon): Give default values to all stacks
     ui_parent_next(&global_ui_null_box);
@@ -500,26 +501,41 @@ internal Void ui_end(Void) {
                 box->animated_position.y += (box->calculated_position.y - box->animated_position.y) * ui->fast_rate;
                 if (f32_abs(box->calculated_position.x - box->animated_position.x) < 1.0f) {
                     box->animated_position.x = box->calculated_position.x;
+                } else {
+                    ui->is_animating = true;
                 }
                 if (f32_abs(box->calculated_position.y - box->animated_position.y) < 1.0f) {
                     box->animated_position.y = box->calculated_position.y;
+                } else {
+                    ui->is_animating = true;
                 }
 
                 box->hot_t += ((F32) is_hot - box->hot_t) * ui->fast_rate;
                 if (f32_abs((F32) is_hot - box->hot_t) < 0.001f) {
                     box->hot_t = (F32) is_hot;
+                } else {
+                    ui->is_animating = true;
                 }
                 box->active_t += ((F32) is_active - box->active_t) * ui->fast_rate;
                 if (f32_abs((F32) is_active - box->active_t) < 0.001f) {
                     box->active_t = (F32) is_active;
+                } else {
+                    ui->is_animating = true;
                 }
                 box->disabled_t += ((F32) is_disabled - box->disabled_t) * ui->slow_rate;
                 if (f32_abs((F32) is_disabled - box->disabled_t) < 0.001f) {
                     box->disabled_t = (F32) is_disabled;
+                } else {
+                    ui->is_animating = true;
                 }
             }
         }
         ui->tooltip_t += ((F32) ui->is_tooltip_active - ui->tooltip_t) * ui->fast_rate;
+        if (f32_abs((F32) ui->is_tooltip_active - ui->tooltip_t) < 0.001f) {
+            ui->tooltip_t = (F32) ui->is_tooltip_active;
+        } else {
+            ui->is_animating = true;
+        }
         prof_zone_end(prof_animate);
     }
 
@@ -960,5 +976,10 @@ internal F32 ui_animation_slow_rate(Void) {
 
 internal F32 ui_animation_fast_rate(Void) {
     F32 result = global_ui_state->fast_rate;
+    return result;
+}
+
+internal B32 ui_is_animating_from_context(UI_Context *ui) {
+    B32 result = ui->is_animating;
     return result;
 }

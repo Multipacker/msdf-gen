@@ -271,6 +271,8 @@ struct State {
     Theme target_theme;
     U32 theme_index;
 
+    U32 frames_to_render;
+
     UI_Palette palettes[PaletteCode_COUNT];
 };
 
@@ -326,6 +328,11 @@ internal Handle handle_from_panel(Panel *panel) {
     }
 
     return result;
+}
+
+internal Void request_frame(Void) {
+    State *state = global_state;
+    state->frames_to_render = 4;
 }
 
 internal Font *font_create(Str8 font_path, U32 glyph_size, U32 glyphs_per_row) {
@@ -588,7 +595,7 @@ internal Void update(Void) {
     State *state = global_state;
 
     Arena_Temporary scratch = arena_get_scratch(0, 0);
-    Gfx_EventList events = gfx_get_events(scratch.arena);
+    Gfx_EventList events = gfx_get_events(scratch.arena, state->frames_to_render == 0);
 
     // NOTE(simon): Conseme events.
     for (Gfx_Event *event = events.first, *next; event; event = next) {
@@ -609,10 +616,12 @@ internal Void update(Void) {
             push_command(Command_NextTab, .panel = state->active_panel);
         } else if (event->kind == Gfx_EventKind_KeyPress && event->key == Gfx_Key_N && event->key_modifiers == Gfx_KeyModifier_Control) {
             consume = true;
+            request_frame();
             state->theme_index = (state->theme_index + 1) % array_count(global_themes);
             state->target_theme = global_themes[state->theme_index];
         } else if (event->kind == Gfx_EventKind_KeyPress && event->key == Gfx_Key_P && event->key_modifiers == Gfx_KeyModifier_Control) {
             consume = true;
+            request_frame();
             state->theme_index = (state->theme_index + array_count(global_themes) - 1) % array_count(global_themes);
             state->target_theme = global_themes[state->theme_index];
         }
@@ -628,6 +637,7 @@ internal Void update(Void) {
 
     // NOTE(simon): Execute commands
     for (CommandNode *node = state->commands.first; node; node = node->next) {
+        request_frame();
         switch (node->command.kind) {
             case Command_FocusPanel: {
                 state->active_panel = node->command.panel;
@@ -1459,14 +1469,24 @@ internal Void update(Void) {
 
     // NOTE(simon): Animate theme
     {
+        B32 is_animating = false;
         for (ThemeColor color_index = 0; color_index < ThemeColor_COUNT; ++color_index) {
             V4F32 *color = &state->theme.colors[color_index];
             V4F32 *target_color = &state->target_theme.colors[color_index];
+
+            is_animating |= f32_abs(target_color->r - color->r) > 0.001f;
+            is_animating |= f32_abs(target_color->g - color->g) > 0.001f;
+            is_animating |= f32_abs(target_color->b - color->b) > 0.001f;
+            is_animating |= f32_abs(target_color->a - color->a) > 0.001f;
 
             color->r += (target_color->r - color->r) * ui_animation_slow_rate();
             color->g += (target_color->g - color->g) * ui_animation_slow_rate();
             color->b += (target_color->b - color->b) * ui_animation_slow_rate();
             color->a += (target_color->a - color->a) * ui_animation_slow_rate();
+        }
+
+        if (is_animating) {
+            request_frame();
         }
     }
 
@@ -1487,6 +1507,18 @@ internal Void update(Void) {
     // NOTE(simon): Cancel drag and drop if nothing caught it.
     if (state->drag_state == DragState_Dropping) {
         state->drag_state = DragState_None;
+    }
+
+    if (state->frames_to_render > 0) {
+        --state->frames_to_render;
+    }
+
+    if (ui_is_animating_from_context(state->ui)) {
+        request_frame();
+    }
+
+    if (PROFILE_BUILD) {
+        request_frame();
     }
 
     arena_end_temporary(scratch);
@@ -1765,6 +1797,8 @@ internal S32 os_run(Str8List arguments) {
     state->theme_index = 3;
     state->theme = global_themes[state->theme_index];
     state->target_theme = global_themes[state->theme_index];
+
+    state->frames_to_render = 4;
 
     gfx_create(str8_literal("MSDF-gen"), 1280, 720);
     render_init();

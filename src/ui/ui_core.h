@@ -266,6 +266,7 @@ struct UI_Context {
     UI_Key hot_key;
     UI_Key active_key[UI_MouseButton_COUNT];
     UI_Key drop_hot_key;
+    B32 is_animating;
 
     // NOTE(simon): Drag data
     V2F32  drag_start;
@@ -361,6 +362,7 @@ internal Void  ui_set_drag_data_str8(Str8 data);
 
 internal F32 ui_animation_slow_rate(Void);
 internal F32 ui_animation_fast_rate(Void);
+internal B32 ui_is_animating_from_context(UI_Context *ui);
 
 #define ui_parent_push(parent) ui_box_stack_push(&global_ui_state->parent_stack, parent, false)
 #define ui_parent_pop()        ui_box_stack_pop(&global_ui_state->parent_stack)

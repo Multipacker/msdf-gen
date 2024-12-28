@@ -156,7 +156,10 @@ internal Void gfx_create(Str8 title, U32 width, U32 height) {
     arena_end_temporary(scratch);
 }
 
-internal Gfx_EventList gfx_get_events(Arena *arena) {
+internal Void gfx_send_wakeup_event(Void) {
+}
+
+internal Gfx_EventList gfx_get_events(Arena *arena, B32 wait) {
     win32_event_arena = arena;
     win32_event_list.first = 0;
     win32_event_list.last  = 0;

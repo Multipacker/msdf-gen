@@ -61,87 +61,96 @@ internal Void gfx_create(Str8 title, U32 width, U32 height) {
     }
 }
 
-internal Gfx_EventList gfx_get_events(Arena *arena) {
+internal Void gfx_send_wakeup_event(Void) {
+    SDL_Event wake_up = { 0 };
+    wake_up.type = SDL_USEREVENT;
+    SDL_PushEvent(&wake_up);
+}
+
+internal Gfx_EventList gfx_get_events(Arena *arena, B32 wait) {
     Gfx_EventList events = { 0 };
 
-    for (SDL_Event sdl_event = { 0 }; SDL_PollEvent(&sdl_event);) {
-        Gfx_Event *event = arena_push_struct_zero(arena, Gfx_Event);
-        switch (sdl_event.type) {
-            case SDL_QUIT: {
-                event->kind = Gfx_EventKind_Quit;
-            } break;
-            case SDL_KEYDOWN: case SDL_KEYUP: {
-                if (sdl_event.key.type == SDL_KEYDOWN) {
-                    event->kind = Gfx_EventKind_KeyPress;
-                } else {
-                    event->kind = Gfx_EventKind_KeyRelease;
-                }
+    SDL_Event sdl_event = { 0 };
+    if (!wait || SDL_WaitEvent(&sdl_event)) {
+        for (B32 first_wait = wait; first_wait || SDL_PollEvent(&sdl_event); first_wait = false) {
+            Gfx_Event *event = arena_push_struct_zero(arena, Gfx_Event);
+            switch (sdl_event.type) {
+                case SDL_QUIT: {
+                    event->kind = Gfx_EventKind_Quit;
+                } break;
+                case SDL_KEYDOWN: case SDL_KEYUP: {
+                    if (sdl_event.key.type == SDL_KEYDOWN) {
+                        event->kind = Gfx_EventKind_KeyPress;
+                    } else {
+                        event->kind = Gfx_EventKind_KeyRelease;
+                    }
 
-                SDL_Keycode sdl_keycode = sdl_event.key.keysym.sym;
+                    SDL_Keycode sdl_keycode = sdl_event.key.keysym.sym;
 
-                switch (sdl_keycode) {
-                    case SDLK_PAGEUP:   event->key = Gfx_Key_PageUp;   break;
-                    case SDLK_PAGEDOWN: event->key = Gfx_Key_PageDown; break;
-                    case SDLK_LEFT:     event->key = Gfx_Key_Left;     break;
-                    case SDLK_RIGHT:    event->key = Gfx_Key_Right;    break;
-                    case SDLK_UP:       event->key = Gfx_Key_Up;       break;
-                    case SDLK_DOWN:     event->key = Gfx_Key_Down;     break;
-                    case SDLK_LSHIFT:   event->key = Gfx_Key_Shift;    break;
-                    case SDLK_RSHIFT:   event->key = Gfx_Key_Shift;    break;
-                    case SDLK_END:      event->key = Gfx_Key_End;      break;
-                    case SDLK_HOME:     event->key = Gfx_Key_Home;     break;
-                    case SDLK_LCTRL:    event->key = Gfx_Key_Control;  break;
-                    case SDLK_RCTRL:    event->key = Gfx_Key_Control;  break;
-                    case SDLK_LALT:     event->key = Gfx_Key_Alt;      break;
-                    case SDLK_RALT:     event->key = Gfx_Key_Alt;      break;
-                    case SDLK_LGUI:     event->key = Gfx_Key_OS;       break;
-                    case SDLK_RGUI:     event->key = Gfx_Key_OS;       break;
-                    default: {
-                        if (SDLK_F1 <= sdl_keycode && sdl_keycode <= SDLK_F12) {
-                            event->key = (Gfx_Key) (Gfx_Key_F1 + (sdl_keycode - SDLK_F1));
-                        } else if (sdl_keycode < (SDL_Keycode) array_count(sdl_to_gfx_keycode)) {
-                            event->key = sdl_to_gfx_keycode[sdl_keycode];
-                        } else {
-                            event->kind = Gfx_EventKind_Null;
-                        }
-                    } break;
-                }
+                    switch (sdl_keycode) {
+                        case SDLK_PAGEUP:   event->key = Gfx_Key_PageUp;   break;
+                        case SDLK_PAGEDOWN: event->key = Gfx_Key_PageDown; break;
+                        case SDLK_LEFT:     event->key = Gfx_Key_Left;     break;
+                        case SDLK_RIGHT:    event->key = Gfx_Key_Right;    break;
+                        case SDLK_UP:       event->key = Gfx_Key_Up;       break;
+                        case SDLK_DOWN:     event->key = Gfx_Key_Down;     break;
+                        case SDLK_LSHIFT:   event->key = Gfx_Key_Shift;    break;
+                        case SDLK_RSHIFT:   event->key = Gfx_Key_Shift;    break;
+                        case SDLK_END:      event->key = Gfx_Key_End;      break;
+                        case SDLK_HOME:     event->key = Gfx_Key_Home;     break;
+                        case SDLK_LCTRL:    event->key = Gfx_Key_Control;  break;
+                        case SDLK_RCTRL:    event->key = Gfx_Key_Control;  break;
+                        case SDLK_LALT:     event->key = Gfx_Key_Alt;      break;
+                        case SDLK_RALT:     event->key = Gfx_Key_Alt;      break;
+                        case SDLK_LGUI:     event->key = Gfx_Key_OS;       break;
+                        case SDLK_RGUI:     event->key = Gfx_Key_OS;       break;
+                        default: {
+                            if (SDLK_F1 <= sdl_keycode && sdl_keycode <= SDLK_F12) {
+                                event->key = (Gfx_Key) (Gfx_Key_F1 + (sdl_keycode - SDLK_F1));
+                            } else if (sdl_keycode < (SDL_Keycode) array_count(sdl_to_gfx_keycode)) {
+                                event->key = sdl_to_gfx_keycode[sdl_keycode];
+                            } else {
+                                event->kind = Gfx_EventKind_Null;
+                            }
+                        } break;
+                    }
 
-                SDL_Keymod modifiers = SDL_GetModState();
-                event->key_modifiers |= (modifiers & KMOD_SHIFT ? Gfx_KeyModifier_Shift   : 0);
-                event->key_modifiers |= (modifiers & KMOD_CTRL  ? Gfx_KeyModifier_Control : 0);
+                    SDL_Keymod modifiers = SDL_GetModState();
+                    event->key_modifiers |= (modifiers & KMOD_SHIFT ? Gfx_KeyModifier_Shift   : 0);
+                    event->key_modifiers |= (modifiers & KMOD_CTRL  ? Gfx_KeyModifier_Control : 0);
 
-                if (event->key == Gfx_Key_Null) {
-                    event->kind = Gfx_EventKind_Null;
-                }
-            } break;
-            case SDL_MOUSEBUTTONDOWN: case SDL_MOUSEBUTTONUP: {
-                if (sdl_event.button.type == SDL_MOUSEBUTTONDOWN) {
-                    event->kind = Gfx_EventKind_KeyPress;
-                } else {
-                    event->kind = Gfx_EventKind_KeyRelease;
-                }
+                    if (event->key == Gfx_Key_Null) {
+                        event->kind = Gfx_EventKind_Null;
+                    }
+                } break;
+                case SDL_MOUSEBUTTONDOWN: case SDL_MOUSEBUTTONUP: {
+                    if (sdl_event.button.type == SDL_MOUSEBUTTONDOWN) {
+                        event->kind = Gfx_EventKind_KeyPress;
+                    } else {
+                        event->kind = Gfx_EventKind_KeyRelease;
+                    }
 
-                event->position.x = (F32) sdl_event.button.x;
-                event->position.y = (F32) sdl_event.button.y;
+                    event->position.x = (F32) sdl_event.button.x;
+                    event->position.y = (F32) sdl_event.button.y;
 
-                switch (sdl_event.button.button) {
-                    case SDL_BUTTON_LEFT:   event->key = Gfx_Key_MouseLeft;   break;
-                    case SDL_BUTTON_MIDDLE: event->key = Gfx_Key_MouseMiddle; break;
-                    case SDL_BUTTON_RIGHT:  event->key = Gfx_Key_MouseRight;  break;
-                    default:                                                  break;
-                }
-            } break;
-            case SDL_MOUSEWHEEL: {
-                event->kind   = Gfx_EventKind_Scroll;
-                event->scroll = v2f32(-sdl_event.wheel.preciseX, sdl_event.wheel.preciseY);
-                event->position.x = (F32) sdl_event.wheel.mouseX;
-                event->position.y = (F32) sdl_event.wheel.mouseY;
-            } break;
-        }
+                    switch (sdl_event.button.button) {
+                        case SDL_BUTTON_LEFT:   event->key = Gfx_Key_MouseLeft;   break;
+                        case SDL_BUTTON_MIDDLE: event->key = Gfx_Key_MouseMiddle; break;
+                        case SDL_BUTTON_RIGHT:  event->key = Gfx_Key_MouseRight;  break;
+                        default:                                                  break;
+                    }
+                } break;
+                case SDL_MOUSEWHEEL: {
+                    event->kind   = Gfx_EventKind_Scroll;
+                    event->scroll = v2f32(-sdl_event.wheel.preciseX, sdl_event.wheel.preciseY);
+                    event->position.x = (F32) sdl_event.wheel.mouseX;
+                    event->position.y = (F32) sdl_event.wheel.mouseY;
+                } break;
+            }
 
-        if (event->kind != Gfx_EventKind_Null) {
-            dll_push_back(events.first, events.last, event);
+            if (event->kind != Gfx_EventKind_Null) {
+                dll_push_back(events.first, events.last, event);
+            }
         }
     }
 

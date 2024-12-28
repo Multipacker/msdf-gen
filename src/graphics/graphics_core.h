@@ -128,7 +128,8 @@ typedef enum {
 
 internal Void          gfx_create(Str8 title, U32 width, U32 height);
 internal V2U32         gfx_get_window_client_area(Void);
-internal Gfx_EventList gfx_get_events(Arena *arena);
+internal Void          gfx_send_wakeup_event(Void);
+internal Gfx_EventList gfx_get_events(Arena *arena, B32 wait);
 internal V2F32         gfx_get_mouse_position(Void);
 internal Void          gfx_swap_buffers(Void);
 internal Void          gfx_set_cursor(Gfx_Cursor cursor);
