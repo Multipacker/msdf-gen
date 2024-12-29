@@ -29,7 +29,6 @@
 /*
  * TODO before next release:
  * * Bake the UI font into the executable
- * * Align outlines and the MSDF correctly in the glyph view
  * * Offload MSDF generation to a background thread so that the main thread and
  *   UI don't hang because we are generating glyphs.
  * * Add drop-shadows to make it easier to distinguish foreground elements from

@@ -73,106 +73,97 @@ struct UIDrawGlyphOutline {
 internal UI_BOX_DRAW_FUNCTION(draw_ui_glyph_outline) {
     UIDrawGlyphOutline *parameters = (UIDrawGlyphOutline *) data;
 
+    F32 padding = 2.0f * (F32) ui_font_size_top();
+    F32 point_size = 0.4f * (F32) ui_font_size_top();
+
     Arena_Temporary scratch = arena_get_scratch(0, 0);
     U32 glyph_index = ttf_get_glyph_index(parameters->font, parameters->codepoint);
     MSDF_Glyph glyph = ttf_expand_contours_to_msdf(scratch.arena, parameters->font, glyph_index);
 
-    V2F32 box_size = v2f32_subtract(box->calculated_rectangle.max, box->calculated_rectangle.min);
-    V2F32 glyph_size = v2f32((F32) (glyph.max.x - glyph.min.x), (F32) (glyph.max.y - glyph.min.y));
+    V2F32 box_size = r2f32_size(box->calculated_rectangle);
+    R2F32 glyph_rectangle = r2f32((F32) glyph.min.x, (F32) glyph.min.y, (F32) glyph.max.x, (F32) glyph.max.y);
+    V2F32 glyph_size = r2f32_size(glyph_rectangle);
 
-    M3F32 center_glyph = m3f32_translation(v2f32(
-        (F32) -glyph.min.x - glyph_size.x / 2.0f,
-        (F32) -glyph.min.y - glyph_size.y / 2.0f
-    ));
+    M3F32 center_glyph = m3f32_translation(v2f32_negate(r2f32_center(glyph_rectangle)));
+    F32 scale = f32_max(0.0f, f32_min((box_size.x - 2.0f * padding) / glyph_size.x, (box_size.y - 2.0f * padding) / glyph_size.y));
+    M3F32 scale_to_box = m3f32_scale(v2f32(scale, -scale));
+    M3F32 center_box = m3f32_translation(r2f32_center(box->calculated_rectangle));
 
-    F32 point_size = 5.0f;
+    M3F32 transform  = m3f32_multiply_m3f32(center_box, m3f32_multiply_m3f32(scale_to_box, center_glyph));
 
-    F32 scale_to_fit = f32_min(box_size.x / glyph_size.x, box_size.y / glyph_size.y);
-    M3F32 scale = m3f32_scale(v2f32(scale_to_fit, -scale_to_fit));
+    draw_clip(box->calculated_rectangle)
+    draw_transform(transform) {
+        Glyph *msdf_glyph = font_get_glyph(parameters->msdf_font, parameters->codepoint);
 
-    M3F32 center_box = m3f32_translation(v2f32_add(box->calculated_rectangle.min, v2f32_scale(box_size, 0.5f)));
-
-    M3F32 transform = m3f32_multiply_m3f32(center_box, m3f32_multiply_m3f32(scale, center_glyph));
-
-    draw_clip(box->calculated_rectangle) {
         if (parameters->flags & (UIDrawGlyphOutline_Flag_DrawMSDF | UIDrawGlyphOutline_Flag_DrawRaw)) {
-            Glyph *msdf_glyph = font_get_glyph(parameters->msdf_font, parameters->codepoint);
+            V4F32 tint = box->palette.text;
+            Render_ShapeFlags flags = Render_ShapeFlag_MSDF;
+            if (parameters->flags & UIDrawGlyphOutline_Flag_DrawRaw) {
+                tint = v4f32(1.0f, 1.0f, 1.0f, 1.0f);
+                flags = Render_ShapeFlag_Texture;
+            }
 
-            V2F32 msdf_glyph_size = v2f32_subtract(msdf_glyph->max_pt, msdf_glyph->min_pt);
-            F32 msdf_scale_to_fit = f32_min(box_size.x / msdf_glyph_size.x, box_size.y / msdf_glyph_size.y);
+            V2F32 uv_size = r2f32_size(msdf_glyph->uv);
 
-            M3F32 msdf_center_glyph = m3f32_translation(v2f32_subtract(v2f32_negate(msdf_glyph->min_pt), v2f32_scale(msdf_glyph_size, 0.5f)));
-            M3F32 msdf_scale        = m3f32_scale(v2f32(msdf_scale_to_fit, msdf_scale_to_fit));
-            M3F32 msdf_center_box   = m3f32_translation(v2f32_add(box->calculated_rectangle.min, v2f32_scale(box_size, 0.5f)));
+            draw_texture(
+                r2f32(
+                    glyph_rectangle.min.x - glyph_size.width  * 0.5f / uv_size.width,
+                    glyph_rectangle.min.y - glyph_size.height * 0.5f / uv_size.height,
+                    glyph_rectangle.max.x + glyph_size.width  * 0.5f / uv_size.width,
+                    glyph_rectangle.max.y + glyph_size.height * 0.5f / uv_size.height
+                ),
+                // NOTE(simon): Need flip vertically because outlines use the
+                // same coordinates system as TTF-files, which is flipped
+                // vertically.
+                r2f32(
+                    msdf_glyph->uv.min.x,
+                    msdf_glyph->uv.max.y,
+                    msdf_glyph->uv.max.x,
+                    msdf_glyph->uv.min.y
+                ),
+                parameters->msdf_font->atlas,
+                tint,
+                0.0f, 0.0f, 0.0f,
+                flags
+            );
+        }
 
-            M3F32 msdf_transform = m3f32_multiply_m3f32(msdf_center_box, m3f32_multiply_m3f32(msdf_scale, msdf_center_glyph));
-
-            // NOTE(simon): We do the transform on the CPU in order to avoid generating
-            // one batch per draw operation. The box isn't rotated so this is fine.
-            V2F32 min_pt = m3f32_multiply_v2f32(msdf_transform, msdf_glyph->min_pt);
-            V2F32 max_pt = m3f32_multiply_v2f32(msdf_transform, msdf_glyph->max_pt);
-
-            if (parameters->flags & UIDrawGlyphOutline_Flag_DrawMSDF) {
-                draw_texture(
-                    r2f32(min_pt.x, min_pt.y, max_pt.x, max_pt.y),
-                    msdf_glyph->uv,
-                    parameters->msdf_font->atlas,
-                    box->palette.text,
-                    0.0f, 0.0f, 0.0f,
-                    Render_ShapeFlag_MSDF
-                );
-            } else {
-                draw_texture(
-                    r2f32(min_pt.x, min_pt.y, max_pt.x, max_pt.y),
-                    msdf_glyph->uv,
-                    parameters->msdf_font->atlas,
-                    v4f32(1.0f, 1.0f, 1.0f, 1.0f),
-                    0.0f, 0.0f, 0.0f,
-                    Render_ShapeFlag_Texture
-                );
+        if (parameters->flags & UIDrawGlyphOutline_Flag_DrawOutline) {
+            for (MSDF_Contour *contour = glyph.first_contour; contour; contour = contour->next) {
+                for (MSDF_Segment *segment = contour->first_segment; segment; segment = segment->next) {
+                    switch (segment->kind) {
+                        case MSDF_Segment_Null: {
+                        } break;
+                        case MSDF_Segment_Line: {
+                            draw_line(segment->p0, segment->p1, color_from_theme(ThemeColor_Outline), 1.0f / scale, 0.0f, 1.0f);
+                        } break;
+                        case MSDF_Segment_QuadraticBezier: {
+                            draw_bezier(segment->p0, segment->p1, segment->p2, color_from_theme(ThemeColor_Outline), 1.0f / scale, 0.0f, 1.0f);
+                        } break;
+                        case MSDF_Segment_COUNT: {
+                        } break;
+                    }
+                }
             }
         }
 
-        if (parameters->flags & (UIDrawGlyphOutline_Flag_DrawOutline | UIDrawGlyphOutline_Flag_DrawPoints)) {
-            draw_transform(transform) {
-                if (parameters->flags & UIDrawGlyphOutline_Flag_DrawOutline) {
-                    for (MSDF_Contour *contour = glyph.first_contour; contour; contour = contour->next) {
-                        for (MSDF_Segment *segment = contour->first_segment; segment; segment = segment->next) {
-                            switch (segment->kind) {
-                                case MSDF_Segment_Null: {
-                                } break;
-                                case MSDF_Segment_Line: {
-                                    draw_line(segment->p0, segment->p1, color_from_theme(ThemeColor_Outline), 1.0f / scale_to_fit, 0.0f, 1.0f);
-                                } break;
-                                case MSDF_Segment_QuadraticBezier: {
-                                    draw_bezier(segment->p0, segment->p1, segment->p2, color_from_theme(ThemeColor_Outline), 1.0f / scale_to_fit, 0.0f, 1.0f);
-                                } break;
-                                case MSDF_Segment_COUNT: {
-                                } break;
-                            }
-                        }
-                    }
-                }
-
-                if (parameters->flags & UIDrawGlyphOutline_Flag_DrawPoints) {
-                    for (MSDF_Contour *contour = glyph.first_contour; contour; contour = contour->next) {
-                        for (MSDF_Segment *segment = contour->first_segment; segment; segment = segment->next) {
-                            switch (segment->kind) {
-                                case MSDF_Segment_Null: {
-                                } break;
-                                case MSDF_Segment_Line: {
-                                    draw_circle(segment->p0, point_size / scale_to_fit, color_from_theme(ThemeColor_OnCurve), 0.0f, 1.0f);
-                                    draw_circle(segment->p1, point_size / scale_to_fit, color_from_theme(ThemeColor_OnCurve), 0.0f, 1.0f);
-                                } break;
-                                case MSDF_Segment_QuadraticBezier: {
-                                    draw_circle(segment->p0, point_size / scale_to_fit, color_from_theme(ThemeColor_OnCurve), 0.0f, 1.0f);
-                                    draw_circle(segment->p1, point_size / scale_to_fit, color_from_theme(ThemeColor_OffCurve), 0.0f, 1.0f);
-                                    draw_circle(segment->p2, point_size / scale_to_fit, color_from_theme(ThemeColor_OnCurve), 0.0f, 1.0f);
-                                } break;
-                                case MSDF_Segment_COUNT: {
-                                } break;
-                            }
-                        }
+        if (parameters->flags & UIDrawGlyphOutline_Flag_DrawPoints) {
+            for (MSDF_Contour *contour = glyph.first_contour; contour; contour = contour->next) {
+                for (MSDF_Segment *segment = contour->first_segment; segment; segment = segment->next) {
+                    switch (segment->kind) {
+                        case MSDF_Segment_Null: {
+                        } break;
+                        case MSDF_Segment_Line: {
+                            draw_circle(segment->p0, point_size / scale, color_from_theme(ThemeColor_OnCurve), 0.0f, 1.0f);
+                            draw_circle(segment->p1, point_size / scale, color_from_theme(ThemeColor_OnCurve), 0.0f, 1.0f);
+                        } break;
+                        case MSDF_Segment_QuadraticBezier: {
+                            draw_circle(segment->p0, point_size / scale, color_from_theme(ThemeColor_OnCurve), 0.0f, 1.0f);
+                            draw_circle(segment->p1, point_size / scale, color_from_theme(ThemeColor_OffCurve), 0.0f, 1.0f);
+                            draw_circle(segment->p2, point_size / scale, color_from_theme(ThemeColor_OnCurve), 0.0f, 1.0f);
+                        } break;
+                        case MSDF_Segment_COUNT: {
+                        } break;
                     }
                 }
             }
