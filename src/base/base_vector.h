@@ -369,6 +369,7 @@ internal M3F32 m3f32(F32 m00, F32 m01, F32 m02, F32 m10, F32 m11, F32 m12, F32 m
 internal M3F32 m3f32_identity(Void);
 internal M3F32 m3f32_translation(V2F32 offset);
 internal M3F32 m3f32_scale(V2F32 scale);
+internal M3F32 m3f32_uniform_scale(F32 scale);
 internal M3F32 m3f32_multiply_m3f32(M3F32 a, M3F32 b);
 internal V2F32 m3f32_multiply_v2f32(M3F32 matrix, V2F32 vector);
 internal V3F32 m3f32_multiply_v3f32(M3F32 matrix, V3F32 vector);

@@ -778,6 +778,18 @@ internal M3F32 m3f32_scale(V2F32 scale) {
     return result;
 }
 
+internal M3F32 m3f32_uniform_scale(F32 scale) {
+    M3F32 result = {
+        .m = {
+            { scale,  0.0f, 0.0f, },
+            {  0.0f, scale, 0.0f, },
+            {  0.0f,  0.0f, 1.0f, },
+        },
+    };
+
+    return result;
+}
+
 internal M3F32 m3f32_multiply_m3f32(M3F32 a, M3F32 b) {
     M3F32 result = { 0 };
 
