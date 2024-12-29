@@ -1310,7 +1310,7 @@ internal Void update(Void) {
 
         Tab *next_active_tab = tab_from_handle(panel->active_tab);
 
-        UI_Size tab_height = ui_size_ems(1.5f, 1.0f);
+        UI_Size tab_height = ui_size_ems(2.0f, 1.0f);
         R2F32 tab_bar_rectangle = r2f32(panel_rectangle.min.x, panel_rectangle.min.y, panel_rectangle.max.x, panel_rectangle.min.y + tab_height.value);
         R2F32 content_rectangle = r2f32(panel_rectangle.min.x, panel_rectangle.min.y + tab_height.value, panel_rectangle.max.x, panel_rectangle.max.y);
 
@@ -1379,7 +1379,7 @@ internal Void update(Void) {
                 }
 
                 if (tab->next) {
-                    ui_spacer_sized(ui_size_pixels(5.0f, 1.0f));
+                    ui_spacer_sized(ui_size_ems(0.3f, 1.0f));
                 }
 
                 if (input.input_flags & UI_InputFlag_LeftDragging && !drag_is_active() && v2f32_length(ui_drag_delta()) > 10.0f) {
