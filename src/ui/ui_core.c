@@ -748,7 +748,7 @@ internal V2F32 ui_box_text_location(UI_Box *box) {
         }
     }
 
-    result.y = (box->calculated_rectangle.min.y + box->calculated_rectangle.max.y) * 0.5f + box->text.ascent * 0.5f + offset.y;
+    result.y = (box->calculated_rectangle.min.y + box->calculated_rectangle.max.y) * 0.5f + (box->text.ascent + box->text.descent) * 0.5f;
 
     switch (box->text_align) {
         case UI_TextAlign_Left: {

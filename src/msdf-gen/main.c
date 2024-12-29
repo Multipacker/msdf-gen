@@ -48,8 +48,7 @@
  *   overlap other panels.
  * * Releasing a panel drag near the edge of the window causes a one frame
  *   visual bug
- * * Text is sometimes laid out with incorrect spacing and is positioned wrong
- *   vertically 
+ * * Text is sometimes laid out with incorrect spacing
  */
 
 #define THEME_COLORS \
