@@ -68,8 +68,8 @@ internal MSDF_RasterResult raster_generate(Arena *arena, Font_Raster *font, U32 
         result.min               = v2f32((F32) x_min, (F32) y_min);
         result.max               = v2f32((F32) x_max, (F32) y_max);
         result.size              = v2u32((U32) width, (U32) height);
-        result.advance_width     = scale * (F32) advance_width;
-        result.left_side_bearing = scale * (F32) left_side_bearing;
+        result.advance_width     = f32_floor(scale * (F32) advance_width);
+        result.left_side_bearing = f32_floor(scale * (F32) left_side_bearing);
     }
 
     return result;

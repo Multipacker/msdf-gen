@@ -201,9 +201,9 @@ internal FontCache_Text font_cache_text(Arena *arena, FontCache_Font *font, Str8
 
     result.letters = arena_push_array_zero(arena, FontCache_Letter, text.size);
 
-    result.ascent  = font->ascent  * (F32) size / font->units_per_em;
-    result.descent = font->descent * (F32) size / font->units_per_em;
-    result.size.height = result.ascent - result.descent;
+    result.ascent  = f32_ceil(font->ascent  * (F32) size / font->units_per_em);
+    result.descent = f32_ceil(font->descent * (F32) size / font->units_per_em);
+    result.size.height = f32_ceil(result.ascent - result.descent);
 
     U8 *ptr = text.data;
     U8 *opl = text.data + text.size;
@@ -258,7 +258,7 @@ internal FontCache_Text font_cache_text(Arena *arena, FontCache_Font *font, Str8
                 (F32) (glyph->region.min.y + raster_result.size.y)
             );
             glyph->texture       = selected_atlas->texture;
-            glyph->offset        = v2f32((F32) raster_result.left_side_bearing, (F32) raster_result.min.y);
+            glyph->offset        = v2f32(raster_result.left_side_bearing, (F32) raster_result.min.y);
             glyph->size          = v2f32((F32) raster_result.size.width, (F32) raster_result.size.height);
             glyph->advance_width = raster_result.advance_width;
 
