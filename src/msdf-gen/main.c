@@ -425,30 +425,6 @@ internal Void draw_text_msdf(Font *font, V2F32 position, F32 point_size, Str8 te
     }
 }
 
-internal Void draw_text(FontCache_Font *font, V2F32 origin, Str8 string, U32 size) {
-    Arena_Temporary scratch = arena_get_scratch(0, 0);
-    FontCache_Text text = font_cache_text(scratch.arena, font, string, size);
-
-    F32 advance = 0.0f;
-    for (U64 i = 0; i < text.letter_count; ++i) {
-        FontCache_Letter *letter = &text.letters[i];
-        draw_glyph(
-            r2f32(
-                origin.x + letter->offset.x + advance,
-                origin.y + letter->offset.y,
-                origin.x + letter->offset.x + advance + letter->size.x,
-                origin.y + letter->offset.y + letter->size.y
-            ),
-            letter->source,
-            letter->texture,
-            v4f32(1.0f, 1.0f, 1.0f, 1.0f)
-        );
-        advance += letter->advance;
-    }
-
-    arena_end_temporary(scratch);
-}
-
 internal B32 drag_is_active(Void) {
     State *state = global_state;
     B32 result = (state->drag_state == DragState_Dragging || state->drag_state == DragState_Dropping);
@@ -1133,8 +1109,6 @@ internal Void update(Void) {
                     F32 min_child_pixels_pre_drag = min_child_percentage_pre_drag * panel_rectangle_size.values[panel->split_axis];
                     F32 max_child_pixels_pre_drag = max_child_percentage_pre_drag * panel_rectangle_size.values[panel->split_axis];
 
-                    // TODO(simon): This doesn't work if we have a big window, make
-                    // one of the panels 0 width, and then make the window smaller.
                     V2F32 both_drag_delta = ui_drag_delta();
                     F32 drag_delta = both_drag_delta.values[panel->split_axis];
                     F32 clamped_drag_delta = drag_delta;
@@ -1503,7 +1477,7 @@ internal Void update(Void) {
 
     // NOTE(simon): Cancel drag and drop if nothing caught it.
     if (state->drag_state == DragState_Dropping) {
-        state->drag_state = DragState_None;
+        drag_cancel();
     }
 
     if (state->frames_to_render > 0) {
