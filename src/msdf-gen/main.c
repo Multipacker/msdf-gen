@@ -471,95 +471,6 @@ internal UI_Palette palette_from_code(PaletteCode code) {
     return result;
 }
 
-internal Void draw_ui(UI_Box *root) {
-    prof_function_begin();
-
-    for (UI_Box *box = root; box != &global_ui_null_box;) {
-        if (box->flags & UI_BoxFlag_DrawBackground) {
-            {
-                Render_Shape *shape = draw_rectangle(box->calculated_rectangle, box->palette.background, 0.0f, 0.0f, 1.0f);
-                memory_copy(shape->radies, box->corner_radies, sizeof(shape->radies));
-            }
-
-            if (box->flags & UI_BoxFlag_DrawHot && box->hot_t > 0.0f) {
-                Render_Shape *rect = draw_rectangle(box->calculated_rectangle, v4f32(0.0f, 0.0f, 0.0f, 0.0f), 0.0f, 0.0f, 1.0f);
-                rect->colors[0] = color_from_theme(ThemeColor_Hover);
-                rect->colors[1] = color_from_theme(ThemeColor_Hover);
-                rect->colors[0].a *= box->hot_t;
-                rect->colors[1].a *= box->hot_t;
-                memory_copy(rect->radies, box->corner_radies, sizeof(rect->radies));
-            }
-
-            if (box->flags & UI_BoxFlag_DrawActive && box->active_t > 0.0f) {
-                Render_Shape *rect = draw_rectangle(box->calculated_rectangle, v4f32(0.0f, 0.0f, 0.0f, 0.0f), 0.0f, 0.0f, 1.0f);
-                rect->colors[2] = v4f32(0.0f, 0.0f, 0.0f, 0.5f * box->active_t);
-                rect->colors[3] = v4f32(0.0f, 0.0f, 0.0f, 0.5f * box->active_t);
-                memory_copy(rect->radies, box->corner_radies, sizeof(rect->radies));
-            }
-        }
-
-        if (box->flags & UI_BoxFlag_DrawText) {
-            V2F32 origin = ui_box_text_location(box);
-            F32 advance = 0.0f;
-            for (U64 i = 0; i < box->text.letter_count; ++i) {
-                FontCache_Letter *letter = &box->text.letters[i];
-                draw_glyph(
-                    r2f32(
-                        f32_floor(origin.x + letter->offset.x + advance),
-                        f32_floor(origin.y + letter->offset.y),
-                        f32_floor(origin.x + letter->offset.x + advance + letter->size.x),
-                        f32_floor(origin.y + letter->offset.y + letter->size.y)
-                    ),
-                    letter->source,
-                    letter->texture,
-                    box->palette.text
-                );
-                advance += letter->advance;
-            }
-        }
-
-        if (box->draw_function) {
-            box->draw_function(box, box->draw_data);
-        }
-
-        if (box->flags & UI_BoxFlag_Clip) {
-            R2F32 top_clip = draw_clip_top();
-            R2F32 new_clip = r2f32_intersect(top_clip, box->calculated_rectangle);
-            draw_clip_push(new_clip);
-        }
-
-        UI_BoxIterator iterator = ui_box_iterator_depth_first_post_order(box);
-
-        // NOTE(simon): We use `<=` because we need to pop our state when
-        // moving to our siblings. Traversing siblings sets both `push_count`
-        // and `pop_count` to 0.
-        U32 pop_index = 0;
-        for (UI_Box *parent = box; pop_index <= iterator.pop_count; parent = parent->parent, ++pop_index) {
-            if (parent == box && iterator.push_count) {
-                continue;
-            }
-
-            if (parent->flags & UI_BoxFlag_Clip) {
-                draw_clip_pop();
-            }
-
-            if (parent->flags & UI_BoxFlag_DrawBorder) {
-                Render_Shape *shape = draw_rectangle(parent->calculated_rectangle, parent->palette.border, 0.0f, 1.0f, 1.0f);
-                memory_copy(shape->radies, parent->corner_radies, sizeof(shape->radies));
-            }
-
-            if (parent->flags & UI_BoxFlag_Disabled) {
-                Render_Shape *shape = draw_rectangle(parent->calculated_rectangle, color_from_theme(ThemeColor_DisabledOverlay), 0.0f, 0.0f, 1.0f);
-                memory_copy(shape->radies, box->corner_radies, sizeof(shape->radies));
-            }
-        }
-
-        box = iterator.next;
-    }
-
-    prof_function_end();
-}
-
 #include "panels.c"
 #include "views.c"
 
@@ -1433,7 +1344,92 @@ internal Void update(Void) {
         prof_zone_end(prof_ui_build);
     }
     draw_clip(r2f32(0.0f, 0.0f, (F32) client_area.width, (F32) client_area.height)) {
-        draw_ui(state->ui->root);
+        prof_zone_begin(prof_draw_ui, "draw ui");
+
+        for (UI_Box *box = state->ui->root; box != &global_ui_null_box;) {
+            if (box->flags & UI_BoxFlag_DrawBackground) {
+                {
+                    Render_Shape *shape = draw_rectangle(box->calculated_rectangle, box->palette.background, 0.0f, 0.0f, 1.0f);
+                    memory_copy(shape->radies, box->corner_radies, sizeof(shape->radies));
+                }
+
+                if (box->flags & UI_BoxFlag_DrawHot && box->hot_t > 0.0f) {
+                    Render_Shape *rect = draw_rectangle(box->calculated_rectangle, v4f32(0.0f, 0.0f, 0.0f, 0.0f), 0.0f, 0.0f, 1.0f);
+                    rect->colors[0] = color_from_theme(ThemeColor_Hover);
+                    rect->colors[1] = color_from_theme(ThemeColor_Hover);
+                    rect->colors[0].a *= box->hot_t;
+                    rect->colors[1].a *= box->hot_t;
+                    memory_copy(rect->radies, box->corner_radies, sizeof(rect->radies));
+                }
+
+                if (box->flags & UI_BoxFlag_DrawActive && box->active_t > 0.0f) {
+                    Render_Shape *rect = draw_rectangle(box->calculated_rectangle, v4f32(0.0f, 0.0f, 0.0f, 0.0f), 0.0f, 0.0f, 1.0f);
+                    rect->colors[2] = v4f32(0.0f, 0.0f, 0.0f, 0.5f * box->active_t);
+                    rect->colors[3] = v4f32(0.0f, 0.0f, 0.0f, 0.5f * box->active_t);
+                    memory_copy(rect->radies, box->corner_radies, sizeof(rect->radies));
+                }
+            }
+
+            if (box->flags & UI_BoxFlag_DrawText) {
+                V2F32 origin = ui_box_text_location(box);
+                F32 advance = 0.0f;
+                for (U64 i = 0; i < box->text.letter_count; ++i) {
+                    FontCache_Letter *letter = &box->text.letters[i];
+                    draw_glyph(
+                        r2f32(
+                            f32_floor(origin.x + letter->offset.x + advance),
+                            f32_floor(origin.y + letter->offset.y),
+                            f32_floor(origin.x + letter->offset.x + advance + letter->size.x),
+                            f32_floor(origin.y + letter->offset.y + letter->size.y)
+                        ),
+                        letter->source,
+                        letter->texture,
+                        box->palette.text
+                    );
+                    advance += letter->advance;
+                }
+            }
+
+            if (box->draw_function) {
+                box->draw_function(box, box->draw_data);
+            }
+
+            if (box->flags & UI_BoxFlag_Clip) {
+                R2F32 top_clip = draw_clip_top();
+                R2F32 new_clip = r2f32_intersect(top_clip, box->calculated_rectangle);
+                draw_clip_push(new_clip);
+            }
+
+            UI_BoxIterator iterator = ui_box_iterator_depth_first_post_order(box);
+
+            // NOTE(simon): We use `<=` because we need to pop our state when
+            // moving to our siblings. Traversing siblings sets both `push_count`
+            // and `pop_count` to 0.
+            U32 pop_index = 0;
+            for (UI_Box *parent = box; pop_index <= iterator.pop_count; parent = parent->parent, ++pop_index) {
+                if (parent == box && iterator.push_count) {
+                    continue;
+                }
+
+                if (parent->flags & UI_BoxFlag_Clip) {
+                    draw_clip_pop();
+                }
+
+                if (parent->flags & UI_BoxFlag_DrawBorder) {
+                    Render_Shape *shape = draw_rectangle(parent->calculated_rectangle, parent->palette.border, 0.0f, 1.0f, 1.0f);
+                    memory_copy(shape->radies, parent->corner_radies, sizeof(shape->radies));
+                }
+
+                if (parent->flags & UI_BoxFlag_Disabled) {
+                    Render_Shape *shape = draw_rectangle(parent->calculated_rectangle, color_from_theme(ThemeColor_DisabledOverlay), 0.0f, 0.0f, 1.0f);
+                    memory_copy(shape->radies, box->corner_radies, sizeof(shape->radies));
+                }
+            }
+
+            box = iterator.next;
+        }
+
+        prof_zone_end(prof_draw_ui);
     }
     draw_submit();
     render_end();
