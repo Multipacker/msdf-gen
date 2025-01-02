@@ -201,7 +201,7 @@ PANEL_BUILD_FUNCTION(view_glyph_list) {
     U32 first_codepoint = 0x000000;
     U32 last_codepoint  = 0x10FFFF;
 
-    F32 preferred_width = 50.0f;
+    F32 preferred_width = 3.0f * (F32) ui_font_size_top();
     U32 codepoints_per_row = (U32) f32_floor(container_width / preferred_width);
     if (!codepoints_per_row) {
         codepoints_per_row = 10;
@@ -329,6 +329,11 @@ PANEL_BUILD_FUNCTION(view_glyph_list) {
 
     // NOTE(simon): Animation
     state->scroll_offset += -state->scroll_offset * ui_animation_slow_rate();
+    if (f32_abs(state->scroll_offset) < 0.001f) {
+        state->scroll_offset = 0.0f;
+    } else {
+        request_frame();
+    }
 }
 
 PANEL_BUILD_FUNCTION(view_glyph) {

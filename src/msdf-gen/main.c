@@ -480,7 +480,7 @@ internal Void update(Void) {
     Arena_Temporary scratch = arena_get_scratch(0, 0);
     Gfx_EventList events = gfx_get_events(scratch.arena, state->frames_to_render == 0);
 
-    // NOTE(simon): Conseme events.
+    // NOTE(simon): Consume events.
     for (Gfx_Event *event = events.first, *next; event; event = next) {
         next = event->next;
         B32 consume = false;
@@ -516,6 +516,12 @@ internal Void update(Void) {
         if (consume) {
             dll_remove(events.first, events.last, event);
         }
+    }
+
+    // NOTE(simon): If there are events left, they will go to the UI and
+    // potentially trigger UI changes, so render more frames.
+    if (events.first) {
+        request_frame();
     }
 
     // NOTE(simon): Execute commands
