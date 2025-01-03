@@ -31,24 +31,24 @@ internal UI_BOX_DRAW_FUNCTION(draw_ui_msdf) {
     Glyph *glyph = font_get_glyph(ui_draw_msdf->font, decode.codepoint);
 
     V2F32 box_size = v2f32_subtract(box->calculated_rectangle.max, box->calculated_rectangle.min);
-    V2F32 glyph_size = v2f32_subtract(glyph->max_pt, glyph->min_pt);
+    V2F32 glyph_size = r2f32_size(glyph->rectangle_pt);
     F32 scale_to_fit = f32_min(box_size.x / glyph_size.x, box_size.y / glyph_size.y);
 
-    M3F32 center_glyph = m3f32_translation(v2f32_subtract(v2f32_negate(glyph->min_pt), v2f32_scale(glyph_size, 0.5f)));
+    M3F32 center_glyph = m3f32_translation(v2f32_negate(r2f32_center(glyph->rectangle_pt)));
     M3F32 scale        = m3f32_scale(v2f32(scale_to_fit, scale_to_fit));
-    M3F32 center_box   = m3f32_translation(v2f32_add(box->calculated_rectangle.min, v2f32_scale(box_size, 0.5f)));
+    M3F32 center_box   = m3f32_translation(r2f32_center(box->calculated_rectangle));
 
     M3F32 transform = m3f32_multiply_m3f32(center_box, m3f32_multiply_m3f32(scale, center_glyph));
 
     // NOTE(simon): We do the transform on the CPU in order to avoid generating
     // one batch per draw operation. The box isn't rotated so this is fine.
-    V2F32 min_pt = m3f32_multiply_v2f32(transform, glyph->min_pt);
-    V2F32 max_pt = m3f32_multiply_v2f32(transform, glyph->max_pt);
+    V2F32 min_pt = m3f32_multiply_v2f32(transform, glyph->rectangle_pt.min);
+    V2F32 max_pt = m3f32_multiply_v2f32(transform, glyph->rectangle_pt.max);
 
     draw_texture(
         r2f32(min_pt.x, min_pt.y, max_pt.x, max_pt.y),
         glyph->uv,
-        ui_draw_msdf->font->atlas,
+        glyph->texture,
         box->palette.text,
         0.0f, 0.0f, 0.0f,
         ui_draw_msdf->render_raw ? Render_ShapeFlag_Texture : Render_ShapeFlag_MSDF
@@ -121,7 +121,7 @@ internal UI_BOX_DRAW_FUNCTION(draw_ui_glyph_outline) {
                     msdf_glyph->uv.max.x,
                     msdf_glyph->uv.min.y
                 ),
-                parameters->msdf_font->atlas,
+                msdf_glyph->texture,
                 tint,
                 0.0f, 0.0f, 0.0f,
                 flags
