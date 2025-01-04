@@ -7,6 +7,7 @@ struct Gfx_Win32State {
     HDC  hdc;
     U32 buttons_pressed;
     VoidFunction *update;
+    DWORD graphics_thread;
 };
 
 global Gfx_Win32State global_gfx_win32_state;
@@ -124,6 +125,8 @@ internal Void gfx_create(Str8 title, U32 width, U32 height) {
     Gfx_Win32State *state = &global_gfx_win32_state;
     Arena_Temporary scratch = arena_get_scratch(0, 0);
 
+    state->graphics_thread = GetCurrentThreadId();
+
     HINSTANCE instance = GetModuleHandle(0);
     CStr16 class_name = cstr16_from_str8(scratch.arena, str8_literal("ApplicationWindowClasssName"));
     WNDCLASS window_class = { 0 };
@@ -157,6 +160,8 @@ internal Void gfx_create(Str8 title, U32 width, U32 height) {
 }
 
 internal Void gfx_send_wakeup_event(Void) {
+    Gfx_Win32State *state = &global_gfx_win32_state;
+    PostThreadMessage(state->graphics_thread, WM_USER, 0, 0);
 }
 
 internal Gfx_EventList gfx_get_events(Arena *arena, B32 wait) {
@@ -164,9 +169,12 @@ internal Gfx_EventList gfx_get_events(Arena *arena, B32 wait) {
     win32_event_list.first = 0;
     win32_event_list.last  = 0;
 
-    for (MSG message; PeekMessage(&message, 0, 0, 0, PM_REMOVE);) {
-        TranslateMessage(&message);
-        DispatchMessage(&message);
+    MSG message = { 0 };
+    if (!wait || GetMessage(&message, 0, 0, 0)) {
+        for (B32 first_wait = wait; first_wait || PeekMessage(&message, 0, 0, 0, PM_REMOVE); first_wait = false) {
+            TranslateMessage(&message);
+            DispatchMessage(&message);
+        }
     }
 
     return win32_event_list;
