@@ -2,6 +2,36 @@ global Arena    *win32_permanent_arena;
 global Str8List win32_argument_list;
 global HANDLE   win32_standard_output = INVALID_HANDLE_VALUE;
 
+global Arena *win32_resource_arena;
+global Win32_Resource *volatile win32_resource_freelist;
+global CRITICAL_SECTION win32_resource_mutex;
+
+
+
+internal Win32_Resource *win32_resource_create(Void) {
+    Win32_Resource *result = 0;
+    EnterCriticalSection(&win32_resource_mutex);
+
+    result = win32_resource_freelist;
+    if (result) {
+        sll_stack_pop(win32_resource_freelist);
+    } else {
+        result = arena_push_struct_zero(win32_resource_arena, Win32_Resource);
+    }
+    memory_zero_struct(result);
+
+    LeaveCriticalSection(&win32_resource_mutex);
+    return result;
+}
+
+internal Void win32_resource_destroy(Win32_Resource *resource) {
+    EnterCriticalSection(&win32_resource_mutex);
+    sll_stack_push(win32_resource_freelist, resource);
+    LeaveCriticalSection(&win32_resource_mutex);
+}
+
+
+
 internal Void *os_memory_reserve(U64 size) {
     Void *result = VirtualAlloc(0, size, MEM_RESERVE, PAGE_READWRITE);
     return(result);
@@ -210,6 +240,117 @@ internal Void os_exit(S32 exit_code) {
     ExitProcess(exit_code);
 }
 
+
+
+// TODO(simon): There might be a race condition if you run the following code:
+//     OS_Thread thread = os_thread_start(entry_point, data);
+//     os_thread_detach(thread);
+//     os_thread_start(other_entry_point, other_data);
+// If the first thread isn't started before the second call os_thread_start,
+// the values in the Linux_Resource will be replaced with new ones, causing
+// both threads to use the same entry point with the same data pointer. One
+// solution is to store the entry point and data in a separate allocation from
+// the thread handle that gets released once the new thread is started. This
+// would work as these cannot be accessed through the handle.
+internal DWORD os_win32_thread_entry(Void *data) {
+    Win32_Resource *thread = (Win32_Resource *) data;
+    arena_init_scratch();
+    thread->thread.entry_point(thread->thread.data);
+    arena_destroy_scratch();
+    return 0;
+}
+
+internal OS_Thread os_thread_start(OS_ThreadFunction entry_point, Void *data) {
+    Win32_Resource *resource = win32_resource_create();
+    resource->thread.entry_point = entry_point;
+    resource->thread.data = data;
+    resource->thread.handle = CreateThread(0, 0, os_win32_thread_entry, resource, 0, &resource->thread.tid);
+    OS_Thread result = { 0 };
+    result.u64[0] = integer_from_pointer(resource);
+    return result;
+}
+
+internal B32 os_thread_join(OS_Thread handle) {
+    Win32_Resource *thread = (Win32_Resource *) pointer_from_integer(handle.u64[0]);
+    DWORD wait_result = WaitForSingleObject(thread->thread.handle, INFINITE);
+    CloseHandle(thread->thread.handle);
+    win32_resource_destroy(thread);
+    B32 result = wait_result == WAIT_OBJECT_0;
+    return result;
+}
+
+internal Void os_thread_detach(OS_Thread handle) {
+    Win32_Resource *thread = (Win32_Resource *) pointer_from_integer(handle.u64[0]);
+    CloseHandle(thread->thread.handle);
+    win32_resource_destroy(thread);
+}
+
+
+
+internal OS_Mutex os_mutex_create(Void) {
+    Win32_Resource *resource = win32_resource_create();
+    InitializeCriticalSection(&resource->mutex);
+    OS_Mutex result = { 0 };
+    result.u64[0] = integer_from_pointer(resource);
+    return result;
+}
+
+internal Void os_mutex_destroy(OS_Mutex handle) {
+    Win32_Resource *mutex = (Win32_Resource *) pointer_from_integer(handle.u64[0]);
+    DeleteCriticalSection(&mutex->mutex);
+    win32_resource_destroy(mutex);
+}
+
+internal Void os_mutex_lock(OS_Mutex handle) {
+    Win32_Resource *mutex = (Win32_Resource *) pointer_from_integer(handle.u64[0]);
+    EnterCriticalSection(&mutex->mutex);
+}
+
+internal Void os_mutex_unlock(OS_Mutex handle) {
+    Win32_Resource *mutex = (Win32_Resource *) pointer_from_integer(handle.u64[0]);
+    LeaveCriticalSection(&mutex->mutex);
+}
+
+
+
+internal OS_ConditionVariable os_condition_variable_create(Void) {
+    Win32_Resource *resource = win32_resource_create();
+    InitializeConditionVariable(&resource->condition_variable);
+    OS_ConditionVariable result = { 0 };
+    result.u64[0] = integer_from_pointer(resource);
+    return result;
+}
+
+internal Void os_condition_variable_destroy(OS_ConditionVariable handle) {
+    Win32_Resource *condition_variable = (Win32_Resource *) pointer_from_integer(handle.u64[0]);
+    win32_resource_destroy(condition_variable);
+}
+
+internal Void os_condition_variable_signal(OS_ConditionVariable handle) {
+    Win32_Resource *condition_variable = (Win32_Resource *) pointer_from_integer(handle.u64[0]);
+    WakeConditionVariable(&condition_variable->condition_variable);
+}
+
+internal Void os_condition_variable_broadcast(OS_ConditionVariable handle) {
+    Win32_Resource *condition_variable = (Win32_Resource *) pointer_from_integer(handle.u64[0]);
+    WakeAllConditionVariable(&condition_variable->condition_variable);
+}
+
+internal Void os_condition_variable_wait(OS_ConditionVariable condition_variable_handle, OS_Mutex mutex_handle, U64 end_ns) {
+    Win32_Resource *condition_variable = (Win32_Resource *) pointer_from_integer(condition_variable_handle.u64[0]);
+    Win32_Resource *mutex = (Win32_Resource *) pointer_from_integer(mutex_handle.u64[0]);
+    if (end_ns == U64_MAX) {
+        SleepConditionVariableCS(&condition_variable->condition_variable, &mutex->mutex, INFINITE);
+    } else {
+        // TODO(simon): Implement this! Make sure that the we use the same base
+        // time as the function we are calling. We probably need to decide on a
+        // consistent time base for the entire codebase.
+        assert(false);
+        //SleepConditionVariableCS(&condition_variable->condition_variable, &mutex->mutex, ...);
+    }
+}
+
+
 int wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int nShowCmd) {
     arena_init_scratch();
 
@@ -219,6 +360,9 @@ int wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int
         Str8 argument = str8_from_str16(win32_permanent_arena, str16_cstr16(__wargv[i]));
         str8_list_push(win32_permanent_arena, &win32_argument_list, argument);
     }
+
+    win32_resource_arena = arena_create();
+    InitializeCriticalSection(&win32_resource_mutex);
 
     S32 exit_code = os_run(win32_argument_list);
 

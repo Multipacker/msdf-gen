@@ -20,6 +20,8 @@ global Arena *linux_resource_arena;
 global Linux_Resource *volatile linux_resource_freelist;
 global pthread_mutex_t linux_resource_mutex;
 
+
+
 internal Linux_Resource *linux_resource_create(Void) {
     Linux_Resource *result = 0;
     pthread_mutex_lock(&linux_resource_mutex);
@@ -41,6 +43,8 @@ internal Void linux_resource_destroy(Linux_Resource *resource) {
     sll_stack_push(linux_resource_freelist, resource);
     pthread_mutex_unlock(&linux_resource_mutex);
 }
+
+
 
 internal DateTime linux_date_time_from_tm_and_milliseconds(struct tm *time, U16 milliseconds) {
     DateTime result = { 0 };
