@@ -1,6 +1,8 @@
 #ifndef LINUX_ESSENTIAL_H
 #define LINUX_ESSENTIAL_H
 
+#include <pthread.h>
+
 typedef struct {
     S32 file_descriptor;
     U32 bytes_read;
@@ -24,5 +26,19 @@ internal struct tm linux_tm_from_date_time(DateTime *date_time);
 
 struct stat;
 internal Void linux_file_properties_from_stat(FileProperties *properties, struct stat *metadata);
+
+typedef struct Linux_Resource Linux_Resource;
+struct Linux_Resource {
+    Linux_Resource *next;
+    union {
+        struct {
+            OS_ThreadFunction *entry_point;
+            Void *data;
+            pthread_t thread;
+        } thread;
+        pthread_mutex_t mutex;
+        pthread_cond_t condition_variable;
+    };
+};
 
 #endif // LINUX_ESSENTIAL_H

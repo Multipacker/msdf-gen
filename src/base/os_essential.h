@@ -54,4 +54,39 @@ internal Void os_exit(S32 exit_code);
 // NOTE: Called by the os layer on startup.
 internal S32 os_run(Str8List arguments);
 
+// NOTE(simon): Thread functions
+typedef Void OS_ThreadFunction(Void *data);
+
+typedef struct OS_Thread OS_Thread;
+struct OS_Thread {
+    U64 u64[1];
+};
+
+internal OS_Thread os_thread_start(OS_ThreadFunction entry_point, Void *data);
+internal B32 os_thread_join(OS_Thread thread);
+internal Void os_thread_detach(OS_Thread handle);
+
+typedef struct OS_Mutex OS_Mutex;
+struct OS_Mutex {
+    U64 u64[1];
+};
+
+internal OS_Mutex os_mutex_create(Void);
+internal Void     os_mutex_destroy(OS_Mutex mutex);
+internal Void     os_mutex_lock(OS_Mutex mutex);
+internal Void     os_mutex_unlock(OS_Mutex mutex);
+#define os_mutex_scope(mutex) defer_loop(os_mutex_lock(mutex), os_mutex_unlock(mutex))
+
+typedef struct OS_ConditionVariable OS_ConditionVariable;
+struct OS_ConditionVariable {
+    U64 u64[1];
+};
+
+internal OS_ConditionVariable os_condition_variable_create(Void);
+internal Void                 os_condition_variable_destroy(OS_ConditionVariable condition_variable);
+internal Void                 os_condition_variable_signal(OS_ConditionVariable condition_variable);
+internal Void                 os_condition_variable_broadcast(OS_ConditionVariable condition_variable);
+// NOTE(simon): A end_ns of U64_MAX means wait forever.
+internal Void                 os_condition_variable_wait(OS_ConditionVariable condition_variable, OS_Mutex mutex, U64 end_ns);
+
 #endif // OS_ESSENTIAL_H

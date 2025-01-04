@@ -16,6 +16,32 @@
 global Arena *linux_permanent_arena;
 global Str8List linux_argument_list;
 
+global Arena *linux_resource_arena;
+global Linux_Resource *volatile linux_resource_freelist;
+global pthread_mutex_t linux_resource_mutex;
+
+internal Linux_Resource *linux_resource_create(Void) {
+    Linux_Resource *result = 0;
+    pthread_mutex_lock(&linux_resource_mutex);
+
+    result = linux_resource_freelist;
+    if (result) {
+        sll_stack_pop(linux_resource_freelist);
+    } else {
+        result = arena_push_struct_zero(linux_resource_arena, Linux_Resource);
+    }
+    memory_zero_struct(result);
+
+    pthread_mutex_unlock(&linux_resource_mutex);
+    return result;
+}
+
+internal Void linux_resource_destroy(Linux_Resource *resource) {
+    pthread_mutex_lock(&linux_resource_mutex);
+    sll_stack_push(linux_resource_freelist, resource);
+    pthread_mutex_unlock(&linux_resource_mutex);
+}
+
 internal DateTime linux_date_time_from_tm_and_milliseconds(struct tm *time, U16 milliseconds) {
     DateTime result = { 0 };
     result.millisecond = milliseconds;
@@ -519,12 +545,13 @@ internal Void os_console_print(Str8 string) {
 }
 
 internal Void os_restart_self(Void) {
+    Arena_Temporary scratch = arena_get_scratch(0, 0);
     U64   argument_count  = linux_argument_list.node_count + 1;
-    CStr *arguments_array = arena_push_array(linux_permanent_arena, CStr, argument_count);
+    CStr *arguments_array = arena_push_array(scratch.arena, CStr, argument_count);
 
     U32 argument_index = 0;
     for (Str8Node *node = linux_argument_list.first; node; node = node->next, ++argument_index) {
-            arguments_array[argument_index] = cstr_from_str8(linux_permanent_arena, node->string);
+        arguments_array[argument_index] = cstr_from_str8(scratch.arena, node->string);
     }
     arguments_array[argument_count - 1] = 0;
 
@@ -532,11 +559,142 @@ internal Void os_restart_self(Void) {
         // TODO: Error, could not exec.
         syscall(SYS_exit_group, -1);
     }
+
+    arena_end_temporary(scratch);
 }
 
 internal Void os_exit(S32 exit_code) {
     syscall(SYS_exit_group, exit_code);
 }
+
+
+
+// TODO(simon): There might be a race condition if you run the following code:
+//     OS_Thread thread = os_thread_start(entry_point, data);
+//     os_thread_detach(thread);
+//     os_thread_start(other_entry_point, other_data);
+// If the first thread isn't started before the second call os_thread_start,
+// the values in the Linux_Resource will be replaced with new ones, causing
+// both threads to use the same entry point with the same data pointer. One
+// solution is to store the entry point and data in a separate allocation from
+// the thread handle that gets released once the new thread is started. This
+// would work as these cannot be accessed through the handle.
+internal Void *os_linux_thread_entry(Void *data) {
+    Linux_Resource *thread = (Linux_Resource *) data;
+    arena_init_scratch();
+    thread->thread.entry_point(thread->thread.data);
+    arena_destroy_scratch();
+    return 0;
+}
+
+internal OS_Thread os_thread_start(OS_ThreadFunction entry_point, Void *data) {
+    Linux_Resource *resource = linux_resource_create();
+
+    resource->thread.entry_point = entry_point;
+    resource->thread.data = data;
+
+    int create_result = pthread_create(&resource->thread.thread, 0, os_linux_thread_entry, resource);
+
+    if (create_result == 0) {
+        linux_resource_destroy(resource);
+        resource = 0;
+    }
+
+    OS_Thread result = { 0 };
+    result.u64[0] = integer_from_pointer(resource);
+    return result;
+}
+
+internal Void os_thread_detach(OS_Thread handle) {
+    Linux_Resource *thread = (Linux_Resource *) pointer_from_integer(handle.u64[0]);
+    linux_resource_destroy(thread);
+}
+
+internal B32 os_thread_join(OS_Thread handle) {
+    Linux_Resource *resource = (Linux_Resource *) pointer_from_integer(handle.u64[0]);
+    int join_result = pthread_join(resource->thread.thread, 0);
+    B32 result = join_result == 0;
+    if (result) {
+        linux_resource_destroy(resource);
+    }
+    return result;
+}
+
+
+
+internal OS_Mutex os_mutex_create(Void) {
+    Linux_Resource *resource = linux_resource_create();
+
+    pthread_mutex_init(&resource->mutex, 0);
+
+    OS_Mutex result = { 0 };
+    result.u64[0] = integer_from_pointer(resource);
+    return result;
+}
+
+internal Void os_mutex_destroy(OS_Mutex handle) {
+    Linux_Resource *resource = (Linux_Resource *) pointer_from_integer(handle.u64[0]);
+    pthread_mutex_destroy(&resource->mutex);
+    linux_resource_destroy(resource);
+}
+
+internal Void os_mutex_lock(OS_Mutex handle) {
+    Linux_Resource *resource = (Linux_Resource *) pointer_from_integer(handle.u64[0]);
+    pthread_mutex_lock(&resource->mutex);
+}
+
+internal Void os_mutex_unlock(OS_Mutex handle) {
+    Linux_Resource *resource = (Linux_Resource *) pointer_from_integer(handle.u64[0]);
+    pthread_mutex_unlock(&resource->mutex);
+}
+
+
+
+internal OS_ConditionVariable os_condition_variable_create(Void) {
+    Linux_Resource *resource = linux_resource_create();
+
+    pthread_cond_init(&resource->condition_variable, 0);
+
+    OS_ConditionVariable result = { 0 };
+    result.u64[0] = integer_from_pointer(resource);
+    return result;
+}
+
+internal Void os_condition_variable_destroy(OS_ConditionVariable handle) {
+    Linux_Resource *resource = (Linux_Resource *) pointer_from_integer(handle.u64[0]);
+    pthread_cond_destroy(&resource->condition_variable);
+    linux_resource_destroy(resource);
+}
+
+internal Void os_condition_variable_signal(OS_ConditionVariable handle) {
+    Linux_Resource *resource = (Linux_Resource *) pointer_from_integer(handle.u64[0]);
+    pthread_cond_signal(&resource->condition_variable);
+}
+
+internal Void os_condition_variable_broadcast(OS_ConditionVariable handle) {
+    Linux_Resource *resource = (Linux_Resource *) pointer_from_integer(handle.u64[0]);
+    pthread_cond_broadcast(&resource->condition_variable);
+}
+
+internal Void os_condition_variable_wait(OS_ConditionVariable condition_variable_handle, OS_Mutex mutex_handle, U64 end_ns) {
+    Linux_Resource *condition_variable = (Linux_Resource *) pointer_from_integer(condition_variable_handle.u64[0]);
+    Linux_Resource *mutex = (Linux_Resource *) pointer_from_integer(mutex_handle.u64[0]);
+    if (end_ns == U64_MAX) {
+        pthread_cond_wait(&condition_variable->condition_variable, &mutex->mutex);
+    } else {
+        // TODO(simon): Implement this! Make sure that the we use the same base
+        // time as the function we are calling. We probably need to decide on a
+        // consistent time base for the entire codebase.
+        assert(false);
+        //struct timespec absolute_time = { 0 };
+        //absolute_time.tv_sec = ...;
+        //absolute_time.tv_nsec = ...;
+        //pthread_cond_timedwait(&condition_variable->handle, &mutex->handle, &absolute_time);
+    }
+}
+
+
+
 
 int main(int argument_count, char *arguments[]) {
     arena_init_scratch();
@@ -547,6 +705,9 @@ int main(int argument_count, char *arguments[]) {
         Str8 argument = str8_cstr(arguments[i]);
         str8_list_push(linux_permanent_arena, &linux_argument_list, argument);
     }
+
+    linux_resource_arena = arena_create();
+    pthread_mutex_init(&linux_resource_mutex, 0);
 
     S32 return_value = os_run(linux_argument_list);
 

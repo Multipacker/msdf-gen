@@ -34,7 +34,7 @@ if [ -v error_limit ]; then
     errors+="-ferror-limit=5 "
 fi
 
-libraries="-lm -lSDL2"
+libraries="-lm -lSDL2 -lpthread"
 common_compiler_flags="-I. ${errors}"
 common_linker_flags="${libraries}"
 
