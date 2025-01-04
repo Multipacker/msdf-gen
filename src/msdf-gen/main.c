@@ -407,10 +407,10 @@ internal Glyph *font_get_glyph(Font *font, U32 codepoint) {
         while (~selected_atlas->occupancy[glyph_index / 64] == 0) {
             glyph_index += 64;
         }
-        while ((selected_atlas->occupancy[glyph_index / 64] & (1 << glyph_index % 64)) != 0) {
+        while ((selected_atlas->occupancy[glyph_index / 64] & (U64) (1 << glyph_index % 64)) != 0) {
             ++glyph_index;
         }
-        selected_atlas->occupancy[glyph_index / 64] |= 1 << glyph_index % 64;
+        selected_atlas->occupancy[glyph_index / 64] |= (U64) (1 << glyph_index % 64);
 
         V2U32 atlas_position = v2u32(
             font->glyph_size * (glyph_index % ATLAS_GLYPHS_PER_SIDE),
