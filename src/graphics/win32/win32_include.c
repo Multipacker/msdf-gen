@@ -24,20 +24,12 @@ internal LRESULT CALLBACK win32_window_proc(HWND hwnd, UINT message, WPARAM wpar
             case WM_CLOSE: case WM_QUIT: case WM_DESTROY: {
                 event->kind = Gfx_EventKind_Quit;
             } break;
-            case WM_SIZE: {
-                event->kind = Gfx_EventKind_Resize;
-                if (global_gfx_win32_state.update) {
-                    PAINTSTRUCT ps = { 0 };
-                    BeginPaint(hwnd, &ps);
-                    global_gfx_win32_state.update();
-                    EndPaint(hwnd, &ps);
-                }
-            } break;
+            case WM_SIZE:
             case WM_PAINT: {
-                if (global_gfx_win32_state.update) {
+                if (state->update) {
                     PAINTSTRUCT ps = { 0 };
                     BeginPaint(hwnd, &ps);
-                    global_gfx_win32_state.update();
+                    state->update();
                     EndPaint(hwnd, &ps);
                 }
             } break;

@@ -523,7 +523,14 @@ internal Void update(Void) {
     State *state = global_state;
 
     Arena_Temporary scratch = arena_get_scratch(0, 0);
-    Gfx_EventList events = gfx_get_events(scratch.arena, state->frames_to_render == 0);
+    Gfx_EventList events = { 0 };
+
+    local U32 depth = 0;
+    if (depth == 0) {
+        ++depth;
+        events = gfx_get_events(scratch.arena, state->frames_to_render == 0);
+        --depth;
+    }
 
     // NOTE(simon): Consume events.
     for (Gfx_Event *event = events.first, *next; event; event = next) {
@@ -570,216 +577,218 @@ internal Void update(Void) {
     }
 
     // NOTE(simon): Execute commands
-    for (CommandNode *node = state->commands.first; node; node = node->next) {
-        request_frame();
-        switch (node->command.kind) {
-            case Command_FocusPanel: {
-                state->active_panel = node->command.panel;
-            } break;
-            case Command_ClosePanel: {
-                Panel *panel = panel_from_handle(node->command.panel);
+    if (depth == 0) {
+        for (CommandNode *node = state->commands.first; node; node = node->next) {
+            request_frame();
+            switch (node->command.kind) {
+                case Command_FocusPanel: {
+                    state->active_panel = node->command.panel;
+                } break;
+                case Command_ClosePanel: {
+                    Panel *panel = panel_from_handle(node->command.panel);
 
-                if (panel && panel->parent) {
-                    Panel *parent = panel->parent;
-                    if (parent->child_count == 2) {
-                        // NOTE(simon): Merge the panel that we keep with our grandparent.
-                        Panel *discard_child = panel;
-                        Panel *keep_child    = parent->first == discard_child ? parent->last : parent->first;
-                        Panel *grandparent   = parent->parent;
-                        Panel *previous      = parent->previous;
-                        F32 parent_percentage = parent->percentage_of_parent;
+                    if (panel && panel->parent) {
+                        Panel *parent = panel->parent;
+                        if (parent->child_count == 2) {
+                            // NOTE(simon): Merge the panel that we keep with our grandparent.
+                            Panel *discard_child = panel;
+                            Panel *keep_child    = parent->first == discard_child ? parent->last : parent->first;
+                            Panel *grandparent   = parent->parent;
+                            Panel *previous      = parent->previous;
+                            F32 parent_percentage = parent->percentage_of_parent;
 
-                        panel_remove(parent, keep_child);
+                            panel_remove(parent, keep_child);
 
-                        // NOTE(simon): Insert the panel we are keeping into the tree.
-                        keep_child->percentage_of_parent = parent->percentage_of_parent;
-                        if (grandparent) {
-                            panel_remove(grandparent, parent);
-                            panel_insert(grandparent, previous, keep_child);
+                            // NOTE(simon): Insert the panel we are keeping into the tree.
+                            keep_child->percentage_of_parent = parent->percentage_of_parent;
+                            if (grandparent) {
+                                panel_remove(grandparent, parent);
+                                panel_insert(grandparent, previous, keep_child);
+                            } else {
+                                state->panel_root = keep_child;
+                            }
+
+                            // NOTE(simon): Update active panel, recursing into children if needed.
+                            if (panel_from_handle(state->active_panel) == discard_child) {
+                                Panel *next_panel = keep_child;
+                                while (next_panel->first) {
+                                    next_panel = next_panel->first;
+                                }
+                                state->active_panel = handle_from_panel(next_panel);
+                            }
+
+                            panel_free(state, discard_child);
+                            panel_free(state, parent);
+
+                            // NOTE(simon): If the split axis of keep child and grandparent are the same, merge their children.
+                            if (grandparent && keep_child->first && grandparent->split_axis == keep_child->split_axis) {
+                                Panel *child_previous = keep_child->previous;
+                                panel_remove(grandparent, keep_child);
+
+                                for (Panel *child = keep_child->first, *next; child; child = next) {
+                                    next = child->next;
+
+                                    panel_remove(keep_child, child);
+                                    panel_insert(grandparent, child_previous, child);
+                                    child_previous = child;
+                                    child->percentage_of_parent *= keep_child->percentage_of_parent;
+                                }
+
+                                panel_free(state, keep_child);
+                            }
                         } else {
-                            state->panel_root = keep_child;
-                        }
-
-                        // NOTE(simon): Update active panel, recursing into children if needed.
-                        if (panel_from_handle(state->active_panel) == discard_child) {
-                            Panel *next_panel = keep_child;
-                            while (next_panel->first) {
-                                next_panel = next_panel->first;
+                            // NOTE(simon): Remove panel and adjust children to fill the empty space.
+                            Panel *next = 0;
+                            if (panel->next) {
+                                next = panel->next;
+                            } else if (panel->previous) {
+                                next = panel->previous;
                             }
-                            state->active_panel = handle_from_panel(next_panel);
-                        }
+                            panel_remove(parent, panel);
 
-                        panel_free(state, discard_child);
-                        panel_free(state, parent);
-
-                        // NOTE(simon): If the split axis of keep child and grandparent are the same, merge their children.
-                        if (grandparent && keep_child->first && grandparent->split_axis == keep_child->split_axis) {
-                            Panel *child_previous = keep_child->previous;
-                            panel_remove(grandparent, keep_child);
-
-                            for (Panel *child = keep_child->first, *next; child; child = next) {
-                                next = child->next;
-
-                                panel_remove(keep_child, child);
-                                panel_insert(grandparent, child_previous, child);
-                                child_previous = child;
-                                child->percentage_of_parent *= keep_child->percentage_of_parent;
+                            for (Panel *child = parent->first; child; child = child->next) {
+                                child->percentage_of_parent /= 1.0f - panel->percentage_of_parent;
                             }
 
-                            panel_free(state, keep_child);
-                        }
-                    } else {
-                        // NOTE(simon): Remove panel and adjust children to fill the empty space.
-                        Panel *next = 0;
-                        if (panel->next) {
-                            next = panel->next;
-                        } else if (panel->previous) {
-                            next = panel->previous;
-                        }
-                        panel_remove(parent, panel);
-
-                        for (Panel *child = parent->first; child; child = child->next) {
-                            child->percentage_of_parent /= 1.0f - panel->percentage_of_parent;
-                        }
-
-                        // NOTE(simon): Update active panel, recursing into children if needed.
-                        if (panel_from_handle(state->active_panel) == panel) {
-                            Panel *next_panel = next;
-                            while (next_panel->first) {
-                                next_panel = next_panel->first;
+                            // NOTE(simon): Update active panel, recursing into children if needed.
+                            if (panel_from_handle(state->active_panel) == panel) {
+                                Panel *next_panel = next;
+                                while (next_panel->first) {
+                                    next_panel = next_panel->first;
+                                }
+                                state->active_panel = handle_from_panel(next_panel);
                             }
-                            state->active_panel = handle_from_panel(next_panel);
-                        }
 
-                        panel_free(state, panel);
+                            panel_free(state, panel);
+                        }
                     }
-                }
-            } break;
-            case Command_SplitPanel: {
-                Side side = side_from_direction2(node->command.direction);
-                Axis2 axis = axis2_from_direction2(node->command.direction);
+                } break;
+                case Command_SplitPanel: {
+                    Side side = side_from_direction2(node->command.direction);
+                    Axis2 axis = axis2_from_direction2(node->command.direction);
 
-                Panel *split_panel = panel_from_handle(node->command.destination_panel);
-                if (split_panel && node->command.direction != Direction2_Invalid) {
-                    Panel *parent = split_panel->parent;
+                    Panel *split_panel = panel_from_handle(node->command.destination_panel);
+                    if (split_panel && node->command.direction != Direction2_Invalid) {
+                        Panel *parent = split_panel->parent;
 
-                    Panel *new_panel = 0;
-                    if (parent && axis == parent->split_axis) {
-                        Panel *next = panel_create(state);
-                        panel_insert(parent, side == Side_Max ? split_panel : split_panel->previous, next);
-                        next->percentage_of_parent = 1.0f / (F32) parent->child_count;
-                        for (Panel *child = parent->first; child; child = child->next) {
-                            if (child != next) {
-                                child->percentage_of_parent *= (F32) (parent->child_count - 1) / (F32) parent->child_count;
+                        Panel *new_panel = 0;
+                        if (parent && axis == parent->split_axis) {
+                            Panel *next = panel_create(state);
+                            panel_insert(parent, side == Side_Max ? split_panel : split_panel->previous, next);
+                            next->percentage_of_parent = 1.0f / (F32) parent->child_count;
+                            for (Panel *child = parent->first; child; child = child->next) {
+                                if (child != next) {
+                                    child->percentage_of_parent *= (F32) (parent->child_count - 1) / (F32) parent->child_count;
+                                }
                             }
-                        }
-                        state->active_panel = handle_from_panel(next);
-                        new_panel = next;
-                    } else {
-                        Panel *previous_previous = split_panel->previous;
-                        Panel *previous_parent = parent;
-                        Panel *new_parent = panel_create(state);
-                        new_parent->percentage_of_parent = split_panel->percentage_of_parent;
-                        if (previous_parent) {
-                            panel_remove(previous_parent, split_panel);
-                            panel_insert(previous_parent, previous_previous, new_parent);
+                            state->active_panel = handle_from_panel(next);
+                            new_panel = next;
                         } else {
-                            state->panel_root = new_parent;
+                            Panel *previous_previous = split_panel->previous;
+                            Panel *previous_parent = parent;
+                            Panel *new_parent = panel_create(state);
+                            new_parent->percentage_of_parent = split_panel->percentage_of_parent;
+                            if (previous_parent) {
+                                panel_remove(previous_parent, split_panel);
+                                panel_insert(previous_parent, previous_previous, new_parent);
+                            } else {
+                                state->panel_root = new_parent;
+                            }
+                            Panel *left = split_panel;
+                            Panel *right = panel_create(state);
+                            new_panel = right;
+                            if (side == Side_Min) {
+                                swap(left, right, Panel *);
+                            }
+
+                            panel_insert(new_parent, 0, left);
+                            panel_insert(new_parent, left, right);
+                            new_parent->split_axis = axis;
+                            left->percentage_of_parent = 0.5f;
+                            right->percentage_of_parent = 0.5f;
+                            state->active_panel = handle_from_panel(new_panel);
                         }
-                        Panel *left = split_panel;
-                        Panel *right = panel_create(state);
-                        new_panel = right;
-                        if (side == Side_Min) {
-                            swap(left, right, Panel *);
-                        }
 
-                        panel_insert(new_parent, 0, left);
-                        panel_insert(new_parent, left, right);
-                        new_parent->split_axis = axis;
-                        left->percentage_of_parent = 0.5f;
-                        right->percentage_of_parent = 0.5f;
-                        state->active_panel = handle_from_panel(new_panel);
-                    }
+                        Panel *move_panel = panel_from_handle(node->command.panel);
+                        Tab *move_tab = tab_from_handle(node->command.tab);
 
-                    Panel *move_panel = panel_from_handle(node->command.panel);
-                    Tab *move_tab = tab_from_handle(node->command.tab);
+                        if (new_panel && move_panel && move_tab) {
+                            panel_remove_tab(move_panel, move_tab);
+                            panel_insert_tab(new_panel, new_panel->tab_last, move_tab);
+                            new_panel->active_tab = handle_from_tab(move_tab);
 
-                    if (new_panel && move_panel && move_tab) {
-                        panel_remove_tab(move_panel, move_tab);
-                        panel_insert_tab(new_panel, new_panel->tab_last, move_tab);
-                        new_panel->active_tab = handle_from_tab(move_tab);
-
-                        if (!move_panel->tab_first && move_panel != state->panel_root && move_panel != new_panel->next && move_panel != new_panel->previous) {
-                            push_command(Command_ClosePanel, .panel = handle_from_panel(move_panel));
+                            if (!move_panel->tab_first && move_panel != state->panel_root && move_panel != new_panel->next && move_panel != new_panel->previous) {
+                                push_command(Command_ClosePanel, .panel = handle_from_panel(move_panel));
+                            }
                         }
                     }
-                }
-            } break;
-            case Command_OpenTab: {
-                Panel *panel = panel_from_handle(node->command.panel);
-                if (panel) {
-                    TabSpecification *tab_spec = tab_specification_from_string(node->command.tab_specification);
-                    Tab *tab = tab_create(state, tab_spec->display_name);
-                    tab->build_view = tab_spec->build;
-                    panel_insert_tab(panel, panel->tab_last, tab);
-                }
-            } break;
-            case Command_CloseTab: {
-                Panel *panel = panel_from_handle(node->command.panel);
-                Tab *tab = tab_from_handle(node->command.tab);
-                if (panel && tab) {
-                    panel_remove_tab(panel, tab);
-                    tab_free(state, tab);
-                }
-            } break;
-            case Command_PreviousTab: {
-                Panel *panel = panel_from_handle(node->command.panel);
-                if (panel) {
-                    Tab *next_tab = tab_from_handle(panel->active_tab);
-                    if (next_tab->previous) {
-                        next_tab = next_tab->previous;
-                    } else if (panel->tab_last) {
-                        next_tab = panel->tab_last;
+                } break;
+                case Command_OpenTab: {
+                    Panel *panel = panel_from_handle(node->command.panel);
+                    if (panel) {
+                        TabSpecification *tab_spec = tab_specification_from_string(node->command.tab_specification);
+                        Tab *tab = tab_create(state, tab_spec->display_name);
+                        tab->build_view = tab_spec->build;
+                        panel_insert_tab(panel, panel->tab_last, tab);
+                    }
+                } break;
+                case Command_CloseTab: {
+                    Panel *panel = panel_from_handle(node->command.panel);
+                    Tab *tab = tab_from_handle(node->command.tab);
+                    if (panel && tab) {
+                        panel_remove_tab(panel, tab);
+                        tab_free(state, tab);
+                    }
+                } break;
+                case Command_PreviousTab: {
+                    Panel *panel = panel_from_handle(node->command.panel);
+                    if (panel) {
+                        Tab *next_tab = tab_from_handle(panel->active_tab);
+                        if (next_tab->previous) {
+                            next_tab = next_tab->previous;
+                        } else if (panel->tab_last) {
+                            next_tab = panel->tab_last;
+                        }
+
+                        panel->active_tab = handle_from_tab(next_tab);
+                    }
+                } break;
+                case Command_NextTab: {
+                    Panel *panel = panel_from_handle(node->command.panel);
+                    if (panel) {
+                        Tab *next_tab = tab_from_handle(panel->active_tab);
+                        if (next_tab->next) {
+                            next_tab = next_tab->next;
+                        } else if (panel->tab_first) {
+                            next_tab = panel->tab_first;
+                        }
+
+                        panel->active_tab = handle_from_tab(next_tab);
+                    }
+                } break;
+                case Command_MoveTab: {
+                    Panel *panel = panel_from_handle(node->command.panel);
+                    Tab   *tab   = tab_from_handle(node->command.tab);
+                    Panel *destination_panel = panel_from_handle(node->command.destination_panel);
+                    Tab   *previous_tab      = tab_from_handle(node->command.previous_tab);
+
+                    if (panel && destination_panel && tab && tab != previous_tab) {
+                        panel_remove_tab(panel, tab);
+                        panel_insert_tab(destination_panel, previous_tab, tab);
+                        state->active_panel = handle_from_panel(destination_panel);
+
+                        if (!panel->tab_first && panel != state->panel_root) {
+                            push_command(Command_ClosePanel, .panel = node->command.panel);
+                        }
                     }
 
-                    panel->active_tab = handle_from_tab(next_tab);
-                }
-            } break;
-            case Command_NextTab: {
-                Panel *panel = panel_from_handle(node->command.panel);
-                if (panel) {
-                    Tab *next_tab = tab_from_handle(panel->active_tab);
-                    if (next_tab->next) {
-                        next_tab = next_tab->next;
-                    } else if (panel->tab_first) {
-                        next_tab = panel->tab_first;
-                    }
-
-                    panel->active_tab = handle_from_tab(next_tab);
-                }
-            } break;
-            case Command_MoveTab: {
-                Panel *panel = panel_from_handle(node->command.panel);
-                Tab   *tab   = tab_from_handle(node->command.tab);
-                Panel *destination_panel = panel_from_handle(node->command.destination_panel);
-                Tab   *previous_tab      = tab_from_handle(node->command.previous_tab);
-
-                if (panel && destination_panel && tab && tab != previous_tab) {
-                    panel_remove_tab(panel, tab);
-                    panel_insert_tab(destination_panel, previous_tab, tab);
-                    state->active_panel = handle_from_panel(destination_panel);
-
-                    if (!panel->tab_first && panel != state->panel_root) {
-                        push_command(Command_ClosePanel, .panel = node->command.panel);
-                    }
-                }
-
-            } break;
+                } break;
+            }
         }
+        arena_reset(state->command_arena);
+        state->commands.first = 0;
+        state->commands.last  = 0;
     }
-    arena_reset(state->command_arena);
-    state->commands.first = 0;
-    state->commands.last  = 0;
 
     // NOTE(simon): Build palettes
     state->palettes[PaletteCode_Base].background = state->theme.base_background;
