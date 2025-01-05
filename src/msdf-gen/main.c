@@ -42,8 +42,6 @@
 
 /*
  * FIXME:
- * * On Windows, the mouse cursor doesn't change correctly when trying to
- *   resize the window
  * * Tabbars are not clipped to the panels section of the screen, so they can
  *   overlap other panels.
  * * Releasing a panel drag near the edge of the window causes a one frame

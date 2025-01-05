@@ -8,11 +8,13 @@ struct Gfx_Win32State {
     U32 buttons_pressed;
     VoidFunction *update;
     DWORD graphics_thread;
+    HCURSOR cursor;
 };
 
 global Gfx_Win32State global_gfx_win32_state;
 
 internal LRESULT CALLBACK win32_window_proc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam) {
+    Gfx_Win32State *state = &global_gfx_win32_state;
     LRESULT result = 0;
 
     if (win32_event_arena) {
@@ -37,6 +39,23 @@ internal LRESULT CALLBACK win32_window_proc(HWND hwnd, UINT message, WPARAM wpar
                     BeginPaint(hwnd, &ps);
                     global_gfx_win32_state.update();
                     EndPaint(hwnd, &ps);
+                }
+            } break;
+            case WM_SETCURSOR: {
+                RECT rect = { 0 };
+                GetClientRect(state->hwnd, &rect);
+                R2F32 window_rectangle = r2f32(
+                    (F32) rect.left,
+                    (F32) rect.top,
+                    (F32) rect.right,
+                    (F32) rect.bottom
+                );
+
+                V2F32 mouse = gfx_get_mouse_position();
+                if (r2f32_contains_v2f32(window_rectangle, mouse)) {
+                    SetCursor(state->cursor);
+                } else {
+                    result = DefWindowProc(hwnd, message, wparam, lparam);
                 }
             } break;
             case WM_MOUSEWHEEL: {
@@ -203,6 +222,7 @@ internal Void gfx_swap_buffers(Void) {
 }
 
 internal Void gfx_set_cursor(Gfx_Cursor cursor) {
+    Gfx_Win32State *state = &global_gfx_win32_state;
     HCURSOR selected_cursor = 0;
 
 #define win32_cursor_list(X) \
@@ -233,7 +253,8 @@ internal Void gfx_set_cursor(Gfx_Cursor cursor) {
 #undef win32_cursor_list
 
     if (selected_cursor) {
-        SetCursor(selected_cursor);
+        PostMessage(0, WM_SETCURSOR, 0, 0);
+        state->cursor = selected_cursor;
     }
 }
 
