@@ -44,8 +44,6 @@
  * FIXME:
  * * Tabbars are not clipped to the panels section of the screen, so they can
  *   overlap other panels.
- * * Releasing a panel drag near the edge of the window causes a one frame
- *   visual bug
  */
 
 #define THEME_COLORS \
@@ -828,7 +826,9 @@ internal Void update(Void) {
             Handle tab;
         };
 
-        if (drag_is_active()) {
+        // NOTE(simon): Only build preview if we are actually dragging the
+        // view. Otherwise, the tooltip will be clipped to the current window.
+        if (state->drag_state == DragState_Dragging) {
             DragTabData *data = ui_get_drag_data(DragTabData);
             Tab *tab = tab_from_handle(data->tab);
             if (tab && tab->build_view) {
