@@ -7,7 +7,7 @@ internal Draw_List *draw_list_create(Void);
 internal Void       draw_list_push(Draw_List *list);
 internal Void       draw_list_pop(Void);
 internal Draw_List *draw_list_top(Void);
-#define draw_list(list) defer_loop(draw_list_push(list), draw_list_pop())
+#define draw_list_scope(list) defer_loop(draw_list_push(list), draw_list_pop())
 
 #define draw_define_stack(type_name, variable_name, type)                   \
     typedef struct Draw_##type_name##StackNode Draw_##type_name##StackNode; \

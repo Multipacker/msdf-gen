@@ -111,6 +111,7 @@ struct UI_Box {
     U32                 font_size;
     UI_TextAlign        text_align;
     Gfx_Cursor          hover_cursor;
+    Draw_List          *draw_list;
     UI_BoxDrawFunction *draw_function;
     Void               *draw_data;
     F32                 corner_radies[Corner_COUNT];
@@ -334,6 +335,7 @@ internal UI_Box *ui_create_box_from_string(UI_BoxFlags flags, Str8 string);
 internal UI_Box *ui_create_box_from_string_format(UI_BoxFlags flags, CStr format, ...);
 
 internal Void     ui_box_set_string(UI_Box *box, Str8 string);
+internal Void     ui_box_set_draw_list(UI_Box *box, Draw_List *list);
 internal V2F32    ui_box_text_location(UI_Box *box);
 internal UI_Input ui_input_from_box(UI_Box *box);
 

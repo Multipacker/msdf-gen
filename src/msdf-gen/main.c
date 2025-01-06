@@ -1456,14 +1456,20 @@ internal Void update(Void) {
                 }
             }
 
-            if (box->draw_function) {
-                box->draw_function(box, box->draw_data);
-            }
-
             if (box->flags & UI_BoxFlag_Clip) {
                 R2F32 top_clip = draw_clip_top();
                 R2F32 new_clip = r2f32_intersect(top_clip, box->calculated_rectangle);
                 draw_clip_push(new_clip);
+            }
+
+            if (box->draw_list) {
+                draw_transform(m3f32_translation(box->calculated_rectangle.min)) {
+                    draw_sub_list(box->draw_list);
+                }
+            }
+
+            if (box->draw_function) {
+                box->draw_function(box, box->draw_data);
             }
 
             UI_BoxIterator iterator = ui_box_iterator_depth_first_post_order(box);

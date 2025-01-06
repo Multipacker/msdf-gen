@@ -738,6 +738,10 @@ internal Void ui_box_set_string(UI_Box *box, Str8 string) {
     }
 }
 
+internal Void ui_box_set_draw_list(UI_Box *box, Draw_List *list) {
+    box->draw_list = list;
+}
+
 internal V2F32 ui_box_text_location(UI_Box *box) {
     V2F32 result = { 0 };
 
