@@ -808,6 +808,10 @@ internal Void update(Void) {
     V2U32 client_area = gfx_get_window_client_area();
     render_begin(client_area);
     draw_begin_frame();
+    Draw_List *draw_list = draw_list_create();
+    draw_list_push(draw_list);
+
+    // NOTE(simon): Build UI
     {
         prof_zone_begin(prof_ui_build, "ui build");
         ui_select_state(state->ui);
@@ -1403,8 +1407,10 @@ internal Void update(Void) {
         ui_end();
         prof_zone_end(prof_ui_build);
     }
-    draw_clip(r2f32(0.0f, 0.0f, (F32) client_area.width, (F32) client_area.height)) {
-        prof_zone_begin(prof_draw_ui, "draw ui");
+
+    // NOTE(simon): Draw
+    {
+        prof_zone_begin(prof_draw_ui, "draw");
 
         for (UI_Box *box = state->ui->root; box != &global_ui_null_box;) {
             if (box->flags & UI_BoxFlag_DrawBackground) {
@@ -1491,7 +1497,7 @@ internal Void update(Void) {
 
         prof_zone_end(prof_draw_ui);
     }
-    draw_submit();
+    draw_submit_list(draw_list);
     render_end();
 
     // NOTE(simon): Animate theme
