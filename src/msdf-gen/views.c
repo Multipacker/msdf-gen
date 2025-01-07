@@ -174,6 +174,13 @@ PANEL_BUILD_FUNCTION(view_glyph_list) {
                     break;
                 }
 
+                // TODO(simon): This should be part of a more general focus system.
+                if (codepoint == global_state->selected_codepoint) {
+                    UI_Palette palette = ui_palette_top();
+                    palette.border = color_from_theme(ThemeColor_Focus);
+                    ui_palette_next(palette);
+                }
+
                 U8 buffer[4] = { 0 };
                 U64 size = string_encode_utf8(buffer, codepoint);
                 Str8 string = str8(buffer, size);
