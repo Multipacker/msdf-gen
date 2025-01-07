@@ -20,11 +20,6 @@
  * Focus and keyboard navigation / interaction
  * More input information
  */
-/* NOTE(simon): The old zoom equations, for reference.
- * F32 old_zoom = zoom;
- * zoom *= f32_pow(0.97f, event->scroll.y);
- * offset = v2f32_subtract(mouse, v2f32_scale(v2f32_subtract(mouse, offset), old_zoom / zoom));
-*/
 
 /*
  * TODO before next release:

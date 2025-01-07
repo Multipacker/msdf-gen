@@ -226,9 +226,25 @@ PANEL_BUILD_FUNCTION(view_glyph) {
         B32 render_outline;
         B32 render_points;
         B32 render_raw;
+        F32 target_zoom;
+        F32 zoom;
+        V2F32 offset;
+        U32 codepoint;
     };
 
     ViewState *state = (ViewState *) tab_get_state(tab, sizeof(ViewState));
+    if (state->zoom == 0.0f) {
+        state->zoom = 1.0f;
+        state->target_zoom = 1.0f;
+    }
+
+    // NOTE(simon): Reset panning information when a new codepoint is selected.
+    if (global_state->selected_codepoint != state->codepoint) {
+        state->zoom = 1.0f;
+        state->target_zoom = 1.0f;
+        state->offset = v2f32(0.0f, 0.0f);
+        state->codepoint = global_state->selected_codepoint;
+    }
 
     ui_width(ui_size_parent_percent(1.0f, 1.0f))
     ui_height(ui_size_parent_percent(1.0f, 1.0f))
@@ -238,7 +254,44 @@ PANEL_BUILD_FUNCTION(view_glyph) {
         ui_palette(palette_from_code(PaletteCode_Button)) {
             ui_width_next(ui_size_parent_percent(1.0f, 0.0f));
             ui_height_next(ui_size_parent_percent(1.0f, 0.0f));
-            UI_Box *box = ui_create_box_from_string(UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawBorder | UI_BoxFlag_Clip, str8_literal("glyph_viewer"));
+            UI_Box *box = ui_create_box_from_string(UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawBorder | UI_BoxFlag_Clip | UI_BoxFlag_Scrollable | UI_BoxFlag_Clickable, str8_literal("glyph_viewer"));
+            UI_Input input = ui_input_from_box(box);
+
+            if (input.input_flags & UI_InputFlag_LeftDragging) {
+                typedef struct PanState PanState;
+                struct PanState {
+                    V2F32 mouse;
+                    V2F32 offset;
+                };
+                if (input.input_flags & UI_InputFlag_LeftPressed) {
+                    PanState pan_state = { 0 };
+                    pan_state.mouse = ui_mouse();
+                    pan_state.offset = state->offset;
+                    ui_set_drag_data(&pan_state);
+                }
+
+                // TODO(simon): Make this zoom aware so that you can both pan
+                // and zoom at the same time and both of them track correctly.
+                PanState pan_state = *ui_get_drag_data(PanState);
+                state->offset = v2f32_add(pan_state.offset, v2f32_subtract(ui_mouse(), pan_state.mouse));
+            }
+
+            // NOTE(simon): Zoom in/out around the mouse
+            {
+                F32 old_zoom = state->zoom;
+
+                // NOTE(simon): Animate
+                state->target_zoom *= f32_pow(0.8f, input.scroll.y);
+                state->zoom += (state->target_zoom - state->zoom) * ui_animation_slow_rate();
+                if (f32_abs(1.0f - state->zoom / state->target_zoom) < 0.001f) {
+                    state->zoom = state->target_zoom;
+                } else {
+                    request_frame();
+                }
+
+                V2F32 relative_mouse = v2f32_subtract(ui_mouse(), r2f32_center(box->calculated_rectangle));
+                state->offset = v2f32_subtract(relative_mouse, v2f32_scale(v2f32_subtract(relative_mouse, state->offset), old_zoom / state->zoom));
+            }
 
             Draw_List *draw_list = draw_list_create();
             draw_list_scope(draw_list) {
@@ -253,9 +306,9 @@ PANEL_BUILD_FUNCTION(view_glyph) {
                 V2F32 glyph_size = r2f32_size(glyph_rectangle);
 
                 M3F32 center_glyph = m3f32_translation(v2f32_negate(r2f32_center(glyph_rectangle)));
-                F32 scale = f32_max(0.0f, f32_min((box_size.x - 2.0f * padding) / glyph_size.x, (box_size.y - 2.0f * padding) / glyph_size.y));
+                F32 scale = f32_max(0.0f, f32_min((box_size.x - 2.0f * padding) / glyph_size.x, (box_size.y - 2.0f * padding) / glyph_size.y)) / state->zoom;
                 M3F32 scale_to_box = m3f32_scale(v2f32(scale, -scale));
-                M3F32 center_box = m3f32_translation(v2f32_scale(r2f32_size(box->calculated_rectangle), 0.5f));
+                M3F32 center_box = m3f32_translation(v2f32_add(v2f32_scale(r2f32_size(box->calculated_rectangle), 0.5f), state->offset));
 
                 M3F32 transform = m3f32_multiply_m3f32(center_box, m3f32_multiply_m3f32(scale_to_box, center_glyph));
 
