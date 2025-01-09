@@ -185,6 +185,7 @@ internal Void ui_begin(Gfx_EventList *events, F32 dt) {
     ui->dt = dt;
     ui->fast_rate = 1.0f - f32_pow(2, -ui->dt / (1.0f / 60.0f));
     ui->slow_rate = 1.0f - f32_pow(2, -ui->dt / (1.0f / 30.0f));
+    ui->super_slow_rate = 1.0f - f32_pow(2, -ui->dt / (1.0f / 10.0f));
 
     ui->is_tooltip_active = false;
     ui->context_menu_used_this_frame = false;
@@ -971,6 +972,11 @@ internal Void ui_set_drag_data_str8(Str8 data) {
     UI_Context *ui = global_ui_state;
     arena_pop_to(ui->drag_arena, 0);
     ui->drag_data = str8_copy(ui->drag_arena, data);
+}
+
+internal F32 ui_animation_super_slow_rate(Void) {
+    F32 result = global_ui_state->super_slow_rate;
+    return result;
 }
 
 internal F32 ui_animation_slow_rate(Void) {

@@ -263,6 +263,7 @@ struct UI_Context {
     F32 dt;
     F32 fast_rate;
     F32 slow_rate;
+    F32 super_slow_rate;
 
     UI_Key hot_key;
     UI_Key active_key[UI_MouseButton_COUNT];
