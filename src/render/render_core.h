@@ -45,6 +45,12 @@ struct Render_ShapeList {
     U64                chunk_count;
 };
 
+typedef enum {
+    Render_Filtering_Nearest,
+    Render_Filtering_Linear,
+    Render_Filtering_COUNT,
+} Render_Filtering;
+
 typedef struct Render_Batch Render_Batch;
 struct Render_Batch {
     Render_Batch    *next;
@@ -52,6 +58,7 @@ struct Render_Batch {
     Render_Texture   texture;
     R2F32            clip;
     M3F32            transform;
+    Render_Filtering filtering;
 };
 
 typedef struct Render_BatchList Render_BatchList;

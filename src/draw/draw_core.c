@@ -27,6 +27,10 @@ internal Draw_List *draw_list_create(Void) {
     clip_node->item = r2f32(-10000.0f, -10000.0f, 10000.0f, 10000.0f);
     sll_stack_push(result->clip_stack.top, clip_node);
 
+    Draw_FilteringStackNode *filtering_node = arena_push_struct_zero(draw->arena, Draw_FilteringStackNode);
+    filtering_node->item = Render_Filtering_Linear;
+    sll_stack_push(result->filtering_stack.top, filtering_node);
+
     return result;
 }
 
@@ -58,6 +62,7 @@ internal Render_Shape *draw_rectangle(R2F32 rectangle, V4F32 color, F32 radius, 
         batch->texture   = render_texture_null();
         batch->clip      = draw_clip_top();
         batch->transform = draw_transform_top();
+        batch->filtering = draw_filtering_top();
 
         sll_queue_push(list->batches.first, list->batches.last, batch);
         ++list->batches.count;
@@ -92,6 +97,7 @@ internal Render_Shape *draw_circle(V2F32 center, F32 radius, V4F32 color, F32 th
         batch->texture   = render_texture_null();
         batch->clip      = draw_clip_top();
         batch->transform = draw_transform_top();
+        batch->filtering = draw_filtering_top();
 
         sll_queue_push(list->batches.first, list->batches.last, batch);
         ++list->batches.count;
@@ -131,6 +137,7 @@ internal Render_Shape *draw_texture(R2F32 rectangle, R2F32 source, Render_Textur
         batch->texture   = texture;
         batch->clip      = draw_clip_top();
         batch->transform = draw_transform_top();
+        batch->filtering = draw_filtering_top();
 
         sll_queue_push(list->batches.first, list->batches.last, batch);
         ++list->batches.count;
@@ -181,6 +188,7 @@ internal Render_Shape *draw_line(V2F32 p0, V2F32 p1, V4F32 color, F32 radius, F3
         batch->texture   = render_texture_null();
         batch->clip      = draw_clip_top();
         batch->transform = draw_transform_top();
+        batch->filtering = draw_filtering_top();
 
         sll_queue_push(list->batches.first, list->batches.last, batch);
         ++list->batches.count;
@@ -234,6 +242,7 @@ internal Void draw_sub_list(Draw_List *sub_list) {
         Render_Batch *batch = arena_push_struct_zero(arena, Render_Batch);
         batch->shapes    = src_batch->shapes;
         batch->texture   = src_batch->texture;
+        batch->filtering = src_batch->filtering;
         batch->transform = m3f32_multiply_m3f32(draw_transform_top(), src_batch->transform);
         batch->clip      = r2f32_intersect(draw_clip_top(), src_batch->clip);
 

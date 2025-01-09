@@ -209,10 +209,6 @@ internal Render_Texture render_texture_create(V2U32 size, Render_TextureFormat f
     }
 
     glTextureStorage2D(texture_id, 1, gl_internal_format, (GLsizei) size.width, (GLsizei) size.height);
-    glTextureParameteri(texture_id, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTextureParameteri(texture_id, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTextureParameteri(texture_id, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTextureParameteri(texture_id, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     if (data) {
         if (format == Render_TextureFormat_R8) {
             glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
@@ -278,6 +274,18 @@ internal Void render_create(Void) {
     glDebugMessageCallback(&opengl_debug_output, NULL);
     glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
     glEnable(GL_FRAMEBUFFER_SRGB);
+
+    glCreateSamplers(array_count(result->samplers), result->samplers);
+
+    glSamplerParameteri(result->samplers[Render_Filtering_Nearest], GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glSamplerParameteri(result->samplers[Render_Filtering_Nearest], GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glSamplerParameteri(result->samplers[Render_Filtering_Nearest], GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glSamplerParameteri(result->samplers[Render_Filtering_Nearest], GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+    glSamplerParameteri(result->samplers[Render_Filtering_Linear], GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glSamplerParameteri(result->samplers[Render_Filtering_Linear], GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glSamplerParameteri(result->samplers[Render_Filtering_Linear], GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glSamplerParameteri(result->samplers[Render_Filtering_Linear], GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
     OpenGL_ShaderSpecification shaders[] = {
         { str8_literal("src/render/opengl/shader.vert"), GL_VERTEX_SHADER,    },
@@ -355,6 +363,7 @@ internal Void render_submit(Render_BatchList batches) {
                 height
             );
 
+            glBindSampler(0, gfx->samplers[batch->filtering]);
             glBindTextureUnit(0, opengl_texture_id_from_texture(batch->texture));
             glProgramUniformMatrix3fv(gfx->program, gfx->uniform_transform_location, 1, GL_TRUE, &batch->transform.m[0][0]);
 

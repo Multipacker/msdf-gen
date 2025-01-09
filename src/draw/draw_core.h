@@ -32,26 +32,28 @@ internal Draw_List *draw_list_top(Void);
         }                                                                                          \
         node->item = value;                                                                        \
         sll_stack_push(stack->top, node);                                                          \
-        ++draw_list_top()->stack_generation;                                                    \
+        ++draw_list_top()->stack_generation;                                                       \
     }                                                                                              \
     internal type draw_##variable_name##_stack_pop(Draw_##type_name##Stack *stack) {               \
         Draw_##type_name##StackNode *node = stack->top;                                            \
         if (node) {                                                                                \
-            ++draw_list_top()->stack_generation;                                                \
+            ++draw_list_top()->stack_generation;                                                   \
             sll_stack_pop(stack->top);                                                             \
             sll_stack_push(stack->freelist, node);                                                 \
         }                                                                                          \
         return node->item;                                                                         \
     }                                                                                              \
 
-draw_define_stack(R2F32, r2f32, R2F32)
-draw_define_stack(M3F32, m3f32, M3F32)
+draw_define_stack(R2F32,     r2f32,     R2F32)
+draw_define_stack(M3F32,     m3f32,     M3F32)
+draw_define_stack(Filtering, filtering, Render_Filtering)
 
 typedef struct Draw_List Draw_List;
 struct Draw_List {
     Draw_List *next;
     Draw_R2F32Stack clip_stack;
     Draw_M3F32Stack transform_stack;
+    Draw_FilteringStack filtering_stack;
     U64 stack_generation;
     U64 batch_generation;
     Render_BatchList batches;
@@ -67,6 +69,7 @@ global Draw_Context global_draw_context;
 
 draw_define_stack_implementation(R2F32, r2f32, R2F32)
 draw_define_stack_implementation(M3F32, m3f32, M3F32)
+draw_define_stack_implementation(Filtering, filtering, Render_Filtering)
 
 internal Void draw_begin_frame(Void);
 internal Void draw_submit_list(Draw_List *list);
@@ -92,5 +95,10 @@ internal Void draw_sub_list(Draw_List *sub_list);
 #define draw_transform_pop()           draw_m3f32_stack_pop(&draw_list_top()->transform_stack)
 #define draw_transform_top()           draw_list_top()->transform_stack.top->item
 #define draw_transform(transform)      defer_loop(draw_transform_push(transform), draw_transform_pop())
+
+#define draw_filtering_push(filtering) draw_filtering_stack_push(&draw_list_top()->filtering_stack, filtering)
+#define draw_filtering_pop()           draw_filtering_stack_pop(&draw_list_top()->filtering_stack)
+#define draw_filtering_top()           draw_list_top()->filtering_stack.top->item
+#define draw_filtering(filtering)      defer_loop(draw_filtering_push(filtering), draw_filtering_pop())
 
 #endif // DRAW_CORE_H

@@ -14,6 +14,7 @@ struct OpenGL_Context {
     Render_BatchList batches;
     GLuint           program;
     GLuint           vao;
+    GLuint           samplers[Render_Filtering_COUNT];
     GLint            uniform_projection_location;
     GLint            uniform_sampler_location;
     GLint            uniform_transform_location;
