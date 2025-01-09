@@ -125,9 +125,34 @@ internal UI_Input ui_checkbox(B32 is_checked, Str8 label) {
     return check_input;
 }
 
-internal Void ui_checkbox_b32(B32 *is_checked, Str8 label) {
+internal UI_Input ui_checkbox_format(B32 is_checked, CStr format, ...) {
+    Arena_Temporary scratch = arena_get_scratch(0, 0);
+    va_list arguments;
+    va_start(arguments, format);
+    Str8 string = str8_format_list(scratch.arena, format, arguments);
+    va_end(arguments);
+
+    UI_Input result = ui_checkbox(is_checked, string);
+    arena_end_temporary(scratch);
+    return result;
+}
+
+internal UI_Input ui_checkbox_b32(B32 *is_checked, Str8 label) {
     UI_Input input = ui_checkbox(*is_checked, label);
     if (input.input_flags & UI_InputFlag_LeftClicked) {
         *is_checked = !(*is_checked);
     }
+    return input;
+}
+
+internal UI_Input ui_checkbox_b32_format(B32 *is_checked, CStr format, ...) {
+    Arena_Temporary scratch = arena_get_scratch(0, 0);
+    va_list arguments;
+    va_start(arguments, format);
+    Str8 string = str8_format_list(scratch.arena, format, arguments);
+    va_end(arguments);
+
+    UI_Input result = ui_checkbox_b32(is_checked, string);
+    arena_end_temporary(scratch);
+    return result;
 }
