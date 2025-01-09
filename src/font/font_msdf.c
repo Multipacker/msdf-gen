@@ -1,6 +1,88 @@
 // TODO: Allow for pruning small contours. This would hopefully increase the
 // quality of the final MSDF, although it won't be as accurate any more.
 
+internal Void msdf_log_push_entry(Arena *arena, MSDF_Log *log, Str8 description) {
+    MSDF_LogEntry *entry = arena_push_struct_zero(arena, MSDF_LogEntry);
+    entry->description = str8_copy(arena, description);
+    dll_push_back(log->first, log->last, entry);
+    ++log->count;
+}
+
+internal MSDF_LogGroup *msdf_log_push_group(Arena *arena, MSDF_Log *log) {
+    MSDF_LogGroup *group = arena_push_struct_zero(arena, MSDF_LogGroup);
+    MSDF_LogEntry *entry = log->last;
+    dll_push_back(entry->first_group, entry->last_group, group);
+    ++entry->group_count;
+    return group;
+}
+
+internal MSDF_LogGeometry *msdf_log_push_geometry(Arena *arena, MSDF_Log *log) {
+    MSDF_LogGeometry *geometry = arena_push_struct_zero(arena, MSDF_LogGeometry);
+    MSDF_LogEntry *entry = log->last;
+    MSDF_LogGroup *group = entry->last_group;
+    if (!group) {
+        group = msdf_log_push_group(arena, log);
+    }
+    dll_push_back(group->first_geometry, group->last_geometry, geometry);
+    return geometry;
+}
+
+internal MSDF_LogGeometry *msdf_log_push_point(Arena *arena, MSDF_Log *log, V2F32 p0, V4F32 color) {
+    MSDF_LogGeometry *geometry = msdf_log_push_geometry(arena, log);
+    geometry->kind = MSDF_LogKind_Point;
+    geometry->color = color;
+    geometry->p0 = p0;
+    return geometry;
+}
+
+internal MSDF_LogGeometry *msdf_log_push_line(Arena *arena, MSDF_Log *log, V2F32 p0, V2F32 p1, V4F32 color) {
+    MSDF_LogGeometry *geometry = msdf_log_push_geometry(arena, log);
+    geometry->kind = MSDF_LogKind_Line;
+    geometry->color = color;
+    geometry->p0 = p0;
+    geometry->p1 = p1;
+    return geometry;
+}
+
+internal MSDF_LogGeometry *msdf_log_push_bezier(Arena *arena, MSDF_Log *log, V2F32 p0, V2F32 p1, V2F32 p2, V4F32 color) {
+    MSDF_LogGeometry *geometry = msdf_log_push_geometry(arena, log);
+    geometry->kind = MSDF_LogKind_Bezier;
+    geometry->color = color;
+    geometry->p0 = p0;
+    geometry->p1 = p1;
+    geometry->p2 = p2;
+    return geometry;
+}
+
+internal MSDF_LogGeometry *msdf_log_push_segment(Arena *arena, MSDF_Log *log, MSDF_Segment *segment, V4F32 color) {
+    MSDF_LogGeometry *geometry = 0;
+    switch (segment->kind) {
+        case MSDF_Segment_Null: {
+        } break;
+        case MSDF_Segment_Line: {
+            geometry = msdf_log_push_line(arena, log, segment->p0, segment->p1, color);
+        } break;
+        case MSDF_Segment_QuadraticBezier: {
+            geometry = msdf_log_push_bezier(arena, log, segment->p0, segment->p1, segment->p2, color);
+        } break;
+        case MSDF_Segment_COUNT: {
+        } break;
+    }
+    return geometry;
+}
+
+internal Void msdf_log_push_contour(Arena *arena, MSDF_Log *log, MSDF_Contour *contour, V4F32 color) {
+    for (MSDF_Segment *segment = contour->first_segment; segment; segment = segment->next) {
+        msdf_log_push_segment(arena, log, segment, color);
+    }
+}
+
+internal Void msdf_log_push_glyph(Arena *arena, MSDF_Log *log, MSDF_Glyph *glyph, V4F32 color) {
+    for (MSDF_Contour *contour = glyph->first_contour; contour; contour = contour->next) {
+        msdf_log_push_contour(arena, log, contour, v4f32(1, 0, 0, 1));
+    }
+}
+
 internal Void msdf_quadratic_bezier_split(MSDF_Segment segment, F32 t, MSDF_Segment *result_a, MSDF_Segment *result_b) {
     // De Casteljau's algorithm.
     V2F32 a = v2f32_add(segment.p0, v2f32_scale(v2f32_subtract(segment.p1, segment.p0), t));
@@ -589,11 +671,16 @@ internal Void msdf_convert_to_simple_polygons(Arena *arena, MSDF_Glyph *glyph) {
     }
 }
 
-internal Void msdf_correct_contour_orientation(MSDF_Glyph *glyph) {
+internal Void msdf_correct_contour_orientation(Arena *arena, MSDF_Glyph *glyph, MSDF_Log *log) {
+    msdf_log_push_entry(arena, log, str8_literal("local windig"));
     for (MSDF_Contour *contour = glyph->first_contour; contour; contour = contour->next) {
         contour->local_winding = msdf_contour_calculate_own_winding_number(contour);
+        msdf_log_push_group(arena, log);
+        V4F32 color = contour->local_winding == 1 ? v4f32(0, 1, 0, 1) : v4f32(1, 0, 0, 1);
+        msdf_log_push_contour(arena, log, contour, color);
     }
 
+    msdf_log_push_entry(arena, log, str8_literal("orientation correction"));
     for (MSDF_Contour *contour = glyph->first_contour; contour; contour = contour->next) {
         S32 global_winding = msdf_contour_calculate_global_winding_number(glyph, contour);
 
@@ -605,11 +692,21 @@ internal Void msdf_correct_contour_orientation(MSDF_Glyph *glyph) {
         if ((global_winding == 0 && contour->local_winding == 1) || (global_winding != 0 && contour->local_winding == -1)) {
             contour->flags |= MSDF_ContourFlag_Flip;
         }
+
+        msdf_log_push_group(arena, log);
+        V4F32 color = v4f32(1, 0, 0, 1);
+        if ((contour->flags & (MSDF_ContourFlag_Flip | MSDF_ContourFlag_Keep)) == (MSDF_ContourFlag_Flip | MSDF_ContourFlag_Keep)) {
+            color = v4f32(1, 1, 0, 1);
+        } else if (contour->flags & MSDF_ContourFlag_Keep) {
+            color = v4f32(0, 1, 0, 1);
+        }
+        msdf_log_push_contour(arena, log, contour, color);
     }
 
     // Rebuild the list of contours while applying the accumulated change set.
     MSDF_Contour *first = 0;
     MSDF_Contour *last  = 0;
+    msdf_log_push_entry(arena, log, str8_literal("final winding"));
     for (MSDF_Contour *contour = glyph->first_contour, *next; contour; contour = next) {
         next = contour->next;
 
@@ -631,6 +728,9 @@ internal Void msdf_correct_contour_orientation(MSDF_Glyph *glyph) {
 
         if (contour->flags & MSDF_ContourFlag_Keep) {
             dll_push_back(first, last, contour);
+            msdf_log_push_group(arena, log);
+            V4F32 color = ((contour->local_winding == 1) ^ ((contour->flags & MSDF_ContourFlag_Flip) == MSDF_ContourFlag_Flip)) ? v4f32(0, 1, 0, 1) : v4f32(1, 0, 0, 1);
+            msdf_log_push_contour(arena, log, contour, color);
         }
     }
 
@@ -716,13 +816,34 @@ internal MSDF_RasterResult msdf_generate(Arena *arena, TTF_Font *font, U32 codep
     result.advance_width     = (F32) metrics.advance_width / (F32) font->funits_per_em;
     result.left_side_bearing = (F32) metrics.left_side_bearing / (F32) font->funits_per_em;
 
+    msdf_log_push_entry(arena, &result.log, str8_literal("whole glyph"));
+    msdf_log_push_glyph(arena, &result.log, &glyph, v4f32(1, 0, 0, 1));
+
     // NOTE(simon): Simplify outline
     {
         prof_zone_begin(prof_simplify, "simplify outline");
         msdf_resolve_contour_overlap(scratch.arena, &glyph);
         msdf_convert_to_simple_polygons(scratch.arena, &glyph);
-        msdf_correct_contour_orientation(&glyph);
+        msdf_correct_contour_orientation(arena, &glyph, &result.log);
         msdf_color_edges(glyph);
+
+        msdf_log_push_entry(arena, &result.log, str8_literal("coloring"));
+        for (MSDF_Contour *contour = glyph.first_contour; contour; contour = contour->next) {
+            msdf_log_push_group(arena, &result.log);
+            if (contour->first_segment) {
+                msdf_log_push_point(arena, &result.log, contour->first_segment->p0, v4f32(0, 0, 0, 1));
+            }
+
+            for (MSDF_Segment *segment = contour->first_segment; segment; segment = segment->next) {
+                V4F32 color = v4f32(
+                    (F32) (segment->flags & MSDF_SegmentFlag_Red),
+                    (F32) (segment->flags & MSDF_SegmentFlag_Green),
+                    (F32) (segment->flags & MSDF_SegmentFlag_Blue),
+                    1
+                );
+                msdf_log_push_segment(arena, &result.log, segment, color);
+            }
+        }
         prof_zone_end(prof_simplify);
     }
 
