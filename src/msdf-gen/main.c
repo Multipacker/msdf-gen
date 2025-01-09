@@ -240,6 +240,12 @@ internal S32 os_run(Str8List arguments) {
     state->arena = arena;
     global_state = state;
 
+    for (U64 i = 0; i < array_count(state->frame_arenas); ++i) {
+        state->frame_arenas[i] = arena_create();
+    }
+
+    state->context_stack = &state->base_context;
+
     state->command_arena = arena_create();
 
     // NOTE(simon): Themes

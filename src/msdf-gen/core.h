@@ -75,6 +75,30 @@ struct Handle {
     U64 generation;
 };
 
+typedef struct Context Context;
+struct Context {
+    Context *next;
+
+    // NOTE(simon): What are we acting on?
+    Handle tab;
+    Handle panel;
+
+    // NOTE(simon): Where are we going?
+    Handle destination_panel;
+    Handle previous_tab;
+    Direction2 direction;
+
+    Str8 tab_specification;
+};
+
+#define context_top_values                                 \
+    .tab               = top_context()->tab,               \
+    .panel             = top_context()->panel,             \
+    .destination_panel = top_context()->destination_panel, \
+    .previous_tab      = top_context()->previous_tab,      \
+    .direction         = top_context()->direction,         \
+    .tab_specification = top_context()->tab_specification,
+
 typedef enum {
     Command_FocusPanel,
     Command_ClosePanel,
@@ -88,15 +112,7 @@ typedef enum {
 
 typedef struct {
     CommandKind kind;
-    // NOTE(simon): What are we acting on?
-    Handle tab;
-    Handle panel;
-    // NOTE(simon): Where are we going?
-    Handle destination_panel;
-    Handle previous_tab;
-    Direction2 direction;
-
-    Str8   tab_specification;
+    Context *context;
 } Command;
 
 typedef struct CommandNode CommandNode;
@@ -157,6 +173,9 @@ typedef struct State State;
 struct State {
     Arena *arena;
 
+    Arena *frame_arenas[2];
+    U64 frame_index;
+
     UI_Context *ui;
 
     Panel *panel_root;
@@ -184,6 +203,9 @@ struct State {
     U32 frames_to_render;
 
     UI_Palette palettes[PaletteCode_COUNT];
+
+    Context base_context;
+    Context *context_stack;
 };
 
 global State *global_state;
@@ -208,9 +230,17 @@ internal Void          panel_insert_tab(Panel *panel, Tab *previous_tab, Tab *ta
 internal Panel        *panel_from_handle(Handle handle);
 internal Handle        handle_from_panel(Panel *panel);
 
+// NOTE(simon): Context
+internal Context *copy_context(Arena *arena, Context *context);
+internal Void     push_context_internal(Context *context);
+#define push_context(...) push_context_internal(&(Context) { context_top_values __VA_ARGS__ })
+internal Void     pop_context(Void);
+internal Context *top_context(Void);
+#define context_scope(context) defer_loop(push_context(context), pop_context())
+
 // NOTE(simon): Commands
-internal Command *push_command_internal(Command command);
-#define push_command(_kind, ...) push_command_internal((Command) { .kind = _kind, __VA_ARGS__ })
+internal Void push_command_internal(CommandKind kind, Context *context);
+#define push_command(kind, ...) push_command_internal(kind, &(Context) { context_top_values __VA_ARGS__ })
 
 // NOTE(simon): Drag-and-drop
 internal B32  drag_is_active(Void);
@@ -225,5 +255,6 @@ internal UI_Palette palette_from_code(PaletteCode code);
 // NOTE(simon): Frame related functions
 internal Void request_frame(Void);
 internal Void update(Void);
+internal Arena *frame_arena(Void);
 
 #endif // CORE_H

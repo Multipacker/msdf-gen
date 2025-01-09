@@ -264,6 +264,10 @@ PANEL_BUILD_FUNCTION(view_glyph) {
             UI_Box *box = ui_create_box_from_string(UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawBorder | UI_BoxFlag_Clip | UI_BoxFlag_Scrollable | UI_BoxFlag_Clickable, str8_literal("glyph_viewer"));
             UI_Input input = ui_input_from_box(box);
 
+            if (input.input_flags & UI_InputFlag_Pressed) {
+                push_command(Command_FocusPanel);
+            }
+
             if (input.input_flags & UI_InputFlag_LeftDragging) {
                 typedef struct PanState PanState;
                 struct PanState {
