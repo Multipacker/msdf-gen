@@ -233,6 +233,7 @@ PANEL_BUILD_FUNCTION(view_glyph) {
         B32 render_outline;
         B32 render_points;
         B32 render_raw;
+        B32 render_nearest;
         B32 render_logs;
         F32 target_zoom;
         F32 zoom;
@@ -350,6 +351,7 @@ PANEL_BUILD_FUNCTION(view_glyph) {
                 draw_transform(transform) {
                     V4F32 tint = box->palette.text;
                     Render_ShapeFlags flags = Render_ShapeFlag_MSDF;
+                    Render_Filtering filtering = state->render_nearest ? Render_Filtering_Nearest : Render_Filtering_Linear;
                     if (state->render_raw) {
                         tint = v4f32(1.0f, 1.0f, 1.0f, 1.0f);
                         flags = Render_ShapeFlag_Texture;
@@ -357,27 +359,29 @@ PANEL_BUILD_FUNCTION(view_glyph) {
 
                     V2F32 uv_size = r2f32_size(msdf_glyph->uv);
 
-                    draw_texture(
-                        r2f32(
-                            glyph_rectangle.min.x - glyph_size.width  * 0.5f / uv_size.width,
-                            glyph_rectangle.min.y - glyph_size.height * 0.5f / uv_size.height,
-                            glyph_rectangle.max.x + glyph_size.width  * 0.5f / uv_size.width,
-                            glyph_rectangle.max.y + glyph_size.height * 0.5f / uv_size.height
-                        ),
-                        // NOTE(simon): Need flip vertically because outlines use the
-                        // same coordinates system as TTF-files, which is flipped
-                        // vertically.
-                        r2f32(
-                            msdf_glyph->uv.min.x,
-                            msdf_glyph->uv.max.y,
-                            msdf_glyph->uv.max.x,
-                            msdf_glyph->uv.min.y
-                        ),
-                        msdf_glyph->texture,
-                        tint,
-                        0.0f, 0.0f, 0.0f,
-                        flags
-                    );
+                    draw_filtering(filtering) {
+                        draw_texture(
+                            r2f32(
+                                glyph_rectangle.min.x - glyph_size.width  * 0.5f / uv_size.width,
+                                glyph_rectangle.min.y - glyph_size.height * 0.5f / uv_size.height,
+                                glyph_rectangle.max.x + glyph_size.width  * 0.5f / uv_size.width,
+                                glyph_rectangle.max.y + glyph_size.height * 0.5f / uv_size.height
+                            ),
+                            // NOTE(simon): Need flip vertically because outlines use the
+                            // same coordinates system as TTF-files, which is flipped
+                            // vertically.
+                            r2f32(
+                                msdf_glyph->uv.min.x,
+                                msdf_glyph->uv.max.y,
+                                msdf_glyph->uv.max.x,
+                                msdf_glyph->uv.min.y
+                            ),
+                            msdf_glyph->texture,
+                            tint,
+                            0.0f, 0.0f, 0.0f,
+                            flags
+                        );
+                    }
 
                     if (state->render_outline) {
                         for (MSDF_Contour *contour = glyph.first_contour; contour; contour = contour->next) {
@@ -483,6 +487,8 @@ PANEL_BUILD_FUNCTION(view_glyph) {
                         ui_spacer_sized(ui_size_ems(0.5f, 1.0f));
                         ui_checkbox_b32(&state->render_raw, str8_literal("Draw raw"));
                         ui_spacer_sized(ui_size_ems(0.5f, 1.0f));
+                        ui_checkbox_b32(&state->render_nearest, str8_literal("Draw nearest"));
+                        ui_spacer_sized(ui_size_ems(0.5f, 1.0f));
                         ui_checkbox_b32(&state->render_logs, str8_literal("Draw logs"));
                         ui_spacer_sized(ui_size_ems(0.5f, 1.0f));
                         ui_label_format("Selected glyph: U+%.6X", global_state->selected_codepoint);
@@ -520,7 +526,7 @@ PANEL_BUILD_FUNCTION(view_glyph) {
                                 ui_width(ui_size_text_content(0.0f, 1.0f))
                                 ui_height(ui_size_text_content(0.0f, 1.0f))
                                 for (MSDF_LogGroup *group = log_entry->first_group; group; group = group->next, ++group_index) {
-                                    if (group_index % 4 == 0) {
+                                    if (group_index % 5 == 0) {
                                         if (group_index != 0) {
                                             ui_column_end();
                                             ui_spacer_sized(ui_size_ems(1.0f, 1.0f));
