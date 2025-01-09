@@ -52,6 +52,8 @@ struct Glyph {
     F32   advance_pt;
     R2F32 uv;
     Render_Texture texture;
+
+    MSDF_Log log;
 };
 
 global Glyph global_glyph_null = { 0 };
@@ -191,6 +193,22 @@ internal Glyph *font_get_glyph(Font *font, U32 codepoint) {
             (F32) atlas_position.y + (F32) font->glyph_size - 0.5f
         );
         result->texture = selected_atlas->texture;
+        for (MSDF_LogEntry *src_entry = raster_result.log.first; src_entry; src_entry = src_entry->next) {
+            MSDF_LogEntry *entry = arena_push_struct_zero(font->arena, MSDF_LogEntry);
+            entry->description = str8_copy(font->arena, src_entry->description);
+            for (MSDF_LogGroup *src_group = src_entry->first_group; src_group; src_group = src_group->next) {
+                MSDF_LogGroup *group = arena_push_struct_zero(font->arena, MSDF_LogGroup);
+                for (MSDF_LogGeometry *src_geometry = src_group->first_geometry; src_geometry; src_geometry = src_geometry->next) {
+                    MSDF_LogGeometry *geometry = arena_push_struct_zero(font->arena, MSDF_LogGeometry);
+                    memory_copy(geometry, src_geometry, sizeof(*geometry));
+                    dll_push_back(group->first_geometry, group->last_geometry, geometry);
+                }
+                dll_push_back(entry->first_group, entry->last_group, group);
+                ++entry->group_count;
+            }
+            dll_push_back(result->log.first, result->log.last, entry);
+            ++result->log.count;
+        }
 
         dll_push_back(glyphs->first, glyphs->last, result);
     }

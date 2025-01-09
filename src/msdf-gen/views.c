@@ -233,10 +233,16 @@ PANEL_BUILD_FUNCTION(view_glyph) {
         B32 render_outline;
         B32 render_points;
         B32 render_raw;
+        B32 render_logs;
         F32 target_zoom;
         F32 zoom;
         V2F32 offset;
         U32 codepoint;
+        U64 log_index;
+        B32 *is_group_visible;
+        U64 hovered_group;
+        F32 hovered_t;
+        F32 hovered_target_t;
     };
 
     ViewState *state = (ViewState *) tab_get_state(tab, sizeof(ViewState));
@@ -250,14 +256,14 @@ PANEL_BUILD_FUNCTION(view_glyph) {
         state->zoom = 1.0f;
         state->target_zoom = 1.0f;
         state->offset = v2f32(0.0f, 0.0f);
+        state->log_index = 0;
+        state->is_group_visible = 0;
         state->codepoint = global_state->selected_codepoint;
     }
 
     ui_width(ui_size_parent_percent(1.0f, 1.0f))
     ui_height(ui_size_parent_percent(1.0f, 1.0f))
     ui_column() {
-        ui_width(ui_size_text_content(0.0f, 1.0f))
-        ui_height(ui_size_text_content(0.0f, 1.0f))
         ui_palette(palette_from_code(PaletteCode_Button)) {
             ui_width_next(ui_size_parent_percent(1.0f, 0.0f));
             ui_height_next(ui_size_parent_percent(1.0f, 0.0f));
@@ -304,6 +310,24 @@ PANEL_BUILD_FUNCTION(view_glyph) {
                 state->offset = v2f32_subtract(relative_mouse, v2f32_scale(v2f32_subtract(relative_mouse, state->offset), old_zoom / state->zoom));
             }
 
+            Glyph *msdf_glyph = font_get_glyph(global_state->font, global_state->selected_codepoint);
+            MSDF_LogEntry *log_entry = msdf_glyph->log.first;
+            for (U64 i = 0; i < state->log_index; ++i) {
+                log_entry = log_entry->next;
+            }
+            // NOTE(simon): Group visibility state
+            {
+                B32 *is_group_visible = arena_push_array(frame_arena(), B32, log_entry->group_count);
+                if (!state->is_group_visible) {
+                    for (U64 i = 0; i < log_entry->group_count; ++i) {
+                        is_group_visible[i] = true;
+                    }
+                } else {
+                    memory_copy(is_group_visible, state->is_group_visible, log_entry->group_count * sizeof(*is_group_visible));
+                }
+                state->is_group_visible = is_group_visible;
+            }
+
             Draw_List *draw_list = draw_list_create();
             draw_list_scope(draw_list) {
                 F32 padding = 2.0f * (F32) ui_font_size_top();
@@ -324,8 +348,6 @@ PANEL_BUILD_FUNCTION(view_glyph) {
                 M3F32 transform = m3f32_multiply_m3f32(center_box, m3f32_multiply_m3f32(scale_to_box, center_glyph));
 
                 draw_transform(transform) {
-                    Glyph *msdf_glyph = font_get_glyph(global_state->font, global_state->selected_codepoint);
-
                     V4F32 tint = box->palette.text;
                     Render_ShapeFlags flags = Render_ShapeFlag_MSDF;
                     if (state->render_raw) {
@@ -397,19 +419,136 @@ PANEL_BUILD_FUNCTION(view_glyph) {
                             }
                         }
                     }
+
+                    if (state->render_logs && log_entry) {
+                        U64 group_index = 0;
+                        for (MSDF_LogGroup *group = log_entry->first_group; group; group = group->next, ++group_index) {
+                            if (!state->is_group_visible[group_index]) {
+                                continue;
+                            }
+                            for (MSDF_LogGeometry *geometry = group->first_geometry; geometry; geometry = geometry->next) {
+                                V4F32 color = geometry->color;
+
+                                if (1 + group_index == state->hovered_group) {
+                                    V4F32 target = color_from_theme(ThemeColor_Hover);
+                                    color.r = f32_lerp(color.r, target.r, state->hovered_t);
+                                    color.g = f32_lerp(color.g, target.g, state->hovered_t);
+                                    color.b = f32_lerp(color.b, target.b, state->hovered_t);
+                                    color.a = f32_lerp(color.a, target.a, state->hovered_t);
+                                }
+
+                                switch (geometry->kind) {
+                                    case MSDF_LogKind_Point: {
+                                        draw_circle(geometry->p0, point_size / scale, color, 0.0f, 1.0f);
+                                    } break;
+                                    case MSDF_LogKind_Line: {
+                                        draw_line(geometry->p0, geometry->p1, color, 2.0f / scale, 0.0f, 1.0f);
+                                    } break;
+                                    case MSDF_LogKind_Bezier: {
+                                        draw_bezier(geometry->p0, geometry->p1, geometry->p2, color, 2.0f / scale, 0.0f, 1.0f);
+                                    } break;
+                                }
+                            }
+                        }
+
+                        if (state->hovered_group) {
+                            state->hovered_t += (state->hovered_target_t - state->hovered_t) * ui_animation_super_slow_rate();
+                            if (f32_abs(state->hovered_target_t - state->hovered_t) < 0.01f) {
+                                state->hovered_target_t = 1.0f - state-> hovered_target_t;
+                            }
+                            request_frame();
+                        } else {
+                            state->hovered_t = 0.0f;
+                            state->hovered_target_t = 0.0f;
+                        }
+                    }
                 }
             }
             ui_box_set_draw_list(box, draw_list);
 
-            ui_palette(palette_from_code(PaletteCode_Button)) {
+            ui_width_next(ui_size_fill());
+            ui_height_next(ui_size_children_sum(1.0f));
+            ui_row()
+            ui_width(ui_size_children_sum(1.0f))
+            ui_height(ui_size_children_sum(1.0f)) {
                 ui_spacer_sized(ui_size_ems(0.5f, 1.0f));
-                ui_checkbox_b32(&state->render_outline, str8_literal("Draw outlines"));
-                ui_spacer_sized(ui_size_ems(0.5f, 1.0f));
-                ui_checkbox_b32(&state->render_points, str8_literal("Draw points"));
-                ui_spacer_sized(ui_size_ems(0.5f, 1.0f));
-                ui_checkbox_b32(&state->render_raw, str8_literal("Draw raw"));
-                ui_spacer_sized(ui_size_ems(0.5f, 1.0f));
-                ui_label_format("Selected glyph: U+%.6X", global_state->selected_codepoint);
+                ui_column() {
+                    ui_width(ui_size_text_content(0.0f, 1.0f))
+                    ui_height(ui_size_text_content(0.0f, 1.0f))
+                    ui_palette(palette_from_code(PaletteCode_Button)) {
+                        ui_spacer_sized(ui_size_ems(0.5f, 1.0f));
+                        ui_checkbox_b32(&state->render_outline, str8_literal("Draw outlines"));
+                        ui_spacer_sized(ui_size_ems(0.5f, 1.0f));
+                        ui_checkbox_b32(&state->render_points, str8_literal("Draw points"));
+                        ui_spacer_sized(ui_size_ems(0.5f, 1.0f));
+                        ui_checkbox_b32(&state->render_raw, str8_literal("Draw raw"));
+                        ui_spacer_sized(ui_size_ems(0.5f, 1.0f));
+                        ui_checkbox_b32(&state->render_logs, str8_literal("Draw logs"));
+                        ui_spacer_sized(ui_size_ems(0.5f, 1.0f));
+                        ui_label_format("Selected glyph: U+%.6X", global_state->selected_codepoint);
+                        ui_spacer_sized(ui_size_ems(0.5f, 1.0f));
+                    }
+                }
+                if (state->render_logs) {
+                    ui_spacer_sized(ui_size_ems(1.0f, 1.0f));
+                    ui_column() {
+                        ui_width(ui_size_children_sum(1.0f))
+                        ui_height(ui_size_children_sum(1.0f)) {
+                            U64 next_log_index = state->log_index;
+                            U64 next_hovered_group = 0;
+
+                            ui_spacer_sized(ui_size_ems(0.5f, 1.0f));
+                            ui_row()
+                            ui_width(ui_size_text_content(0.0f, 1.0f))
+                            ui_height(ui_size_text_content(0.0f, 1.0f))
+                            ui_palette(palette_from_code(PaletteCode_Button)) {
+                                UI_Input previous_input = ui_button(str8_literal("Previous"));
+                                ui_spacer_sized(ui_size_ems(0.5f, 1.0f));
+                                UI_Input next_input = ui_button(str8_literal("Next"));
+                                ui_spacer_sized(ui_size_ems(0.5f, 1.0f));
+                                ui_label_format("%lu: %.*s", state->log_index, str8_expand(log_entry->description));
+                                if (next_input.input_flags & UI_InputFlag_LeftClicked) {
+                                    next_log_index = (state->log_index + 1) % msdf_glyph->log.count;
+                                }
+                                if (previous_input.input_flags & UI_InputFlag_LeftClicked) {
+                                    next_log_index = (state->log_index + msdf_glyph->log.count - 1) % msdf_glyph->log.count;
+                                }
+                            }
+
+                            ui_row() {
+                                U32 group_index = 0;
+                                ui_width(ui_size_text_content(0.0f, 1.0f))
+                                ui_height(ui_size_text_content(0.0f, 1.0f))
+                                for (MSDF_LogGroup *group = log_entry->first_group; group; group = group->next, ++group_index) {
+                                    if (group_index % 4 == 0) {
+                                        if (group_index != 0) {
+                                            ui_column_end();
+                                            ui_spacer_sized(ui_size_ems(1.0f, 1.0f));
+                                        }
+                                        ui_width_next(ui_size_children_sum(1.0f));
+                                        ui_height_next(ui_size_children_sum(1.0f));
+                                        ui_column_begin();
+                                    }
+                                    ui_spacer_sized(ui_size_ems(0.5f, 1.0f));
+                                    UI_Input check_input = ui_checkbox_b32_format(&state->is_group_visible[group_index], "%lu", group_index);
+                                    if (check_input.input_flags & UI_InputFlag_Hovering) {
+                                        next_hovered_group = 1 + group_index;
+                                    }
+                                }
+                                if (group_index != 0) {
+                                    ui_column_end();
+                                }
+                            }
+                            ui_spacer_sized(ui_size_ems(0.5f, 1.0f));
+
+                            if (next_log_index != state->log_index) {
+                                state->is_group_visible = 0;
+                                state->log_index = next_log_index;
+                            }
+                            state->hovered_group = next_hovered_group;
+                        }
+                    }
+                }
             }
         }
     }
