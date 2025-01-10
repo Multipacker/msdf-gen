@@ -808,7 +808,7 @@ internal Void msdf_color_edges(Arena *arena, MSDF_Glyph glyph, MSDF_Log *log) {
                     segment && !(segment->flags & MSDF_SegmentFlag_End);
                     segment = segment->previous
                 ) {
-                    segment->flags |= MSDF_SegmentFlag_Red | MSDF_SegmentFlag_Blue;
+                    segment->flags = MSDF_SegmentFlag_Red | MSDF_SegmentFlag_Blue;
                 }
             }
         }
