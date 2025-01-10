@@ -765,7 +765,7 @@ internal Void msdf_color_edges(Arena *arena, MSDF_Glyph glyph, MSDF_Log *log) {
             for (MSDF_Segment *segment = contour->first_segment; segment; segment = segment->next) {
                 segment->flags = MSDF_SegmentFlag_Red | MSDF_SegmentFlag_Green | MSDF_SegmentFlag_Blue;
             }
-        } if (corner_count == 1) {
+        } else if (corner_count == 1) {
             msdf_log_push_entry(arena, log, str8_literal("one corners"));
             msdf_log_push_contour(arena, log, contour, v4f32(1, 0, 0, 1));
             for (MSDF_Segment *segment = contour->first_segment; segment; segment = segment->next) {
