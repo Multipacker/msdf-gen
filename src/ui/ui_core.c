@@ -656,6 +656,7 @@ internal UI_Box *ui_create_box_from_key(UI_BoxFlags flags, UI_Key key) {
     }
 
     box->key = key;
+
     box->size[Axis2_X] = ui_width_top();
     box->size[Axis2_Y] = ui_height_top();
     box->flags         = flags | ui_extra_box_flags_top();
@@ -665,6 +666,7 @@ internal UI_Box *ui_create_box_from_key(UI_BoxFlags flags, UI_Key key) {
     box->font_size     = ui_font_size_top();
     box->text_align    = ui_text_align_top();
     box->hover_cursor  = ui_hover_cursor_top();
+    box->draw_list     = 0;
     box->draw_function = ui_draw_function_top();
     box->draw_data     = ui_draw_data_top();
     box->corner_radies[Corner_00] = ui_corner_radius_00_top();

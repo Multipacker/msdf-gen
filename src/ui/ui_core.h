@@ -101,8 +101,8 @@ struct UI_Box {
 
     UI_Key key;
 
-    UI_Size size[Axis2_COUNT];
-
+    // NOTE(simon): Per build state
+    UI_Size             size[Axis2_COUNT];
     UI_BoxFlags         flags;
     UI_Palette          palette;
     Axis2               layout_axis;
