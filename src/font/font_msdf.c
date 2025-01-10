@@ -738,7 +738,7 @@ internal Void msdf_correct_contour_orientation(Arena *arena, MSDF_Glyph *glyph, 
     glyph->last_contour  = last;
 }
 
-internal Void msdf_color_edges(MSDF_Glyph glyph) {
+internal Void msdf_color_edges(Arena *arena, MSDF_Glyph glyph, MSDF_Log *log) {
     F32 corner_threshold = f32_sin(0.1f);
 
     for (MSDF_Contour *contour = glyph.first_contour; contour; contour = contour->next) {
@@ -760,11 +760,19 @@ internal Void msdf_color_edges(MSDF_Glyph glyph) {
         }
 
         if (corner_count == 0) {
+            msdf_log_push_entry(arena, log, str8_literal("no corners"));
+            msdf_log_push_contour(arena, log, contour, v4f32(1, 0, 0, 1));
             for (MSDF_Segment *segment = contour->first_segment; segment; segment = segment->next) {
                 segment->flags = MSDF_SegmentFlag_Red | MSDF_SegmentFlag_Green | MSDF_SegmentFlag_Blue;
             }
         } if (corner_count == 1) {
+            msdf_log_push_entry(arena, log, str8_literal("one corners"));
+            msdf_log_push_contour(arena, log, contour, v4f32(1, 0, 0, 1));
             for (MSDF_Segment *segment = contour->first_segment; segment; segment = segment->next) {
+                if (segment->flags & MSDF_SegmentFlag_Start) {
+                    msdf_log_push_point(arena, log, segment->p0, v4f32(0, 1, 0, 1));
+                }
+
                 segment->flags = MSDF_SegmentFlag_Red | MSDF_SegmentFlag_Blue;
             }
 
@@ -772,10 +780,16 @@ internal Void msdf_color_edges(MSDF_Glyph glyph) {
             // NOTE(simon): We need to split the contour into two edges in order to preserve the corner.
             last_corner_start->flags = MSDF_SegmentFlag_Red | MSDF_SegmentFlag_Green;
         } else {
+            msdf_log_push_entry(arena, log, str8_literal("multiple corners"));
+            msdf_log_push_contour(arena, log, contour, v4f32(1, 0, 0, 1));
             MSDF_SegmentFlags current_color = MSDF_SegmentFlag_Red | MSDF_SegmentFlag_Blue;
 
             for (MSDF_Segment *segment = contour->first_segment; segment; segment = segment->next) {
                 segment->flags |= current_color;
+
+                if (segment->flags & MSDF_SegmentFlag_Start) {
+                    msdf_log_push_point(arena, log, segment->p0, v4f32(0, 1, 0, 1));
+                }
 
                 if (segment->flags & MSDF_SegmentFlag_End) {
                     if (current_color == (MSDF_SegmentFlag_Red | MSDF_SegmentFlag_Green)) {
@@ -797,6 +811,24 @@ internal Void msdf_color_edges(MSDF_Glyph glyph) {
                     segment->flags |= MSDF_SegmentFlag_Red | MSDF_SegmentFlag_Blue;
                 }
             }
+        }
+    }
+
+    msdf_log_push_entry(arena, log, str8_literal("coloring"));
+    for (MSDF_Contour *contour = glyph.first_contour; contour; contour = contour->next) {
+        msdf_log_push_group(arena, log);
+        if (contour->first_segment) {
+            msdf_log_push_point(arena, log, contour->first_segment->p0, v4f32(0, 0, 0, 1));
+        }
+
+        for (MSDF_Segment *segment = contour->first_segment; segment; segment = segment->next) {
+            V4F32 color = v4f32(
+                (F32) (segment->flags & MSDF_SegmentFlag_Red),
+                (F32) (segment->flags & MSDF_SegmentFlag_Green),
+                (F32) (segment->flags & MSDF_SegmentFlag_Blue),
+                1
+            );
+            msdf_log_push_segment(arena, log, segment, color);
         }
     }
 }
@@ -825,25 +857,8 @@ internal MSDF_RasterResult msdf_generate(Arena *arena, TTF_Font *font, U32 codep
         msdf_resolve_contour_overlap(scratch.arena, &glyph);
         msdf_convert_to_simple_polygons(scratch.arena, &glyph);
         msdf_correct_contour_orientation(arena, &glyph, &result.log);
-        msdf_color_edges(glyph);
+        msdf_color_edges(arena, glyph, &result.log);
 
-        msdf_log_push_entry(arena, &result.log, str8_literal("coloring"));
-        for (MSDF_Contour *contour = glyph.first_contour; contour; contour = contour->next) {
-            msdf_log_push_group(arena, &result.log);
-            if (contour->first_segment) {
-                msdf_log_push_point(arena, &result.log, contour->first_segment->p0, v4f32(0, 0, 0, 1));
-            }
-
-            for (MSDF_Segment *segment = contour->first_segment; segment; segment = segment->next) {
-                V4F32 color = v4f32(
-                    (F32) (segment->flags & MSDF_SegmentFlag_Red),
-                    (F32) (segment->flags & MSDF_SegmentFlag_Green),
-                    (F32) (segment->flags & MSDF_SegmentFlag_Blue),
-                    1
-                );
-                msdf_log_push_segment(arena, &result.log, segment, color);
-            }
-        }
         prof_zone_end(prof_simplify);
     }
 
