@@ -80,4 +80,6 @@ internal Str8  str8_from_str16(Arena *arena, Str16 string);
 internal CStr   cstr_from_str8(Arena *arena, Str8 string);
 internal CStr16 cstr16_from_str8(Arena *arena, Str8 string);
 
+internal U64 str8_next_codepoint_offset(Str8 string, U64 start_offset, Side side);
+
 #endif // STRING_H

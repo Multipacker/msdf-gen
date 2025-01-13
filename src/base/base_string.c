@@ -537,3 +537,23 @@ internal CStr16 cstr16_from_str8(Arena *arena, Str8 string) {
 
     return memory;
 }
+
+internal U64 str8_next_codepoint_offset(Str8 string, U64 start_offset, Side side) {
+    U64 clamped_start_offset = u64_min(start_offset, string.size);
+    U64 result = clamped_start_offset;
+
+    if (side == Side_Min) {
+        for (U64 position = u64_max(4, clamped_start_offset) - 4; position < clamped_start_offset; ) {
+            result = position;
+            Str8 remaining = str8_skip(string, position);
+            StringDecode decode = string_decode_utf8(remaining.data, remaining.size);
+            position += decode.size;
+        }
+    } else if (side == Side_Max) {
+        Str8 remaining = str8_skip(string, clamped_start_offset);
+        StringDecode decode = string_decode_utf8(remaining.data, remaining.size);
+        result = clamped_start_offset + decode.size;
+    }
+
+    return result;
+}
