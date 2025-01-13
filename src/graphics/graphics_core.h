@@ -105,6 +105,7 @@ struct Gfx_Event {
     Gfx_KeyModifier key_modifiers;
     V2F32           scroll;
     V2F32           position;
+    Str8            text;
 };
 
 typedef struct Gfx_EventList Gfx_EventList;

@@ -146,6 +146,14 @@ internal Gfx_EventList gfx_get_events(Arena *arena, B32 wait) {
                     event->position.x = (F32) sdl_event.wheel.mouseX;
                     event->position.y = (F32) sdl_event.wheel.mouseY;
                 } break;
+                case SDL_TEXTINPUT: {
+                    // TODO(simon): There is a possibility to enable and
+                    // disable text input, presumably to work on devices with
+                    // on screen keyboards. This is worth considering to expose
+                    // through our API.
+                    event->kind = Gfx_EventKind_Text;
+                    event->text = str8_copy_cstr(arena, (U8 *) sdl_event.text.text);
+                } break;
             }
 
             if (event->kind != Gfx_EventKind_Null) {
