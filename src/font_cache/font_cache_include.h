@@ -86,6 +86,7 @@ struct FontCache_Letter {
     V2F32          size;
     R2F32          source;
     F32            advance;
+    U64            decode_size;
 };
 
 typedef struct FontCache_Text FontCache_Text;
@@ -108,6 +109,10 @@ internal FontCache_Font  *font_cache_font_from_path(Str8 path);
 
 // NOTE(simon): Layout
 internal FontCache_Text font_cache_text(Arena *arena, FontCache_Font *font, Str8 text, U32 size);
+
+// NOTE(simon): Measuring
+internal V2F32 font_cache_size_from_font_text_size(FontCache_Font *font, Str8 text, U32 size);
+internal U64   font_cache_offset_from_font_text_size_position(FontCache_Font *font, Str8 text, U32 size, F32 position);
 
 internal Void font_cache_create(Void);
 

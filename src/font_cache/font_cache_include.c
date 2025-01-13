@@ -270,11 +270,12 @@ internal FontCache_Text font_cache_text(Arena *arena, FontCache_Font *font, Str8
         }
 
         FontCache_Letter *letter = &result.letters[result.letter_count++];
-        letter->texture = glyph->texture;
-        letter->offset  = glyph->offset;
-        letter->size    = glyph->size;
-        letter->source  = glyph->source;
-        letter->advance = glyph->advance_width;
+        letter->texture     = glyph->texture;
+        letter->offset      = glyph->offset;
+        letter->size        = glyph->size;
+        letter->source      = glyph->source;
+        letter->advance     = glyph->advance_width;
+        letter->decode_size = decode.size;
 
         result.size.width += glyph->advance_width;
     }
@@ -282,6 +283,43 @@ internal FontCache_Text font_cache_text(Arena *arena, FontCache_Font *font, Str8
     arena_pop_amount(arena, (text.size - result.letter_count) * sizeof(FontCache_Letter));
 
     return result;
+}
+
+
+
+// NOTE(simon): Measuring
+internal V2F32 font_cache_size_from_font_text_size(FontCache_Font *font, Str8 text, U32 size) {
+    Arena_Temporary scratch = arena_get_scratch(0, 0);
+    FontCache_Text text_run = font_cache_text(scratch.arena, font, text, size);
+    V2F32 result = text_run.size;
+    arena_end_temporary(scratch);
+    return result;
+}
+
+internal U64 font_cache_offset_from_font_text_size_position(FontCache_Font *font, Str8 text, U32 size, F32 position) {
+    Arena_Temporary scratch = arena_get_scratch(0, 0);
+
+    FontCache_Text text_run = font_cache_text(scratch.arena, font, text, size);
+
+    F32 best_pixel_diff  = f32_infinity();
+    U64 best_byte_offset = 0;
+    F32 pixel_offset     = 0.0f;
+    U64 byte_offset      = 0;
+    for (U64 i = 0; i <= text_run.letter_count; ++i) {
+        F32 pixel_diff = f32_abs(position - pixel_offset);
+        if (pixel_diff < best_pixel_diff) {
+            best_pixel_diff  = pixel_diff;
+            best_byte_offset = byte_offset;
+        }
+
+        if (i < text_run.letter_count) {
+            pixel_offset += text_run.letters[i].advance;
+            byte_offset  += text_run.letters[i].decode_size;
+        }
+    }
+
+    arena_end_temporary(scratch);
+    return best_byte_offset;
 }
 
 
