@@ -301,6 +301,8 @@ internal S32 os_run(Str8List arguments) {
 
             theme->text  = text;
             theme->hover = overlay2;
+            theme->cursor = rosewater;
+            theme->selection = overlay2;
             theme->focus = rosewater;
 
             theme->disabled_overlay         = overlay0;
@@ -357,6 +359,8 @@ internal S32 os_run(Str8List arguments) {
 
             theme->text  = text;
             theme->hover = overlay2;
+            theme->cursor = rosewater;
+            theme->selection = overlay2;
             theme->focus = rosewater;
 
             theme->disabled_overlay         = overlay0;
@@ -413,6 +417,8 @@ internal S32 os_run(Str8List arguments) {
 
             theme->text  = text;
             theme->hover = overlay2;
+            theme->cursor = rosewater;
+            theme->selection = overlay2;
             theme->focus = rosewater;
 
             theme->disabled_overlay         = overlay0;
@@ -469,6 +475,8 @@ internal S32 os_run(Str8List arguments) {
 
             theme->text  = text;
             theme->hover = overlay2;
+            theme->cursor = rosewater;
+            theme->selection = overlay2;
             theme->focus = rosewater;
 
             theme->disabled_overlay         = overlay0;

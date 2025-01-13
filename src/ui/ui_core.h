@@ -76,6 +76,8 @@ typedef enum {
     UI_Color_Background,
     UI_Color_Text,
     UI_Color_Border,
+    UI_Color_Cursor,
+    UI_Color_Selection,
     UI_Color_COUNT,
 } UI_Color;
 
@@ -86,6 +88,8 @@ union UI_Palette {
         V4F32 background;
         V4F32 text;
         V4F32 border;
+        V4F32 cursor;
+        V4F32 selection;
     };
 };
 

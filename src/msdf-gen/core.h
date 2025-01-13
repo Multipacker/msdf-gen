@@ -4,6 +4,8 @@
 #define THEME_COLORS \
     X(Text,                  text,                    "Text")                    \
     X(Hover,                 hover,                   "Hover")                   \
+    X(Cursor,                cursor,                  "Cursor")                  \
+    X(Selection,             selection,               "Selection")               \
     X(Focus,                 focus,                   "Focus")                   \
     X(DisabledOverlay,       disabled_overlay,        "Disabled overlay")        \
     X(DropSiteOverlay,       drop_site_overlay,       "Drop site overlay")       \

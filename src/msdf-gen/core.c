@@ -582,6 +582,10 @@ internal Void update(Void) {
     }
 
     // NOTE(simon): Build palettes
+    for (PaletteCode code = 0; code < PaletteCode_COUNT; ++code) {
+        state->palettes[code].cursor    = state->theme.cursor;
+        state->palettes[code].selection = state->theme.selection;
+    }
     state->palettes[PaletteCode_Base].background = state->theme.base_background;
     state->palettes[PaletteCode_Base].border     = state->theme.base_border;
     state->palettes[PaletteCode_Base].text       = state->theme.text;
