@@ -246,6 +246,54 @@ struct UI_Input {
     V2F32 scroll;
 };
 
+typedef enum {
+    UI_EventKind_Null,
+    UI_EventKind_KeyPress,
+    UI_EventKind_KeyRelease,
+    UI_EventKind_Text,
+    UI_EventKind_Navigation,
+    UI_EventKind_Edit,
+    UI_EventKind_Scroll,
+    UI_EventKind_COUNT,
+} UI_EventKind;
+
+typedef enum {
+    UI_EventFlag_KeepMark             = 1 << 0,
+    UI_EventFlag_ZeroDeltaOnSelection = 1 << 1,
+    UI_EventFlag_Delete               = 1 << 2,
+    UI_EventFlag_PickSelectSide       = 1 << 3,
+    UI_EventFlag_Copy                 = 1 << 4,
+} UI_EventFlags;
+
+typedef enum {
+    UI_EventDeltaUnit_Null,
+    UI_EventDeltaUnit_Character,
+    UI_EventDeltaUnit_Word,
+    UI_EventDeltaUnit_COUNT,
+} UI_EventDeltaUnit;
+
+typedef struct UI_Event UI_Event;
+struct UI_Event {
+    UI_Event     *next;
+    UI_Event     *previous;
+
+    UI_EventKind      kind;
+    S64               delta;
+    UI_EventDeltaUnit unit;
+    UI_EventFlags     flags;
+    Str8              text;
+    V2F32             position;
+    Gfx_Key           key;
+    Gfx_KeyModifier   modifiers;
+    V2F32             scroll;
+};
+
+typedef struct UI_EventList UI_EventList;
+struct UI_EventList {
+    UI_Event *first;
+    UI_Event *last;
+};
+
 #define UI_BOX_TABLE_SIZE (1 << 12)
 
 typedef struct UI_Context UI_Context;
@@ -262,7 +310,7 @@ struct UI_Context {
     UI_Box *context_menu_root;
 
     // NOTE(simon): Per frame input.
-    Gfx_EventList *events;
+    UI_EventList  *events;
     V2F32          mouse;
     F32 dt;
     F32 fast_rate;
@@ -311,6 +359,10 @@ struct UI_Context {
 
 internal Void ui_select_state(UI_Context *state);
 
+// NOTE(simon): Event functions
+internal Void ui_event_list_push_event(UI_EventList *list, UI_Event *event);
+internal Void ui_event_list_consume_event(UI_EventList *list, UI_Event *event);
+
 internal Str8 ui_hash_part_from_string(Str8 string);
 internal Str8 ui_display_part_from_string(Str8 string);
 
@@ -328,7 +380,7 @@ internal UI_Size ui_size_text_content(F32 padding, F32 strictness);
 
 internal UI_Context *ui_create(Void);
 
-internal Void ui_begin(Gfx_EventList *events, F32 dt);
+internal Void ui_begin(UI_EventList *ui_events, F32 dt);
 internal Void ui_end(Void);
 
 internal UI_Box **ui_box_reference_from_key(UI_Key key);

@@ -322,37 +322,169 @@ internal Void update(Void) {
         --depth;
     }
 
+    UI_EventList ui_events = { 0 };
+
     // NOTE(simon): Consume events.
     for (Gfx_Event *event = events.first, *next; event; event = next) {
         next = event->next;
         B32 consume = false;
+        UI_Event *ui_event = 0;
 
-        if (event->kind == Gfx_EventKind_KeyPress && event->key == Gfx_Key_T && event->key_modifiers == Gfx_KeyModifier_Control) {
+#define check_binding(event, _key, _modifiers) ((event)->kind == Gfx_EventKind_KeyPress && (event)->key == (_key) && ((event)->key_modifiers & (_modifiers)) == (_modifiers) && ((Gfx_KeyModifier) ~(event)->key_modifiers & (Gfx_KeyModifier) ~(_modifiers)) == (Gfx_KeyModifier) ~(_modifiers))
+
+        if (event->kind == Gfx_EventKind_Quit) {
+            consume = true;
+            state->running = false;
+        } else if (check_binding(event, Gfx_Key_T, Gfx_KeyModifier_Control)) {
             consume = true;
             push_command(Command_OpenTab, .tab_specification = str8_literal("RenderStats"));
-        } else if (event->kind == Gfx_EventKind_KeyPress && event->key == Gfx_Key_W && event->key_modifiers == Gfx_KeyModifier_Control) {
+        } else if (check_binding(event, Gfx_Key_W, Gfx_KeyModifier_Control)) {
             consume = true;
             push_command(Command_CloseTab);
-        } else if (event->kind == Gfx_EventKind_KeyPress && event->key == Gfx_Key_Tab && event->key_modifiers == (Gfx_KeyModifier_Shift | Gfx_KeyModifier_Control)) {
+        } else if (check_binding(event, Gfx_Key_Tab, Gfx_KeyModifier_Shift | Gfx_KeyModifier_Control)) {
             consume = true;
             push_command(Command_PreviousTab);
-        } else if (event->kind == Gfx_EventKind_KeyPress && event->key == Gfx_Key_Tab && event->key_modifiers == Gfx_KeyModifier_Control) {
+        } else if (check_binding(event, Gfx_Key_Tab, Gfx_KeyModifier_Control)) {
             consume = true;
             push_command(Command_NextTab);
-        } else if (event->kind == Gfx_EventKind_KeyPress && event->key == Gfx_Key_N && event->key_modifiers == Gfx_KeyModifier_Control) {
+        } else if (check_binding(event, Gfx_Key_N, Gfx_KeyModifier_Control)) {
             consume = true;
             request_frame();
             state->theme_index = (state->theme_index + 1) % array_count(global_themes);
             state->target_theme = global_themes[state->theme_index];
-        } else if (event->kind == Gfx_EventKind_KeyPress && event->key == Gfx_Key_P && event->key_modifiers == Gfx_KeyModifier_Control) {
+        } else if (check_binding(event, Gfx_Key_P, Gfx_KeyModifier_Control)) {
             consume = true;
             request_frame();
             state->theme_index = (state->theme_index + array_count(global_themes) - 1) % array_count(global_themes);
             state->target_theme = global_themes[state->theme_index];
+        } else if (check_binding(event, Gfx_Key_Left, Gfx_KeyModifier_Shift | Gfx_KeyModifier_Control)) {
+            consume = true;
+            ui_event = arena_push_struct_zero(ui_frame_arena(), UI_Event);
+            ui_event->kind = UI_EventKind_Navigation;
+            ui_event->delta = -1;
+            ui_event->unit = UI_EventDeltaUnit_Word;
+            ui_event->flags = UI_EventFlag_KeepMark;
+        } else if (check_binding(event, Gfx_Key_Right, Gfx_KeyModifier_Shift | Gfx_KeyModifier_Control)) {
+            consume = true;
+            ui_event = arena_push_struct_zero(ui_frame_arena(), UI_Event);
+            ui_event->delta = 1;
+            ui_event->unit = UI_EventDeltaUnit_Word;
+            ui_event->flags = UI_EventFlag_KeepMark;
+        } else if (check_binding(event, Gfx_Key_Left, Gfx_KeyModifier_Shift)) {
+            consume = true;
+            ui_event = arena_push_struct_zero(ui_frame_arena(), UI_Event);
+            ui_event->kind = UI_EventKind_Navigation;
+            ui_event->delta = -1;
+            ui_event->unit = UI_EventDeltaUnit_Character;
+            ui_event->flags = UI_EventFlag_KeepMark;
+        } else if (check_binding(event, Gfx_Key_Right, Gfx_KeyModifier_Shift)) {
+            consume = true;
+            ui_event = arena_push_struct_zero(ui_frame_arena(), UI_Event);
+            ui_event->kind = UI_EventKind_Navigation;
+            ui_event->delta = 1;
+            ui_event->unit = UI_EventDeltaUnit_Character;
+            ui_event->flags = UI_EventFlag_KeepMark;
+        } else if (check_binding(event, Gfx_Key_Left, Gfx_KeyModifier_Control)) {
+            consume = true;
+            ui_event = arena_push_struct_zero(ui_frame_arena(), UI_Event);
+            ui_event->kind = UI_EventKind_Navigation;
+            ui_event->delta = -1;
+            ui_event->unit = UI_EventDeltaUnit_Word;
+            ui_event->flags = UI_EventFlag_PickSelectSide | UI_EventFlag_ZeroDeltaOnSelection;
+        } else if (check_binding(event, Gfx_Key_Right, Gfx_KeyModifier_Control)) {
+            consume = true;
+            ui_event = arena_push_struct_zero(ui_frame_arena(), UI_Event);
+            ui_event->kind = UI_EventKind_Navigation;
+            ui_event->delta = 1;
+            ui_event->unit = UI_EventDeltaUnit_Word;
+            ui_event->flags = UI_EventFlag_PickSelectSide | UI_EventFlag_ZeroDeltaOnSelection;
+        } else if (check_binding(event, Gfx_Key_Left, 0)) {
+            consume = true;
+            ui_event = arena_push_struct_zero(ui_frame_arena(), UI_Event);
+            ui_event->kind = UI_EventKind_Navigation;
+            ui_event->delta = -1;
+            ui_event->unit = UI_EventDeltaUnit_Character;
+            ui_event->flags = UI_EventFlag_PickSelectSide | UI_EventFlag_ZeroDeltaOnSelection;
+        } else if (check_binding(event, Gfx_Key_Right, 0)) {
+            consume = true;
+            ui_event = arena_push_struct_zero(ui_frame_arena(), UI_Event);
+            ui_event->kind = UI_EventKind_Navigation;
+            ui_event->delta = 1;
+            ui_event->unit = UI_EventDeltaUnit_Character;
+            ui_event->flags = UI_EventFlag_PickSelectSide | UI_EventFlag_ZeroDeltaOnSelection;
+        } else if (check_binding(event, Gfx_Key_Backspace, Gfx_KeyModifier_Control)) {
+            consume = true;
+            ui_event = arena_push_struct_zero(ui_frame_arena(), UI_Event);
+            ui_event->kind = UI_EventKind_Edit;
+            ui_event->delta = -1;
+            ui_event->unit = UI_EventDeltaUnit_Word;
+            ui_event->flags = UI_EventFlag_ZeroDeltaOnSelection | UI_EventFlag_Delete;
+        } else if (check_binding(event, Gfx_Key_Delete, Gfx_KeyModifier_Control)) {
+            consume = true;
+            ui_event = arena_push_struct_zero(ui_frame_arena(), UI_Event);
+            ui_event->kind = UI_EventKind_Edit;
+            ui_event->delta = 1;
+            ui_event->unit = UI_EventDeltaUnit_Word;
+            ui_event->flags = UI_EventFlag_ZeroDeltaOnSelection | UI_EventFlag_Delete;
+        } else if (check_binding(event, Gfx_Key_Backspace, 0)) {
+            consume = true;
+            ui_event = arena_push_struct_zero(ui_frame_arena(), UI_Event);
+            ui_event->kind = UI_EventKind_Edit;
+            ui_event->delta = -1;
+            ui_event->unit = UI_EventDeltaUnit_Character;
+            ui_event->flags = UI_EventFlag_ZeroDeltaOnSelection | UI_EventFlag_Delete;
+        } else if (check_binding(event, Gfx_Key_Delete, 0)) {
+            consume = true;
+            ui_event = arena_push_struct_zero(ui_frame_arena(), UI_Event);
+            ui_event->kind = UI_EventKind_Edit;
+            ui_event->delta = 1;
+            ui_event->unit = UI_EventDeltaUnit_Character;
+            ui_event->flags = UI_EventFlag_ZeroDeltaOnSelection | UI_EventFlag_Delete;
+        } else if (check_binding(event, Gfx_Key_C, Gfx_KeyModifier_Control)) {
+            consume = true;
+            ui_event->kind = UI_EventKind_Edit;
+            ui_event = arena_push_struct_zero(ui_frame_arena(), UI_Event);
+            ui_event->flags = UI_EventFlag_Copy | UI_EventFlag_KeepMark;
+        } else if (check_binding(event, Gfx_Key_V, Gfx_KeyModifier_Control)) {
+            consume = true;
+            ui_event = arena_push_struct_zero(ui_frame_arena(), UI_Event);
+            ui_event->kind = UI_EventKind_Text;
+            ui_event->text = gfx_get_clipboard_text(ui_frame_arena());
+        } else if (check_binding(event, Gfx_Key_X, Gfx_KeyModifier_Control)) {
+            consume = true;
+            ui_event = arena_push_struct_zero(ui_frame_arena(), UI_Event);
+            ui_event->kind = UI_EventKind_Edit;
+            ui_event->flags = UI_EventFlag_Copy | UI_EventFlag_Delete;
+        } else if (event->kind == Gfx_EventKind_KeyPress || event->kind == Gfx_EventKind_KeyRelease || event->kind == Gfx_EventKind_Text || event->kind == Gfx_EventKind_Scroll) {
+            consume = true;
+            UI_EventKind kind = UI_EventKind_Null;
+            switch (event->kind) {
+                case Gfx_EventKind_Null:       kind = UI_EventKind_Null;       break;
+                case Gfx_EventKind_Quit:       kind = UI_EventKind_Null;       break;
+                case Gfx_EventKind_KeyPress:   kind = UI_EventKind_KeyPress;   break;
+                case Gfx_EventKind_KeyRelease: kind = UI_EventKind_KeyRelease; break;
+                case Gfx_EventKind_Text:       kind = UI_EventKind_Text;       break;
+                case Gfx_EventKind_Scroll:     kind = UI_EventKind_Scroll;     break;
+                case Gfx_EventKind_Resize:     kind = UI_EventKind_Null;       break;
+                case Gfx_EventKind_COUNT:      kind = UI_EventKind_Null;       break;
+            }
+            ui_event = arena_push_struct_zero(ui_frame_arena(), UI_Event);
+            ui_event->kind      = kind;
+            ui_event->text      = event->text;
+            ui_event->position  = event->position;
+            ui_event->scroll    = event->scroll;
+            ui_event->key       = event->key;
+            ui_event->modifiers = event->key_modifiers;
         }
+
+#undef check_binding
 
         if (drag_is_active() && event->kind == Gfx_EventKind_KeyRelease && event->key == Gfx_Key_MouseLeft) {
             state->drag_state = DragState_Dropping;
+        }
+
+        if (ui_event && ui_event->kind != UI_EventKind_Null) {
+            ui_event_list_push_event(&ui_events, ui_event);
         }
 
         if (consume) {
@@ -360,9 +492,9 @@ internal Void update(Void) {
         }
     }
 
-    // NOTE(simon): If there are events left, they will go to the UI and
-    // potentially trigger UI changes, so render more frames.
-    if (events.first) {
+    // NOTE(simon): If there are UI events, they will potentially trigger UI
+    // changes, so render more frames.
+    if (ui_events.first) {
         request_frame();
     }
 
@@ -612,7 +744,7 @@ internal Void update(Void) {
     {
         prof_zone_begin(prof_ui_build, "ui build");
         ui_select_state(state->ui);
-        ui_begin(&events, 1.0f / 60.0f);
+        ui_begin(&ui_events, 1.0f / 60.0f);
 
         ui_palette_push(palette_from_code(PaletteCode_Base));
 
@@ -1328,20 +1460,6 @@ internal Void update(Void) {
 
         if (is_animating) {
             request_frame();
-        }
-    }
-
-    for (Gfx_Event *event = events.first, *next; event; event = next) {
-        next = event->next;
-        B32 consumed = false;
-
-        if (event->kind == Gfx_EventKind_Quit) {
-            state->running = false;
-            consumed = true;
-        }
-
-        if (consumed) {
-            dll_remove(events.first, events.last, event);
         }
     }
 

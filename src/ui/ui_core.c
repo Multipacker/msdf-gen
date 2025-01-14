@@ -17,6 +17,18 @@ internal Void ui_select_state(UI_Context *ui_state) {
     global_ui_state = ui_state;
 }
 
+
+
+internal Void ui_event_list_push_event(UI_EventList *list, UI_Event *event) {
+    dll_push_back(list->first, list->last, event);
+}
+
+internal Void ui_event_list_consume_event(UI_EventList *list, UI_Event *event) {
+    dll_remove(list->first, list->last, event);
+}
+
+
+
 internal B32 ui_keys_match(UI_Key a, UI_Key b) {
     B32 result = a == b;
     return result;
@@ -160,7 +172,7 @@ internal UI_Context *ui_create(Void) {
 
 
 
-internal Void ui_begin(Gfx_EventList *events, F32 dt) {
+internal Void ui_begin(UI_EventList *events, F32 dt) {
     prof_function_begin();
 
     UI_Context *ui = global_ui_state;
@@ -546,9 +558,9 @@ internal Void ui_end(Void) {
     }
 
     // NOTE(simon): Close the context menu if there were unconsumed click events.
-    for (Gfx_Event *event = ui->events->first; event; event = event->next) {
+    for (UI_Event *event = ui->events->first; event; event = event->next) {
         if (
-            event->kind == Gfx_EventKind_KeyPress && (
+            event->kind == UI_EventKind_KeyPress && (
                 event->key == Gfx_Key_MouseLeft ||
                 event->key == Gfx_Key_MouseMiddle ||
                 event->key == Gfx_Key_MouseRight
@@ -804,7 +816,7 @@ internal UI_Input ui_input_from_box(UI_Box *box) {
         exclude_bounds = ui->context_menu_root->calculated_rectangle;
     }
 
-    for (Gfx_Event *event = ui->events->first, *next; event; event = next) {
+    for (UI_Event *event = ui->events->first, *next; event; event = next) {
         next = event->next;
         B32 consumed = false;
 
@@ -819,7 +831,7 @@ internal UI_Input ui_input_from_box(UI_Box *box) {
         }
 
         // NOTE(simon): Clicked in bounds.
-        if (box->flags & UI_BoxFlag_Clickable && is_mouse_key && event->kind == Gfx_EventKind_KeyPress && is_in_bounds) {
+        if (box->flags & UI_BoxFlag_Clickable && is_mouse_key && event->kind == UI_EventKind_KeyPress && is_in_bounds) {
             result.input_flags |= (UI_InputFlag) (UI_InputFlag_LeftPressed << mouse_key);
             ui->active_key[mouse_key] = box->key;
             ui->hot_key = box->key;
@@ -831,7 +843,7 @@ internal UI_Input ui_input_from_box(UI_Box *box) {
         if (
             box->flags & UI_BoxFlag_Clickable &&
             is_mouse_key &&
-            event->kind == Gfx_EventKind_KeyRelease &&
+            event->kind == UI_EventKind_KeyRelease &&
             is_in_bounds &&
             ui_keys_match(ui->active_key[mouse_key], box->key)
         ) {
@@ -845,7 +857,7 @@ internal UI_Input ui_input_from_box(UI_Box *box) {
         if (
             box->flags & UI_BoxFlag_Clickable &&
             is_mouse_key &&
-            event->kind == Gfx_EventKind_KeyRelease &&
+            event->kind == UI_EventKind_KeyRelease &&
             !is_in_bounds &&
             ui_keys_match(ui->active_key[mouse_key], box->key)
         ) {
@@ -855,13 +867,13 @@ internal UI_Input ui_input_from_box(UI_Box *box) {
             consumed = true;
         }
 
-        if (box->flags & UI_BoxFlag_Scrollable && event->kind == Gfx_EventKind_Scroll && is_in_bounds) {
+        if (box->flags & UI_BoxFlag_Scrollable && event->kind == UI_EventKind_Scroll && is_in_bounds) {
             result.scroll = event->scroll;
             consumed = true;
         }
 
         if (consumed) {
-            dll_remove(ui->events->first, ui->events->last, event);
+            ui_event_list_consume_event(ui->events, event);
         }
     }
 
