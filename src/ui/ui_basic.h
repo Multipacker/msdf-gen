@@ -1,6 +1,13 @@
 #ifndef UI_BASIC_H
 #define UI_BASIC_H
 
+typedef struct UI_DrawLineEdit UI_DrawLineEdit;
+struct UI_DrawLineEdit {
+    Str8 text;
+    U64 cursor;
+    U64 mark;
+};
+
 internal UI_Size ui_size_fill(Void);
 
 internal UI_Box *ui_spacer(Void);
@@ -31,5 +38,10 @@ internal UI_Input ui_checkbox_b32_format(B32 *is_checked, CStr format, ...);
 
 #define ui_padding(size) defer_loop(ui_spacer_sized(size), ui_spacer_sized(size))
 #define ui_center()      ui_padding(ui_size_parent_percent(1.0f, 0.0f))
+
+// NOTE(simon): Line edit
+UI_BOX_DRAW_FUNCTION(ui_draw_line_edit);
+internal B32 ui_is_word(U32 codepoint);
+internal Void ui_line_edit(U8 *buffer, U64 *buffer_size, U64 buffer_capacity, U64 *cursor, U64 *mark, UI_Key key);
 
 #endif //UI_BASIC_H

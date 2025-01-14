@@ -156,3 +156,227 @@ internal UI_Input ui_checkbox_b32_format(B32 *is_checked, CStr format, ...) {
     arena_end_temporary(scratch);
     return result;
 }
+
+
+
+// TODO(simon): This visualization doesn't support bidirectional text layout.
+UI_BOX_DRAW_FUNCTION(ui_draw_line_edit) {
+    UI_DrawLineEdit *draw_data = (UI_DrawLineEdit *) data;
+    FontCache_Font *font = box->font;
+    U32 font_size = box->font_size;
+    F32 offset_to_cursor = font_cache_size_from_font_text_size(font, str8_prefix(draw_data->text, draw_data->cursor), font_size).width;
+    F32 offset_to_mark = font_cache_size_from_font_text_size(font, str8_prefix(draw_data->text, draw_data->mark), font_size).width;
+    V2F32 text_position = ui_box_text_location(box);
+    F32 cursor_width = f32_max(2.0f, (F32) box->font_size / 5.0f);
+
+    V4F32 selection_color = box->palette.selection;
+    selection_color.a = 0.25f;
+    V4F32 cursor_color = box->palette.cursor;
+
+    if (draw_data->mark != draw_data->cursor) {
+        draw_rectangle(
+            r2f32(
+                text_position.x + f32_min(offset_to_cursor, offset_to_mark) - 0.5f * cursor_width,
+                text_position.y - font->ascent * (F32) font_size / font->units_per_em,
+                text_position.x + f32_max(offset_to_cursor, offset_to_mark) + 0.5f * cursor_width,
+                text_position.y - font->descent * (F32) font_size / font->units_per_em
+            ),
+            selection_color,
+            0.0f,
+            0.0f,
+            0.0f
+        );
+    }
+    draw_rectangle(
+        r2f32(
+            text_position.x + offset_to_cursor - 0.5f * cursor_width,
+            text_position.y - font->ascent * (F32) font_size / font->units_per_em + 2.0f,
+            text_position.x + offset_to_cursor + 0.5f * cursor_width,
+            text_position.y - font->descent * (F32) font_size / font->units_per_em - 2.0f
+        ),
+        cursor_color,
+        0.0f,
+        0.0f,
+        0.0f
+    );
+}
+
+// NOTE(simon): Helper function for the line edit to figure out where word
+// boundaries are.
+// TODO(simon): This function doesn't handle unicode at all, fix it!
+internal B32 ui_is_word(U32 codepoint) {
+    B32 is_alpha   = ('a' <= codepoint && codepoint <= 'z') || ('A' <= codepoint && codepoint <= 'Z');
+    B32 is_numeric = ('0' <= codepoint && codepoint <= '9');
+    B32 result     = is_alpha || is_numeric;
+    return result;
+}
+
+internal Void ui_line_edit(U8 *buffer, U64 *buffer_size, U64 buffer_capacity, U64 *cursor, U64 *mark, UI_Key key) {
+    Arena_Temporary scratch = arena_get_scratch(0, 0);
+    ui_hover_cursor_next(Gfx_Cursor_Beam);
+    UI_Box *text_container_box = ui_create_box_from_key(
+        UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawHot | UI_BoxFlag_DrawActive |
+        UI_BoxFlag_OverflowX | UI_BoxFlag_Clip |
+        UI_BoxFlag_Clickable,
+        key
+    );
+
+    // NOTE(simon): Input handling
+    // TODO(simon): We should only consume input if we have focus!
+    for (UI_Event *event = global_ui_state->events->first; event; event = event->next) {
+        if (!(event->kind == UI_EventKind_Text || event->kind == UI_EventKind_Edit || event->kind == UI_EventKind_Navigation)) {
+            continue;
+        }
+
+        Str8 edit_string = str8(buffer, *buffer_size);
+
+        U64 new_cursor = *cursor;
+        U64 new_mark   = *mark;
+        U64 replace_min = 0;
+        U64 replace_max = 0;
+        Str8 replace = { 0 };
+        S64 cursor_delta = 0;
+        Str8 copy_string = { 0 };
+
+        // NOTE(simon): Build edit
+        switch (event->unit) {
+            case UI_EventDeltaUnit_Null: {
+            } break;
+            case UI_EventDeltaUnit_Character: {
+                if (event->delta < 0) {
+                    cursor_delta = (S64) str8_next_codepoint_offset(edit_string, *cursor, Side_Min) - (S64) *cursor;
+                } else if (0 < event->delta) {
+                    cursor_delta = (S64) str8_next_codepoint_offset(edit_string, *cursor, Side_Max) - (S64) *cursor;
+                }
+            } break;
+            case UI_EventDeltaUnit_Word: {
+                U8 *start = edit_string.data;
+                U8 *opl   = edit_string.data + edit_string.size;
+                U8 *ptr   = edit_string.data + *cursor;
+                if (event->delta < 0) {
+                    while (start < ptr && !ui_is_word(ptr[-1])) {
+                        --ptr;
+                    }
+                    while (start < ptr && ui_is_word(ptr[-1])) {
+                        --ptr;
+                    }
+                } else if (0 < event->delta) {
+                    while (ptr < opl && ui_is_word(*ptr)) {
+                        ++ptr;
+                    }
+                    while (ptr < opl && !ui_is_word(*ptr)) {
+                        ++ptr;
+                    }
+                }
+                cursor_delta = (S64) (ptr - start) - (S64) *cursor;
+            } break;
+            case UI_EventDeltaUnit_COUNT: {
+            } break;
+        }
+
+        if (*cursor != *mark && (event->flags & UI_EventFlag_PickSelectSide)) {
+            if (event->delta < 0) {
+                new_cursor = u64_min(*cursor, *mark);
+            } else if (0 < event->delta) {
+                new_cursor = u64_max(*cursor, *mark);
+            }
+        }
+
+        if ((event->flags & UI_EventFlag_ZeroDeltaOnSelection) && *cursor != *mark) {
+            cursor_delta = 0;
+        }
+
+        new_cursor = (U64) s64_min(s64_max(0, (S64) *cursor + cursor_delta), (S64) edit_string.size);
+
+        if (event->flags & UI_EventFlag_Delete) {
+            replace_min = u64_min(new_cursor, new_mark);
+            replace_max = u64_max(new_cursor, new_mark);
+            new_cursor = new_mark = replace_min;
+        }
+
+        if (!(event->flags & UI_EventFlag_KeepMark)) {
+            new_mark = new_cursor;
+        }
+
+        if (event->text.size) {
+            replace_min = u64_min(*cursor, *mark);
+            replace_max = u64_max(*cursor, *mark);
+            replace = event->text;
+            new_cursor = new_mark = replace_min + replace.size;
+        }
+
+        if ((event->flags & UI_EventFlag_Copy) && *cursor != *mark) {
+            U64 min = u64_min(*cursor, *mark);
+            U64 max = u64_max(*cursor, *mark);
+            copy_string = str8_skip(str8_prefix(edit_string, max), min);
+        }
+
+
+
+        // NOTE(simon): Apply edit
+        *cursor = u64_min(new_cursor, buffer_capacity);
+        *mark   = u64_min(new_mark,   buffer_capacity);
+
+        if (copy_string.size) {
+            gfx_set_clipboard_text(copy_string);
+        }
+
+        {
+            U64 to_remove = replace_max - replace_min;
+            // TODO(simon): This should round down to the previous codepoint, at least!
+            U64 to_insert = u64_min(replace.size, buffer_capacity - (*buffer_size - to_remove));
+            U64 to_move = u64_min(*buffer_size - replace_max, buffer_capacity - (replace_min + to_insert));
+
+            memory_move(&buffer[replace_min + to_insert], &buffer[replace_max], to_move);
+            memory_copy(&buffer[replace_min], replace.data, to_insert);
+            *buffer_size -= to_remove;
+            *buffer_size += to_insert;
+        }
+    }
+
+    FontCache_Font *font = font_cache_font_from_path(ui_font_top());
+    U32 font_size = ui_font_size_top();
+
+    U64 mouse_position = 0;
+    Str8 edit_string = str8(buffer, *buffer_size);
+
+    ui_parent(text_container_box) {
+        F32 text_width = font_cache_size_from_font_text_size(font, edit_string, font_size).width;
+        UI_DrawLineEdit *draw_data = arena_push_struct_zero(ui_frame_arena(), UI_DrawLineEdit);
+        draw_data->text = str8_copy(ui_frame_arena(), edit_string);
+        draw_data->cursor = *cursor;
+        draw_data->mark   = *mark;
+
+        ui_width_next(ui_size_pixels(text_width, 1.0f));
+        ui_draw_function_next(ui_draw_line_edit);
+        ui_draw_data_next(draw_data);
+        UI_Box *text_box = ui_create_box_from_string(UI_BoxFlag_DrawText, str8_literal("###edit_string"));
+        ui_box_set_string(text_box, edit_string);
+
+        F32 mouse = ui_mouse().x;
+        F32 text_mouse = mouse - ui_box_text_location(text_box).x;
+        mouse_position = font_cache_offset_from_font_text_size_position(font, edit_string, font_size, text_mouse);
+    }
+
+    UI_Input input = ui_input_from_box(text_container_box);
+    if (input.input_flags & UI_InputFlag_LeftDragging) {
+        if (input.input_flags & UI_InputFlag_LeftPressed) {
+            *mark = mouse_position;
+        }
+        *cursor = mouse_position;
+    }
+
+    // NOTE(simon): Focus the cursor
+    F32 cursor_position = font_cache_size_from_font_text_size(font, str8_prefix(edit_string, *cursor), font_size).width;
+    F32 cursor_position_min = f32_max(0.0f, cursor_position - 2.0f * (F32) font_size);
+    F32 cursor_position_max = f32_max(0.0f, cursor_position + 2.0f * (F32) font_size);
+    V2F32 box_size = r2f32_size(text_container_box->calculated_rectangle);
+    F32 view_min = text_container_box->view_offset.x;
+    F32 view_max = text_container_box->view_offset.x + box_size.width;
+    F32 min_delta = f32_min(0.0f, cursor_position_min - view_min);
+    F32 max_delta = f32_max(0.0f, cursor_position_max - view_max);
+    text_container_box->view_offset.x += min_delta;
+    text_container_box->view_offset.x += max_delta;
+
+    arena_end_temporary(scratch);
+}
