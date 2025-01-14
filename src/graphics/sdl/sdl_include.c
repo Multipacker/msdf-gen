@@ -225,3 +225,19 @@ internal Void gfx_set_cursor(Gfx_Cursor cursor) {
 
 internal Void gfx_set_update_function(VoidFunction *update) {
 }
+
+
+
+internal Void gfx_set_clipboard_text(Str8 text) {
+    Arena_Temporary scratch = arena_get_scratch(0, 0);
+    CStr text_c = cstr_from_str8(scratch.arena, text);
+    SDL_SetClipboardText(text_c);
+    arena_end_temporary(scratch);
+}
+
+internal Str8 gfx_get_clipboard_text(Void *arena) {
+    char *text_c = SDL_GetClipboardText();
+    Str8 result = str8_copy_cstr(arena, (U8 *) text_c);
+    SDL_free(text_c);
+    return result;
+}
