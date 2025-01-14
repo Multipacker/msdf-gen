@@ -154,6 +154,11 @@ internal Gfx_EventList gfx_get_events(Arena *arena, B32 wait) {
                     event->kind = Gfx_EventKind_Text;
                     event->text = str8_copy_cstr(arena, (U8 *) sdl_event.text.text);
                 } break;
+                case SDL_DROPFILE: {
+                    event->kind = Gfx_EventKind_FileDrop;
+                    event->path = str8_copy_cstr(arena, (U8 *) sdl_event.drop.file);
+                    SDL_free(sdl_event.drop.file);
+                } break;
             }
 
             if (event->kind != Gfx_EventKind_Null) {

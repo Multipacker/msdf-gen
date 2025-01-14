@@ -466,6 +466,7 @@ internal Void update(Void) {
                 case Gfx_EventKind_Text:       kind = UI_EventKind_Text;       break;
                 case Gfx_EventKind_Scroll:     kind = UI_EventKind_Scroll;     break;
                 case Gfx_EventKind_Resize:     kind = UI_EventKind_Null;       break;
+                case Gfx_EventKind_FileDrop:   kind = UI_EventKind_Null;       break;
                 case Gfx_EventKind_COUNT:      kind = UI_EventKind_Null;       break;
             }
             ui_event = arena_push_struct_zero(ui_frame_arena(), UI_Event);

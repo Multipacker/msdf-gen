@@ -9,6 +9,7 @@ typedef enum {
     Gfx_EventKind_Text,
     Gfx_EventKind_Scroll,
     Gfx_EventKind_Resize,
+    Gfx_EventKind_FileDrop,
 
     Gfx_EventKind_COUNT,
 } Gfx_EventKind;
@@ -106,6 +107,7 @@ struct Gfx_Event {
     V2F32           scroll;
     V2F32           position;
     Str8            text;
+    Str8            path;
 };
 
 typedef struct Gfx_EventList Gfx_EventList;
