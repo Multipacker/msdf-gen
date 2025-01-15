@@ -113,6 +113,27 @@ internal UI_Key ui_key_from_string_format(UI_Key seed, CStr format, ...) {
     return result;
 }
 
+
+
+internal B32 ui_is_focus_active(Void) {
+    UI_Context *ui = global_ui_state;
+    B32 result = ui_focus_top() == UI_Focus_Active;
+    if (result) {
+        for (UI_FocusStackNode *node = ui->focus_stack.top; node; node = node->next) {
+            if (node->item == UI_Focus_Root) {
+                break;
+            } else if (node->item == UI_Focus_Inactive) {
+                result = false;
+                break;
+            }
+        }
+    }
+
+    return result;
+}
+
+
+
 internal UI_Size ui_size_pixels(F32 pixels, F32 strictness) {
     UI_Size result = { 0 };
     result.kind = UI_Size_Pixels;
@@ -191,6 +212,7 @@ internal Void ui_begin(UI_EventList *events, F32 dt) {
     memory_zero_struct(&ui->draw_function_stack);
     memory_zero_struct(&ui->draw_data_stack);
     memory_zero_struct(&ui->corner_radius_stacks);
+    memory_zero_struct(&ui->focus_stack);
 
     ui->mouse = gfx_get_mouse_position();
     ui->events = events;
@@ -220,6 +242,7 @@ internal Void ui_begin(UI_EventList *events, F32 dt) {
     ui_corner_radius_01_push(0.0f);
     ui_corner_radius_10_push(0.0f);
     ui_corner_radius_11_push(0.0f);
+    ui_focus_push(UI_Focus_None);
 
     // NOTE(simon): Build root
     {
@@ -506,9 +529,11 @@ internal Void ui_end(Void) {
         for (U32 i = 0; i < UI_BOX_TABLE_SIZE; ++i) {
             UI_BoxList boxes = ui->box_table[i];
             for (UI_Box *box = boxes.first; box; box = box->hash_next) {
-                B32 is_hot      = ui_keys_match(ui->hot_key, box->key);
-                B32 is_active   = ui_keys_match(ui->active_key[UI_MouseButton_Left], box->key);
-                B32 is_disabled = box->flags & UI_BoxFlag_Disabled;
+                B32 is_hot            = ui_keys_match(ui->hot_key, box->key);
+                B32 is_active         = ui_keys_match(ui->active_key[UI_MouseButton_Left], box->key);
+                B32 is_disabled       = box->flags & UI_BoxFlag_Disabled;
+                B32 is_focus_active   = box->flags & UI_BoxFlag_FocusActive;
+                B32 is_focus_disabled = box->flags & UI_BoxFlag_FocusActive;
 
                 box->animated_position.x += (box->calculated_position.x - box->animated_position.x) * ui->fast_rate;
                 box->animated_position.y += (box->calculated_position.y - box->animated_position.y) * ui->fast_rate;
@@ -538,6 +563,19 @@ internal Void ui_end(Void) {
                 box->disabled_t += ((F32) is_disabled - box->disabled_t) * ui->slow_rate;
                 if (f32_abs((F32) is_disabled - box->disabled_t) < 0.001f) {
                     box->disabled_t = (F32) is_disabled;
+                } else {
+                    ui->is_animating = true;
+                }
+
+                box->focus_active_t += ((F32) is_focus_active - box->focus_active_t) * ui->fast_rate;
+                if (f32_abs((F32) is_focus_active - box->focus_active_t) < 0.001f) {
+                    box->focus_active_t = (F32) is_focus_active;
+                } else {
+                    ui->is_animating = true;
+                }
+                box->focus_disabled_t += ((F32) is_focus_disabled - box->focus_disabled_t) * ui->fast_rate;
+                if (f32_abs((F32) is_focus_disabled - box->focus_disabled_t) < 0.001f) {
+                    box->focus_disabled_t = (F32) is_focus_disabled;
                 } else {
                     ui->is_animating = true;
                 }
@@ -686,6 +724,14 @@ internal UI_Box *ui_create_box_from_key(UI_BoxFlags flags, UI_Key key) {
     box->corner_radies[Corner_10] = ui_corner_radius_10_top();
     box->corner_radies[Corner_11] = ui_corner_radius_11_top();
 
+    if (ui_focus_top() == UI_Focus_Active) {
+        box->flags |= UI_BoxFlag_FocusActive;
+    }
+
+    if (ui_focus_top() == UI_Focus_Active && !ui_is_focus_active()) {
+        box->flags |= UI_BoxFlag_FocusDisabled;
+    }
+
     if (ui->fixed_x_stack.top) {
         box->flags |= UI_BoxFlag_FloatingX;
         box->calculated_position.x = ui_fixed_x_top();
@@ -716,6 +762,7 @@ internal UI_Box *ui_create_box_from_key(UI_BoxFlags flags, UI_Key key) {
     ui_corner_radius_01_auto_pop();
     ui_corner_radius_10_auto_pop();
     ui_corner_radius_11_auto_pop();
+    ui_focus_auto_pop();
 
     return box;
 }
@@ -821,12 +868,12 @@ internal UI_Input ui_input_from_box(UI_Box *box) {
         B32 consumed = false;
 
         B32 is_in_bounds = r2f32_contains_v2f32(bounds, event->position) && !r2f32_contains_v2f32(exclude_bounds, event->position);
-        UI_MouseButtonKind mouse_key = UI_MouseButtonKind_Left;
+        UI_MouseButton mouse_key = UI_MouseButton_Left;
         B32 is_mouse_key = false;
         switch (event->key) {
-            case Gfx_Key_MouseLeft:   is_mouse_key = true; mouse_key = UI_MouseButtonKind_Left;   break;
-            case Gfx_Key_MouseMiddle: is_mouse_key = true; mouse_key = UI_MouseButtonKind_Middle; break;
-            case Gfx_Key_MouseRight:  is_mouse_key = true; mouse_key = UI_MouseButtonKind_Right;  break;
+            case Gfx_Key_MouseLeft:   is_mouse_key = true; mouse_key = UI_MouseButton_Left;   break;
+            case Gfx_Key_MouseMiddle: is_mouse_key = true; mouse_key = UI_MouseButton_Middle; break;
+            case Gfx_Key_MouseRight:  is_mouse_key = true; mouse_key = UI_MouseButton_Right;  break;
             default:                  is_mouse_key = false;                                       break;
         }
 

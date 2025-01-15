@@ -2,13 +2,6 @@
 #define UI_CORE_H
 
 typedef enum {
-    UI_MouseButtonKind_Left,
-    UI_MouseButtonKind_Middle,
-    UI_MouseButtonKind_Right,
-    UI_MouseButtonKind_COUNT,
-} UI_MouseButtonKind;
-
-typedef enum {
     UI_Size_Pixels,
     UI_Size_ChildrenSum,
     UI_Size_ParentPercent,
@@ -30,6 +23,47 @@ typedef enum {
 } UI_TextAlign;
 
 typedef U64 UI_Key;
+
+typedef enum {
+    UI_MouseButton_Left,
+    UI_MouseButton_Middle,
+    UI_MouseButton_Right,
+    UI_MouseButton_COUNT,
+} UI_MouseButton;
+
+typedef struct UI_Box UI_Box;
+
+#define UI_BOX_DRAW_FUNCTION(name) Void name(UI_Box *box, Void *data)
+typedef UI_BOX_DRAW_FUNCTION(UI_BoxDrawFunction);
+
+typedef enum {
+    UI_Focus_None,
+    UI_Focus_Active,
+    UI_Focus_Inactive,
+    UI_Focus_Root,
+    UI_Focus_COUNT,
+} UI_Focus;
+
+typedef enum {
+    UI_Color_Background,
+    UI_Color_Text,
+    UI_Color_Border,
+    UI_Color_Cursor,
+    UI_Color_Selection,
+    UI_Color_COUNT,
+} UI_Color;
+
+typedef union UI_Palette UI_Palette;
+union UI_Palette {
+    V4F32 colors[UI_Color_COUNT];
+    struct {
+        V4F32 background;
+        V4F32 text;
+        V4F32 border;
+        V4F32 cursor;
+        V4F32 selection;
+    };
+};
 
 typedef enum {
     // NOTE(simon): Interaction
@@ -54,44 +88,14 @@ typedef enum {
     UI_BoxFlag_DrawActive     = 1 << 14,
     UI_BoxFlag_Clip           = 1 << 15,
 
+    UI_BoxFlag_FocusActive    = 1 << 16,
+    UI_BoxFlag_FocusDisabled  = 1 << 17,
+
     // NOTE(simon): Convenient combinations
     UI_BoxFlag_Overflow         = UI_BoxFlag_OverflowX | UI_BoxFlag_OverflowY,
     UI_BoxFlag_AnimatePosition  = UI_BoxFlag_AnimateX  | UI_BoxFlag_AnimateY,
     UI_BoxFlag_FloatingPosition = UI_BoxFlag_FloatingX | UI_BoxFlag_FloatingY,
 } UI_BoxFlags;
-
-typedef enum {
-    UI_MouseButton_Left,
-    UI_MouseButton_Middle,
-    UI_MouseButton_Right,
-    UI_MouseButton_COUNT,
-} UI_MouseButton;
-
-typedef struct UI_Box UI_Box;
-
-#define UI_BOX_DRAW_FUNCTION(name) Void name(UI_Box *box, Void *data)
-typedef UI_BOX_DRAW_FUNCTION(UI_BoxDrawFunction);
-
-typedef enum {
-    UI_Color_Background,
-    UI_Color_Text,
-    UI_Color_Border,
-    UI_Color_Cursor,
-    UI_Color_Selection,
-    UI_Color_COUNT,
-} UI_Color;
-
-typedef union UI_Palette UI_Palette;
-union UI_Palette {
-    V4F32 colors[UI_Color_COUNT];
-    struct {
-        V4F32 background;
-        V4F32 text;
-        V4F32 border;
-        V4F32 cursor;
-        V4F32 selection;
-    };
-};
 
 struct UI_Box {
     UI_Box *parent;
@@ -134,6 +138,8 @@ struct UI_Box {
     F32 hot_t;
     F32 active_t;
     F32 disabled_t;
+    F32 focus_active_t;
+    F32 focus_disabled_t;
 };
 
 typedef struct UI_BoxIterator UI_BoxIterator;
@@ -201,6 +207,7 @@ ui_define_stack(Cursor,          cursor,            Gfx_Cursor)
 ui_define_stack(BoxDrawFunction, box_draw_function, UI_BoxDrawFunction *)
 ui_define_stack(Pointer,         pointer,           Void *)
 ui_define_stack(TextAlign,       text_align,        UI_TextAlign)
+ui_define_stack(Focus,           focus,             UI_Focus)
 
 typedef struct UI_BoxList UI_BoxList;
 struct UI_BoxList {
@@ -355,6 +362,7 @@ struct UI_Context {
     UI_PointerStack         draw_data_stack;
     UI_TextAlignStack       text_align_stack;
     UI_F32Stack             corner_radius_stacks[Corner_COUNT];
+    UI_FocusStack           focus_stack;
 };
 
 internal Void ui_select_state(UI_Context *state);
@@ -371,6 +379,8 @@ internal UI_Key ui_key_from_string_format(UI_Key seed, CStr format, ...);
 
 internal UI_Key ui_active_seed_key(Void);
 internal V2F32  ui_mouse(Void);
+
+internal B32 ui_is_focus_active(Void);
 
 internal UI_Size ui_size_pixels(F32 pixels, F32 strictness);
 internal UI_Size ui_size_ems(F32 ems, F32 strictness);
@@ -567,5 +577,12 @@ internal B32 ui_is_animating_from_context(UI_Context *ui);
 #define ui_corner_radius_pop()        (ui_corner_radius_00_pop(), ui_corner_radius_01_pop(), ui_corner_radius_10_pop(), ui_corner_radius_11_pop())
 #define ui_corner_radius(radius)      defer_loop(ui_corner_radius_push(radius), ui_corner_radius_pop())
 #define ui_corner_radius_next(radius) (ui_corner_radius_00_next(radius), ui_corner_radius_01_next(radius), ui_corner_radius_10_next(radius), ui_corner_radius_11_next(radius))
+
+#define ui_focus_push(focus) ui_focus_stack_push(&global_ui_state->focus_stack, focus, false)
+#define ui_focus_pop()       ui_focus_stack_pop(&global_ui_state->focus_stack)
+#define ui_focus(focus)      defer_loop(ui_focus_push(focus), ui_focus_pop())
+#define ui_focus_next(focus) ui_focus_stack_push(&global_ui_state->focus_stack, focus, true)
+#define ui_focus_auto_pop()  ui_focus_stack_auto_pop(&global_ui_state->focus_stack)
+#define ui_focus_top()       (global_ui_state->focus_stack.top->item)
 
 #endif // UI_CORE_H
