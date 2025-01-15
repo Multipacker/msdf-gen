@@ -613,3 +613,36 @@ PANEL_BUILD_FUNCTION(view_theme) {
         }
     }
 }
+
+PANEL_BUILD_FUNCTION(view_test) {
+    ui_center() {
+        ui_width_next(ui_size_parent_percent(1.0f, 1.0f));
+        ui_height_next(ui_size_children_sum(1.0f));
+        ui_row()
+        ui_center() {
+            ui_width(ui_size_ems(20.0f, 1.0f))
+            ui_height(ui_size_ems(1.5f, 1.0f))
+            ui_corner_radius(5.0f) {
+                ui_palette_next(palette_from_code(PaletteCode_Button));
+
+                // NOTE(simon): Setup
+                Str8 text = str8_literal("Sample text, this is some really long example text. Like really long");
+                local U64 cursor = 0;
+                local U64 mark = 0;
+                local U8 buffer[1024];
+                U64 buffer_capacity = array_count(buffer);
+                local U64 buffer_size = 0;
+                local B32 is_initialized = false;
+                if (!is_initialized) {
+                    buffer_size = u64_min(text.size, buffer_capacity);
+                    memory_copy(buffer, text.data, buffer_size);
+                    is_initialized = true;
+                }
+
+                ui_focus(UI_Focus_Active) {
+                    ui_line_edit(buffer, &buffer_size, buffer_capacity, &cursor, &mark, ui_key_from_string(global_ui_null_key, str8_literal("line_edit")));
+                }
+            }
+        }
+    }
+}

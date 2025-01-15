@@ -509,6 +509,7 @@ internal S32 os_run(Str8List arguments) {
         Panel *left = panel_create(state);
         push_command(Command_OpenTab, .panel = handle_from_panel(left), .tab_specification = str8_literal("Theme"));
         push_command(Command_OpenTab, .panel = handle_from_panel(left), .tab_specification = str8_literal("GlyphList"));
+        push_command(Command_OpenTab, .panel = handle_from_panel(left), .tab_specification = str8_literal("Test"));
 
         Panel *right = panel_create(state);
         right->split_axis = Axis2_Y;
