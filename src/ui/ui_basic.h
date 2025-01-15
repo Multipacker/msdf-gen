@@ -41,7 +41,7 @@ internal UI_Input ui_checkbox_b32_format(B32 *is_checked, CStr format, ...);
 
 // NOTE(simon): Line edit
 UI_BOX_DRAW_FUNCTION(ui_draw_line_edit);
-internal B32 ui_is_word(U32 codepoint);
-internal Void ui_line_edit(U8 *buffer, U64 *buffer_size, U64 buffer_capacity, U64 *cursor, U64 *mark, UI_Key key);
+internal B32      ui_is_word(U32 codepoint);
+internal UI_Input ui_line_edit(U8 *buffer, U64 *buffer_size, U64 buffer_capacity, U64 *cursor, U64 *mark, UI_Key key);
 
 #endif //UI_BASIC_H

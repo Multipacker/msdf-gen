@@ -211,7 +211,7 @@ internal B32 ui_is_word(U32 codepoint) {
     return result;
 }
 
-internal Void ui_line_edit(U8 *buffer, U64 *buffer_size, U64 buffer_capacity, U64 *cursor, U64 *mark, UI_Key key) {
+internal UI_Input ui_line_edit(U8 *buffer, U64 *buffer_size, U64 buffer_capacity, U64 *cursor, U64 *mark, UI_Key key) {
     Arena_Temporary scratch = arena_get_scratch(0, 0);
     ui_hover_cursor_next(Gfx_Cursor_Beam);
     UI_Box *text_container_box = ui_create_box_from_key(
@@ -222,115 +222,116 @@ internal Void ui_line_edit(U8 *buffer, U64 *buffer_size, U64 buffer_capacity, U6
     );
 
     // NOTE(simon): Input handling
-    // TODO(simon): We should only consume input if we have focus!
-    for (UI_Event *event = global_ui_state->events->first; event; event = event->next) {
-        if (!(event->kind == UI_EventKind_Text || event->kind == UI_EventKind_Edit || event->kind == UI_EventKind_Navigation)) {
-            continue;
-        }
-
-        Str8 edit_string = str8(buffer, *buffer_size);
-
-        U64 new_cursor = *cursor;
-        U64 new_mark   = *mark;
-        U64 replace_min = 0;
-        U64 replace_max = 0;
-        Str8 replace = { 0 };
-        S64 cursor_delta = 0;
-        Str8 copy_string = { 0 };
-
-        // NOTE(simon): Build edit
-        switch (event->unit) {
-            case UI_EventDeltaUnit_Null: {
-            } break;
-            case UI_EventDeltaUnit_Character: {
-                if (event->delta < 0) {
-                    cursor_delta = (S64) str8_next_codepoint_offset(edit_string, *cursor, Side_Min) - (S64) *cursor;
-                } else if (0 < event->delta) {
-                    cursor_delta = (S64) str8_next_codepoint_offset(edit_string, *cursor, Side_Max) - (S64) *cursor;
-                }
-            } break;
-            case UI_EventDeltaUnit_Word: {
-                U8 *start = edit_string.data;
-                U8 *opl   = edit_string.data + edit_string.size;
-                U8 *ptr   = edit_string.data + *cursor;
-                if (event->delta < 0) {
-                    while (start < ptr && !ui_is_word(ptr[-1])) {
-                        --ptr;
-                    }
-                    while (start < ptr && ui_is_word(ptr[-1])) {
-                        --ptr;
-                    }
-                } else if (0 < event->delta) {
-                    while (ptr < opl && ui_is_word(*ptr)) {
-                        ++ptr;
-                    }
-                    while (ptr < opl && !ui_is_word(*ptr)) {
-                        ++ptr;
-                    }
-                }
-                cursor_delta = (S64) (ptr - start) - (S64) *cursor;
-            } break;
-            case UI_EventDeltaUnit_COUNT: {
-            } break;
-        }
-
-        if (*cursor != *mark && (event->flags & UI_EventFlag_PickSelectSide)) {
-            if (event->delta < 0) {
-                new_cursor = u64_min(*cursor, *mark);
-            } else if (0 < event->delta) {
-                new_cursor = u64_max(*cursor, *mark);
+    if (ui_is_focus_active()) {
+        for (UI_Event *event = global_ui_state->events->first; event; event = event->next) {
+            if (!(event->kind == UI_EventKind_Text || event->kind == UI_EventKind_Edit || event->kind == UI_EventKind_Navigation)) {
+                continue;
             }
-        }
 
-        if ((event->flags & UI_EventFlag_ZeroDeltaOnSelection) && *cursor != *mark) {
-            cursor_delta = 0;
-        }
+            Str8 edit_string = str8(buffer, *buffer_size);
 
-        new_cursor = (U64) s64_min(s64_max(0, (S64) *cursor + cursor_delta), (S64) edit_string.size);
+            U64 new_cursor = *cursor;
+            U64 new_mark   = *mark;
+            U64 replace_min = 0;
+            U64 replace_max = 0;
+            Str8 replace = { 0 };
+            S64 cursor_delta = 0;
+            Str8 copy_string = { 0 };
 
-        if (event->flags & UI_EventFlag_Delete) {
-            replace_min = u64_min(new_cursor, new_mark);
-            replace_max = u64_max(new_cursor, new_mark);
-            new_cursor = new_mark = replace_min;
-        }
+            // NOTE(simon): Build edit
+            switch (event->unit) {
+                case UI_EventDeltaUnit_Null: {
+                } break;
+                case UI_EventDeltaUnit_Character: {
+                    if (event->delta < 0) {
+                        cursor_delta = (S64) str8_next_codepoint_offset(edit_string, *cursor, Side_Min) - (S64) *cursor;
+                    } else if (0 < event->delta) {
+                        cursor_delta = (S64) str8_next_codepoint_offset(edit_string, *cursor, Side_Max) - (S64) *cursor;
+                    }
+                } break;
+                case UI_EventDeltaUnit_Word: {
+                    U8 *start = edit_string.data;
+                    U8 *opl   = edit_string.data + edit_string.size;
+                    U8 *ptr   = edit_string.data + *cursor;
+                    if (event->delta < 0) {
+                        while (start < ptr && !ui_is_word(ptr[-1])) {
+                            --ptr;
+                        }
+                        while (start < ptr && ui_is_word(ptr[-1])) {
+                            --ptr;
+                        }
+                    } else if (0 < event->delta) {
+                        while (ptr < opl && ui_is_word(*ptr)) {
+                            ++ptr;
+                        }
+                        while (ptr < opl && !ui_is_word(*ptr)) {
+                            ++ptr;
+                        }
+                    }
+                    cursor_delta = (S64) (ptr - start) - (S64) *cursor;
+                } break;
+                case UI_EventDeltaUnit_COUNT: {
+                } break;
+            }
 
-        if (!(event->flags & UI_EventFlag_KeepMark)) {
-            new_mark = new_cursor;
-        }
+            if (*cursor != *mark && (event->flags & UI_EventFlag_PickSelectSide)) {
+                if (event->delta < 0) {
+                    new_cursor = u64_min(*cursor, *mark);
+                } else if (0 < event->delta) {
+                    new_cursor = u64_max(*cursor, *mark);
+                }
+            }
 
-        if (event->text.size) {
-            replace_min = u64_min(*cursor, *mark);
-            replace_max = u64_max(*cursor, *mark);
-            replace = event->text;
-            new_cursor = new_mark = replace_min + replace.size;
-        }
+            if ((event->flags & UI_EventFlag_ZeroDeltaOnSelection) && *cursor != *mark) {
+                cursor_delta = 0;
+            }
 
-        if ((event->flags & UI_EventFlag_Copy) && *cursor != *mark) {
-            U64 min = u64_min(*cursor, *mark);
-            U64 max = u64_max(*cursor, *mark);
-            copy_string = str8_skip(str8_prefix(edit_string, max), min);
-        }
+            new_cursor = (U64) s64_min(s64_max(0, (S64) *cursor + cursor_delta), (S64) edit_string.size);
+
+            if (event->flags & UI_EventFlag_Delete) {
+                replace_min = u64_min(new_cursor, new_mark);
+                replace_max = u64_max(new_cursor, new_mark);
+                new_cursor = new_mark = replace_min;
+            }
+
+            if (!(event->flags & UI_EventFlag_KeepMark)) {
+                new_mark = new_cursor;
+            }
+
+            if (event->text.size) {
+                replace_min = u64_min(*cursor, *mark);
+                replace_max = u64_max(*cursor, *mark);
+                replace = event->text;
+                new_cursor = new_mark = replace_min + replace.size;
+            }
+
+            if ((event->flags & UI_EventFlag_Copy) && *cursor != *mark) {
+                U64 min = u64_min(*cursor, *mark);
+                U64 max = u64_max(*cursor, *mark);
+                copy_string = str8_skip(str8_prefix(edit_string, max), min);
+            }
 
 
 
-        // NOTE(simon): Apply edit
-        *cursor = u64_min(new_cursor, buffer_capacity);
-        *mark   = u64_min(new_mark,   buffer_capacity);
+            // NOTE(simon): Apply edit
+            *cursor = u64_min(new_cursor, buffer_capacity);
+            *mark   = u64_min(new_mark,   buffer_capacity);
 
-        if (copy_string.size) {
-            gfx_set_clipboard_text(copy_string);
-        }
+            if (copy_string.size) {
+                gfx_set_clipboard_text(copy_string);
+            }
 
-        {
-            U64 to_remove = replace_max - replace_min;
-            // TODO(simon): This should round down to the previous codepoint, at least!
-            U64 to_insert = u64_min(replace.size, buffer_capacity - (*buffer_size - to_remove));
-            U64 to_move = u64_min(*buffer_size - replace_max, buffer_capacity - (replace_min + to_insert));
+            {
+                U64 to_remove = replace_max - replace_min;
+                // TODO(simon): This should round down to the previous codepoint, at least!
+                U64 to_insert = u64_min(replace.size, buffer_capacity - (*buffer_size - to_remove));
+                U64 to_move = u64_min(*buffer_size - replace_max, buffer_capacity - (replace_min + to_insert));
 
-            memory_move(&buffer[replace_min + to_insert], &buffer[replace_max], to_move);
-            memory_copy(&buffer[replace_min], replace.data, to_insert);
-            *buffer_size -= to_remove;
-            *buffer_size += to_insert;
+                memory_move(&buffer[replace_min + to_insert], &buffer[replace_max], to_move);
+                memory_copy(&buffer[replace_min], replace.data, to_insert);
+                *buffer_size -= to_remove;
+                *buffer_size += to_insert;
+            }
         }
     }
 
@@ -379,4 +380,6 @@ internal Void ui_line_edit(U8 *buffer, U64 *buffer_size, U64 buffer_capacity, U6
     text_container_box->view_offset.x += max_delta;
 
     arena_end_temporary(scratch);
+
+    return input;
 }
