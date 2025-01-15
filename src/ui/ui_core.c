@@ -531,9 +531,9 @@ internal Void ui_end(Void) {
             for (UI_Box *box = boxes.first; box; box = box->hash_next) {
                 B32 is_hot            = ui_keys_match(ui->hot_key, box->key);
                 B32 is_active         = ui_keys_match(ui->active_key[UI_MouseButton_Left], box->key);
-                B32 is_disabled       = box->flags & UI_BoxFlag_Disabled;
-                B32 is_focus_active   = box->flags & UI_BoxFlag_FocusActive;
-                B32 is_focus_disabled = box->flags & UI_BoxFlag_FocusActive;
+                B32 is_disabled       = !!(box->flags & UI_BoxFlag_Disabled);
+                B32 is_focus_active   = !!(box->flags & UI_BoxFlag_FocusActive);
+                B32 is_focus_disabled = !!(box->flags & UI_BoxFlag_FocusDisabled);
 
                 box->animated_position.x += (box->calculated_position.x - box->animated_position.x) * ui->fast_rate;
                 box->animated_position.y += (box->calculated_position.y - box->animated_position.y) * ui->fast_rate;
