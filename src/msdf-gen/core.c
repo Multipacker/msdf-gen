@@ -1043,298 +1043,301 @@ internal Void update(Void) {
 
             push_context(.panel = handle_from_panel(panel), .tab = panel->active_tab);
 
-            R2F32 panel_rectangle = r2f32_pad(rectangle_from_panel(panel, root_rectangle), -panel_pad);
+            ui_focus(panel == panel_from_handle(state->active_panel) ? UI_Focus_None : UI_Focus_Inactive) {
+                R2F32 panel_rectangle = r2f32_pad(rectangle_from_panel(panel, root_rectangle), -panel_pad);
 
-            if (drag_is_active() && r2f32_contains_v2f32(panel_rectangle, ui_mouse())) {
-                V2F32 center = r2f32_center(panel_rectangle);
-                F32 drop_half_size = 3.0f * (F32) ui_font_size_top();
-                F32 corner_radius = 0.5f * (F32) ui_font_size_top();
-                F32 padding = 0.5f * (F32) ui_font_size_top();
-                typedef struct DropTarget DropTarget;
-                struct DropTarget {
-                    UI_Key key;
-                    Direction2 direction;
-                    R2F32 rectangle;
-                };
-                DropTarget targets[] = {
-                    {
-                        ui_key_from_string_format(global_ui_null_key, "drop_center_%p", panel),
-                        Direction2_Invalid,
-                        r2f32(
-                            center.x - drop_half_size, center.y - drop_half_size,
-                            center.x + drop_half_size, center.y + drop_half_size
-                        ),
-                    },
-                    {
-                        ui_key_from_string_format(global_ui_null_key, "drop_left_%p", panel),
-                        Direction2_Left,
-                        r2f32(
-                            center.x - drop_half_size - 2.0f * drop_half_size, center.y - drop_half_size,
-                            center.x + drop_half_size - 2.0f * drop_half_size, center.y + drop_half_size
-                        ),
-                    },
-                    {
-                        ui_key_from_string_format(global_ui_null_key, "drop_up_%p", panel),
-                        Direction2_Up,
-                        r2f32(
-                            center.x - drop_half_size, center.y - drop_half_size - 2.0f * drop_half_size,
-                            center.x + drop_half_size, center.y + drop_half_size - 2.0f * drop_half_size
-                        ),
-                    },
-                    {
-                        ui_key_from_string_format(global_ui_null_key, "drop_right_%p", panel),
-                        Direction2_Right,
-                        r2f32(
-                            center.x - drop_half_size + 2.0f * drop_half_size, center.y - drop_half_size,
-                            center.x + drop_half_size + 2.0f * drop_half_size, center.y + drop_half_size
-                        ),
-                    },
-                    {
-                        ui_key_from_string_format(global_ui_null_key, "drop_down_%p", panel),
-                        Direction2_Down,
-                        r2f32(
-                            center.x - drop_half_size, center.y - drop_half_size + 2.0f * drop_half_size,
-                            center.x + drop_half_size, center.y + drop_half_size + 2.0f * drop_half_size
-                        ),
-                    },
-                };
+                if (drag_is_active() && r2f32_contains_v2f32(panel_rectangle, ui_mouse())) {
+                    V2F32 center = r2f32_center(panel_rectangle);
+                    F32 drop_half_size = 3.0f * (F32) ui_font_size_top();
+                    F32 corner_radius = 0.5f * (F32) ui_font_size_top();
+                    F32 padding = 0.5f * (F32) ui_font_size_top();
+                    typedef struct DropTarget DropTarget;
+                    struct DropTarget {
+                        UI_Key key;
+                        Direction2 direction;
+                        R2F32 rectangle;
+                    };
+                    DropTarget targets[] = {
+                        {
+                            ui_key_from_string_format(global_ui_null_key, "drop_center_%p", panel),
+                            Direction2_Invalid,
+                            r2f32(
+                                center.x - drop_half_size, center.y - drop_half_size,
+                                center.x + drop_half_size, center.y + drop_half_size
+                            ),
+                        },
+                        {
+                            ui_key_from_string_format(global_ui_null_key, "drop_left_%p", panel),
+                            Direction2_Left,
+                            r2f32(
+                                center.x - drop_half_size - 2.0f * drop_half_size, center.y - drop_half_size,
+                                center.x + drop_half_size - 2.0f * drop_half_size, center.y + drop_half_size
+                            ),
+                        },
+                        {
+                            ui_key_from_string_format(global_ui_null_key, "drop_up_%p", panel),
+                            Direction2_Up,
+                            r2f32(
+                                center.x - drop_half_size, center.y - drop_half_size - 2.0f * drop_half_size,
+                                center.x + drop_half_size, center.y + drop_half_size - 2.0f * drop_half_size
+                            ),
+                        },
+                        {
+                            ui_key_from_string_format(global_ui_null_key, "drop_right_%p", panel),
+                            Direction2_Right,
+                            r2f32(
+                                center.x - drop_half_size + 2.0f * drop_half_size, center.y - drop_half_size,
+                                center.x + drop_half_size + 2.0f * drop_half_size, center.y + drop_half_size
+                            ),
+                        },
+                        {
+                            ui_key_from_string_format(global_ui_null_key, "drop_down_%p", panel),
+                            Direction2_Down,
+                            r2f32(
+                                center.x - drop_half_size, center.y - drop_half_size + 2.0f * drop_half_size,
+                                center.x + drop_half_size, center.y + drop_half_size + 2.0f * drop_half_size
+                            ),
+                        },
+                    };
 
-                ui_corner_radius(corner_radius)
-                for (U32 i = 0; i < array_count(targets); ++i) {
-                    Axis2 axis = axis2_from_direction2(targets[i].direction);
-                    if (targets[i].direction != Direction2_Invalid && panel->parent && axis == panel->parent->split_axis) {
-                        continue;
-                    }
-
-                    ui_fixed_position_next(targets[i].rectangle.min);
-                    ui_width_next(ui_size_pixels(r2f32_size(targets[i].rectangle).width, 1.0f));
-                    ui_height_next(ui_size_pixels(r2f32_size(targets[i].rectangle).height, 1.0f));
-
-                    UI_Box *drop_site = ui_create_box_from_key(UI_BoxFlag_FloatingPosition | UI_BoxFlag_DropTarget, targets[i].key);
-                    ui_input_from_box(drop_site);
-
-                    ui_parent(drop_site)
-                    ui_width(ui_size_fill())
-                    ui_height(ui_size_fill())
-                    ui_palette(palette_from_code(PaletteCode_DropSiteOverlay))
-                    ui_padding(ui_size_pixels(padding, 1.0f))
-                    ui_row()
-                    ui_padding(ui_size_pixels(padding, 1.0f)) {
-                        if (ui_keys_match(targets[i].key, ui_drop_hot_key())) {
-                            UI_Palette overlay = ui_palette_top();
-                            overlay.border = color_from_theme(ThemeColor_Hover);
-                            ui_palette_next(overlay);
+                    ui_corner_radius(corner_radius)
+                    for (U32 i = 0; i < array_count(targets); ++i) {
+                        Axis2 axis = axis2_from_direction2(targets[i].direction);
+                        if (targets[i].direction != Direction2_Invalid && panel->parent && axis == panel->parent->split_axis) {
+                            continue;
                         }
-                        ui_layout_axis_next(axis2_flip(axis));
-                        UI_Box *visualization = ui_create_box(UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawBorder);
-                        ui_parent(visualization)
+
+                        ui_fixed_position_next(targets[i].rectangle.min);
+                        ui_width_next(ui_size_pixels(r2f32_size(targets[i].rectangle).width, 1.0f));
+                        ui_height_next(ui_size_pixels(r2f32_size(targets[i].rectangle).height, 1.0f));
+
+                        UI_Box *drop_site = ui_create_box_from_key(UI_BoxFlag_FloatingPosition | UI_BoxFlag_DropTarget, targets[i].key);
+                        ui_input_from_box(drop_site);
+
+                        ui_parent(drop_site)
                         ui_width(ui_size_fill())
                         ui_height(ui_size_fill())
+                        ui_palette(palette_from_code(PaletteCode_DropSiteOverlay))
+                        ui_padding(ui_size_pixels(padding, 1.0f))
+                        ui_row()
                         ui_padding(ui_size_pixels(padding, 1.0f)) {
-                            if (targets[i].direction != Direction2_Invalid) {
-                                ui_layout_axis_next(axis);
-                                UI_Box *row_or_column = ui_create_box(0);
-                                ui_parent(row_or_column)
-                                ui_padding(ui_size_pixels(padding, 1.0f)) {
-                                    ui_create_box(UI_BoxFlag_DrawBorder);
-                                    ui_spacer_sized(ui_size_pixels(padding, 1.0f));
-                                    ui_create_box(UI_BoxFlag_DrawBorder);
+                            if (ui_keys_match(targets[i].key, ui_drop_hot_key())) {
+                                UI_Palette overlay = ui_palette_top();
+                                overlay.border = color_from_theme(ThemeColor_Hover);
+                                ui_palette_next(overlay);
+                            }
+                            ui_layout_axis_next(axis2_flip(axis));
+                            UI_Box *visualization = ui_create_box(UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawBorder);
+                            ui_parent(visualization)
+                            ui_width(ui_size_fill())
+                            ui_height(ui_size_fill())
+                            ui_padding(ui_size_pixels(padding, 1.0f)) {
+                                if (targets[i].direction != Direction2_Invalid) {
+                                    ui_layout_axis_next(axis);
+                                    UI_Box *row_or_column = ui_create_box(0);
+                                    ui_parent(row_or_column)
+                                    ui_padding(ui_size_pixels(padding, 1.0f)) {
+                                        ui_create_box(UI_BoxFlag_DrawBorder);
+                                        ui_spacer_sized(ui_size_pixels(padding, 1.0f));
+                                        ui_create_box(UI_BoxFlag_DrawBorder);
+                                    }
+                                } else {
+                                    ui_layout_axis_next(axis);
+                                    UI_Box *row_or_column = ui_create_box(0);
+                                    ui_parent(row_or_column)
+                                    ui_padding(ui_size_pixels(padding, 1.0f)) {
+                                        ui_create_box(UI_BoxFlag_DrawBorder);
+                                    }
                                 }
+                            }
+                        }
+
+                        if (ui_keys_match(targets[i].key, ui_drop_hot_key()) && drag_drop()) {
+                            if (targets[i].direction == Direction2_Invalid) {
+                                DragTabData *data = ui_get_drag_data(DragTabData);
+                                push_command(
+                                    Command_MoveTab,
+                                    .panel = data->panel,
+                                    .tab   = data->tab,
+                                    .destination_panel = handle_from_panel(panel),
+                                    .previous_tab      = panel->active_tab,
+                                );
                             } else {
-                                ui_layout_axis_next(axis);
-                                UI_Box *row_or_column = ui_create_box(0);
-                                ui_parent(row_or_column)
-                                ui_padding(ui_size_pixels(padding, 1.0f)) {
-                                    ui_create_box(UI_BoxFlag_DrawBorder);
-                                }
+                                DragTabData *data = ui_get_drag_data(DragTabData);
+                                push_command(
+                                    Command_SplitPanel,
+                                    .panel = data->panel,
+                                    .tab   = data->tab,
+                                    .destination_panel = handle_from_panel(panel),
+                                    .direction = targets[i].direction,
+                                );
                             }
                         }
-                    }
 
-                    if (ui_keys_match(targets[i].key, ui_drop_hot_key()) && drag_drop()) {
-                        if (targets[i].direction == Direction2_Invalid) {
-                            DragTabData *data = ui_get_drag_data(DragTabData);
-                            push_command(
-                                Command_MoveTab,
-                                .panel = data->panel,
-                                .tab   = data->tab,
-                                .destination_panel = handle_from_panel(panel),
-                                .previous_tab      = panel->active_tab,
-                            );
-                        } else {
-                            DragTabData *data = ui_get_drag_data(DragTabData);
-                            push_command(
-                                Command_SplitPanel,
-                                .panel = data->panel,
-                                .tab   = data->tab,
-                                .destination_panel = handle_from_panel(panel),
-                                .direction = targets[i].direction,
-                            );
-                        }
-                    }
-
-                    if (ui_keys_match(targets[i].key, ui_drop_hot_key())) {
-                        Axis2 split_axis = axis2_from_direction2(targets[i].direction);
-                        Side split_side = side_from_direction2(targets[i].direction);
-                        R2F32 future_split_rectangle = panel_rectangle;
-                        if (targets[i].direction != Direction2_Invalid) {
-                            V2F32 panel_center = r2f32_center(panel_rectangle);
-                            future_split_rectangle.values[side_flip(split_side)].values[split_axis] = panel_center.values[split_axis];
-                        }
-
-                        ui_palette_next(palette_from_code(PaletteCode_DropSiteOverlay));
-                        ui_fixed_position_next(future_split_rectangle.min);
-                        ui_width_next(ui_size_pixels(r2f32_size(future_split_rectangle).width, 1.0f));
-                        ui_height_next(ui_size_pixels(r2f32_size(future_split_rectangle).height, 1.0f));
-                        ui_create_box(UI_BoxFlag_DrawBackground);
-                    }
-                }
-            }
-
-            Tab *next_active_tab = tab_from_handle(panel->active_tab);
-
-            UI_Size tab_height = ui_size_ems(2.0f, 1.0f);
-            R2F32 tab_bar_rectangle = r2f32(panel_rectangle.min.x, panel_rectangle.min.y, panel_rectangle.max.x, panel_rectangle.min.y + tab_height.value);
-            R2F32 content_rectangle = r2f32(panel_rectangle.min.x, panel_rectangle.min.y + tab_height.value, panel_rectangle.max.x, panel_rectangle.max.y);
-
-            if (panel != panel_from_handle(state->active_panel)) {
-                UI_Palette overlay = ui_palette_top();
-                overlay.background = color_from_theme(ThemeColor_InactivePanelOverlay);
-                ui_palette_next(overlay);
-                ui_fixed_position_next(panel_rectangle.min);
-                ui_width_next(ui_size_pixels(r2f32_size(panel_rectangle).width, 1.0f));
-                ui_height_next(ui_size_pixels(r2f32_size(panel_rectangle).height, 1.0f));
-                ui_create_box(UI_BoxFlag_DrawBackground | UI_BoxFlag_FloatingPosition);
-            }
-
-            ui_fixed_position_next(tab_bar_rectangle.min);
-            ui_width_next(ui_size_pixels(r2f32_size(tab_bar_rectangle).width, 1.0f));
-            ui_height_next(ui_size_pixels(r2f32_size(tab_bar_rectangle).height, 1.0f));
-            ui_layout_axis_next(Axis2_X);
-            UI_Box *tab_bar_box = ui_create_box_from_string_format(
-                UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawBorder | UI_BoxFlag_Clickable | UI_BoxFlag_FloatingPosition | UI_BoxFlag_OverflowX | UI_BoxFlag_Clip,
-                "###tab_bar_box_%p", panel
-            );
-
-            ui_palette(palette_from_code(PaletteCode_InactiveTab))
-            ui_width(ui_size_children_sum(1.0f))
-            ui_height(tab_height)
-            ui_layout_axis(Axis2_X)
-            ui_parent(tab_bar_box)
-            ui_corner_radius_00(10.0f)
-            ui_corner_radius_01(10.0f) {
-                for (Tab *tab = panel->tab_first; tab; tab = tab->next) {
-                    push_context(.tab = handle_from_tab(tab));
-                    if (tab == tab_from_handle(panel->active_tab)) {
-                        ui_palette_push(palette_from_code(PaletteCode_Tab));
-                    }
-
-                    ui_hover_cursor_next(Gfx_Cursor_Hand);
-                    UI_Box *tab_box = ui_create_box_from_string_format(
-                        UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawBorder | UI_BoxFlag_Clickable | UI_BoxFlag_DrawHot | UI_BoxFlag_DrawActive | UI_BoxFlag_AnimateX,
-                        "###tab_%p", tab
-                    );
-
-                    ui_parent(tab_box) {
-                        ui_text_align_next(UI_TextAlign_Left);
-                        ui_width_next(ui_size_text_content(5.0f, 1.0f));
-                        ui_label(tab->name);
-
-                        ui_width_next(ui_size_ems(1.5f, 1.0f));
-                        ui_text_align_next(UI_TextAlign_Center);
-                        ui_hover_cursor_next(Gfx_Cursor_Hand);
-                        UI_Box *close_box = ui_create_box_from_string_format(
-                            UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawText |
-                            UI_BoxFlag_DrawHot | UI_BoxFlag_DrawActive |
-                            UI_BoxFlag_Clickable,
-                            "X##_tab_%p", tab
-                        );
-                        UI_Input close_input = ui_input_from_box(close_box);
-                        if (close_input.input_flags & UI_InputFlag_LeftClicked) {
-                            push_command(Command_CloseTab, .tab = handle_from_tab(tab));
-                        }
-                    }
-
-                    UI_Input input = ui_input_from_box(tab_box);
-
-                    if (input.input_flags & UI_InputFlag_LeftPressed) {
-                        push_command(Command_FocusPanel);
-                        next_active_tab = tab;
-                    }
-
-                    if (tab->next) {
-                        ui_spacer_sized(ui_size_ems(0.3f, 1.0f));
-                    }
-
-                    if (input.input_flags & UI_InputFlag_LeftDragging && !drag_is_active() && v2f32_length(ui_drag_delta()) > 10.0f) {
-                        DragTabData data = {
-                            .panel = handle_from_panel(panel),
-                            .tab = handle_from_tab(tab),
-                        };
-                        ui_set_drag_data(&data);
-                        drag_begin();
-                    }
-
-                    if (tab == tab_from_handle(panel->active_tab)) {
-                        ui_palette_pop();
-                    }
-                    pop_context();
-                }
-            }
-
-            ui_fixed_position_next(content_rectangle.min);
-            ui_width_next(ui_size_pixels(r2f32_size(content_rectangle).width, 1.0f));
-            ui_height_next(ui_size_pixels(r2f32_size(content_rectangle).height, 1.0f));
-            UI_Box *content_box = ui_create_box_from_string_format(
-                UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawBorder | UI_BoxFlag_Clickable | UI_BoxFlag_DropTarget | UI_BoxFlag_FloatingPosition | UI_BoxFlag_Clip,
-                "###panel_box_%p", panel
-            );
-
-            ui_parent(content_box) {
-                Tab *tab = tab_from_handle(panel->active_tab);
-                if (tab && tab->build_view) {
-                    tab->build_view(tab, content_rectangle);
-                } else {
-                    ui_width(ui_size_parent_percent(1.0f, 1.0f))
-                    ui_height(ui_size_parent_percent(1.0f, 1.0f))
-                    ui_column() {
-                        ui_spacer_sized(ui_size_fill());
-                        ui_height(ui_size_children_sum(1.0f))
-                        ui_row() {
-                            ui_spacer_sized(ui_size_fill());
-                            ui_width_next(ui_size_text_content(5.0f, 1.0f));
-                            ui_height_next(ui_size_text_content(0.0f, 1.0f));
-                            ui_palette_next(palette_from_code(PaletteCode_Button));
-                            ui_corner_radius_next(5.0f);
-                            UI_Input close_input = ui_button_format("Close panel###%p", panel);
-                            if (close_input.input_flags & UI_InputFlag_LeftClicked) {
-                                push_command(Command_ClosePanel);
+                        if (ui_keys_match(targets[i].key, ui_drop_hot_key())) {
+                            Axis2 split_axis = axis2_from_direction2(targets[i].direction);
+                            Side split_side = side_from_direction2(targets[i].direction);
+                            R2F32 future_split_rectangle = panel_rectangle;
+                            if (targets[i].direction != Direction2_Invalid) {
+                                V2F32 panel_center = r2f32_center(panel_rectangle);
+                                future_split_rectangle.values[side_flip(split_side)].values[split_axis] = panel_center.values[split_axis];
                             }
 
-                            ui_spacer_sized(ui_size_fill());
+                            ui_palette_next(palette_from_code(PaletteCode_DropSiteOverlay));
+                            ui_fixed_position_next(future_split_rectangle.min);
+                            ui_width_next(ui_size_pixels(r2f32_size(future_split_rectangle).width, 1.0f));
+                            ui_height_next(ui_size_pixels(r2f32_size(future_split_rectangle).height, 1.0f));
+                            ui_create_box(UI_BoxFlag_DrawBackground);
                         }
-                        ui_spacer_sized(ui_size_fill());
                     }
                 }
-            }
 
-            // NOTE(simon): Consume fallthrough events.
-            UI_Input content_input = ui_input_from_box(content_box);
-            if (content_input.input_flags & UI_InputFlag_LeftClicked) {
-                push_command(Command_FocusPanel);
-            }
-            if (ui_drop_hot_key() == content_box->key && drag_drop()) {
-                DragTabData *data = ui_get_drag_data(DragTabData);
-                push_command(
-                    Command_MoveTab,
-                    .panel = data->panel,
-                    .tab   = data->tab,
-                    .destination_panel = handle_from_panel(panel),
-                    .previous_tab      = panel->active_tab,
+                Tab *next_active_tab = tab_from_handle(panel->active_tab);
+
+                UI_Size tab_height = ui_size_ems(2.0f, 1.0f);
+                R2F32 tab_bar_rectangle = r2f32(panel_rectangle.min.x, panel_rectangle.min.y, panel_rectangle.max.x, panel_rectangle.min.y + tab_height.value);
+                R2F32 content_rectangle = r2f32(panel_rectangle.min.x, panel_rectangle.min.y + tab_height.value, panel_rectangle.max.x, panel_rectangle.max.y);
+
+                if (panel != panel_from_handle(state->active_panel)) {
+                    UI_Palette overlay = ui_palette_top();
+                    overlay.background = color_from_theme(ThemeColor_InactivePanelOverlay);
+                    ui_palette_next(overlay);
+                    ui_fixed_position_next(panel_rectangle.min);
+                    ui_width_next(ui_size_pixels(r2f32_size(panel_rectangle).width, 1.0f));
+                    ui_height_next(ui_size_pixels(r2f32_size(panel_rectangle).height, 1.0f));
+                    ui_create_box(UI_BoxFlag_DrawBackground | UI_BoxFlag_FloatingPosition);
+                }
+
+                ui_fixed_position_next(tab_bar_rectangle.min);
+                ui_width_next(ui_size_pixels(r2f32_size(tab_bar_rectangle).width, 1.0f));
+                ui_height_next(ui_size_pixels(r2f32_size(tab_bar_rectangle).height, 1.0f));
+                ui_layout_axis_next(Axis2_X);
+                UI_Box *tab_bar_box = ui_create_box_from_string_format(
+                    UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawBorder | UI_BoxFlag_Clickable | UI_BoxFlag_FloatingPosition | UI_BoxFlag_OverflowX | UI_BoxFlag_Clip,
+                    "###tab_bar_box_%p", panel
                 );
+
+                ui_palette(palette_from_code(PaletteCode_InactiveTab))
+                ui_width(ui_size_children_sum(1.0f))
+                ui_height(tab_height)
+                ui_layout_axis(Axis2_X)
+                ui_parent(tab_bar_box)
+                ui_corner_radius_00(10.0f)
+                ui_corner_radius_01(10.0f) {
+                    for (Tab *tab = panel->tab_first; tab; tab = tab->next) {
+                        push_context(.tab = handle_from_tab(tab));
+                        if (tab == tab_from_handle(panel->active_tab)) {
+                            ui_palette_push(palette_from_code(PaletteCode_Tab));
+                        }
+
+                        ui_hover_cursor_next(Gfx_Cursor_Hand);
+                        UI_Box *tab_box = ui_create_box_from_string_format(
+                            UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawBorder | UI_BoxFlag_Clickable | UI_BoxFlag_DrawHot | UI_BoxFlag_DrawActive | UI_BoxFlag_AnimateX,
+                            "###tab_%p", tab
+                        );
+
+                        ui_parent(tab_box) {
+                            ui_text_align_next(UI_TextAlign_Left);
+                            ui_width_next(ui_size_text_content(5.0f, 1.0f));
+                            ui_label(tab->name);
+
+                            ui_width_next(ui_size_ems(1.5f, 1.0f));
+                            ui_text_align_next(UI_TextAlign_Center);
+                            ui_hover_cursor_next(Gfx_Cursor_Hand);
+                            UI_Box *close_box = ui_create_box_from_string_format(
+                                UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawText |
+                                UI_BoxFlag_DrawHot | UI_BoxFlag_DrawActive |
+                                UI_BoxFlag_Clickable,
+                                "X##_tab_%p", tab
+                            );
+                            UI_Input close_input = ui_input_from_box(close_box);
+                            if (close_input.input_flags & UI_InputFlag_LeftClicked) {
+                                push_command(Command_CloseTab, .tab = handle_from_tab(tab));
+                            }
+                        }
+
+                        UI_Input input = ui_input_from_box(tab_box);
+
+                        if (input.input_flags & UI_InputFlag_LeftPressed) {
+                            push_command(Command_FocusPanel);
+                            next_active_tab = tab;
+                        }
+
+                        if (tab->next) {
+                            ui_spacer_sized(ui_size_ems(0.3f, 1.0f));
+                        }
+
+                        if (input.input_flags & UI_InputFlag_LeftDragging && !drag_is_active() && v2f32_length(ui_drag_delta()) > 10.0f) {
+                            DragTabData data = {
+                                .panel = handle_from_panel(panel),
+                                .tab = handle_from_tab(tab),
+                            };
+                            ui_set_drag_data(&data);
+                            drag_begin();
+                        }
+
+                        if (tab == tab_from_handle(panel->active_tab)) {
+                            ui_palette_pop();
+                        }
+                        pop_context();
+                    }
+                }
+
+                ui_fixed_position_next(content_rectangle.min);
+                ui_width_next(ui_size_pixels(r2f32_size(content_rectangle).width, 1.0f));
+                ui_height_next(ui_size_pixels(r2f32_size(content_rectangle).height, 1.0f));
+                UI_Box *content_box = ui_create_box_from_string_format(
+                    UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawBorder | UI_BoxFlag_Clickable | UI_BoxFlag_DropTarget | UI_BoxFlag_FloatingPosition | UI_BoxFlag_Clip,
+                    "###panel_box_%p", panel
+                );
+
+                ui_parent(content_box) {
+                    Tab *tab = tab_from_handle(panel->active_tab);
+                    if (tab && tab->build_view) {
+                        tab->build_view(tab, content_rectangle);
+                    } else {
+                        ui_width(ui_size_parent_percent(1.0f, 1.0f))
+                        ui_height(ui_size_parent_percent(1.0f, 1.0f))
+                        ui_column() {
+                            ui_spacer_sized(ui_size_fill());
+                            ui_height(ui_size_children_sum(1.0f))
+                            ui_row() {
+                                ui_spacer_sized(ui_size_fill());
+                                ui_width_next(ui_size_text_content(5.0f, 1.0f));
+                                ui_height_next(ui_size_text_content(0.0f, 1.0f));
+                                ui_palette_next(palette_from_code(PaletteCode_Button));
+                                ui_corner_radius_next(5.0f);
+                                UI_Input close_input = ui_button_format("Close panel###%p", panel);
+                                if (close_input.input_flags & UI_InputFlag_LeftClicked) {
+                                    push_command(Command_ClosePanel);
+                                }
+
+                                ui_spacer_sized(ui_size_fill());
+                            }
+                            ui_spacer_sized(ui_size_fill());
+                        }
+                    }
+                }
+
+                // NOTE(simon): Consume fallthrough events.
+                UI_Input content_input = ui_input_from_box(content_box);
+                if (content_input.input_flags & UI_InputFlag_LeftClicked) {
+                    push_command(Command_FocusPanel);
+                }
+                if (ui_drop_hot_key() == content_box->key && drag_drop()) {
+                    DragTabData *data = ui_get_drag_data(DragTabData);
+                    push_command(
+                        Command_MoveTab,
+                        .panel = data->panel,
+                        .tab   = data->tab,
+                        .destination_panel = handle_from_panel(panel),
+                        .previous_tab      = panel->active_tab,
+                    );
+                }
+
+                panel->active_tab = handle_from_tab(next_active_tab);
             }
 
-            panel->active_tab = handle_from_tab(next_active_tab);
             pop_context();
         }
 
@@ -1428,8 +1431,17 @@ internal Void update(Void) {
                     memory_copy(shape->radies, parent->corner_radies, sizeof(shape->radies));
                 }
 
+                if (parent->flags & UI_BoxFlag_Clickable && parent->flags & UI_BoxFlag_FocusActive) {
+                    V4F32 color = color_from_theme(ThemeColor_Focus);
+                    color.a *= box->focus_active_t;
+                    Render_Shape *shape = draw_rectangle(parent->calculated_rectangle, color, 0.0f, 1.0f, 1.0f);
+                    memory_copy(shape->radies, parent->corner_radies, sizeof(shape->radies));
+                }
+
                 if (parent->flags & UI_BoxFlag_Disabled) {
-                    Render_Shape *shape = draw_rectangle(parent->calculated_rectangle, color_from_theme(ThemeColor_DisabledOverlay), 0.0f, 0.0f, 1.0f);
+                    V4F32 color = color_from_theme(ThemeColor_DisabledOverlay);
+                    color.a *= box->disabled_t;
+                    Render_Shape *shape = draw_rectangle(parent->calculated_rectangle, color, 0.0f, 0.0f, 1.0f);
                     memory_copy(shape->radies, box->corner_radies, sizeof(shape->radies));
                 }
             }
