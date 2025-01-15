@@ -563,16 +563,20 @@ PANEL_BUILD_FUNCTION(view_glyph) {
 }
 
 PANEL_BUILD_FUNCTION(view_stats) {
-    ui_width(ui_size_parent_percent(1.0f, 1.0f))
-    ui_height(ui_size_parent_percent(1.0f, 1.0f))
-    ui_column() {
-        ui_width(ui_size_text_content(0.0f, 1.0f))
-        ui_height(ui_size_text_content(0.0f, 1.0f)) {
-            Render_Stats stats = render_get_stats();
-            ui_label(str8_literal("Render stats"));
-            ui_label_format("Batches: %u", stats.batch_count);
-            ui_label_format("Shapes: %u", stats.shape_count);
-            ui_label_format("Bytes uploaded: %u", stats.bytes_uploaded_to_gpu);
+    ui_width(ui_size_fill())
+    ui_height(ui_size_fill())
+    ui_row() {
+        ui_spacer_sized(ui_size_ems(0.5f, 1.0f));
+        ui_column() {
+            ui_spacer_sized(ui_size_ems(0.5f, 1.0f));
+            ui_width(ui_size_text_content(0.0f, 1.0f))
+            ui_height(ui_size_text_content(0.0f, 1.0f)) {
+                Render_Stats stats = render_get_stats();
+                ui_label(str8_literal("Render stats"));
+                ui_label_format("Batches: %u", stats.batch_count);
+                ui_label_format("Shapes: %u", stats.shape_count);
+                ui_label_format("Bytes uploaded: %u", stats.bytes_uploaded_to_gpu);
+            }
         }
     }
 }
@@ -580,23 +584,36 @@ PANEL_BUILD_FUNCTION(view_stats) {
 PANEL_BUILD_FUNCTION(view_theme) {
     ui_width(ui_size_fill())
     ui_height(ui_size_fill())
-    ui_column() {
-        ui_width_next(ui_size_text_content(0.0f, 1.0f));
-        ui_height_next(ui_size_text_content(0.0f, 1.0f));
-        ui_label_format("Active theme: %.*s", str8_expand(global_themes[global_state->theme_index].name));
-        ui_width(ui_size_ems(15.0f, 1.0f))
-        ui_height(ui_size_ems(1.0f, 1.0f))
-        for (ThemeColor color = 0; color < ThemeColor_COUNT; ++color) {
+    ui_row() {
+        ui_spacer_sized(ui_size_ems(0.5f, 1.0f));
+        ui_column() {
             ui_spacer_sized(ui_size_ems(0.5f, 1.0f));
-
+            ui_width_next(ui_size_text_content(0.0f, 1.0f));
+            ui_height_next(ui_size_text_content(0.0f, 1.0f));
+            ui_label_format("Active theme: %.*s", str8_expand(global_themes[global_state->theme_index].name));
+            ui_width(ui_size_children_sum(1.0))
+            ui_height(ui_size_children_sum(1.0))
             ui_row() {
-                ui_text_align_next(UI_TextAlign_Right);
-                ui_label(theme_color_names[color]);
+                ui_column() {
+                    ui_width(ui_size_text_content(0.0f, 1.0f))
+                    ui_height(ui_size_ems(1.0f, 1.0f))
+                    for (ThemeColor color = 0; color < ThemeColor_COUNT; ++color) {
+                        ui_spacer_sized(ui_size_ems(0.5f, 1.0f));
+                        ui_label(theme_color_names[color]);
+                    }
+                }
                 ui_spacer_sized(ui_size_ems(0.5f, 1.0f));
-                UI_Palette display = ui_palette_top();
-                display.background = color_from_theme(color);
-                ui_palette_next(display);
-                ui_create_box(UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawBorder);
+                ui_column() {
+                    ui_width(ui_size_ems(10.0f, 1.0f))
+                    ui_height(ui_size_ems(1.0f, 1.0f))
+                    for (ThemeColor color = 0; color < ThemeColor_COUNT; ++color) {
+                        ui_spacer_sized(ui_size_ems(0.5f, 1.0f));
+                        UI_Palette display = ui_palette_top();
+                        display.background = color_from_theme(color);
+                        ui_palette_next(display);
+                        ui_create_box(UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawBorder);
+                    }
+                }
             }
         }
     }
