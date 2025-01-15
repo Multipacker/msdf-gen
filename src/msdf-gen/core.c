@@ -367,6 +367,7 @@ internal Void update(Void) {
         } else if (check_binding(event, Gfx_Key_Right, Gfx_KeyModifier_Shift | Gfx_KeyModifier_Control)) {
             consume = true;
             ui_event = arena_push_struct_zero(ui_frame_arena(), UI_Event);
+            ui_event->kind = UI_EventKind_Navigation;
             ui_event->delta = 1;
             ui_event->unit = UI_EventDeltaUnit_Word;
             ui_event->flags = UI_EventFlag_KeepMark;
