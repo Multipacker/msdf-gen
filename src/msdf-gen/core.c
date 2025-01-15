@@ -1433,6 +1433,13 @@ internal Void update(Void) {
 
                 if (parent->flags & UI_BoxFlag_Clickable && parent->flags & UI_BoxFlag_FocusActive) {
                     V4F32 color = color_from_theme(ThemeColor_Focus);
+                    color.a *= 0.2f * box->focus_active_t;
+                    Render_Shape *shape = draw_rectangle(parent->calculated_rectangle, color, 0.0f, 0.0f, 0.0f);
+                    memory_copy(shape->radies, parent->corner_radies, sizeof(shape->radies));
+                }
+
+                if (parent->flags & UI_BoxFlag_Clickable && parent->flags & UI_BoxFlag_FocusActive) {
+                    V4F32 color = color_from_theme(ThemeColor_Focus);
                     color.a *= box->focus_active_t;
                     Render_Shape *shape = draw_rectangle(parent->calculated_rectangle, color, 0.0f, 1.0f, 1.0f);
                     memory_copy(shape->radies, parent->corner_radies, sizeof(shape->radies));
