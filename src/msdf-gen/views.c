@@ -190,6 +190,7 @@ PANEL_BUILD_FUNCTION(view_glyph_list) {
 
                 if (input.input_flags & UI_InputFlag_LeftClicked) {
                     global_state->selected_codepoint = codepoint;
+                    push_command(Command_FocusPanel);
                 }
             }
         }
