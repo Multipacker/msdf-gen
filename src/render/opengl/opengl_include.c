@@ -315,6 +315,9 @@ internal Void render_create(Void) {
     opengl_vertex_array_instance_attribute_float(result->vao,   8, 1, GL_FLOAT,        GL_FALSE, member_offset(Render_Shape, softness),  0);
     opengl_vertex_array_instance_attribute_float(result->vao,   9, 4, GL_FLOAT,        GL_FALSE, member_offset(Render_Shape, radies),    0);
 
+    glCreateBuffers(1, &result->vbo);
+    glVertexArrayVertexBuffer(result->vao, 0, result->vbo, 0, sizeof(Render_Shape));
+
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
     glUseProgram(result->program);
     glBindVertexArray(result->vao);
@@ -346,11 +349,38 @@ internal Void render_submit(Render_BatchList batches) {
 
     OpenGL_Context *gfx = &global_opengl_context;
 
+    U64 shape_count = 0;
     for (Render_Batch *batch = batches.first; batch; batch = batch->next) {
-        prof_zone_begin(prof_batch, "batch");
+        shape_count += batch->shapes.shape_count;
 
         ++gfx->current_stats.batch_count;
         gfx->current_stats.shape_count += batch->shapes.shape_count;
+    }
+
+    U64 byte_size = shape_count * sizeof(Render_Shape);
+    gfx->current_stats.bytes_uploaded_to_gpu = byte_size;
+
+    // NOTE(simon): Upload data
+    {
+        prof_zone_begin(prof_upload, "upload");
+        glNamedBufferData(gfx->vbo, (GLsizeiptr) byte_size, 0, GL_STREAM_DRAW);
+        U8 *mapped_buffer = (U8 *) glMapNamedBuffer(gfx->vbo, GL_WRITE_ONLY);
+        U8 *ptr = mapped_buffer;
+
+        for (Render_Batch *batch = batches.first; batch; batch = batch->next) {
+            for (Render_ShapeChunk *chunk = batch->shapes.first; chunk; chunk = chunk->next) {
+                memory_copy(ptr, chunk->shapes, chunk->count * sizeof(Render_Shape));
+                ptr += chunk->count * sizeof(Render_Shape);
+            }
+        }
+
+        glUnmapNamedBuffer(gfx->vbo);
+        prof_zone_end(prof_upload);
+    }
+
+    GLuint shape_offset = 0;
+    for (Render_Batch *batch = batches.first; batch; batch = batch->next) {
+        prof_zone_begin(prof_batch, "batch");
 
         GLsizei width  = (GLsizei) (batch->clip.max.x - batch->clip.min.x);
         GLsizei height = (GLsizei) (batch->clip.max.y - batch->clip.min.y);
@@ -367,30 +397,10 @@ internal Void render_submit(Render_BatchList batches) {
             glBindTextureUnit(0, opengl_texture_id_from_texture(batch->texture));
             glProgramUniformMatrix3fv(gfx->program, gfx->uniform_transform_location, 1, GL_TRUE, &batch->transform.m[0][0]);
 
-            U64 byte_size = batch->shapes.shape_count * sizeof(Render_Shape);
-            gfx->current_stats.bytes_uploaded_to_gpu += byte_size;
-
-            GLuint vbo = 0;
-            glCreateBuffers(1, &vbo);
-            glNamedBufferData(vbo, (GLsizeiptr) byte_size, 0, GL_STREAM_DRAW);
-
-            // NOTE(simon): Update buffer data
-            U8 *mapped_buffer = (U8 *) glMapNamedBuffer(vbo, GL_WRITE_ONLY);
-            U8 *ptr = mapped_buffer;
-            for (Render_ShapeChunk *chunk = batch->shapes.first; chunk; chunk = chunk->next) {
-                memory_copy(ptr, chunk->shapes, chunk->count * sizeof(Render_Shape));
-                ptr += chunk->count * sizeof(Render_Shape);
-            }
-            glUnmapNamedBuffer(vbo);
-
-            glVertexArrayVertexBuffer(gfx->vao, 0, vbo, 0, sizeof(Render_Shape));
-
-            glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, (GLsizei) batch->shapes.shape_count);
-
-            // NOTE(simon): Delete specifically sized buffer.
-            glDeleteBuffers(1, &vbo);
+            glDrawArraysInstancedBaseInstance(GL_TRIANGLE_STRIP, 0, 4, (GLsizei) batch->shapes.shape_count, shape_offset);
         }
 
+        shape_offset += batch->shapes.shape_count;
         prof_zone_end(prof_batch);
     }
 

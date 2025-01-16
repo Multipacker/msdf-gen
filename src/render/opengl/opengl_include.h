@@ -13,6 +13,7 @@ struct OpenGL_Context {
     Arena_Temporary  frame_restore;
     Render_BatchList batches;
     GLuint           program;
+    GLuint           vbo;
     GLuint           vao;
     GLuint           samplers[Render_Filtering_COUNT];
     GLint            uniform_projection_location;
