@@ -7,14 +7,15 @@
 
 layout(origin_upper_left) in vec4 gl_FragCoord;
 
-in      vec4  vert_color;
+in flat mat4  vert_colors;
 in      vec2  vert_source;
 in flat uint  vert_flags;
 in flat float vert_thickness;
 in flat float vert_softness;
-in      vec4  vert_radies;
+in flat vec4  vert_radies;
 in      vec2  vert_position;
 in flat vec2  vert_half_size;
+in      vec2  vert_uv;
 
 out vec4 frag_color;
 
@@ -59,5 +60,11 @@ void main() {
         alpha = 1.0 - smoothstep(0, vert_softness, distance);
     }
 
-    frag_color = texture_sample * vert_color * vec4(1.0, 1.0, 1.0, alpha);
+    vec4 color = mix(
+        mix(vert_colors[0], vert_colors[1], vert_uv.x),
+        mix(vert_colors[2], vert_colors[3], vert_uv.x),
+        vert_uv.y
+    );
+
+    frag_color = texture_sample * color * vec4(1.0, 1.0, 1.0, alpha);
 }

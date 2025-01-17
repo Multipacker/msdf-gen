@@ -13,14 +13,15 @@ layout(location = 7) in float instance_thickness;
 layout(location = 8) in float instance_softness;
 layout(location = 9) in vec4  instance_radies;
 
-out      vec4  vert_color;
+out flat mat4  vert_colors;
 out      vec2  vert_source;
 out flat uint  vert_flags;
 out flat float vert_thickness;
 out flat float vert_softness;
-out      vec4  vert_radies;
+out flat vec4  vert_radies;
 out      vec2  vert_position;
 out flat vec2  vert_half_size;
+out      vec2  vert_uv;
 
 uniform mat4      uniform_projection;
 uniform sampler2D uniform_sampler;
@@ -72,7 +73,7 @@ void main() {
     vec2 transformed_position = (uniform_transform * vec3(position, 1.0f)).xy;
 
     gl_Position    = uniform_projection * vec4(transformed_position, 0.0, 1.0);
-    vert_color     = instance_colors[gl_VertexID];
+    vert_colors    = instance_colors;
     vert_source    = source;
     vert_flags     = instance_flags;
     vert_thickness = instance_thickness;
@@ -80,4 +81,5 @@ void main() {
     vert_radies    = instance_radies;
     vert_position  = half_size * verticies[gl_VertexID];
     vert_half_size = half_size;
+    vert_uv        = vec2(gl_VertexID & 1, gl_VertexID >> 1);
 }
