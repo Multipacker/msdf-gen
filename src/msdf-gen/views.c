@@ -101,8 +101,6 @@ PANEL_BUILD_FUNCTION(view_glyph_list) {
     S32 bottom_row = s32_min(top_row + (S32) f32_ceil(panel_size.y / height) + 1, last_row);
     container->view_offset.y = height * (f32_mod(state->scroll_offset, 1.0f) + (state->scroll_offset < 0.0f));
 
-    S32 selected_row = (S32) (global_state->selected_codepoint / codepoints_per_row);
-
     // NOTE(simon): Scrollbar container
     ui_width_next(ui_size_pixels(scrollbar_width, 1.0f));
     ui_height_next(ui_size_pixels(panel_size.y, 1.0f));
@@ -189,7 +187,7 @@ PANEL_BUILD_FUNCTION(view_glyph_list) {
                 UI_Input input = ui_input_from_box(box);
 
                 if (input.input_flags & UI_InputFlag_LeftClicked) {
-                    global_state->selected_codepoint = codepoint;
+                    push_command(Command_SelectCodepoint, .codepoint = codepoint);
                     push_command(Command_FocusPanel);
                 }
             }

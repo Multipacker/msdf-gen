@@ -92,6 +92,8 @@ struct Context {
     Direction2 direction;
 
     Str8 tab_specification;
+
+    U32 codepoint;
 };
 
 #define context_top_values                                 \
@@ -100,7 +102,8 @@ struct Context {
     .destination_panel = top_context()->destination_panel, \
     .previous_tab      = top_context()->previous_tab,      \
     .direction         = top_context()->direction,         \
-    .tab_specification = top_context()->tab_specification,
+    .tab_specification = top_context()->tab_specification, \
+    .codepoint         = top_context()->codepoint,
 
 typedef enum {
     Command_FocusPanel,
@@ -112,6 +115,7 @@ typedef enum {
     Command_NextTab,
     Command_MoveTab,
     Command_SaveProject,
+    Command_SelectCodepoint,
 } CommandKind;
 
 typedef struct {

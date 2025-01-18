@@ -307,6 +307,7 @@ internal Void update(Void) {
             state->base_context.tab = panel_from_handle(active_panel)->active_tab;
         }
         state->base_context.panel = active_panel;
+        state->base_context.codepoint = state->selected_codepoint;
         state->context_stack->next = 0;
         state->context_stack = &state->base_context;
     }
@@ -721,6 +722,12 @@ internal Void update(Void) {
                     str8_list_push(scratch.arena, &config, str8_format(scratch.arena, "codepoint: %lu\n", state->selected_codepoint));
                     os_file_write(str8_literal("msdf.config"), config);
                     arena_end_temporary(scratch);
+                } break;
+                case Command_SelectCodepoint: {
+                    U32 codepoint = command_context->codepoint;
+                    if (codepoint < 0x10FFFF) {
+                        state->selected_codepoint = codepoint;
+                    }
                 } break;
             }
         }
