@@ -344,11 +344,16 @@ internal S32 msdf_contour_calculate_global_winding_number(MSDF_Glyph *glyph, MSD
                     // p0 + u * (p1 - p0) = test_point + v * (1, 0)  u in [0, 1), v in [0, inf)
                     //   p0.x + u * (p1.x - p0.x) = test_point.x + v
                     //   p0.y + u * (p1.y - p0.y) = test_point.y
-                    if ((segment->p0.y < test_point.y && test_point.y <= segment->p1.y) || (segment->p1.y < test_point.y && test_point.y <= segment->p0.y)) {
+                    if (
+                        (test_point.x < segment->p0.x || test_point.x < segment->p1.x) && (
+                            (segment->p0.y <= test_point.y && test_point.y < segment->p1.y) ||
+                            (segment->p1.y <= test_point.y && test_point.y < segment->p0.y)
+                        )
+                    ) {
                         F32 u = (test_point.y - segment->p0.y) / (segment->p1.y - segment->p0.y);
                         F32 v = segment->p0.x + u * (segment->p1.x - segment->p0.x) - test_point.x;
 
-                        if (0.0f <= u && u < 1.0f && 0.0f <= v) {
+                        if (0.0f <= u && u <= 1.0f && 0.0f <= v) {
                             ++intersection_count;
                         }
                     }
