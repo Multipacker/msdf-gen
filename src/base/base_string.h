@@ -35,6 +35,12 @@ typedef struct {
     U64 size;
 } StringDecode;
 
+typedef struct U64Decode U64Decode;
+struct U64Decode {
+    U64 value;
+    U64 size;
+};
+
 internal Str8 str8(U8 *data, U64 size);
 internal Str8 str8_range(U8 *start, U8 *opl);
 internal Str8 str8_copy(Arena *arena, Str8 string);
@@ -81,5 +87,8 @@ internal CStr   cstr_from_str8(Arena *arena, Str8 string);
 internal CStr16 cstr16_from_str8(Arena *arena, Str8 string);
 
 internal U64 str8_next_codepoint_offset(Str8 string, U64 start_offset, Side side);
+
+// NOTE(simon): Basic parsing routines
+internal U64Decode u64_from_str8(Str8 string);
 
 #endif // STRING_H

@@ -561,3 +561,21 @@ internal U64 str8_next_codepoint_offset(Str8 string, U64 start_offset, Side side
 
     return result;
 }
+
+
+
+internal U64Decode u64_from_str8(Str8 string) {
+    U8 *ptr = string.data;
+    U8 *opl = string.data + string.size;
+    U64 value = 0;
+
+    while (ptr < opl && ('0' <= *ptr && *ptr <= '9')) {
+        value = 10 * value + (*ptr - '0');
+        ++ptr;
+    }
+
+    U64Decode result = { 0 };
+    result.value     = value;
+    result.size      = (U64) (ptr - string.data);
+    return result;
+}
