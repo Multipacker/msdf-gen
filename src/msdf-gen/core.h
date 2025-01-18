@@ -111,6 +111,7 @@ typedef enum {
     Command_PreviousTab,
     Command_NextTab,
     Command_MoveTab,
+    Command_SaveProject,
 } CommandKind;
 
 typedef struct {
@@ -209,6 +210,8 @@ struct State {
 
     Context base_context;
     Context *context_stack;
+
+    U64 previous_auto_save;
 };
 
 global State *global_state;

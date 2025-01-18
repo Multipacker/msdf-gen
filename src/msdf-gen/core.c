@@ -313,6 +313,12 @@ internal Void update(Void) {
 
     arena_pop_to(frame_arena(), 0);
 
+    // NOTE(simon): Trigger an auto save once every 5 seconds.
+    if (os_now_nanoseconds() - state->previous_auto_save > (U64) (5 * 1e9)) {
+        state->previous_auto_save = os_now_nanoseconds();
+        push_command(Command_SaveProject);
+    }
+
     Gfx_EventList events = { 0 };
 
     local U32 depth = 0;
@@ -707,6 +713,14 @@ internal Void update(Void) {
                         }
                     }
 
+                } break;
+                case Command_SaveProject: {
+                    // TODO(simon): Replace this with a proper structured text format
+                    Arena_Temporary scratch = arena_get_scratch(0, 0);
+                    Str8List config = { 0 };
+                    str8_list_push(scratch.arena, &config, str8_format(scratch.arena, "codepoint: %lu\n", state->selected_codepoint));
+                    os_file_write(str8_literal("msdf.config"), config);
+                    arena_end_temporary(scratch);
                 } break;
             }
         }
