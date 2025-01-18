@@ -1359,18 +1359,26 @@ internal Void update(Void) {
                 }
 
                 if (box->flags & UI_BoxFlag_DrawHot && box->hot_t > 0.0f) {
-                    Render_Shape *rect = draw_rectangle(box->calculated_rectangle, v4f32(0.0f, 0.0f, 0.0f, 0.0f), 0.0f, 0.0f, 1.0f);
-                    rect->colors[0] = color_from_theme(ThemeColor_Hover);
-                    rect->colors[1] = color_from_theme(ThemeColor_Hover);
-                    rect->colors[0].a *= box->hot_t;
-                    rect->colors[1].a *= box->hot_t;
+                    F32 active_t = box->active_t;
+                    if (!(box->flags & UI_BoxFlag_DrawActive)) {
+                        active_t = 0.0f;
+                    }
+                    V4F32 color = color_from_theme(ThemeColor_Hover);
+                    color.a *= 0.2f * (box->hot_t - active_t);
+
+                    Render_Shape *rect = draw_rectangle(box->calculated_rectangle, color, 0.0f, 0.0f, 1.0f);
                     memory_copy(rect->radies, box->corner_radies, sizeof(rect->radies));
                 }
 
                 if (box->flags & UI_BoxFlag_DrawActive && box->active_t > 0.0f) {
                     Render_Shape *rect = draw_rectangle(box->calculated_rectangle, v4f32(0.0f, 0.0f, 0.0f, 0.0f), 0.0f, 0.0f, 1.0f);
-                    rect->colors[2] = v4f32(0.0f, 0.0f, 0.0f, 0.5f * box->active_t);
-                    rect->colors[3] = v4f32(0.0f, 0.0f, 0.0f, 0.5f * box->active_t);
+                    V4F32 color = color_from_theme(ThemeColor_Hover);
+                    color.r *= 0.3f;
+                    color.g *= 0.3f;
+                    color.b *= 0.3f;
+                    color.a *= 0.5f * box->active_t;
+                    rect->colors[Corner_10] = color;
+                    rect->colors[Corner_11] = color;
                     memory_copy(rect->radies, box->corner_radies, sizeof(rect->radies));
                 }
             }
@@ -1427,8 +1435,16 @@ internal Void update(Void) {
                 }
 
                 if (parent->flags & UI_BoxFlag_DrawBorder) {
-                    Render_Shape *shape = draw_rectangle(parent->calculated_rectangle, parent->palette.border, 0.0f, 1.0f, 1.0f);
+                    Render_Shape *shape = draw_rectangle(r2f32_pad(parent->calculated_rectangle, 1.0f), parent->palette.border, 0.0f, 1.0f, 1.0f);
                     memory_copy(shape->radies, parent->corner_radies, sizeof(shape->radies));
+
+                    if (box->flags & UI_BoxFlag_DrawHot && box->hot_t > 0.0f) {
+                        V4F32 color = color_from_theme(ThemeColor_Hover);
+                        color.a *= box->hot_t;
+
+                        Render_Shape *rect = draw_rectangle(r2f32_pad(box->calculated_rectangle, 1.0f), color, 0.0f, 1.0f, 1.0f);
+                        memory_copy(rect->radies, box->corner_radies, sizeof(rect->radies));
+                    }
                 }
 
                 if (parent->flags & UI_BoxFlag_Clickable && parent->flags & UI_BoxFlag_FocusActive) {
@@ -1441,7 +1457,7 @@ internal Void update(Void) {
                 if (parent->flags & UI_BoxFlag_Clickable && parent->flags & UI_BoxFlag_FocusActive) {
                     V4F32 color = color_from_theme(ThemeColor_Focus);
                     color.a *= box->focus_active_t;
-                    Render_Shape *shape = draw_rectangle(parent->calculated_rectangle, color, 0.0f, 1.0f, 1.0f);
+                    Render_Shape *shape = draw_rectangle(r2f32_pad(parent->calculated_rectangle, 1.0f), color, 0.0f, 1.0f, 1.0f);
                     memory_copy(shape->radies, parent->corner_radies, sizeof(shape->radies));
                 }
 
