@@ -7,6 +7,7 @@
     X(Cursor,                cursor,                  "Cursor")                  \
     X(Selection,             selection,               "Selection")               \
     X(Focus,                 focus,                   "Focus")                   \
+    X(DropShadow,            drop_shadow,             "Drop shadow")             \
     X(DisabledOverlay,       disabled_overlay,        "Disabled overlay")        \
     X(DropSiteOverlay,       drop_site_overlay,       "Drop site overlay")       \
     X(InactivePanelOverlay,  inactive_panel_overlay,  "Inactive panel overlay")  \

@@ -772,7 +772,7 @@ internal Void update(Void) {
                     ui_height_next(ui_size_ems(40.0f, 1.0f));
                     ui_corner_radius_next(10.0f);
                     ui_layout_axis_next(Axis2_Y);
-                    UI_Box *preview_box = ui_create_box(UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawBorder);
+                    UI_Box *preview_box = ui_create_box(UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawBorder | UI_BoxFlag_DrawDropShadow);
                     ui_parent(preview_box) {
                         ui_corner_radius_00_next(10.0f);
                         ui_corner_radius_01_next(10.0f);
@@ -852,7 +852,7 @@ internal Void update(Void) {
                                 overlay.border = color_from_theme(ThemeColor_Hover);
                                 ui_palette_next(overlay);
                             }
-                            UI_Box *visualization = ui_create_box(UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawBorder);
+                            UI_Box *visualization = ui_create_box(UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawBorder | UI_BoxFlag_DrawDropShadow);
                             ui_parent(visualization)
                             ui_padding(ui_size_pixels(padding, 1.0f))
                             {
@@ -927,12 +927,12 @@ internal Void update(Void) {
                     ui_row()
                     ui_padding(ui_size_pixels(padding, 1.0f)) {
                         ui_layout_axis_next(axis2_flip(split_axis));
-                            if (ui_keys_match(key, ui_drop_hot_key())) {
-                                UI_Palette overlay = ui_palette_top();
-                                overlay.border = color_from_theme(ThemeColor_Hover);
-                                ui_palette_next(overlay);
-                            }
-                        UI_Box *visualization = ui_create_box(UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawBorder);
+                        if (ui_keys_match(key, ui_drop_hot_key())) {
+                            UI_Palette overlay = ui_palette_top();
+                            overlay.border = color_from_theme(ThemeColor_Hover);
+                            ui_palette_next(overlay);
+                        }
+                        UI_Box *visualization = ui_create_box(UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawBorder | UI_BoxFlag_DrawDropShadow);
                         ui_parent(visualization)
                         ui_padding(ui_size_pixels(padding, 1.0f))
                         {
@@ -1127,7 +1127,7 @@ internal Void update(Void) {
                                 ui_palette_next(overlay);
                             }
                             ui_layout_axis_next(axis2_flip(axis));
-                            UI_Box *visualization = ui_create_box(UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawBorder);
+                            UI_Box *visualization = ui_create_box(UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawBorder | UI_BoxFlag_DrawDropShadow);
                             ui_parent(visualization)
                             ui_width(ui_size_fill())
                             ui_height(ui_size_fill())
@@ -1351,7 +1351,22 @@ internal Void update(Void) {
     {
         prof_zone_begin(prof_draw_ui, "draw");
 
+        draw_rectangle(r2f32(0, 0, (F32) client_area.width, (F32) client_area.height), color_from_theme(ThemeColor_BaseBackground), 0, 0, 0);
+
         for (UI_Box *box = state->ui->root; box != &global_ui_null_box;) {
+            if (box->flags & UI_BoxFlag_DrawDropShadow) {
+                draw_rectangle(
+                    r2f32(
+                        box->calculated_rectangle.min.x - 4.0f,
+                        box->calculated_rectangle.min.y - 4.0f,
+                        box->calculated_rectangle.max.x + 12.0f,
+                        box->calculated_rectangle.max.y + 12.0f
+                    ),
+                    color_from_theme(ThemeColor_DropShadow),
+                    0.8f, 0.0f, 8.0f
+                );
+            }
+
             if (box->flags & UI_BoxFlag_DrawBackground) {
                 {
                     Render_Shape *shape = draw_rectangle(box->calculated_rectangle, box->palette.background, 0.0f, 0.0f, 1.0f);

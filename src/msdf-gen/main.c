@@ -311,6 +311,7 @@ internal S32 os_run(Str8List arguments) {
             theme->drop_site_overlay.a      = 0.5f;
             theme->inactive_panel_overlay   = crust;
             theme->inactive_panel_overlay.a = 0.2f;
+            theme->drop_shadow              = v4f32(0.0f, 0.0f, 0.0f, 0.8f);
 
             theme->base_background         = base;
             theme->base_border             = mantle;
@@ -369,6 +370,7 @@ internal S32 os_run(Str8List arguments) {
             theme->drop_site_overlay.a      = 0.5f;
             theme->inactive_panel_overlay   = crust;
             theme->inactive_panel_overlay.a = 0.5f;
+            theme->drop_shadow              = v4f32(0.0f, 0.0f, 0.0f, 0.8f);
 
             theme->base_background         = base;
             theme->base_border             = mantle;
@@ -427,6 +429,7 @@ internal S32 os_run(Str8List arguments) {
             theme->drop_site_overlay.a      = 0.5f;
             theme->inactive_panel_overlay   = crust;
             theme->inactive_panel_overlay.a = 0.5f;
+            theme->drop_shadow              = v4f32(0.0f, 0.0f, 0.0f, 0.8f);
 
             theme->base_background         = base;
             theme->base_border             = mantle;
@@ -485,6 +488,7 @@ internal S32 os_run(Str8List arguments) {
             theme->drop_site_overlay.a      = 0.5f;
             theme->inactive_panel_overlay   = crust;
             theme->inactive_panel_overlay.a = 0.5f;
+            theme->drop_shadow              = v4f32(0.0f, 0.0f, 0.0f, 0.8f);
 
             theme->base_background         = base;
             theme->base_border             = mantle;

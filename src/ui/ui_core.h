@@ -86,10 +86,11 @@ typedef enum {
     UI_BoxFlag_DrawText       = 1 << 12,
     UI_BoxFlag_DrawHot        = 1 << 13,
     UI_BoxFlag_DrawActive     = 1 << 14,
-    UI_BoxFlag_Clip           = 1 << 15,
+    UI_BoxFlag_DrawDropShadow = 1 << 15,
+    UI_BoxFlag_Clip           = 1 << 16,
 
-    UI_BoxFlag_FocusActive    = 1 << 16,
-    UI_BoxFlag_FocusDisabled  = 1 << 17,
+    UI_BoxFlag_FocusActive    = 1 << 17,
+    UI_BoxFlag_FocusDisabled  = 1 << 18,
 
     // NOTE(simon): Convenient combinations
     UI_BoxFlag_Overflow         = UI_BoxFlag_OverflowX | UI_BoxFlag_OverflowY,
