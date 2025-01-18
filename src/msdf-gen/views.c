@@ -386,10 +386,10 @@ PANEL_BUILD_FUNCTION(view_glyph) {
                                     case MSDF_Segment_Null: {
                                     } break;
                                     case MSDF_Segment_Line: {
-                                        draw_line(segment->p0, segment->p1, color_from_theme(ThemeColor_Outline), 1.0f / scale, 0.0f, 1.0f);
+                                        draw_line(segment->p0, segment->p1, color_from_theme(ThemeColor_Outline), 2.0f / scale, 0.0f, 1.0f / scale);
                                     } break;
                                     case MSDF_Segment_QuadraticBezier: {
-                                        draw_bezier(segment->p0, segment->p1, segment->p2, color_from_theme(ThemeColor_Outline), 1.0f / scale, 0.0f, 1.0f);
+                                        draw_bezier(segment->p0, segment->p1, segment->p2, color_from_theme(ThemeColor_Outline), 2.0f / scale, 0.0f, 1.0f / scale);
                                     } break;
                                     case MSDF_Segment_COUNT: {
                                     } break;
@@ -405,13 +405,13 @@ PANEL_BUILD_FUNCTION(view_glyph) {
                                     case MSDF_Segment_Null: {
                                     } break;
                                     case MSDF_Segment_Line: {
-                                        draw_circle(segment->p0, point_size / scale, color_from_theme(ThemeColor_OnCurve), 0.0f, 1.0f);
-                                        draw_circle(segment->p1, point_size / scale, color_from_theme(ThemeColor_OnCurve), 0.0f, 1.0f);
+                                        draw_circle(segment->p0, point_size / scale, color_from_theme(ThemeColor_OnCurve), 0.0f, 1.0f / scale);
+                                        draw_circle(segment->p1, point_size / scale, color_from_theme(ThemeColor_OnCurve), 0.0f, 1.0f / scale);
                                     } break;
                                     case MSDF_Segment_QuadraticBezier: {
-                                        draw_circle(segment->p0, point_size / scale, color_from_theme(ThemeColor_OnCurve), 0.0f, 1.0f);
-                                        draw_circle(segment->p1, point_size / scale, color_from_theme(ThemeColor_OffCurve), 0.0f, 1.0f);
-                                        draw_circle(segment->p2, point_size / scale, color_from_theme(ThemeColor_OnCurve), 0.0f, 1.0f);
+                                        draw_circle(segment->p0, point_size / scale, color_from_theme(ThemeColor_OnCurve), 0.0f, 1.0f / scale);
+                                        draw_circle(segment->p1, point_size / scale, color_from_theme(ThemeColor_OffCurve), 0.0f, 1.0f / scale);
+                                        draw_circle(segment->p2, point_size / scale, color_from_theme(ThemeColor_OnCurve), 0.0f, 1.0f / scale);
                                     } break;
                                     case MSDF_Segment_COUNT: {
                                     } break;
@@ -439,13 +439,13 @@ PANEL_BUILD_FUNCTION(view_glyph) {
 
                                 switch (geometry->kind) {
                                     case MSDF_LogKind_Point: {
-                                        draw_circle(geometry->p0, point_size / scale, color, 0.0f, 1.0f);
+                                        draw_circle(geometry->p0, point_size / scale, color, 0.0f, 1.0f / scale);
                                     } break;
                                     case MSDF_LogKind_Line: {
-                                        draw_line(geometry->p0, geometry->p1, color, 2.0f / scale, 0.0f, 1.0f);
+                                        draw_line(geometry->p0, geometry->p1, color, 2.0f / scale, 0.0f, 1.0f / scale);
                                     } break;
                                     case MSDF_LogKind_Bezier: {
-                                        draw_bezier(geometry->p0, geometry->p1, geometry->p2, color, 2.0f / scale, 0.0f, 1.0f);
+                                        draw_bezier(geometry->p0, geometry->p1, geometry->p2, color, 2.0f / scale, 0.0f, 1.0f / scale);
                                     } break;
                                 }
                             }
