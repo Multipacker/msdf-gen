@@ -499,7 +499,7 @@ PANEL_BUILD_FUNCTION(view_glyph) {
 
                             ui_spacer_sized(ui_size_ems(0.5f, 1.0f));
                             ui_row()
-                            ui_width(ui_size_text_content(0.0f, 1.0f))
+                            ui_width(ui_size_text_content(10.0f, 1.0f))
                             ui_height(ui_size_text_content(0.0f, 1.0f))
                             ui_palette(palette_from_code(PaletteCode_Button)) {
                                 UI_Input previous_input = ui_button(str8_literal("Previous"));
