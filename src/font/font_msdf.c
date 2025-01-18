@@ -374,9 +374,17 @@ internal S32 msdf_contour_calculate_global_winding_number(MSDF_Glyph *glyph, MSD
                     F32 cy = segment->p0.y - test_point.y;
 
                     F32 discriminant = by * by - 4.0f * ay * cy;
-                    if (-0.0001f <= discriminant) {
-                        F32 u0 = (-by - f32_sqrt(f32_max(0.0f, discriminant))) / (2.0f * ay);
-                        F32 u1 = (-by + f32_sqrt(f32_max(0.0f, discriminant))) / (2.0f * ay);
+                    if (f32_abs(discriminant) < 0.0001f) {
+                        F32 u = -by / (2.0f * ay);
+
+                        F32 v = u * u * ax + u * bx + cx;
+
+                        if (0.0f <= u && u < 1.0f && 0.0f <= v) {
+                            ++intersection_count;
+                        }
+                    } else if (0 < discriminant) {
+                        F32 u0 = (-by - f32_sqrt(discriminant)) / (2.0f * ay);
+                        F32 u1 = (-by + f32_sqrt(discriminant)) / (2.0f * ay);
 
                         F32 v0 = u0 * u0 * ax + u0 * bx + cx;
                         F32 v1 = u1 * u1 * ax + u1 * bx + cx;
