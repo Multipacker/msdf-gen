@@ -32,6 +32,22 @@ float sdf_box(vec2 point, vec2 half_size) {
     return length(max(vec2(0.0), distance)) + min(max(distance.x, distance.y), 0.0);
 }
 
+vec4 linear_from_srgb(vec4 srgb) {
+    bvec3 cutoff = lessThan(srgb.rgb, vec3(0.04045));
+    vec3  higher = pow((srgb.rgb + 0.055) / 1.055, vec3(2.4));
+    vec3  lower  = srgb.rgb / 12.92;
+    vec4  linear = vec4(mix(higher, lower, cutoff), srgb.a);
+    return linear;
+}
+
+vec4 srgb_from_linear(vec4 linear) {
+    bvec3 cutoff = lessThan(linear.rgb, vec3(0.0031308));
+    vec3  lower  = 12.92 * linear.rgb;
+    vec3  higher = 1.055 * pow(linear.rgb, vec3(1.0 / 2.4)) - 0.055;
+    vec4  srgb   = vec4(mix(higher, lower, cutoff), linear.a);
+    return srgb;
+}
+
 void main() {
     vec4 texture_sample = vec4(1.0);
     float alpha = 1.0f;
@@ -60,11 +76,11 @@ void main() {
         alpha = 1.0 - smoothstep(0, vert_softness, distance);
     }
 
-    vec4 color = mix(
-        mix(vert_colors[0], vert_colors[1], vert_uv.x),
-        mix(vert_colors[2], vert_colors[3], vert_uv.x),
+    vec4 color = linear_from_srgb(mix(
+        mix(srgb_from_linear(vert_colors[0]), srgb_from_linear(vert_colors[1]), vert_uv.x),
+        mix(srgb_from_linear(vert_colors[2]), srgb_from_linear(vert_colors[3]), vert_uv.x),
         vert_uv.y
-    );
+    ));
 
     frag_color = texture_sample * color * vec4(1.0, 1.0, 1.0, alpha);
 }
