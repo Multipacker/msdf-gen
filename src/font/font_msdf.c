@@ -528,9 +528,13 @@ internal F32 msdf_quadratic_bezier_signed_pseudo_distance(V2F32 point, MSDF_Segm
     return sign * v2f32_length(distance);
 }
 
-internal Void msdf_resolve_contour_overlap(Arena *arena, MSDF_Glyph *glyph) {
+internal Void msdf_resolve_contour_overlap(Arena *arena, MSDF_Glyph *glyph, Arena *log_arena, MSDF_Log *log) {
     for (MSDF_Contour *a_contour = glyph->first_contour; a_contour; a_contour = a_contour->next) {
-        for (MSDF_Contour *b_contour = a_contour->next; b_contour; b_contour = b_contour->next) {
+        for (MSDF_Contour *b_contour = glyph->first_contour; b_contour; b_contour = b_contour->next) {
+            if (a_contour == b_contour) {
+                continue;
+            }
+
             // Find 2 consecutive intersections along one of the contours.
             // Split the contours at the intersections. The parts "between" the
             // intersections switch which contour they belong to. Repeat until
