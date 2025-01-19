@@ -528,6 +528,8 @@ internal F32 msdf_quadratic_bezier_signed_pseudo_distance(V2F32 point, MSDF_Segm
     return sign * v2f32_length(distance);
 }
 
+// TODO(simon): We will need to rethink how we handle overlapping contours.
+// This approach doesn't handle endpoints on contours correctly in all cases.
 internal Void msdf_resolve_contour_overlap(Arena *arena, MSDF_Glyph *glyph, Arena *log_arena, MSDF_Log *log) {
     for (MSDF_Contour *a_contour = glyph->first_contour; a_contour; a_contour = a_contour->next) {
         for (MSDF_Contour *b_contour = glyph->first_contour; b_contour; b_contour = b_contour->next) {
@@ -572,6 +574,14 @@ internal Void msdf_resolve_contour_overlap(Arena *arena, MSDF_Glyph *glyph, Aren
                     a_intersections[intersection_count] = a_new;
                     b_intersections[intersection_count] = b_new;
 
+                    msdf_log_push_entry(log_arena, log, str8_literal("Intersection"));
+                    msdf_log_push_group(log_arena, log);
+                    msdf_log_push_contour(log_arena, log, a_contour, v4f32(1, 0, 0, 1));
+                    msdf_log_push_group(log_arena, log);
+                    msdf_log_push_contour(log_arena, log, b_contour, v4f32(0, 0, 1, 1));
+                    msdf_log_push_group(log_arena, log);
+                    msdf_log_push_point(log_arena, log, a_new->p0, v4f32(0, 1, 0, 1));
+
                     // The corner with the narrowest angle is moved "inwards".
                     // It needs to move at least the distance between the two
                     // corners. This can be 0, so we also add a small amount to
@@ -610,19 +620,48 @@ internal Void msdf_resolve_contour_overlap(Arena *arena, MSDF_Glyph *glyph, Aren
                     ++intersection_count;
 
                     if (intersection_count == 2) {
-                        // NOTE(simon): Swap so that we have b_intersections[0] ... b_intersections[1] ... last
+                        // NOTE(simon): Link together the segment into a circle
                         b_contour->first_segment->previous = b_contour->last_segment;
                         b_contour->last_segment->next      = b_contour->first_segment;
-                        b_contour->first_segment           = b_intersections[0];
-                        b_contour->last_segment            = b_intersections[0]->previous;
+                        // NOTE(simon): Split the circle so that the section
+                        // between b_intersections[0] and b_intersections[1]
+                        // becomes the end. This is a half open range, so
+                        // b_intersections[1] should be first, and the segement
+                        // before it last.
+                        b_contour->first_segment           = b_intersections[1];
+                        b_contour->last_segment            = b_intersections[1]->previous;
                         b_contour->first_segment->previous = 0;
                         b_contour->last_segment->next      = 0;
 
                         // NOTE(simon): Swap the middle parts.
-                        swap(a_intersections[0]->previous->next, b_contour->first_segment,           MSDF_Segment *);
-                        swap(a_intersections[0]->previous,       b_intersections[0]->previous,       MSDF_Segment *);
-                        swap(a_intersections[1]->previous->next, b_intersections[1]->previous->next, MSDF_Segment *);
-                        swap(a_intersections[1]->previous,       b_intersections[1]->previous,       MSDF_Segment *);
+                        // NOTE(simon): This is the atomic set of operations that we want to happen
+                        MSDF_Segment *b_insert_first = b_intersections[0]->previous;
+                        MSDF_Segment *b_swap_start   = b_intersections[0];
+                        MSDF_Segment *b_swap_end     = b_contour->last_segment;
+                        // NOTE(simon): b_insert_last is just b_contour->last_segment
+
+                        MSDF_Segment *a_insert_first = a_intersections[0]->previous;
+                        MSDF_Segment *a_swap_first = a_intersections[0];
+                        MSDF_Segment *a_swap_last  = a_intersections[1]->previous;
+                        MSDF_Segment *a_insert_last = a_intersections[1];
+
+                        a_insert_first->next = b_swap_start;
+                        b_swap_start->previous = a_insert_first;
+
+                        a_insert_last->previous = b_swap_end;
+                        b_swap_end->next = a_insert_last;
+
+                        b_insert_first->next = a_swap_first;
+                        a_swap_first->previous = b_insert_first;
+
+                        b_contour->last_segment = a_swap_last;
+                        a_swap_last->next = 0;
+
+                        msdf_log_push_entry(log_arena, log, str8_literal("Swap"));
+                        msdf_log_push_group(log_arena, log);
+                        msdf_log_push_contour(log_arena, log, a_contour, v4f32(1, 0, 0, 1));
+                        msdf_log_push_group(log_arena, log);
+                        msdf_log_push_contour(log_arena, log, b_contour, v4f32(0, 0, 1, 1));
 
                         intersection_count = 0;
                     }
