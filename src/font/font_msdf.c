@@ -364,7 +364,7 @@ internal S32 msdf_contour_calculate_own_winding_number(MSDF_Contour *contour) {
     return winding;
 }
 
-internal S32 msdf_contour_calculate_global_winding_number(MSDF_Glyph *glyph, MSDF_Contour *contour) {
+internal S32 msdf_contour_calculate_global_winding_number(Arena *arena, MSDF_Glyph *glyph, MSDF_Contour *contour, MSDF_Log *log) {
     // NOTE(simon): Calculcate global winding number.
     S32 global_winding = contour->local_winding;
 
@@ -391,6 +391,13 @@ internal S32 msdf_contour_calculate_global_winding_number(MSDF_Glyph *glyph, MSD
                         F32 v = segment->p0.x + u * (segment->p1.x - segment->p0.x) - test_point.x;
 
                         if (0.0f <= u && u <= 1.0f && 0.0f <= v) {
+                            msdf_log_push_entry(arena, log, str8_literal("Line intersection"));
+                            msdf_log_push_contour(arena, log, contour, v4f32(0, 1, 0, 1));
+                            msdf_log_push_contour(arena, log, other_contour, v4f32(1, 0, 0, 1));
+                            msdf_log_push_point(arena, log, test_point, v4f32(0, 0, 0, 1));
+                            msdf_log_push_segment(arena, log, segment, v4f32(0, 0, 1, 1));
+                            msdf_log_push_point(arena, log, segment->p0, v4f32(1, 0, 0, 1));
+                            msdf_log_push_point(arena, log, segment->p1, v4f32(0, 1, 0, 1));
                             ++intersection_count;
                         }
                     }
@@ -417,6 +424,11 @@ internal S32 msdf_contour_calculate_global_winding_number(MSDF_Glyph *glyph, MSD
                         F32 v = u * u * ax + u * bx + cx;
 
                         if (0.0f <= u && u < 1.0f && 0.0f <= v) {
+                            msdf_log_push_entry(arena, log, str8_literal("Bezier intersection"));
+                            msdf_log_push_contour(arena, log, contour, v4f32(0, 1, 0, 1));
+                            msdf_log_push_contour(arena, log, other_contour, v4f32(1, 0, 0, 1));
+                            msdf_log_push_point(arena, log, test_point, v4f32(0, 0, 0, 1));
+                            msdf_log_push_segment(arena, log, segment, v4f32(0, 0, 1, 1));
                             ++intersection_count;
                         }
                     } else if (0 < discriminant) {
@@ -427,10 +439,20 @@ internal S32 msdf_contour_calculate_global_winding_number(MSDF_Glyph *glyph, MSD
                         F32 v1 = u1 * u1 * ax + u1 * bx + cx;
 
                         if (0.0f <= u0 && u0 < 1.0f && 0.0f <= v0) {
+                            msdf_log_push_entry(arena, log, str8_literal("Bezier intersection"));
+                            msdf_log_push_contour(arena, log, contour, v4f32(0, 1, 0, 1));
+                            msdf_log_push_contour(arena, log, other_contour, v4f32(1, 0, 0, 1));
+                            msdf_log_push_point(arena, log, test_point, v4f32(0, 0, 0, 1));
+                            msdf_log_push_segment(arena, log, segment, v4f32(0, 0, 1, 1));
                             ++intersection_count;
                         }
 
                         if (0.0f <= u1 && u1 < 1.0f && 0.0f <= v1) {
+                            msdf_log_push_entry(arena, log, str8_literal("Bezier intersection"));
+                            msdf_log_push_contour(arena, log, contour, v4f32(0, 1, 0, 1));
+                            msdf_log_push_contour(arena, log, other_contour, v4f32(1, 0, 0, 1));
+                            msdf_log_push_point(arena, log, test_point, v4f32(0, 0, 0, 1));
+                            msdf_log_push_segment(arena, log, segment, v4f32(0, 0, 1, 1));
                             ++intersection_count;
                         }
                     }
@@ -773,9 +795,8 @@ internal Void msdf_correct_contour_orientation(Arena *arena, MSDF_Glyph *glyph, 
         msdf_log_push_contour(arena, log, contour, color);
     }
 
-    msdf_log_push_entry(arena, log, str8_literal("orientation correction"));
     for (MSDF_Contour *contour = glyph->first_contour; contour; contour = contour->next) {
-        S32 global_winding = msdf_contour_calculate_global_winding_number(glyph, contour);
+        S32 global_winding = msdf_contour_calculate_global_winding_number(arena, glyph, contour, log);
 
         // NOTE(simon): Determine if each contour should be kept and if we need to flip it.
         if (-1 <= global_winding && global_winding <= 1) {
@@ -785,7 +806,10 @@ internal Void msdf_correct_contour_orientation(Arena *arena, MSDF_Glyph *glyph, 
         if ((global_winding == 0 && contour->local_winding == 1) || (global_winding != 0 && contour->local_winding == -1)) {
             contour->flags |= MSDF_ContourFlag_Flip;
         }
+    }
 
+    msdf_log_push_entry(arena, log, str8_literal("orientation correction"));
+    for (MSDF_Contour *contour = glyph->first_contour; contour; contour = contour->next) {
         msdf_log_push_group(arena, log);
         V4F32 color = v4f32(1, 0, 0, 1);
         if ((contour->flags & (MSDF_ContourFlag_Flip | MSDF_ContourFlag_Keep)) == (MSDF_ContourFlag_Flip | MSDF_ContourFlag_Keep)) {
@@ -947,7 +971,7 @@ internal MSDF_RasterResult msdf_generate(Arena *arena, TTF_Font *font, U32 codep
     // NOTE(simon): Simplify outline
     {
         prof_zone_begin(prof_simplify, "simplify outline");
-        msdf_resolve_contour_overlap(scratch.arena, &glyph);
+        msdf_resolve_contour_overlap(scratch.arena, &glyph, arena, &result.log);
         msdf_convert_to_simple_polygons(scratch.arena, &glyph);
         msdf_correct_contour_orientation(arena, &glyph, &result.log);
         msdf_color_edges(arena, glyph, &result.log);
