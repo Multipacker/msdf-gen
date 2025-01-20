@@ -382,7 +382,7 @@ internal S32 msdf_contour_calculate_global_winding_number(Arena *arena, MSDF_Gly
                     //   p0.x + u * (p1.x - p0.x) = test_point.x + v
                     //   p0.y + u * (p1.y - p0.y) = test_point.y
                     if (
-                        (test_point.x < segment->p0.x || test_point.x < segment->p1.x) && (
+                        (test_point.x <= segment->p0.x || test_point.x <= segment->p1.x) && (
                             (segment->p0.y <= test_point.y && test_point.y < segment->p1.y) ||
                             (segment->p1.y <= test_point.y && test_point.y < segment->p0.y)
                         )
