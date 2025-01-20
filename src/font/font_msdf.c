@@ -1,6 +1,43 @@
 // TODO: Allow for pruning small contours. This would hopefully increase the
 // quality of the final MSDF, although it won't be as accurate any more.
 
+// NOTE(simon): New algorithm for resolving contours overlap:
+//
+// 1. Convert to simple contours
+//    Contours should not self-intersect after this is done, This can use the
+//    current solution.
+// 2. Compute local winding numbers
+//    Every contour gets assigned a winding number describing in which order
+//    the vertices are specified. This can use the current solution.
+// 3. Do joins between different winding numbers (boolean xor)
+// 4. Join contours.
+//    Every pair of contours is checked, and any new contours produced by this
+//    step has to be compared against all other ones. If the two contours have
+//    different winding numbers, we are done. This is because this would
+//    produce two contours that are infinitely close to each other, which is
+//    not well defined. Otherwise, the only possible operation is a boolean
+//    join between the two shapes.
+//
+//    Find the leftmost on curve point of both contours. This must be part of
+//    the outermost contour that these inputs form. If both contours have a
+//    vertex in the exakt same spot, look at direction of the derivative of
+//    both contours. The one that changes inwards the slowest is outside. If
+//    they are identical, move to the next point and repeat the check. If you
+//    get all the way back to the starting point, the two contours perfectly
+//    overlap each other and you can discard one of them.
+//
+//    Now that we have a point that is outside, pick of segments from the
+//    contour, until you hit an intersection. At this point, switch which
+//    contour you are grabbing segments from and which one you are checking
+//    against. Once there are no more segments to grab, you have finished the
+//    outer contour. This will _always_ be pushed to the result and should have
+//    the same winding number as the inputs. This process is repeated until
+//    there are no more segments, but now we only the contours if their winding
+//    number is the opposite of the inputs (maybe if they sum to zero?), these
+//    would cut holes into the shape. Anything else would just double up the
+//    area in one place. (Maybe we always add contours and then do the contour
+//    correction pass that we currently do?).
+
 internal Void msdf_log_push_entry(Arena *arena, MSDF_Log *log, Str8 description) {
     MSDF_LogEntry *entry = arena_push_struct_zero(arena, MSDF_LogEntry);
     entry->description = str8_copy(arena, description);
