@@ -12,23 +12,12 @@ internal U64 s64_hash(S64 x) {
     return result;
 }
 
-// TODO: SipHash
+// TODO: Better hash function
 internal U64 str8_hash(Str8 string) {
-    U64 hash = 0;
-    U64 p = 0x10FFFF; // 0x10FFFF (the largest codepoint in unicode) happens to be a prime number.
-    U64 m = 1000000009;
-    U64 p_power = 1;
+    U64 hash = 5381;
 
-    U8 *ptr = string.data;
-    U8 *opl = string.data + string.size;
-
-    while (ptr < opl) {
-        StringDecode decode = string_decode_utf8(ptr, (U64) (ptr - opl));
-
-        hash = (hash + decode.codepoint * p_power) % m;
-        p_power = (p_power * p) % m;
-
-        ptr += decode.size;
+    for (U64 i = 0; i < string.size; ++i) {
+        hash = ((hash << 5) + hash) + string.data[i];
     }
 
     return hash;
