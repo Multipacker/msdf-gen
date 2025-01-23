@@ -326,7 +326,8 @@ PANEL_BUILD_FUNCTION(view_glyph) {
             Draw_List *draw_list = draw_list_create();
             draw_list_scope(draw_list) {
                 F32 padding = 2.0f * (F32) ui_font_size_top();
-                F32 point_size = 0.4f * (F32) ui_font_size_top();
+                //F32 point_size = 0.4f * (F32) ui_font_size_top();
+                F32 point_size = 1.0f * (F32) ui_font_size_top();
 
                 U32 glyph_index = ttf_get_glyph_index(global_state->ttf_font, global_state->selected_codepoint);
                 MSDF_Glyph glyph = ttf_expand_contours_to_msdf(scratch.arena, global_state->ttf_font, glyph_index);
@@ -641,6 +642,12 @@ PANEL_BUILD_FUNCTION(view_test) {
                 ui_focus(UI_Focus_Active) {
                     ui_line_edit(buffer, &buffer_size, buffer_capacity, &cursor, &mark, ui_key_from_string(global_ui_null_key, str8_literal("line_edit")));
                 }
+
+                ui_spacer_sized(ui_size_ems(1.0f, 1.0f));
+
+                local F32 slider = 5.0f;
+                ui_palette_next(palette_from_code(PaletteCode_Button));
+                ui_slider(0.0f, &slider, 10.0f, ui_key_from_string(ui_active_seed_key(), str8_literal("slider")));
             }
         }
     }

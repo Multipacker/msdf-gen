@@ -383,3 +383,55 @@ internal UI_Input ui_line_edit(U8 *buffer, U64 *buffer_size, U64 buffer_capacity
 
     return input;
 }
+
+UI_BOX_DRAW_FUNCTION(ui_draw_slider) {
+    F32 percentage_filled = *(F32 *) data;
+    R2F32 rectangle = box->calculated_rectangle;
+    rectangle.max.x = rectangle.min.x + percentage_filled * r2f32_size(rectangle).width;
+    V4F32 selection_color = box->palette.selection;
+    selection_color.a = 0.25f;
+    Render_Shape *shape = draw_rectangle(
+        rectangle,
+        selection_color,
+        0, 0, 0
+    );
+    memory_copy(shape->radies, box->corner_radies, sizeof(shape->radies));
+}
+
+internal UI_Input ui_slider(F32 min, F32 *value, F32 max, UI_Key key) {
+    F32 *percentage_filled = arena_push_struct_zero(ui_frame_arena(), F32);
+
+    ui_draw_data_next(percentage_filled);
+    ui_draw_function_next(ui_draw_slider);
+    ui_text_align_next(UI_TextAlign_Center);
+    ui_hover_cursor_next(Gfx_Cursor_Hand);
+    UI_Box *box = ui_create_box_from_key(
+        UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawBorder | UI_BoxFlag_DrawText |
+        UI_BoxFlag_DrawHot | UI_BoxFlag_DrawActive |
+        UI_BoxFlag_Clickable,
+        key
+    );
+    ui_box_set_string(box, str8_format(ui_frame_arena(), "%.2f", *value));
+
+    UI_Input input = ui_input_from_box(box);
+    if (input.input_flags & UI_InputFlag_LeftDragging) {
+        if (input.input_flags & UI_InputFlag_LeftPressed) {
+            F32 drag_data = *value;
+            ui_set_drag_data(&drag_data);
+        }
+
+        F32 value_pre_drag          = *ui_get_drag_data(F32);
+        F32 percentage_pre_drag     = (value_pre_drag - min) / (max - min);
+        F32 pixels_pre_drag         = percentage_pre_drag * r2f32_size(box->calculated_rectangle).width;
+        F32 drag_delta              = ui_drag_delta().x;
+        F32 pixels_post_drag        = pixels_pre_drag + drag_delta;
+        F32 percentage_post_drag    = pixels_post_drag / r2f32_size(box->calculated_rectangle).width;
+        F32 value_post_drag         = min + (percentage_post_drag) * (max - min);
+        F32 clamped_value_post_drag = f32_min(f32_max(min, value_post_drag), max);
+        *value = clamped_value_post_drag;
+    }
+
+    *percentage_filled = (*value - min) / (max - min);
+
+    return input;
+}
