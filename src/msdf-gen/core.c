@@ -824,6 +824,7 @@ internal Void update(Void) {
         F32 panel_pad = 2.0f;
 
         // NOTE(simon): Build non-leaf panel UI.
+        prof_zone_begin(prof_bulid_non_leaf_ui, "non-leaf ui");
         for (Panel *panel = state->panel_root; panel; panel = panel_iterator_depth_first_pre_order(panel).next) {
             if (!panel->first) {
                 continue;
@@ -1054,8 +1055,10 @@ internal Void update(Void) {
                 }
             }
         }
+        prof_zone_end(prof_bulid_non_leaf_ui);
 
         // NOTE(simon): Build leaf panel UI.
+        prof_zone_begin(prof_bulid_leaf_ui, "leaf ui");
         ui_layout_axis(Axis2_Y)
         for (Panel *panel = state->panel_root; panel; panel = panel_iterator_depth_first_pre_order(panel).next) {
             if (panel->first) {
@@ -1361,6 +1364,7 @@ internal Void update(Void) {
 
             pop_context();
         }
+        prof_zone_end(prof_bulid_leaf_ui);
 
         ui_font_size_pop();
         ui_palette_pop();

@@ -56,6 +56,7 @@ internal UI_BOX_DRAW_FUNCTION(draw_ui_msdf) {
 }
 
 PANEL_BUILD_FUNCTION(view_glyph_list) {
+    prof_function_begin();
     V2F32 panel_size = r2f32_size(panel_rectangle);
     F32 scrollbar_width = (F32) ui_font_size_top();
     F32 container_width = panel_size.x - scrollbar_width;
@@ -217,9 +218,11 @@ PANEL_BUILD_FUNCTION(view_glyph_list) {
     } else {
         request_frame();
     }
+    prof_function_end();
 }
 
 PANEL_BUILD_FUNCTION(view_glyph) {
+    prof_function_begin();
     Arena_Temporary scratch = arena_get_scratch(0, 0);
 
     typedef struct ViewState ViewState;
@@ -555,9 +558,11 @@ PANEL_BUILD_FUNCTION(view_glyph) {
     }
 
     arena_end_temporary(scratch);
+    prof_function_end();
 }
 
 PANEL_BUILD_FUNCTION(view_stats) {
+    prof_function_begin();
     ui_width(ui_size_fill())
     ui_height(ui_size_fill())
     ui_row() {
@@ -574,9 +579,11 @@ PANEL_BUILD_FUNCTION(view_stats) {
             }
         }
     }
+    prof_function_end();
 }
 
 PANEL_BUILD_FUNCTION(view_theme) {
+    prof_function_begin();
     ui_width(ui_size_fill())
     ui_height(ui_size_fill())
     ui_row() {
@@ -612,9 +619,11 @@ PANEL_BUILD_FUNCTION(view_theme) {
             }
         }
     }
+    prof_function_end();
 }
 
 PANEL_BUILD_FUNCTION(view_test) {
+    prof_function_begin();
     ui_center() {
         ui_width_next(ui_size_parent_percent(1.0f, 1.0f));
         ui_height_next(ui_size_children_sum(1.0f));
@@ -651,4 +660,5 @@ PANEL_BUILD_FUNCTION(view_test) {
             }
         }
     }
+    prof_function_end();
 }
