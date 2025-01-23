@@ -158,6 +158,7 @@ internal Void font_cache_atlas_free(FontCache_Atlas *atlas, R2U32 rectangle) {
 
 
 internal FontCache_Font *font_cache_font_from_path(Str8 path) {
+    prof_function_begin();
     FontCache_State *state = &global_font_cache_state;
 
     FontCache_Font *result = 0;
@@ -188,6 +189,7 @@ internal FontCache_Font *font_cache_font_from_path(Str8 path) {
         dll_insert_next_previous_zero(fonts->first, fonts->last, fonts->last, result, hash_next, hash_previous, 0);
     }
 
+    prof_function_end();
     return result;
 }
 
@@ -195,6 +197,7 @@ internal FontCache_Font *font_cache_font_from_path(Str8 path) {
 
 // NOTE(simon): `size` is in pixels per em
 internal FontCache_Text font_cache_text(Arena *arena, FontCache_Font *font, Str8 text, U32 size) {
+    prof_function_begin();
     FontCache_State *state = &global_font_cache_state;
 
     FontCache_Text result = { 0 };
@@ -205,6 +208,8 @@ internal FontCache_Text font_cache_text(Arena *arena, FontCache_Font *font, Str8
     result.descent = f32_ceil(font->descent * (F32) size / font->units_per_em);
     result.size.height = f32_ceil(result.ascent - result.descent);
 
+    U64 font_hash = hash_combine(str8_hash(font->path), u64_hash(size));
+
     U8 *ptr = text.data;
     U8 *opl = text.data + text.size;
     while (ptr < opl) {
@@ -213,7 +218,7 @@ internal FontCache_Text font_cache_text(Arena *arena, FontCache_Font *font, Str8
 
         FontCache_Glyph *glyph = 0;
         // NOTE(simon): Lookup the glyph from the font and codepoint.
-        U64 hash = hash_combine(hash_combine(str8_hash(font->path), u64_hash(decode.codepoint)), u64_hash(size));
+        U64 hash = hash_combine(font_hash, u64_hash(decode.codepoint));
         FontCache_GlyphList *glyphs = &state->glyph_table[hash % state->glyph_table_size];
         for (FontCache_Glyph *candidate_glyph = glyphs->first; candidate_glyph; candidate_glyph = candidate_glyph->hash_next) {
             if (candidate_glyph->font == font && candidate_glyph->codepoint == decode.codepoint && candidate_glyph->point_size == size) {
@@ -282,6 +287,7 @@ internal FontCache_Text font_cache_text(Arena *arena, FontCache_Font *font, Str8
 
     arena_pop_amount(arena, (text.size - result.letter_count) * sizeof(FontCache_Letter));
 
+    prof_function_end();
     return result;
 }
 
@@ -331,6 +337,6 @@ internal Void font_cache_create(Void) {
     result->arena = arena;
     result->font_table_size = 32;
     result->font_table      = arena_push_array_zero(result->arena, FontCache_FontList, result->font_table_size);
-    result->glyph_table_size = 1024;
+    result->glyph_table_size = 4096;
     result->glyph_table      = arena_push_array_zero(result->arena, FontCache_GlyphList, result->glyph_table_size);
 }
