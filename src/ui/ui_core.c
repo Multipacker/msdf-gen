@@ -664,6 +664,7 @@ internal UI_BoxIterator ui_box_iterator_depth_first_post_order(UI_Box *box) {
 }
 
 internal UI_Box *ui_create_box_from_key(UI_BoxFlags flags, UI_Key key) {
+    prof_function_begin();
     UI_Context *ui = global_ui_state;
     UI_Box *box = ui_box_from_key(key);
 
@@ -712,7 +713,7 @@ internal UI_Box *ui_create_box_from_key(UI_BoxFlags flags, UI_Key key) {
     box->flags         = flags | ui_extra_box_flags_top();
     box->palette       = ui_palette_top();
     box->layout_axis   = ui_layout_axis_top();
-    box->font          = font_cache_font_from_path(ui_font_top());
+    box->font          = ui_font_top();
     box->font_size     = ui_font_size_top();
     box->text_align    = ui_text_align_top();
     box->hover_cursor  = ui_hover_cursor_top();
@@ -764,6 +765,7 @@ internal UI_Box *ui_create_box_from_key(UI_BoxFlags flags, UI_Key key) {
     ui_corner_radius_11_auto_pop();
     ui_focus_auto_pop();
 
+    prof_function_end();
     return box;
 }
 

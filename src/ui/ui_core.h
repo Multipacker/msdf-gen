@@ -203,7 +203,7 @@ ui_define_stack(Axis,            axis,              Axis2)
 ui_define_stack(BoxFlags,        box_flags,         UI_BoxFlags)
 ui_define_stack(F32,             f32,               F32)
 ui_define_stack(U32,             u32,               U32)
-ui_define_stack(Str8,            str8,              Str8)
+ui_define_stack(Font,            font,              FontCache_Font *)
 ui_define_stack(Cursor,          cursor,            Gfx_Cursor)
 ui_define_stack(BoxDrawFunction, box_draw_function, UI_BoxDrawFunction *)
 ui_define_stack(Pointer,         pointer,           Void *)
@@ -356,7 +356,7 @@ struct UI_Context {
     UI_BoxFlagsStack        extra_box_flags_stack;
     UI_F32Stack             fixed_x_stack;
     UI_F32Stack             fixed_y_stack;
-    UI_Str8Stack            font_stack;
+    UI_FontStack            font_stack;
     UI_U32Stack             font_size_stack;
     UI_CursorStack          hover_cursor_stack;
     UI_BoxDrawFunctionStack draw_function_stack;
@@ -503,11 +503,11 @@ internal B32 ui_is_animating_from_context(UI_Context *ui);
 #define ui_fixed_position_auto_pop()     (ui_fixed_x_auto_pop(), ui_fixed_y_auto_pop())
 #define ui_fixed_position_top()          v2f32(ui_fixed_x_top(), ui_fixed_y_top())
 
-#define ui_font_push(font) ui_str8_stack_push(&global_ui_state->font_stack, font, false)
-#define ui_font_pop()      ui_str8_stack_pop(&global_ui_state->font_stack)
-#define ui_font(font)      defer_loop(ui_font_push(flags), ui_font_pop())
-#define ui_font_next(font) ui_str8_stack_push(&global_ui_state->font_stack, font, true)
-#define ui_font_auto_pop() ui_str8_stack_auto_pop(&global_ui_state->font_stack)
+#define ui_font_push(font) ui_font_stack_push(&global_ui_state->font_stack, font_cache_font_from_path(font), false)
+#define ui_font_pop()      ui_font_stack_pop(&global_ui_state->font_stack)
+#define ui_font(font)      defer_loop(ui_font_push(font), ui_font_pop())
+#define ui_font_next(font) ui_font_stack_push(&global_ui_state->font_stack, font, true)
+#define ui_font_auto_pop() ui_font_stack_auto_pop(&global_ui_state->font_stack)
 #define ui_font_top()      (global_ui_state->font_stack.top->item)
 
 // NOTE(simon): These are in points.

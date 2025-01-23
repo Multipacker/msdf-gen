@@ -335,7 +335,7 @@ internal UI_Input ui_line_edit(U8 *buffer, U64 *buffer_size, U64 buffer_capacity
         }
     }
 
-    FontCache_Font *font = font_cache_font_from_path(ui_font_top());
+    FontCache_Font *font = ui_font_top();
     U32 font_size = ui_font_size_top();
 
     U64 mouse_position = 0;
