@@ -15,24 +15,17 @@
 #include "src/ui/ui_include.c"
 
 /*
- * TODO:
- * Clipboard
- * Focus and keyboard navigation / interaction
- * More input information
- */
-
-/*
  * TODO before next release:
  * * Bake the UI font into the executable
  * * Offload MSDF generation to a background thread so that the main thread and
  *   UI don't hang because we are generating glyphs.
- * * Add drop-shadows to make it easier to distinguish foreground elements from
- *   background ones.
  * * Improve the look of the preview when dragging tabs
  *
  * TODO long term
  * * Allow multiple codepoints to map to the same glyph, alternatively allow
  *   marking glyphs as missing as that is the main use case
+ * * Focus and keyboard navigation / interaction
+ * * More input information
  */
 
 /*
