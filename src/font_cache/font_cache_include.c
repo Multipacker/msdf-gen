@@ -231,7 +231,6 @@ internal FontCache_Text font_cache_text(Arena *arena, FontCache_Font *font, Str8
     result.size.height = f32_ceil(result.ascent - result.descent);
 
     U64 font_hash = hash_combine(str8_hash(font->path), u64_hash(size));
-
     U8 *ptr = text.data;
     U8 *opl = text.data + text.size;
     while (ptr < opl) {
@@ -241,7 +240,7 @@ internal FontCache_Text font_cache_text(Arena *arena, FontCache_Font *font, Str8
         FontCache_Glyph *glyph = 0;
         // NOTE(simon): Lookup the glyph from the font and codepoint.
         U64 hash = hash_combine(font_hash, u64_hash(decode.codepoint));
-        FontCache_GlyphList *glyphs = &state->glyph_table[hash % state->glyph_table_size];
+        FontCache_GlyphList *glyphs = &state->glyph_table[hash & (state->glyph_table_size - 1)];
         for (FontCache_Glyph *candidate_glyph = glyphs->first; candidate_glyph; candidate_glyph = candidate_glyph->hash_next) {
             if (candidate_glyph->font == font && candidate_glyph->codepoint == decode.codepoint && candidate_glyph->point_size == size) {
                 glyph = candidate_glyph;
