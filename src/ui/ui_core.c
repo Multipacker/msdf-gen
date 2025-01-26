@@ -483,8 +483,10 @@ internal Void ui_end(Void) {
         } else {
             UI_Box *anchor = ui_box_from_key(ui->context_menu_anchor_key);
             V2F32 offset = v2f32(0.0f, anchor->calculated_size.height);
-            ui->context_menu_root->calculated_position = v2f32_add(anchor->calculated_position, offset);
+            ui->context_menu_root->calculated_position = v2f32_add(anchor->calculated_rectangle.min, offset);
         }
+        ui_layout_position(ui->context_menu_root, Axis2_X);
+        ui_layout_position(ui->context_menu_root, Axis2_Y);
     }
 
     // NOTE(simon): Redo layout for tooltip and context menu.
@@ -876,7 +878,7 @@ internal UI_Input ui_input_from_box(UI_Box *box) {
             case Gfx_Key_MouseLeft:   is_mouse_key = true; mouse_key = UI_MouseButton_Left;   break;
             case Gfx_Key_MouseMiddle: is_mouse_key = true; mouse_key = UI_MouseButton_Middle; break;
             case Gfx_Key_MouseRight:  is_mouse_key = true; mouse_key = UI_MouseButton_Right;  break;
-            default:                  is_mouse_key = false;                                       break;
+            default:                  is_mouse_key = false;                                   break;
         }
 
         // NOTE(simon): Clicked in bounds.

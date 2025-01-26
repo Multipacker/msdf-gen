@@ -415,7 +415,7 @@ internal Void ui_context_menu_open(UI_Key context_key, UI_Key anchor_key, V2F32 
 internal Void ui_context_menu_close(Void);
 internal B32  ui_context_menu_begin(UI_Key context_key);
 internal Void ui_context_menu_end(Void);
-#define ui_context_menu(ui, context_key)                                  \
+#define ui_context_menu(context_key)                                  \
     for (                                                                 \
         B32 glue(is_open, __LINE__) = ui_context_menu_begin(context_key); \
         glue(is_open, __LINE__) ? 1 : (ui_context_menu_end(), 0);         \
