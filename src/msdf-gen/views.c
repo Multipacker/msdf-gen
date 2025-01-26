@@ -329,8 +329,7 @@ PANEL_BUILD_FUNCTION(view_glyph) {
             Draw_List *draw_list = draw_list_create();
             draw_list_scope(draw_list) {
                 F32 padding = 2.0f * (F32) ui_font_size_top();
-                //F32 point_size = 0.4f * (F32) ui_font_size_top();
-                F32 point_size = 1.0f * (F32) ui_font_size_top();
+                F32 point_size = 0.4f * (F32) ui_font_size_top();
 
                 U32 glyph_index = ttf_get_glyph_index(global_state->ttf_font, global_state->selected_codepoint);
                 MSDF_Glyph glyph = ttf_expand_contours_to_msdf(scratch.arena, global_state->ttf_font, glyph_index);
@@ -572,7 +571,6 @@ PANEL_BUILD_FUNCTION(view_stats) {
             ui_width(ui_size_text_content(0.0f, 1.0f))
             ui_height(ui_size_text_content(0.0f, 1.0f)) {
                 Render_Stats stats = render_get_stats();
-                ui_label(str8_literal("Render stats"));
                 ui_label_format("Batches: %u", stats.batch_count);
                 ui_label_format("Shapes: %u", stats.shape_count);
                 ui_label_format("Bytes uploaded: %u", stats.bytes_uploaded_to_gpu);
@@ -605,6 +603,7 @@ PANEL_BUILD_FUNCTION(view_theme) {
                     }
                 }
                 ui_spacer_sized(ui_size_ems(0.5f, 1.0f));
+                ui_corner_radius(5.0f)
                 ui_column() {
                     ui_width(ui_size_ems(10.0f, 1.0f))
                     ui_height(ui_size_ems(1.0f, 1.0f))
