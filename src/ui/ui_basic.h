@@ -3,7 +3,6 @@
 
 typedef struct UI_DrawLineEdit UI_DrawLineEdit;
 struct UI_DrawLineEdit {
-    Str8 text;
     U64 cursor;
     U64 mark;
 };

@@ -164,8 +164,8 @@ UI_BOX_DRAW_FUNCTION(ui_draw_line_edit) {
     UI_DrawLineEdit *draw_data = (UI_DrawLineEdit *) data;
     FontCache_Font *font = box->font;
     U32 font_size = box->font_size;
-    F32 offset_to_cursor = font_cache_size_from_font_text_size(font, str8_prefix(draw_data->text, draw_data->cursor), font_size).width;
-    F32 offset_to_mark = font_cache_size_from_font_text_size(font, str8_prefix(draw_data->text, draw_data->mark), font_size).width;
+    F32 offset_to_cursor = font_cache_text_prefix(box->text, draw_data->cursor).size.width;
+    F32 offset_to_mark = font_cache_text_prefix(box->text, draw_data->mark).size.width;
     V2F32 text_position = ui_box_text_location(box);
     F32 cursor_width = f32_max(2.0f, (F32) box->font_size / 5.0f);
 
@@ -212,6 +212,7 @@ internal B32 ui_is_word(U32 codepoint) {
 }
 
 internal UI_Input ui_line_edit(U8 *buffer, U64 *buffer_size, U64 buffer_capacity, U64 *cursor, U64 *mark, UI_Key key) {
+    prof_function_begin();
     Arena_Temporary scratch = arena_get_scratch(0, 0);
     ui_hover_cursor_next(Gfx_Cursor_Beam);
     UI_Box *text_container_box = ui_create_box_from_key(
@@ -223,6 +224,7 @@ internal UI_Input ui_line_edit(U8 *buffer, U64 *buffer_size, U64 buffer_capacity
 
     // NOTE(simon): Input handling
     if (ui_is_focus_active()) {
+        prof_zone_begin(prof_events, "events");
         for (UI_Event *event = global_ui_state->events->first; event; event = event->next) {
             if (!(event->kind == UI_EventKind_Text || event->kind == UI_EventKind_Edit || event->kind == UI_EventKind_Navigation)) {
                 continue;
@@ -333,6 +335,7 @@ internal UI_Input ui_line_edit(U8 *buffer, U64 *buffer_size, U64 buffer_capacity
                 *buffer_size += to_insert;
             }
         }
+        prof_zone_end(prof_events);
     }
 
     FontCache_Font *font = ui_font_top();
@@ -341,23 +344,23 @@ internal UI_Input ui_line_edit(U8 *buffer, U64 *buffer_size, U64 buffer_capacity
     U64 mouse_position = 0;
     Str8 edit_string = str8(buffer, *buffer_size);
 
-    ui_parent(text_container_box) {
-        F32 text_width = font_cache_size_from_font_text_size(font, edit_string, font_size).width;
-        UI_DrawLineEdit *draw_data = arena_push_struct_zero(ui_frame_arena(), UI_DrawLineEdit);
-        draw_data->text = str8_copy(ui_frame_arena(), edit_string);
-        draw_data->cursor = *cursor;
-        draw_data->mark   = *mark;
+    ui_parent_push(text_container_box);
 
-        ui_width_next(ui_size_pixels(text_width, 1.0f));
-        ui_draw_function_next(ui_draw_line_edit);
-        ui_draw_data_next(draw_data);
-        UI_Box *text_box = ui_create_box_from_string(UI_BoxFlag_DrawText, str8_literal("###edit_string"));
-        ui_box_set_string(text_box, edit_string);
+    UI_DrawLineEdit *draw_data = arena_push_struct_zero(ui_frame_arena(), UI_DrawLineEdit);
+    draw_data->cursor = *cursor;
+    draw_data->mark   = *mark;
 
-        F32 mouse = ui_mouse().x;
-        F32 text_mouse = mouse - ui_box_text_location(text_box).x;
-        mouse_position = font_cache_offset_from_font_text_size_position(font, edit_string, font_size, text_mouse);
-    }
+    ui_width_next(ui_size_text_content(0.0f, 1.0f));
+    ui_draw_function_next(ui_draw_line_edit);
+    ui_draw_data_next(draw_data);
+    UI_Box *text_box = ui_create_box_from_string(UI_BoxFlag_DrawText, str8_literal("###edit_string"));
+    ui_box_set_string(text_box, edit_string);
+
+    F32 mouse = ui_mouse().x;
+    F32 text_mouse = mouse - ui_box_text_location(text_box).x;
+    mouse_position = font_cache_offset_from_text_position(text_box->text, text_mouse);
+
+    ui_parent_pop();
 
     UI_Input input = ui_input_from_box(text_container_box);
     if (input.input_flags & UI_InputFlag_LeftDragging) {
@@ -368,7 +371,7 @@ internal UI_Input ui_line_edit(U8 *buffer, U64 *buffer_size, U64 buffer_capacity
     }
 
     // NOTE(simon): Focus the cursor
-    F32 cursor_position = font_cache_size_from_font_text_size(font, str8_prefix(edit_string, *cursor), font_size).width;
+    F32 cursor_position = font_cache_text_prefix(text_box->text, *cursor).size.width;
     F32 cursor_position_min = f32_max(0.0f, cursor_position - 2.0f * (F32) font_size);
     F32 cursor_position_max = f32_max(0.0f, cursor_position + 2.0f * (F32) font_size);
     V2F32 box_size = r2f32_size(text_container_box->calculated_rectangle);
@@ -381,6 +384,7 @@ internal UI_Input ui_line_edit(U8 *buffer, U64 *buffer_size, U64 buffer_capacity
 
     arena_end_temporary(scratch);
 
+    prof_function_end();
     return input;
 }
 
