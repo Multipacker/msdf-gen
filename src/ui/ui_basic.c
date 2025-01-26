@@ -55,20 +55,22 @@ internal UI_Box *ui_column_end(Void) {
 
 
 
-internal Void ui_label(Str8 string) {
-    ui_create_box_from_string(UI_BoxFlag_DrawText, string);
+internal UI_Box *ui_label(Str8 string) {
+    UI_Box *box = ui_create_box_from_string(UI_BoxFlag_DrawText, string);
+    return box;
 }
 
-internal Void ui_label_format(CStr format, ...) {
+internal UI_Box *ui_label_format(CStr format, ...) {
     Arena_Temporary scratch = arena_get_scratch(0, 0);
     va_list arguments;
     va_start(arguments, format);
     Str8 string = str8_format_list(scratch.arena, format, arguments);
     va_end(arguments);
 
-    ui_label(string);
+    UI_Box *box = ui_label(string);
 
     arena_end_temporary(scratch);
+    return box;
 }
 
 

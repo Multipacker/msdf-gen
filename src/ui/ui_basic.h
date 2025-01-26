@@ -24,8 +24,8 @@ internal UI_Box *ui_column_end(Void);
 #define ui_column() defer_loop(ui_column_begin(), ui_column_end())
 #define ui_column_string(string) defer_loop(ui_column_string_begin(, string), ui_column_end())
 
-internal Void ui_label(Str8 string);
-internal Void ui_label_format(CStr format, ...);
+internal UI_Box *ui_label(Str8 string);
+internal UI_Box *ui_label_format(CStr format, ...);
 
 internal UI_Input ui_button(Str8 string);
 internal UI_Input ui_button_format(CStr format, ...);
