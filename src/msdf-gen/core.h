@@ -207,6 +207,7 @@ struct State {
     Theme theme;
     Theme target_theme;
     U32 theme_index;
+    F32 font_size;
 
     U32 frames_to_render;
 

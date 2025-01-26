@@ -771,8 +771,8 @@ internal Void update(Void) {
 
         ui_palette_push(palette_from_code(PaletteCode_Base));
 
-        // NOTE(simon): 11 pts * 96 pixels per inch / 72 points per inch
-        ui_font_size_push((U32) (11.0f * 96.0f / 72.0f));
+        // NOTE(simon): state->font_size pts * 96 pixels per inch / 72 points per inch
+        ui_font_size_push((U32) (state->font_size * 96.0f / 72.0f));
 
         R2F32 root_rectangle = r2f32(0.0f, 0.0f, (F32) client_area.x, (F32) client_area.y);
 

@@ -535,6 +535,7 @@ internal S32 os_run(Str8List arguments) {
     state->theme_index = 3;
     state->theme = global_themes[state->theme_index];
     state->target_theme = global_themes[state->theme_index];
+    state->font_size = 11.0f;
 
     state->frames_to_render = 4;
 
