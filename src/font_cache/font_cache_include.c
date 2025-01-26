@@ -195,6 +195,28 @@ internal FontCache_Font *font_cache_font_from_path(Str8 path) {
 
 
 
+internal FontCache_Text font_cache_text_prefix(FontCache_Text text, U64 size) {
+    prof_function_begin();
+
+    FontCache_Text result = { 0 };
+    result.ascent      = text.ascent;
+    result.descent     = text.descent;
+    result.letters     = text.letters;
+    result.size.height = text.size.height;
+
+    U64 total_decode_size = 0;
+    while (result.letter_count < text.letter_count && total_decode_size < size) {
+        total_decode_size += result.letters[result.letter_count].decode_size;
+        result.size.width += result.letters[result.letter_count].advance;
+        ++result.letter_count;
+    }
+
+    prof_function_end();
+    return result;
+}
+
+
+
 // NOTE(simon): `size` is in pixels per em
 internal FontCache_Text font_cache_text(Arena *arena, FontCache_Font *font, Str8 text, U32 size) {
     prof_function_begin();
@@ -295,37 +317,47 @@ internal FontCache_Text font_cache_text(Arena *arena, FontCache_Font *font, Str8
 
 // NOTE(simon): Measuring
 internal V2F32 font_cache_size_from_font_text_size(FontCache_Font *font, Str8 text, U32 size) {
+    prof_function_begin();
     Arena_Temporary scratch = arena_get_scratch(0, 0);
     FontCache_Text text_run = font_cache_text(scratch.arena, font, text, size);
     V2F32 result = text_run.size;
     arena_end_temporary(scratch);
+    prof_function_end();
     return result;
 }
 
-internal U64 font_cache_offset_from_font_text_size_position(FontCache_Font *font, Str8 text, U32 size, F32 position) {
-    Arena_Temporary scratch = arena_get_scratch(0, 0);
-
-    FontCache_Text text_run = font_cache_text(scratch.arena, font, text, size);
+internal U64 font_cache_offset_from_text_position(FontCache_Text text, F32 position) {
+    prof_function_begin();
 
     F32 best_pixel_diff  = f32_infinity();
     U64 best_byte_offset = 0;
     F32 pixel_offset     = 0.0f;
     U64 byte_offset      = 0;
-    for (U64 i = 0; i <= text_run.letter_count; ++i) {
+    for (U64 i = 0; i <= text.letter_count; ++i) {
         F32 pixel_diff = f32_abs(position - pixel_offset);
         if (pixel_diff < best_pixel_diff) {
             best_pixel_diff  = pixel_diff;
             best_byte_offset = byte_offset;
         }
 
-        if (i < text_run.letter_count) {
-            pixel_offset += text_run.letters[i].advance;
-            byte_offset  += text_run.letters[i].decode_size;
+        if (i < text.letter_count) {
+            pixel_offset += text.letters[i].advance;
+            byte_offset  += text.letters[i].decode_size;
         }
     }
 
-    arena_end_temporary(scratch);
+    prof_function_end();
     return best_byte_offset;
+}
+
+internal U64 font_cache_offset_from_font_text_size_position(FontCache_Font *font, Str8 text, U32 size, F32 position) {
+    prof_function_begin();
+    Arena_Temporary scratch = arena_get_scratch(0, 0);
+    FontCache_Text text_run = font_cache_text(scratch.arena, font, text, size);
+    U64 result = font_cache_offset_from_text_position(text_run, position);
+    arena_end_temporary(scratch);
+    prof_function_end();
+    return result;
 }
 
 

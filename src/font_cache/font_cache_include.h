@@ -107,11 +107,15 @@ internal Void             font_cache_atlas_free(FontCache_Atlas *atlas, R2U32 si
 // NOTE(simon): Cache lookups
 internal FontCache_Font  *font_cache_font_from_path(Str8 path);
 
+// NOTE(simon): Substring on layed out text.
+internal FontCache_Text font_cache_text_prefix(FontCache_Text text, U64 size);
+
 // NOTE(simon): Layout
 internal FontCache_Text font_cache_text(Arena *arena, FontCache_Font *font, Str8 text, U32 size);
 
 // NOTE(simon): Measuring
 internal V2F32 font_cache_size_from_font_text_size(FontCache_Font *font, Str8 text, U32 size);
+internal U64   font_cache_offset_from_text_position(FontCache_Text text, F32 position);
 internal U64   font_cache_offset_from_font_text_size_position(FontCache_Font *font, Str8 text, U32 size, F32 position);
 
 internal Void font_cache_create(Void);
