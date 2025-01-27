@@ -865,7 +865,7 @@ internal Void update(Void) {
                 } break;
                 case Command_SelectCodepoint: {
                     U32 codepoint = command_context->codepoint;
-                    if (codepoint < 0x10FFFF) {
+                    if (codepoint <= 0x10FFFF) {
                         state->selected_codepoint = codepoint;
                     }
                 } break;
