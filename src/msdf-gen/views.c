@@ -60,13 +60,15 @@ PANEL_BUILD_FUNCTION(view_glyph_list) {
     V2F32 panel_size = r2f32_size(panel_rectangle);
     F32 scrollbar_width = (F32) ui_font_size_top();
     F32 container_width = panel_size.x - scrollbar_width;
+    F32 container_height = panel_size.y;
 
     typedef struct {
         U32 scroll_codepoint;
         F32 scroll_offset;
-    } GlyphListState;
+        U32 previous_codepoint;
+    } ViewState;
 
-    GlyphListState *state = tab_get_state(tab, sizeof(*state));
+    ViewState *state = tab_get_state(tab, sizeof(ViewState));
 
     // NOTE(simon): Scroll region
     ui_width_next(ui_size_pixels(panel_size.x, 1.0f));
@@ -77,7 +79,7 @@ PANEL_BUILD_FUNCTION(view_glyph_list) {
 
     // NOTE(simon): Scroll container
     ui_width_next(ui_size_pixels(container_width, 1.0f));
-    ui_height_next(ui_size_pixels(panel_size.y, 1.0f));
+    ui_height_next(ui_size_pixels(container_height, 1.0f));
     ui_layout_axis_next(Axis2_Y);
     UI_Box *container = ui_create_box_from_string(0, str8_literal("glyphs"));
 
@@ -93,13 +95,13 @@ PANEL_BUILD_FUNCTION(view_glyph_list) {
     F32 height = width * 2.0f;
 
     S32 first_row = 0;
-    S32 last_row  = (S32) ((last_codepoint + codepoints_per_row - 1) / codepoints_per_row);
+    S32 last_row  = (S32) (last_codepoint / codepoints_per_row);
 
     S32 scroll_row = (S32) (state->scroll_codepoint / codepoints_per_row);
     S32 target_row = scroll_row;
 
-    S32 top_row    = scroll_row + (S32) (state->scroll_offset < 0.0f ? f32_ceil(state->scroll_offset - 1.0f) : f32_floor(state->scroll_offset));
-    S32 bottom_row = s32_min(top_row + (S32) f32_ceil(panel_size.y / height) + 1, last_row);
+    S32 top_row    = scroll_row + (S32) f32_floor(state->scroll_offset);
+    S32 bottom_row = s32_min(top_row + (state->scroll_offset < 0.0f) + (S32) f32_ceil(panel_size.y / height) - 1, last_row);
     container->view_offset.y = height * (f32_mod(state->scroll_offset, 1.0f) + (state->scroll_offset < 0.0f));
 
     // NOTE(simon): Scrollbar container
@@ -111,7 +113,7 @@ PANEL_BUILD_FUNCTION(view_glyph_list) {
     ui_width(ui_size_parent_percent(1.0f, 1.0f))
     ui_parent(scroll_container) {
         F32 rows_above   = (F32) (scroll_row - first_row) + state->scroll_offset;
-        F32 visible_rows = container->calculated_size.height / height;
+        F32 visible_rows = container_height / height;
         F32 row_count    = (F32) (last_row - first_row) + visible_rows - 1.0f;
         F32 rows_below   = (F32) (last_row - first_row) - 1.0f - (F32) scroll_row - state->scroll_offset;
 
@@ -152,52 +154,105 @@ PANEL_BUILD_FUNCTION(view_glyph_list) {
         }
     }
 
-    ui_parent_push(container);
-
     UIDrawMSDF *draw_msdf = arena_push_struct_zero(ui_frame_arena(), UIDrawMSDF);
     draw_msdf->font = global_state->font;
 
-    ui_palette_push(palette_from_code(PaletteCode_Button));
-    for (S32 row = top_row; row < bottom_row; ++row) {
-        ui_width_next(ui_size_parent_percent(1.0f, 1.0f));
-        ui_height_next(ui_size_pixels(height, 1.0f));
-        ui_row() {
-            ui_width(ui_size_pixels(width, 1.0f))
-            ui_height(ui_size_parent_percent(1.0f, 1.0f))
-            ui_draw_function(draw_ui_msdf)
-            ui_draw_data(draw_msdf)
-            ui_hover_cursor(Gfx_Cursor_Hand)
-            for (U32 column = 0; column < codepoints_per_row; ++column) {
-                U32 codepoint = column + (U32) row * codepoints_per_row;
-                if (codepoint > last_codepoint) {
-                    break;
+    ui_parent(container)
+    ui_focus(UI_Focus_Active)
+    ui_palette(palette_from_code(PaletteCode_Button)) {
+        for (S32 row = top_row; row <= bottom_row; ++row) {
+            ui_width_next(ui_size_parent_percent(1.0f, 1.0f));
+            ui_height_next(ui_size_pixels(height, 1.0f));
+            ui_row() {
+                ui_width(ui_size_pixels(width, 1.0f))
+                ui_height(ui_size_parent_percent(1.0f, 1.0f))
+                ui_draw_function(draw_ui_msdf)
+                ui_draw_data(draw_msdf)
+                ui_hover_cursor(Gfx_Cursor_Hand)
+                for (U32 column = 0; column < codepoints_per_row; ++column) {
+                    U32 codepoint = column + (U32) row * codepoints_per_row;
+                    if (codepoint > last_codepoint) {
+                        break;
+                    }
+
+                    ui_focus_next(codepoint == top_context()->codepoint ? UI_Focus_Active : UI_Focus_Inactive);
+
+                    U8 buffer[4] = { 0 };
+                    U64 size = string_encode_utf8(buffer, codepoint);
+                    Str8 string = str8(buffer, size);
+
+                    UI_Box *box = ui_create_box_from_string(
+                        UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawBorder |
+                        UI_BoxFlag_DrawHot | UI_BoxFlag_DrawActive |
+                        UI_BoxFlag_Clickable,
+                        string
+                    );
+                    UI_Input input = ui_input_from_box(box);
+
+                    if (input.input_flags & UI_InputFlag_LeftClicked) {
+                        push_command(Command_SelectCodepoint, .codepoint = codepoint);
+                        push_command(Command_FocusPanel);
+                    }
+                }
+            }
+        }
+
+        if (ui_is_focus_active()) {
+            for (UI_Event *event = global_ui_state->events->first; event; event = event->next) {
+                if (event->kind != UI_EventKind_Navigation) {
+                    continue;
                 }
 
-                ui_focus_next(codepoint == global_state->selected_codepoint ? UI_Focus_Active : UI_Focus_Inactive);
+                U32 codepoint = top_context()->codepoint;
 
-                U8 buffer[4] = { 0 };
-                U64 size = string_encode_utf8(buffer, codepoint);
-                Str8 string = str8(buffer, size);
-
-                UI_Box *box = ui_create_box_from_string(
-                    UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawBorder |
-                    UI_BoxFlag_DrawHot | UI_BoxFlag_DrawActive |
-                    UI_BoxFlag_Clickable,
-                    string
-                );
-                UI_Input input = ui_input_from_box(box);
-
-                if (input.input_flags & UI_InputFlag_LeftClicked) {
-                    push_command(Command_SelectCodepoint, .codepoint = codepoint);
-                    push_command(Command_FocusPanel);
+                switch (event->unit) {
+                    case UI_EventDeltaUnit_Null: {
+                    } break;
+                    case UI_EventDeltaUnit_Character: {
+                        if (event->delta.x == -1 && codepoint > 0) {
+                            push_command(Command_SelectCodepoint, .codepoint = codepoint - 1);
+                        } else if (event->delta.x == 1 && codepoint < 0x10FFFF) {
+                            push_command(Command_SelectCodepoint, .codepoint = codepoint + 1);
+                        } else if (event->delta.y == -1 && codepoint >= codepoints_per_row) {
+                            push_command(Command_SelectCodepoint, .codepoint = codepoint - codepoints_per_row);
+                        } else if (event->delta.y == 1 && codepoint <= 0x10FFFF - codepoints_per_row) {
+                            push_command(Command_SelectCodepoint, .codepoint = codepoint + codepoints_per_row);
+                        }
+                    } break;
+                    case UI_EventDeltaUnit_Word: {
+                    } break;
+                    case UI_EventDeltaUnit_Line: {
+                        U32 active_row = top_context()->codepoint / codepoints_per_row;
+                        if (event->delta.x == -1) {
+                            push_command(Command_SelectCodepoint, .codepoint = active_row * codepoints_per_row);
+                        } else if (event->delta.x == 1) {
+                            U32 next_codepoint = active_row * codepoints_per_row + codepoints_per_row - 1;
+                            next_codepoint = u32_min(next_codepoint, last_codepoint);
+                            push_command(Command_SelectCodepoint, .codepoint = next_codepoint);
+                        }
+                    } break;
+                    case UI_EventDeltaUnit_Page: {
+                        U32 rows_per_page = (U32) f32_ceil(container_height / height);
+                        U32 codepoints_per_page = rows_per_page * codepoints_per_row;
+                        if (event->delta.y == -1 && codepoint >= codepoints_per_page) {
+                            push_command(Command_SelectCodepoint, .codepoint = codepoint - codepoints_per_page);
+                        } else if (event->delta.y == 1 && codepoint <= 0x10FFFF - codepoints_per_page) {
+                            push_command(Command_SelectCodepoint, .codepoint = codepoint + codepoints_per_page);
+                        }
+                    } break;
+                    case UI_EventDeltaUnit_Whole: {
+                        if (event->delta.y == -1) {
+                            push_command(Command_SelectCodepoint, .codepoint = first_codepoint);
+                        } else if (event->delta.y == 1) {
+                            push_command(Command_SelectCodepoint, .codepoint = last_codepoint);
+                        }
+                    } break;
+                    case UI_EventDeltaUnit_COUNT: {
+                    } break;
                 }
             }
         }
     }
-    ui_palette_pop();
-
-    // NOTE(simon): Container
-    ui_parent_pop();
 
     // NOTE(simon): Region
     ui_parent_pop();
@@ -205,8 +260,19 @@ PANEL_BUILD_FUNCTION(view_glyph_list) {
     UI_Input region_input = ui_input_from_box(region);
     target_row -= (S32) region_input.scroll.y;
 
-    // NOTE(simon): Updating scroll
-    target_row = s32_min(s32_max(first_row, target_row), last_row - 1);
+    if (top_context()->codepoint != state->previous_codepoint) {
+        state->previous_codepoint = top_context()->codepoint;
+
+        S32 active_row = (S32) top_context()->codepoint / (S32) codepoints_per_row;
+        if (active_row < top_row) {
+            target_row += active_row - top_row - (bottom_row - top_row) / 2;
+        } else if (bottom_row < active_row) {
+            target_row += active_row - bottom_row + (bottom_row - top_row) / 2;
+        }
+    }
+
+    // NOTE(simon): Scrolling
+    target_row = s32_min(s32_max(first_row, target_row), last_row);
     state->scroll_offset += (F32) scroll_row - (F32) target_row;
     scroll_row = target_row;
     state->scroll_codepoint = (U32) scroll_row * codepoints_per_row;
