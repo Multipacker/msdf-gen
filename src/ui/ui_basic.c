@@ -247,9 +247,9 @@ internal UI_Input ui_line_edit(U8 *buffer, U64 *buffer_size, U64 buffer_capacity
                 case UI_EventDeltaUnit_Null: {
                 } break;
                 case UI_EventDeltaUnit_Character: {
-                    if (event->delta < 0) {
+                    if (event->delta.x < 0) {
                         cursor_delta = (S64) str8_next_codepoint_offset(edit_string, *cursor, Side_Min) - (S64) *cursor;
-                    } else if (0 < event->delta) {
+                    } else if (0 < event->delta.x) {
                         cursor_delta = (S64) str8_next_codepoint_offset(edit_string, *cursor, Side_Max) - (S64) *cursor;
                     }
                 } break;
@@ -257,14 +257,14 @@ internal UI_Input ui_line_edit(U8 *buffer, U64 *buffer_size, U64 buffer_capacity
                     U8 *start = edit_string.data;
                     U8 *opl   = edit_string.data + edit_string.size;
                     U8 *ptr   = edit_string.data + *cursor;
-                    if (event->delta < 0) {
+                    if (event->delta.x < 0) {
                         while (start < ptr && !ui_is_word(ptr[-1])) {
                             --ptr;
                         }
                         while (start < ptr && ui_is_word(ptr[-1])) {
                             --ptr;
                         }
-                    } else if (0 < event->delta) {
+                    } else if (0 < event->delta.x) {
                         while (ptr < opl && ui_is_word(*ptr)) {
                             ++ptr;
                         }
@@ -274,14 +274,20 @@ internal UI_Input ui_line_edit(U8 *buffer, U64 *buffer_size, U64 buffer_capacity
                     }
                     cursor_delta = (S64) (ptr - start) - (S64) *cursor;
                 } break;
+                case UI_EventDeltaUnit_Line: {
+                } break;
+                case UI_EventDeltaUnit_Page: {
+                } break;
+                case UI_EventDeltaUnit_Whole: {
+                } break;
                 case UI_EventDeltaUnit_COUNT: {
                 } break;
             }
 
             if (*cursor != *mark && (event->flags & UI_EventFlag_PickSelectSide)) {
-                if (event->delta < 0) {
+                if (event->delta.x < 0) {
                     new_cursor = u64_min(*cursor, *mark);
-                } else if (0 < event->delta) {
+                } else if (0 < event->delta.x) {
                     new_cursor = u64_max(*cursor, *mark);
                 }
             }

@@ -277,6 +277,9 @@ typedef enum {
     UI_EventDeltaUnit_Null,
     UI_EventDeltaUnit_Character,
     UI_EventDeltaUnit_Word,
+    UI_EventDeltaUnit_Line,
+    UI_EventDeltaUnit_Page,
+    UI_EventDeltaUnit_Whole,
     UI_EventDeltaUnit_COUNT,
 } UI_EventDeltaUnit;
 
@@ -286,7 +289,7 @@ struct UI_Event {
     UI_Event     *previous;
 
     UI_EventKind      kind;
-    S64               delta;
+    V2S64             delta;
     UI_EventDeltaUnit unit;
     UI_EventFlags     flags;
     Str8              text;
