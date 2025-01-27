@@ -113,7 +113,7 @@ internal UI_Input ui_checkbox(B32 is_checked, Str8 label) {
         UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawBorder | (is_checked ? UI_BoxFlag_DrawText : 0) |
         UI_BoxFlag_DrawHot | UI_BoxFlag_DrawActive |
         UI_BoxFlag_Clickable,
-        "X###%.*s", str8_expand(label)
+        "X###check_%.*s", str8_expand(label)
     );
 
     ui_spacer_sized(ui_size_ems(0.5f, 1.0f));
