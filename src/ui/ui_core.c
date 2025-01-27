@@ -685,6 +685,7 @@ internal UI_Box *ui_create_box_from_key(UI_BoxFlags flags, UI_Key key) {
             box = ui->box_freelist;
             if (box) {
                 sll_stack_pop(ui->box_freelist);
+                memory_zero_struct(box);
             } else {
                 box = arena_push_struct_zero(ui->permanent_arena, UI_Box);
             }
