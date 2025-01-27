@@ -380,7 +380,7 @@ PANEL_BUILD_FUNCTION(view_glyph) {
                 log_entry = log_entry->next;
             }
             // NOTE(simon): Group visibility state
-            {
+            if (log_entry) {
                 B32 *is_group_visible = arena_push_array(frame_arena(), B32, log_entry->group_count);
                 if (!state->is_group_visible) {
                     for (U64 i = 0; i < log_entry->group_count; ++i) {
@@ -558,7 +558,7 @@ PANEL_BUILD_FUNCTION(view_glyph) {
                         ui_spacer_sized(ui_size_ems(0.5f, 1.0f));
                     }
                 }
-                if (state->render_logs) {
+                if (state->render_logs && log_entry) {
                     ui_spacer_sized(ui_size_ems(1.0f, 1.0f));
                     ui_column() {
                         ui_width(ui_size_children_sum(1.0f))
