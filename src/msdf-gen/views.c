@@ -101,7 +101,7 @@ PANEL_BUILD_FUNCTION(view_glyph_list) {
     S32 target_row = scroll_row;
 
     S32 top_row    = scroll_row + (S32) f32_floor(state->scroll_offset);
-    S32 bottom_row = s32_min(top_row + (state->scroll_offset < 0.0f) + (S32) f32_ceil(panel_size.y / height) - 1, last_row);
+    S32 bottom_row = s32_min(top_row + (state->scroll_offset != 0.0f) + (S32) f32_ceil(panel_size.y / height) - 1, last_row);
     container->view_offset.y = height * (f32_mod(state->scroll_offset, 1.0f) + (state->scroll_offset < 0.0f));
 
     // NOTE(simon): Scrollbar container
