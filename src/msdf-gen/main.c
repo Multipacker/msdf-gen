@@ -625,7 +625,6 @@ internal S32 os_run(Str8List arguments) {
         panel_insert(state->panel_root, 0, left);
         panel_insert(state->panel_root, left, right);
 
-        // TODO(simon): This should be updated when the user navigates the interface
         state->active_panel = handle_from_panel(left);
 
         Panel *top = panel_create(state);
