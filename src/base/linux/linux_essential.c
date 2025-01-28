@@ -599,7 +599,7 @@ internal OS_Thread os_thread_start(OS_ThreadFunction entry_point, Void *data) {
 
     int create_result = pthread_create(&resource->thread.thread, 0, os_linux_thread_entry, resource);
 
-    if (create_result == 0) {
+    if (create_result != 0) {
         linux_resource_destroy(resource);
         resource = 0;
     }
