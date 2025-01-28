@@ -34,6 +34,32 @@
  *   overlap other panels.
  */
 
+// NOTE(simon): We assume your buffer is a power of 2 in size.
+internal U64 circular_buffer_write(U8 *buffer, U64 buffer_size, U64 buffer_position, Void *source, U64 source_size) {
+    assert(source_size <= buffer_size);
+    U64 write_offset    = buffer_position & (buffer_size - 1);
+    U64 bytes_until_end = buffer_size - write_offset;
+    U64 bytes_before    = u64_min(source_size, bytes_until_end);
+    U64 bytes_after     = source_size - bytes_before;
+    memory_copy(&buffer[write_offset], source,                         bytes_before);
+    memory_copy(buffer,                &((U8 *) source)[bytes_before], bytes_after);
+    return source_size;
+}
+
+internal U64 circular_buffer_read(U8 *buffer, U64 buffer_size, U64 buffer_position, Void *destination, U64 destination_size) {
+    assert(destination_size <= buffer_size);
+    U64 read_offset     = buffer_position & (buffer_size - 1);
+    U64 bytes_until_end = buffer_size - read_offset;
+    U64 bytes_before    = u64_min(destination_size, bytes_until_end);
+    U64 bytes_after     = destination_size - bytes_before;
+    memory_copy(destination,                        &buffer[read_offset], bytes_before);
+    memory_copy(&((U8 *)destination)[bytes_before], buffer,               bytes_after);
+    return destination_size;
+}
+
+#define circular_buffer_write_type(buffer, buffer_size, buffer_position, type) circular_buffer_write(buffer, buffer_size, buffer_position, type, sizeof(type));
+#define circular_buffer_read_type(buffer, buffer_size, buffer_position, type)  circular_buffer_read(buffer, buffer_size, buffer_position, type, sizeof(type));
+
 typedef struct Glyph Glyph;
 struct Glyph {
     Glyph *next;
@@ -47,6 +73,8 @@ struct Glyph {
     Render_Texture texture;
 
     MSDF_Log log;
+
+    B32 loaded;
 };
 
 global Glyph global_glyph_null = { 0 };
@@ -82,6 +110,16 @@ struct Font {
     TTF_Font *ttf;
 
     U32 next_glyph_index;
+
+    U32 to_generator_write;
+    U32 to_generator_read;
+    U32 to_generator_size;
+    U8 *to_generator_buffer;
+
+    U8 *from_generator_buffer;
+    U32 from_generator_size;
+    U32 from_generator_write;
+    U32 from_generator_read;
 };
 
 internal Font *font_create(Str8 font_path, U32 glyph_size) {
@@ -98,6 +136,12 @@ internal Font *font_create(Str8 font_path, U32 glyph_size) {
         os_console_print(str8_join(scratch.arena, &result->ttf->errors));
         arena_end_temporary(scratch);
     }
+
+    result->to_generator_size   = 64;
+    result->to_generator_buffer = arena_push_array(result->arena, U8, result->to_generator_size);
+
+    result->from_generator_size   = kilobytes(64);
+    result->from_generator_buffer = arena_push_array(result->arena, U8, result->from_generator_size);
 
     return result;
 }
@@ -119,95 +163,128 @@ internal Glyph *font_get_glyph(Font *font, U32 codepoint) {
 
     // NOTE(simon): Generate the glyph if it doesn't exist yet.
     if (result == &global_glyph_null) {
-        result = arena_push_struct_zero(font->arena, Glyph);
-        result->codepoint = codepoint;
+        if (font->to_generator_write - font->to_generator_read < font->to_generator_size) {
+            result = arena_push_struct_zero(font->arena, Glyph);
+            result->codepoint = codepoint;
+            dll_push_back(glyphs->first, glyphs->last, result);
 
-        MSDF_RasterResult raster_result = msdf_generate(scratch.arena, font->ttf, codepoint, font->glyph_size);
-
-        // NOTE(simon): Select glyph atlas.
-        Atlas *selected_atlas = 0;
-        for (Atlas *atlas = font->first_atlas; atlas && !selected_atlas; atlas = atlas->next) {
-            for (U64 i = 0; i < array_count(atlas->occupancy); ++i) {
-                if (~atlas->occupancy[i] != 0) {
-                    selected_atlas = atlas;
-                    break;
-                }
-            }
+            font->to_generator_write += circular_buffer_write_type(font->to_generator_buffer, font->to_generator_size, font->to_generator_write, &codepoint);
         }
+    }
 
-        // NOTE(simon): Allocate a new atlas if we couldn't find one with space in it.
-        if (!selected_atlas) {
-            V2U32 size = v2u32(font->glyph_size * ATLAS_GLYPHS_PER_SIDE, font->glyph_size * ATLAS_GLYPHS_PER_SIDE);
-            selected_atlas = arena_push_struct_zero(font->arena, Atlas);
-            selected_atlas->texture = render_texture_create(size, Render_TextureFormat_RGBA8, 0);
-            dll_push_back(font->first_atlas, font->last_atlas, selected_atlas);
-        }
-
-        // NOTE(simon): Allocate atlas region.
-        U32 glyph_index = 0;
-        while (~selected_atlas->occupancy[glyph_index / 64] == 0) {
-            glyph_index += 64;
-        }
-        while ((selected_atlas->occupancy[glyph_index / 64] & (U64) (1 << glyph_index % 64)) != 0) {
-            ++glyph_index;
-        }
-        selected_atlas->occupancy[glyph_index / 64] |= (U64) (1 << glyph_index % 64);
-
-        V2U32 atlas_position = v2u32(
-            font->glyph_size * (glyph_index % ATLAS_GLYPHS_PER_SIDE),
-            font->glyph_size * (glyph_index / ATLAS_GLYPHS_PER_SIDE)
-        );
-
-        render_texture_update(
-            selected_atlas->texture,
-            atlas_position,
-            v2u32(font->glyph_size, font->glyph_size),
-            raster_result.data
-        );
-
-        // This adjustment increases the size of glyphs to acount for the
-        // source needing to include a 1/2 texel border for rendering. This
-        // makes sure that the glyphs have the same visual size.
-        F32 scale = ((F32) font->glyph_size - 1.0f) / ((F32) font->glyph_size - 2.0f) - 1.0f;
-        V2F32 adjustment = v2f32_scale(v2f32_subtract(raster_result.max, raster_result.min), 0.5f * scale);
-
-        result->advance_pt = raster_result.advance_width;
-        result->rectangle_pt = r2f32(
-            raster_result.min.x - adjustment.x,
-            raster_result.min.y - adjustment.y,
-            raster_result.max.x + adjustment.x,
-            raster_result.max.y + adjustment.y
-        );
-
-        result->uv = r2f32(
-            (F32) atlas_position.x + 0.5f,
-            (F32) atlas_position.y + 0.5f,
-            (F32) atlas_position.x + (F32) font->glyph_size - 0.5f,
-            (F32) atlas_position.y + (F32) font->glyph_size - 0.5f
-        );
-        result->texture = selected_atlas->texture;
-        for (MSDF_LogEntry *src_entry = raster_result.log.first; src_entry; src_entry = src_entry->next) {
-            MSDF_LogEntry *entry = arena_push_struct_zero(font->arena, MSDF_LogEntry);
-            entry->description = str8_copy(font->arena, src_entry->description);
-            for (MSDF_LogGroup *src_group = src_entry->first_group; src_group; src_group = src_group->next) {
-                MSDF_LogGroup *group = arena_push_struct_zero(font->arena, MSDF_LogGroup);
-                for (MSDF_LogGeometry *src_geometry = src_group->first_geometry; src_geometry; src_geometry = src_geometry->next) {
-                    MSDF_LogGeometry *geometry = arena_push_struct_zero(font->arena, MSDF_LogGeometry);
-                    memory_copy(geometry, src_geometry, sizeof(*geometry));
-                    dll_push_back(group->first_geometry, group->last_geometry, geometry);
-                }
-                dll_push_back(entry->first_group, entry->last_group, group);
-                ++entry->group_count;
-            }
-            dll_push_back(result->log.first, result->log.last, entry);
-            ++result->log.count;
-        }
-
-        dll_push_back(glyphs->first, glyphs->last, result);
+    if (!result->loaded) {
+        result = &global_glyph_null;
     }
 
     arena_end_temporary(scratch);
     return result;
+}
+
+internal Void font_generate_glyphs(Font *font) {
+    while (font->to_generator_write - font->to_generator_read) {
+        Arena_Temporary scratch = arena_get_scratch(0, 0);
+
+        U32 codepoint = 0;
+        font->to_generator_read += circular_buffer_read_type(font->to_generator_buffer, font->to_generator_size, font->to_generator_read, &codepoint);
+
+        U64 hash = u64_hash(codepoint);
+        GlyphList *glyphs = &font->glyph_lists[hash % array_count(font->glyph_lists)];
+
+        Glyph *result = &global_glyph_null;
+
+        for (Glyph *glyph = glyphs->first; glyph; glyph = glyph->next) {
+            if (glyph->codepoint == codepoint) {
+                result = glyph;
+                break;
+            }
+        }
+
+        if (result) {
+            MSDF_RasterResult raster_result = msdf_generate(scratch.arena, font->ttf, codepoint, font->glyph_size);
+
+            // NOTE(simon): Select glyph atlas.
+            Atlas *selected_atlas = 0;
+            for (Atlas *atlas = font->first_atlas; atlas && !selected_atlas; atlas = atlas->next) {
+                for (U64 i = 0; i < array_count(atlas->occupancy); ++i) {
+                    if (~atlas->occupancy[i] != 0) {
+                        selected_atlas = atlas;
+                        break;
+                    }
+                }
+            }
+
+            // NOTE(simon): Allocate a new atlas if we couldn't find one with space in it.
+            if (!selected_atlas) {
+                V2U32 size = v2u32(font->glyph_size * ATLAS_GLYPHS_PER_SIDE, font->glyph_size * ATLAS_GLYPHS_PER_SIDE);
+                selected_atlas = arena_push_struct_zero(font->arena, Atlas);
+                selected_atlas->texture = render_texture_create(size, Render_TextureFormat_RGBA8, 0);
+                dll_push_back(font->first_atlas, font->last_atlas, selected_atlas);
+            }
+
+            // NOTE(simon): Allocate atlas region.
+            U32 glyph_index = 0;
+            while (~selected_atlas->occupancy[glyph_index / 64] == 0) {
+                glyph_index += 64;
+            }
+            while ((selected_atlas->occupancy[glyph_index / 64] & (U64) (1 << glyph_index % 64)) != 0) {
+                ++glyph_index;
+            }
+            selected_atlas->occupancy[glyph_index / 64] |= (U64) (1 << glyph_index % 64);
+
+            V2U32 atlas_position = v2u32(
+                font->glyph_size * (glyph_index % ATLAS_GLYPHS_PER_SIDE),
+                font->glyph_size * (glyph_index / ATLAS_GLYPHS_PER_SIDE)
+            );
+
+            render_texture_update(
+                selected_atlas->texture,
+                atlas_position,
+                v2u32(font->glyph_size, font->glyph_size),
+                raster_result.data
+            );
+
+            // This adjustment increases the size of glyphs to acount for the
+            // source needing to include a 1/2 texel border for rendering. This
+            // makes sure that the glyphs have the same visual size.
+            F32 scale = ((F32) font->glyph_size - 1.0f) / ((F32) font->glyph_size - 2.0f) - 1.0f;
+            V2F32 adjustment = v2f32_scale(v2f32_subtract(raster_result.max, raster_result.min), 0.5f * scale);
+
+            result->advance_pt = raster_result.advance_width;
+            result->rectangle_pt = r2f32(
+                raster_result.min.x - adjustment.x,
+                raster_result.min.y - adjustment.y,
+                raster_result.max.x + adjustment.x,
+                raster_result.max.y + adjustment.y
+            );
+
+            result->uv = r2f32(
+                (F32) atlas_position.x + 0.5f,
+                (F32) atlas_position.y + 0.5f,
+                (F32) atlas_position.x + (F32) font->glyph_size - 0.5f,
+                (F32) atlas_position.y + (F32) font->glyph_size - 0.5f
+            );
+            result->texture = selected_atlas->texture;
+            for (MSDF_LogEntry *src_entry = raster_result.log.first; src_entry; src_entry = src_entry->next) {
+                MSDF_LogEntry *entry = arena_push_struct_zero(font->arena, MSDF_LogEntry);
+                entry->description = str8_copy(font->arena, src_entry->description);
+                for (MSDF_LogGroup *src_group = src_entry->first_group; src_group; src_group = src_group->next) {
+                    MSDF_LogGroup *group = arena_push_struct_zero(font->arena, MSDF_LogGroup);
+                    for (MSDF_LogGeometry *src_geometry = src_group->first_geometry; src_geometry; src_geometry = src_geometry->next) {
+                        MSDF_LogGeometry *geometry = arena_push_struct_zero(font->arena, MSDF_LogGeometry);
+                        memory_copy(geometry, src_geometry, sizeof(*geometry));
+                        dll_push_back(group->first_geometry, group->last_geometry, geometry);
+                    }
+                    dll_push_back(entry->first_group, entry->last_group, group);
+                    ++entry->group_count;
+                }
+                dll_push_back(result->log.first, result->log.last, entry);
+                ++result->log.count;
+            }
+            result->loaded = true;
+        }
+
+        arena_end_temporary(scratch);
+    }
 }
 
 internal Void draw_text_msdf(Font *font, V2F32 position, F32 point_size, Str8 text) {
@@ -579,6 +656,7 @@ internal S32 os_run(Str8List arguments) {
 
     while (state->running) {
         update();
+        font_generate_glyphs(state->font);
     }
 
     return 0;
