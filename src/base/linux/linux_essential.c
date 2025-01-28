@@ -609,6 +609,17 @@ internal OS_Thread os_thread_start(OS_ThreadFunction entry_point, Void *data) {
     return result;
 }
 
+internal Void os_thread_set_name(OS_Thread handle, Str8 name) {
+    Arena_Temporary scratch = arena_get_scratch(0, 0);
+    Linux_Resource *resource = (Linux_Resource *) pointer_from_integer(handle.u64[0]);
+    // NOTE(simon): According to `man pthread_setname_np`, the thread name is
+    // limited to 16 bytes including the terminating null byte.
+    Str8 clamped_name = str8_prefix(name, 15);
+    CStr name_c = cstr_from_str8(scratch.arena, clamped_name);
+    pthread_setname_np(resource->thread.thread, name_c);
+    arena_end_temporary(scratch);
+}
+
 internal Void os_thread_detach(OS_Thread handle) {
     Linux_Resource *thread = (Linux_Resource *) pointer_from_integer(handle.u64[0]);
     linux_resource_destroy(thread);

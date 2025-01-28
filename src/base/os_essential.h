@@ -63,8 +63,9 @@ struct OS_Thread {
 };
 
 internal OS_Thread os_thread_start(OS_ThreadFunction entry_point, Void *data);
-internal B32 os_thread_join(OS_Thread thread);
-internal Void os_thread_detach(OS_Thread handle);
+internal Void      os_thread_set_name(OS_Thread handle, Str8 name);
+internal B32       os_thread_join(OS_Thread thread);
+internal Void      os_thread_detach(OS_Thread handle);
 
 typedef struct OS_Mutex OS_Mutex;
 struct OS_Mutex {
