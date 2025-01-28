@@ -118,6 +118,8 @@ struct MSDF_RasterResult {
     V2F32 min;
     V2F32 max;
 
+    U32 codepoint;
+
     F32 advance_width;
     F32 left_side_bearing;
 

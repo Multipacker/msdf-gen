@@ -956,6 +956,8 @@ internal MSDF_RasterResult msdf_generate(Arena *arena, TTF_Font *font, U32 codep
 
     Arena_Temporary scratch = arena_get_scratch(&arena, 1);
 
+    result.codepoint = codepoint;
+
     U32 glyph_index = ttf_get_glyph_index(font, codepoint);
     MSDF_Glyph glyph = ttf_expand_contours_to_msdf(scratch.arena, font, glyph_index);
     TTF_HmtxMetrics metrics = ttf_get_metrics(font, glyph_index);
