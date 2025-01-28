@@ -44,4 +44,11 @@ internal Void            arena_init_scratch(Void);
 internal Void            arena_destroy_scratch(Void);
 internal Arena_Temporary arena_get_scratch(Arena **conflicts, U32 count);
 
+// NOTE(simon): These assume your buffer is a power of 2 in size.
+internal U64 circular_buffer_read(Void *buffer, U64 buffer_size, U64 buffer_position, Void *destination, U64 destination_size);
+internal U64 circular_buffer_write(Void *buffer, U64 buffer_size, U64 buffer_position, Void *source, U64 source_size);
+
+#define circular_buffer_write_type(buffer, buffer_size, buffer_position, type) circular_buffer_write(buffer, buffer_size, buffer_position, type, sizeof(type));
+#define circular_buffer_read_type(buffer, buffer_size, buffer_position, type)  circular_buffer_read(buffer, buffer_size, buffer_position, type, sizeof(type));
+
 #endif // MEMORY_H
