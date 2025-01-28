@@ -89,7 +89,7 @@ PANEL_BUILD_FUNCTION(view_glyph_list) {
     F32 preferred_width = 3.0f * (F32) ui_font_size_top();
     U32 codepoints_per_row = (U32) f32_floor(container_width / preferred_width);
     if (!codepoints_per_row) {
-        codepoints_per_row = 10;
+        codepoints_per_row = 1;
     }
     F32 width = container_width / (F32) codepoints_per_row;
     F32 height = width * 2.0f;
