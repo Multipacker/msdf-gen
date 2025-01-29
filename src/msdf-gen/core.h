@@ -105,18 +105,60 @@ struct Context {
     .tab_specification = top_context()->tab_specification, \
     .codepoint         = top_context()->codepoint,
 
+#define COMMANDS                                      \
+    X(FocusPanel,           "Focus panel")            \
+    X(ClosePanel,           "Close panel")            \
+    X(SplitPanel,           "Split panel")            \
+    X(OpenTab,              "Open tab")               \
+    X(CloseTab,             "Close tab")              \
+    X(PreviousTab,          "Previous tab")           \
+    X(NextTab,              "Next tab")               \
+    X(MoveTab,              "Move tab")               \
+    X(SaveProject,          "Save project")           \
+    X(SelectCodepoint,      "Select codepoint")       \
+    X(NextTheme,            "Next theme")             \
+    X(PreviousTheme,        "Previous theme")         \
+    X(SelectWordLeft,       "Select word left")       \
+    X(SelectWordUp,         "Select word up")         \
+    X(SelectWordRight,      "Select word right")      \
+    X(SelectWordDown,       "Select word down")       \
+    X(SelectCharacterLeft,  "Select character left")  \
+    X(SelectCharacterUp,    "Select character up")    \
+    X(SelectCharacterRight, "Select character right") \
+    X(SelectCharacterDown,  "Select character down")  \
+    X(MoveWordLeft,         "Move word left")         \
+    X(MoveWordUp,           "Move word up")           \
+    X(MoveWordRight,        "Move word right")        \
+    X(MoveWordDown,         "Move word down")         \
+    X(MoveCharacterLeft,    "Move Character left")    \
+    X(MoveCharacterUp,      "Move Character up")      \
+    X(MoveCharacterRight,   "Move Character right")   \
+    X(MoveCharacterDown,    "Move Character down")    \
+    X(SelectHome,           "Select home")            \
+    X(SelectEnd,            "Select end")             \
+    X(MoveHome,             "Move home")              \
+    X(MoveEnd,              "Move end")               \
+    X(SelectPageUp,         "Select page up")         \
+    X(SelectPageDown,       "Select page down")       \
+    X(MovePageUp,           "Move page up")           \
+    X(MovePageDown,         "Move page down")         \
+    X(SelectWholeUp,        "Select whole up")        \
+    X(SelectWholeDown,      "Select whole down")      \
+    X(MoveWholeUp,          "Move whole up")          \
+    X(MoveWholeDown,        "Move whole end")         \
+    X(RemoveWord,           "Remove word")            \
+    X(DeleteWord,           "Delete word")            \
+    X(RemoveCharacter,      "Remove character")       \
+    X(DeleteCharacter,      "Delete character")       \
+    X(Copy,                 "Copy")                   \
+    X(Paste,                "Paste")                  \
+    X(Cut,                  "Cut")
+
+#define X(pascal_case, display_string) Command_##pascal_case,
 typedef enum {
-    Command_FocusPanel,
-    Command_ClosePanel,
-    Command_SplitPanel,
-    Command_OpenTab,
-    Command_CloseTab,
-    Command_PreviousTab,
-    Command_NextTab,
-    Command_MoveTab,
-    Command_SaveProject,
-    Command_SelectCodepoint,
+    COMMANDS
 } CommandKind;
+#undef X
 
 typedef struct {
     CommandKind kind;
