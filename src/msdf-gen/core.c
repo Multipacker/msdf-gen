@@ -331,137 +331,83 @@ internal Void update(Void) {
 
     UI_EventList ui_events = { 0 };
 
+    typedef struct Binding Binding;
+    struct Binding {
+        Gfx_Key         key;
+        Gfx_KeyModifier modifiers;
+        CommandKind     command;
+    };
+
+    Binding bindings[] = {
+            { Gfx_Key_W,         Gfx_KeyModifier_Control,                         Command_CloseTab,             },
+            { Gfx_Key_Tab,       Gfx_KeyModifier_Shift | Gfx_KeyModifier_Control, Command_PreviousTab,          },
+            { Gfx_Key_Tab,       Gfx_KeyModifier_Control,                         Command_NextTab,              },
+            { Gfx_Key_N,         Gfx_KeyModifier_Control,                         Command_NextTheme,            },
+            { Gfx_Key_P,         Gfx_KeyModifier_Control,                         Command_PreviousTheme,        },
+            { Gfx_Key_Left,      Gfx_KeyModifier_Shift | Gfx_KeyModifier_Control, Command_SelectWordLeft,       },
+            { Gfx_Key_Up,        Gfx_KeyModifier_Shift | Gfx_KeyModifier_Control, Command_SelectWordUp,         },
+            { Gfx_Key_Right,     Gfx_KeyModifier_Shift | Gfx_KeyModifier_Control, Command_SelectWordRight,      },
+            { Gfx_Key_Down,      Gfx_KeyModifier_Shift | Gfx_KeyModifier_Control, Command_SelectWordDown,       },
+            { Gfx_Key_Left,      Gfx_KeyModifier_Shift,                           Command_SelectCharacterLeft,  },
+            { Gfx_Key_Up,        Gfx_KeyModifier_Shift,                           Command_SelectCharacterUp,    },
+            { Gfx_Key_Right,     Gfx_KeyModifier_Shift,                           Command_SelectCharacterRight, },
+            { Gfx_Key_Down,      Gfx_KeyModifier_Shift,                           Command_SelectCharacterDown,  },
+            { Gfx_Key_Left,      Gfx_KeyModifier_Control,                         Command_MoveWordLeft,         },
+            { Gfx_Key_Up,        Gfx_KeyModifier_Control,                         Command_MoveWordUp,           },
+            { Gfx_Key_Right,     Gfx_KeyModifier_Control,                         Command_MoveWordRight,        },
+            { Gfx_Key_Down,      Gfx_KeyModifier_Control,                         Command_MoveWordDown,         },
+            { Gfx_Key_Left,      0,                                               Command_MoveCharacterLeft,    },
+            { Gfx_Key_Up,        0,                                               Command_MoveCharacterUp,      },
+            { Gfx_Key_Right,     0,                                               Command_MoveCharacterRight,   },
+            { Gfx_Key_Down,      0,                                               Command_MoveCharacterDown,    },
+            { Gfx_Key_Home,      Gfx_KeyModifier_Shift,                           Command_SelectHome,           },
+            { Gfx_Key_End,       Gfx_KeyModifier_Shift,                           Command_SelectEnd,            },
+            { Gfx_Key_Home,      0,                                               Command_MoveHome,             },
+            { Gfx_Key_End,       0,                                               Command_MoveEnd,              },
+            { Gfx_Key_PageUp,    Gfx_KeyModifier_Shift,                           Command_SelectPageUp,         },
+            { Gfx_Key_PageDown,  Gfx_KeyModifier_Shift,                           Command_SelectPageDown,       },
+            { Gfx_Key_PageUp,    0,                                               Command_MovePageUp,           },
+            { Gfx_Key_PageDown,  0,                                               Command_MovePageDown,         },
+            { Gfx_Key_Home,      Gfx_KeyModifier_Shift | Gfx_KeyModifier_Control, Command_SelectWholeUp,        },
+            { Gfx_Key_End,       Gfx_KeyModifier_Shift | Gfx_KeyModifier_Control, Command_SelectWholeDown,      },
+            { Gfx_Key_Home,      Gfx_KeyModifier_Control,                         Command_MoveWholeUp,          },
+            { Gfx_Key_End,       Gfx_KeyModifier_Control,                         Command_MoveWholeDown,        },
+            { Gfx_Key_Backspace, Gfx_KeyModifier_Control,                         Command_RemoveWord,           },
+            { Gfx_Key_Delete,    Gfx_KeyModifier_Control,                         Command_DeleteWord,           },
+            { Gfx_Key_Backspace, 0,                                               Command_RemoveCharacter,      },
+            { Gfx_Key_Delete,    0,                                               Command_DeleteCharacter,      },
+            { Gfx_Key_C,         Gfx_KeyModifier_Control,                         Command_Copy,                 },
+            { Gfx_Key_V,         Gfx_KeyModifier_Control,                         Command_Paste,                },
+            { Gfx_Key_X,         Gfx_KeyModifier_Control,                         Command_Cut,                  },
+    };
+
+    // NOTE(simon): Process key bindings.
+    for (Gfx_Event *event = events.first, *next; event; event = next) {
+        next = event->next;
+
+        if (event->kind != Gfx_EventKind_KeyPress) {
+            continue;
+        }
+
+        for (U64 i = 0; i < array_count(bindings); ++i) {
+            Binding binding = bindings[i];
+            if (event->key == binding.key && (event->key_modifiers & binding.modifiers) == binding.modifiers && (~event->key_modifiers & ~binding.modifiers) == ~binding.modifiers) {
+                push_command(binding.command);
+                dll_remove(events.first, events.last, event);
+                break;
+            }
+        }
+    }
+
     // NOTE(simon): Consume events.
     for (Gfx_Event *event = events.first, *next; event; event = next) {
         next = event->next;
         B32 consume = false;
         UI_Event *ui_event = 0;
 
-#define check_binding(event, _key, _modifiers) ((event)->kind == Gfx_EventKind_KeyPress && (event)->key == (_key) && ((event)->key_modifiers & (_modifiers)) == (_modifiers) && ((Gfx_KeyModifier) ~(event)->key_modifiers & (Gfx_KeyModifier) ~(_modifiers)) == (Gfx_KeyModifier) ~(_modifiers))
-
         if (event->kind == Gfx_EventKind_Quit) {
             consume = true;
             state->running = false;
-        } else if (check_binding(event, Gfx_Key_W, Gfx_KeyModifier_Control)) {
-            consume = true;
-            push_command(Command_CloseTab);
-        } else if (check_binding(event, Gfx_Key_Tab, Gfx_KeyModifier_Shift | Gfx_KeyModifier_Control)) {
-            consume = true;
-            push_command(Command_PreviousTab);
-        } else if (check_binding(event, Gfx_Key_Tab, Gfx_KeyModifier_Control)) {
-            consume = true;
-            push_command(Command_NextTab);
-        } else if (check_binding(event, Gfx_Key_N, Gfx_KeyModifier_Control)) {
-            consume = true;
-            push_command(Command_NextTheme);
-        } else if (check_binding(event, Gfx_Key_P, Gfx_KeyModifier_Control)) {
-            consume = true;
-            push_command(Command_PreviousTheme);
-        } else if (check_binding(event, Gfx_Key_Left, Gfx_KeyModifier_Shift | Gfx_KeyModifier_Control)) {
-            consume = true;
-            push_command(Command_SelectWordLeft);
-        } else if (check_binding(event, Gfx_Key_Up, Gfx_KeyModifier_Shift | Gfx_KeyModifier_Control)) {
-            consume = true;
-            push_command(Command_SelectWordUp);
-        } else if (check_binding(event, Gfx_Key_Right, Gfx_KeyModifier_Shift | Gfx_KeyModifier_Control)) {
-            consume = true;
-            push_command(Command_SelectWordRight);
-        } else if (check_binding(event, Gfx_Key_Down, Gfx_KeyModifier_Shift | Gfx_KeyModifier_Control)) {
-            consume = true;
-            push_command(Command_SelectWordDown);
-        } else if (check_binding(event, Gfx_Key_Left, Gfx_KeyModifier_Shift)) {
-            consume = true;
-            push_command(Command_SelectCharacterLeft);
-        } else if (check_binding(event, Gfx_Key_Up, Gfx_KeyModifier_Shift)) {
-            consume = true;
-            push_command(Command_SelectCharacterUp);
-        } else if (check_binding(event, Gfx_Key_Right, Gfx_KeyModifier_Shift)) {
-            consume = true;
-            push_command(Command_SelectCharacterRight);
-        } else if (check_binding(event, Gfx_Key_Down, Gfx_KeyModifier_Shift)) {
-            consume = true;
-            push_command(Command_SelectCharacterDown);
-        } else if (check_binding(event, Gfx_Key_Left, Gfx_KeyModifier_Control)) {
-            consume = true;
-            push_command(Command_MoveWordLeft);
-        } else if (check_binding(event, Gfx_Key_Up, Gfx_KeyModifier_Control)) {
-            consume = true;
-            push_command(Command_MoveWordUp);
-        } else if (check_binding(event, Gfx_Key_Right, Gfx_KeyModifier_Control)) {
-            consume = true;
-            push_command(Command_MoveWordRight);
-        } else if (check_binding(event, Gfx_Key_Down, Gfx_KeyModifier_Control)) {
-            consume = true;
-            push_command(Command_MoveWordDown);
-        } else if (check_binding(event, Gfx_Key_Left, 0)) {
-            consume = true;
-            push_command(Command_MoveCharacterLeft);
-        } else if (check_binding(event, Gfx_Key_Up, 0)) {
-            consume = true;
-            push_command(Command_MoveCharacterUp);
-        } else if (check_binding(event, Gfx_Key_Right, 0)) {
-            consume = true;
-            push_command(Command_MoveCharacterRight);
-        } else if (check_binding(event, Gfx_Key_Down, 0)) {
-            consume = true;
-            push_command(Command_MoveCharacterDown);
-        } else if (check_binding(event, Gfx_Key_Home, Gfx_KeyModifier_Shift)) {
-            consume = true;
-            push_command(Command_SelectHome);
-        } else if (check_binding(event, Gfx_Key_End, Gfx_KeyModifier_Shift)) {
-            consume = true;
-            push_command(Command_SelectEnd);
-        } else if (check_binding(event, Gfx_Key_Home, 0)) {
-            consume = true;
-            push_command(Command_MoveHome);
-        } else if (check_binding(event, Gfx_Key_End, 0)) {
-            consume = true;
-            push_command(Command_MoveEnd);
-        } else if (check_binding(event, Gfx_Key_PageUp, Gfx_KeyModifier_Shift)) {
-            consume = true;
-            push_command(Command_SelectPageUp);
-        } else if (check_binding(event, Gfx_Key_PageDown, Gfx_KeyModifier_Shift)) {
-            consume = true;
-            push_command(Command_SelectPageDown);
-        } else if (check_binding(event, Gfx_Key_PageUp, 0)) {
-            consume = true;
-            push_command(Command_MovePageUp);
-        } else if (check_binding(event, Gfx_Key_PageDown, 0)) {
-            consume = true;
-            push_command(Command_MovePageDown);
-        } else if (check_binding(event, Gfx_Key_Home, Gfx_KeyModifier_Shift | Gfx_KeyModifier_Control)) {
-            consume = true;
-            push_command(Command_SelectWholeUp);
-        } else if (check_binding(event, Gfx_Key_End, Gfx_KeyModifier_Shift | Gfx_KeyModifier_Control)) {
-            consume = true;
-            push_command(Command_SelectWholeDown);
-        } else if (check_binding(event, Gfx_Key_Home, Gfx_KeyModifier_Control)) {
-            consume = true;
-            push_command(Command_MoveWholeUp);
-        } else if (check_binding(event, Gfx_Key_End, Gfx_KeyModifier_Control)) {
-            consume = true;
-            push_command(Command_MoveWholeDown);
-        } else if (check_binding(event, Gfx_Key_Backspace, Gfx_KeyModifier_Control)) {
-            consume = true;
-            push_command(Command_RemoveWord);
-        } else if (check_binding(event, Gfx_Key_Delete, Gfx_KeyModifier_Control)) {
-            consume = true;
-            push_command(Command_DeleteWord);
-        } else if (check_binding(event, Gfx_Key_Backspace, 0)) {
-            consume = true;
-            push_command(Command_RemoveCharacter);
-        } else if (check_binding(event, Gfx_Key_Delete, 0)) {
-            consume = true;
-            push_command(Command_DeleteCharacter);
-        } else if (check_binding(event, Gfx_Key_C, Gfx_KeyModifier_Control)) {
-            consume = true;
-            push_command(Command_Copy);
-        } else if (check_binding(event, Gfx_Key_V, Gfx_KeyModifier_Control)) {
-            consume = true;
-            push_command(Command_Paste);
-        } else if (check_binding(event, Gfx_Key_X, Gfx_KeyModifier_Control)) {
-            consume = true;
-            push_command(Command_Cut);
         } else if (event->kind == Gfx_EventKind_KeyPress || event->kind == Gfx_EventKind_KeyRelease || event->kind == Gfx_EventKind_Text || event->kind == Gfx_EventKind_Scroll) {
             consume = true;
             UI_EventKind kind = UI_EventKind_Null;
@@ -484,8 +430,6 @@ internal Void update(Void) {
             ui_event->key       = event->key;
             ui_event->modifiers = event->key_modifiers;
         }
-
-#undef check_binding
 
         if (drag_is_active() && event->kind == Gfx_EventKind_KeyRelease && event->key == Gfx_Key_MouseLeft) {
             state->drag_state = DragState_Dropping;
