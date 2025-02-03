@@ -805,6 +805,14 @@ internal MSDF_Glyph ttf_expand_contours_to_msdf(Arena *arena, TTF_Font *font, U3
     result.max.y = glyph.y_max;
 
     for (U32 contour_index = 0, point_index = 0; contour_index < glyph.contour_count; ++contour_index) {
+        // FIXME(simon): Apparently there can be empty contours now? We need a
+        // more robust parser in general, this is only a temporary solution to
+        // a terrible problem.
+        if ((glyph.contour_end_points[contour_index] - point_index) == 0) {
+            point_index = glyph.contour_end_points[contour_index] + 1;
+            continue;
+        }
+
         MSDF_Contour *contour = arena_push_struct_zero(arena, MSDF_Contour);
 
         U32 prev_index    = glyph.contour_end_points[contour_index] - 1;
