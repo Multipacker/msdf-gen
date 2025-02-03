@@ -169,7 +169,7 @@ internal B32 msdf_distance_is_closer(MSDF_Distance a, MSDF_Distance b) {
     }
 }
 
-internal U32 msdf_quadratic_bezier_intersect_recurse(MSDF_Segment a, MSDF_Segment b, U32 iteration_count, F32 *result_ats, F32 *result_bts) {
+internal U32 msdf_quadratic_bezier_intersect_recurse(MSDF_Segment a, MSDF_Segment b, U32 iteration_count, F32 *result_ats, F32 *result_bts, U32 slots_left) {
     V2F32 a_min = v2f32_min(v2f32_min(a.p0, a.p1), a.p2);
     V2F32 a_max = v2f32_max(v2f32_max(a.p0, a.p1), a.p2);
     V2F32 b_min = v2f32_min(v2f32_min(b.p0, b.p1), b.p2);
@@ -183,7 +183,7 @@ internal U32 msdf_quadratic_bezier_intersect_recurse(MSDF_Segment a, MSDF_Segmen
                 F32 at = ((a.p0.x - b.p0.x) * (b.p0.y - b.p2.y) - (a.p0.y - b.p0.y) * (b.p0.x - b.p2.x)) / denominator;
                 F32 bt = ((a.p0.x - b.p0.x) * (a.p0.y - a.p2.y) - (a.p0.y - b.p0.y) * (a.p0.x - a.p2.x)) / denominator;
 
-                if (0.0f <= at && at < 1.0f && 0.0f <= bt && bt < 1.0f) {
+                if (0.0f <= at && at < 1.0f && 0.0f <= bt && bt < 1.0f && slots_left) {
                     result_ats[0] = at;
                     result_bts[0] = bt;
                     return 1;
@@ -201,7 +201,7 @@ internal U32 msdf_quadratic_bezier_intersect_recurse(MSDF_Segment a, MSDF_Segmen
 
             U32 count = 0;
             for (U32 i = 0; i < 4; ++i) {
-                U32 new_solutions = msdf_quadratic_bezier_intersect_recurse(segments[i / 2], segments[2 + i % 2], iteration_count - 1, &result_ats[count], &result_bts[count]);
+                U32 new_solutions = msdf_quadratic_bezier_intersect_recurse(segments[i / 2], segments[2 + i % 2], iteration_count - 1, &result_ats[count], &result_bts[count], slots_left - count);
                 for (U32 j = 0; j < new_solutions; ++j) {
                     result_ats[count + j] = (F32) (i / 2) * 0.5f + result_ats[count + j] * 0.5f;
                     result_bts[count + j] = (F32) (i % 2) * 0.5f + result_bts[count + j] * 0.5f;
@@ -226,7 +226,7 @@ internal U32 msdf_quadratic_bezier_intersect(MSDF_Segment a, MSDF_Segment b, F32
     U32 br = (U32) f32_max(0.0f, f32_log2(f32_sqrt(f32_sqrt(blx * blx + bly * bly) / (8.0f * error))));
     U32 r  = u32_max(ar, br);
 
-    U32 count = msdf_quadratic_bezier_intersect_recurse(a, b, r, result_ats, result_bts);
+    U32 count = msdf_quadratic_bezier_intersect_recurse(a, b, r, result_ats, result_bts, 4);
 
     return count;
 }
