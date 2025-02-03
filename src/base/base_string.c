@@ -1,6 +1,4 @@
-#if COMPILER_CL
-#  include <stdio.h>
-#endif
+#include <stdio.h>
 
 internal Str8 str8(U8 *data, U64 size) {
     Str8 result;
