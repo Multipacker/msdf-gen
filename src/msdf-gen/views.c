@@ -191,7 +191,6 @@ PANEL_BUILD_FUNCTION(view_glyph_list) {
 
                     if (input.input_flags & UI_InputFlag_LeftClicked) {
                         push_command(Command_SelectCodepoint, .codepoint = codepoint);
-                        push_command(Command_FocusPanel);
                     }
                 }
             }
@@ -333,10 +332,6 @@ PANEL_BUILD_FUNCTION(view_glyph) {
             ui_height_next(ui_size_parent_percent(1.0f, 0.0f));
             UI_Box *box = ui_create_box_from_string(UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawBorder | UI_BoxFlag_Clip | UI_BoxFlag_Scrollable | UI_BoxFlag_Clickable, str8_literal("glyph_viewer"));
             UI_Input input = ui_input_from_box(box);
-
-            if (input.input_flags & UI_InputFlag_Pressed) {
-                push_command(Command_FocusPanel);
-            }
 
             if (input.input_flags & UI_InputFlag_LeftDragging) {
                 typedef struct PanState PanState;

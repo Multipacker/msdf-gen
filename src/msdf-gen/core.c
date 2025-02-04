@@ -1411,6 +1411,20 @@ internal Void update(Void) {
                     }
                 }
 
+                for (UI_Event *event = global_ui_state->events->first; event; event = event->next) {
+                    if (
+                        event->kind == UI_EventKind_KeyPress && (
+                            event->key == Gfx_Key_MouseLeft ||
+                            event->key == Gfx_Key_MouseMiddle ||
+                            event->key == Gfx_Key_MouseRight
+                        ) &&
+                        r2f32_contains_v2f32(panel_rectangle, event->position)
+                    ) {
+                        push_command(Command_FocusPanel);
+                        break;
+                    }
+                }
+
                 Tab *next_active_tab = tab_from_handle(panel->active_tab);
 
                 UI_Size tab_height = ui_size_ems(2.0f, 1.0f);
@@ -1478,7 +1492,6 @@ internal Void update(Void) {
                         UI_Input input = ui_input_from_box(tab_box);
 
                         if (input.input_flags & UI_InputFlag_LeftPressed) {
-                            push_command(Command_FocusPanel);
                             next_active_tab = tab;
                         }
 
@@ -1539,10 +1552,7 @@ internal Void update(Void) {
                 }
 
                 // NOTE(simon): Consume fallthrough events.
-                UI_Input content_input = ui_input_from_box(content_box);
-                if (content_input.input_flags & UI_InputFlag_LeftClicked) {
-                    push_command(Command_FocusPanel);
-                }
+                ui_input_from_box(content_box);
                 if (ui_drop_hot_key() == content_box->key && drag_drop()) {
                     DragTabData *data = ui_get_drag_data(DragTabData);
                     push_command(
