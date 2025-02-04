@@ -374,6 +374,225 @@ internal U32 ttf_get_glyph_index(TTF_Font *font, U32 codepoint) {
     return result;
 }
 
+typedef struct TTF_CodepointRange TTF_CodepointRange;
+struct TTF_CodepointRange {
+    U32 first_codepoint;
+    U32 first_glyph_index;
+    U32 size;
+};
+
+typedef struct TTF_CodepointMap TTF_CodepointMap;
+struct TTF_CodepointMap {
+    TTF_CodepointRange *ranges;
+    U32 range_count;
+    U32 codepoint_count;
+};
+
+typedef struct TTF_CodepointRangeNode TTF_CodepointRangeNode;
+struct TTF_CodepointRangeNode {
+    TTF_CodepointRangeNode *next;
+    TTF_CodepointRange range;
+};
+
+typedef struct TTF_CodepointRangeList TTF_CodepointRangeList;
+struct TTF_CodepointRangeList {
+    TTF_CodepointRangeNode *first;
+    TTF_CodepointRangeNode *last;
+    U32 range_count;
+};
+
+internal Void ttf_codepoint_range_list_push(Arena *arena, TTF_CodepointRangeList *list, TTF_CodepointRange range) {
+    TTF_CodepointRangeNode *node = arena_push_struct(arena, TTF_CodepointRangeNode);
+    node->range = range;
+    sll_queue_push(list->first, list->last, node);
+    ++list->range_count;
+}
+
+internal TTF_CodepointMap ttf_get_codepoint_map(Arena *arena, TTF_Font *font) {
+    Arena_Temporary scratch = arena_get_scratch(&arena, 1);
+    TTF_CodepointMap codepoint_map = { 0 };
+
+    Str8 subtable_data = font->character_map;
+
+    switch (font->character_map_format) {
+        case 0: {
+            TTF_CmapFormat0 *format = (TTF_CmapFormat0 *) subtable_data.data;
+
+            // NOTE(simon): Collect initial ranges.
+            TTF_CodepointRangeList ranges = { 0 };
+            TTF_CodepointRange range = { 0 };
+            for (U32 i = 0; i < array_count(format->glyph_index_array); ++i) {
+                U32 glyph_index = format->glyph_index_array[i];
+                if (range.first_glyph_index + range.size == glyph_index) {
+                    ++range.size;
+                } else {
+                    if (range.size) {
+                        ttf_codepoint_range_list_push(scratch.arena, &ranges, range);
+                    }
+
+                    range.first_codepoint = i;
+                    range.first_glyph_index = glyph_index;
+                    range.size = 1;
+                }
+            }
+
+            if (range.size) {
+                ttf_codepoint_range_list_push(scratch.arena, &ranges, range);
+            }
+
+            // NOTE(simon): Copy to output.
+            codepoint_map.ranges = arena_push_array(arena, TTF_CodepointRange, ranges.range_count);
+            for (TTF_CodepointRangeNode *node = ranges.first; node; node = node->next, ++codepoint_map.range_count) {
+                codepoint_map.ranges[codepoint_map.range_count] = node->range;
+                codepoint_map.codepoint_count += node->range.size;
+            }
+        } break;
+        case 2: {
+            // NOTE(simon): Not implemented.
+        } break;
+        case 4: {
+            TTF_CmapFormat4 *format = (TTF_CmapFormat4 *) subtable_data.data;
+
+            // TODO(simon): Implement
+
+            U32 segment_count = u16_big_to_local_endian(format->seg_count_x2) / 2;
+
+            U16 *end_code        = (U16 *) (subtable_data.data + sizeof(TTF_CmapFormat4));
+            U16 *start_code      = (U16 *) (subtable_data.data + sizeof(TTF_CmapFormat4) + sizeof(U16) + 1 * segment_count * sizeof(U16));
+            U16 *id_delta        = (U16 *) (subtable_data.data + sizeof(TTF_CmapFormat4) + sizeof(U16) + 2 * segment_count * sizeof(U16));
+            U16 *id_range_offset = (U16 *) (subtable_data.data + sizeof(TTF_CmapFormat4) + sizeof(U16) + 3 * segment_count * sizeof(U16));
+
+            TTF_CodepointRangeList ranges = { 0 };
+            for (U32 i = 0; i < segment_count; ++i) {
+                U16 start  = u16_big_to_local_endian(start_code[i]);
+                U16 end    = u16_big_to_local_endian(end_code[i]);
+                U16 offset = u16_big_to_local_endian(id_range_offset[i]) / 2;
+                U16 delta  = u16_big_to_local_endian(id_delta[i]);
+
+                if (id_range_offset[i]) {
+                } else {
+                    // TODO(simon): Handle wrapping, all id_delta arithmetic is mod 65536
+                    TTF_CodepointRange range = { 0 };
+                    range.first_codepoint = start;
+                    range.first_glyph_index = start + delta;
+                    range.size = end - start + 1;
+                    ttf_codepoint_range_list_push(scratch.arena, &ranges, range);
+                }
+            }
+
+            /*U32 segment_count = u16_big_to_local_endian(format->seg_count_x2) / 2;
+
+            U16 *end_code        = (U16 *) (subtable_data.data + sizeof(TTF_CmapFormat4));
+            U16 *start_code      = (U16 *) (subtable_data.data + sizeof(TTF_CmapFormat4) + sizeof(U16) + 1 * segment_count * sizeof(U16));
+            U16 *id_delta        = (U16 *) (subtable_data.data + sizeof(TTF_CmapFormat4) + sizeof(U16) + 2 * segment_count * sizeof(U16));
+            U16 *id_range_offset = (U16 *) (subtable_data.data + sizeof(TTF_CmapFormat4) + sizeof(U16) + 3 * segment_count * sizeof(U16));
+
+            U32 glyph_index_array_count = (U32) ((subtable_data.size - (sizeof(TTF_CmapFormat4) + (4 * segment_count + 1) * sizeof(U16))) / sizeof(U16));
+
+            for (U32 i = 0; i < segment_count; ++i) {
+                U16 start  = u16_big_to_local_endian(start_code[i]);
+                U16 end    = u16_big_to_local_endian(end_code[i]);
+                U16 offset = u16_big_to_local_endian(id_range_offset[i]) / 2;
+                U16 delta  = u16_big_to_local_endian(id_delta[i]);
+
+                if (start <= codepoint && codepoint <= end) {
+                    // NOTE: This is fine to read without a byteswap.
+                    if (id_range_offset[i] == 0) {
+                        result = (delta + codepoint) % 65536;
+                    } else {
+                        U32 lowest_glyph_index_index  = i + offset + (start - start);
+                        U32 highest_glyph_index_index = i + offset + (end   - start);
+
+                        if (segment_count <= lowest_glyph_index_index && highest_glyph_index_index <= segment_count + glyph_index_array_count) {
+                            U16 raw_glyph_index = u16_big_to_local_endian(id_range_offset[i + offset + (codepoint - start)]);
+
+                            if (raw_glyph_index) {
+                                result = (raw_glyph_index + delta) % 65536;
+                            }
+                        }
+                    }
+
+                    break;
+                }
+            }*/
+        } break;
+        case 6: {
+            TTF_CmapFormat6 *format = (TTF_CmapFormat6 *) subtable_data.data;
+
+            U32  first_code        = u16_big_to_local_endian(format->first_code);
+            U32  entry_count       = u16_big_to_local_endian(format->entry_count);
+            U16 *glyph_index_array = (U16 *) &subtable_data.data[sizeof(*format)];
+
+            // NOTE(simon): Build contiguous ranges.
+            TTF_CodepointRangeList ranges = { 0 };
+            TTF_CodepointRange range = { 0 };
+            for (U32 codepoint_offset = 0; codepoint_offset < entry_count; ++codepoint_offset) {
+                U32 glyph_index = u16_big_to_local_endian(glyph_index_array[codepoint_offset]);
+                if (range.first_glyph_index + range.size == glyph_index) {
+                    ++range.size;
+                } else {
+                    if (range.size) {
+                        ttf_codepoint_range_list_push(scratch.arena, &ranges, range);
+                    }
+
+                    range.first_codepoint = first_code + codepoint_offset;
+                    range.first_glyph_index = glyph_index;
+                    range.size = 1;
+                }
+            }
+
+            if (range.size) {
+                ttf_codepoint_range_list_push(scratch.arena, &ranges, range);
+            }
+
+            // NOTE(simon): Copy to output.
+            codepoint_map.ranges = arena_push_array(arena, TTF_CodepointRange, ranges.range_count);
+            for (TTF_CodepointRangeNode *node = ranges.first; node; node = node->next, ++codepoint_map.range_count) {
+                codepoint_map.ranges[codepoint_map.range_count] = node->range;
+                codepoint_map.codepoint_count += node->range.size;
+            }
+        } break;
+        case 8: {
+            // NOTE(simon): Not implemented.
+        } break;
+        case 10: {
+            // NOTE(simon): Not implemented.
+        } break;
+        case 12: {
+            TTF_CmapFormat12 *format = (TTF_CmapFormat12 *) subtable_data.data;
+
+            U32                    group_count = u32_big_to_local_endian(format->n_groups);
+            TTF_CmapFormat12Group *groups      = (TTF_CmapFormat12Group *) &subtable_data.data[sizeof(*format)];
+
+            // NOTE(simon): Convert group to ranges.
+            // TODO(simon): We assume that the groups are sorted, they might not be. Sort them!
+            codepoint_map.range_count = group_count;
+            codepoint_map.ranges = arena_push_array(arena, TTF_CodepointRange, codepoint_map.range_count);
+            for (U32 i = 0; i < codepoint_map.range_count; ++i) {
+                U32 first_codepoint   = u32_big_to_local_endian(groups[i].start_char_code);
+                U32 last_codepoint    = u32_big_to_local_endian(groups[i].end_char_code);
+                U32 first_glyph_index = u32_big_to_local_endian(groups[i].start_glyph_code);
+
+                codepoint_map.ranges[i].first_codepoint   = first_codepoint;
+                codepoint_map.ranges[i].first_glyph_index = first_glyph_index;
+                codepoint_map.ranges[i].size              = last_codepoint - first_codepoint + 1;
+            }
+        } break;
+        case 13: {
+            // NOTE(simon): Not implemented.
+        } break;
+        case 14: {
+            // NOTE(simon): Not implemented.
+        } break;
+        default: {
+            // NOTE(simon): Not implemented.
+        } break;
+    }
+
+    arena_end_temporary(scratch);
+    return codepoint_map;
+}
+
 internal Void ttf_choose_character_map(Arena *arena, TTF_Font *font) {
     Str8 cmap_data = font->tables[TTF_Table_Cmap];
 
