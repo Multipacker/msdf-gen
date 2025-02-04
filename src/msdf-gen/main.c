@@ -20,8 +20,6 @@
  * * Improve the look of the preview when dragging tabs
  *
  * TODO long term
- * * Allow multiple codepoints to map to the same glyph, alternatively allow
- *   marking glyphs as missing as that is the main use case
  * * Focus and keyboard navigation / interaction
  * * More input information
  */
@@ -37,7 +35,7 @@ struct Glyph {
     Glyph *next;
     Glyph *previous;
 
-    U32 codepoint;
+    U32 glyph_index;
 
     R2F32 rectangle_pt;
     F32   advance_pt;
@@ -110,18 +108,18 @@ internal Void font_generate_glyphs_thread_entry(Void *data) {
     Font *font = (Font *) data;
 
     for (;;) {
-        U32 codepoint = 0;
+        U32 glyph_index = 0;
         os_mutex_scope(font->to_generator_mutex) {
             if (font->to_generator_write - font->to_generator_read == 0) {
                 os_condition_variable_wait(font->to_generator_condition_variable, font->to_generator_mutex, U64_MAX);
             }
-            codepoint = font->to_generator_buffer[font->to_generator_read & (font->to_generator_size - 1)];
+            glyph_index = font->to_generator_buffer[font->to_generator_read & (font->to_generator_size - 1)];
             ++font->to_generator_read;
         }
 
         FontWork work = { 0 };
         work.arena  = arena_create();
-        work.raster = msdf_generate(work.arena, font->ttf, codepoint, font->glyph_size);
+        work.raster = msdf_generate_from_glyph_index(work.arena, font->ttf, glyph_index, font->glyph_size);
 
         os_mutex_scope(font->from_generator_mutex) {
             if (font->from_generator_write - font->from_generator_read == font->from_generator_size) {
@@ -172,13 +170,14 @@ internal Font *font_create(Str8 font_path, U32 glyph_size) {
 internal Glyph *font_get_glyph(Font *font, U32 codepoint) {
     Arena_Temporary scratch = arena_get_scratch(0, 0);
 
-    U64 hash = u64_hash(codepoint);
+    U32 glyph_index = ttf_get_glyph_index(font->ttf, codepoint);
+    U64 hash = u64_hash(glyph_index);
     GlyphList *glyphs = &font->glyph_lists[hash % array_count(font->glyph_lists)];
 
     Glyph *result = &global_glyph_null;
 
     for (Glyph *glyph = glyphs->first; glyph; glyph = glyph->next) {
-        if (glyph->codepoint == codepoint) {
+        if (glyph->glyph_index == glyph_index) {
             result = glyph;
             break;
         }
@@ -192,10 +191,10 @@ internal Glyph *font_get_glyph(Font *font, U32 codepoint) {
             // (for now) glyphs would not get generated.
             if (font->to_generator_write - font->to_generator_read < font->to_generator_size) {
                 result = arena_push_struct_zero(font->arena, Glyph);
-                result->codepoint = codepoint;
+                result->glyph_index = glyph_index;
                 dll_push_back(glyphs->first, glyphs->last, result);
 
-                font->to_generator_buffer[font->to_generator_write & (font->to_generator_size - 1)] = codepoint;
+                font->to_generator_buffer[font->to_generator_write & (font->to_generator_size - 1)] = glyph_index;
                 ++font->to_generator_write;
                 os_condition_variable_signal(font->to_generator_condition_variable);
             }
@@ -221,11 +220,11 @@ internal Void font_update_cache(Font *font) {
 
             Glyph *result = &global_glyph_null;
 
-            U64 hash = u64_hash(work.raster.codepoint);
+            U64 hash = u64_hash(work.raster.glyph_index);
             GlyphList *glyphs = &font->glyph_lists[hash % array_count(font->glyph_lists)];
 
             for (Glyph *glyph = glyphs->first; glyph; glyph = glyph->next) {
-                if (glyph->codepoint == work.raster.codepoint) {
+                if (glyph->glyph_index == work.raster.glyph_index) {
                     result = glyph;
                     break;
                 }
@@ -252,18 +251,18 @@ internal Void font_update_cache(Font *font) {
                 }
 
                 // NOTE(simon): Allocate atlas region.
-                U32 glyph_index = 0;
-                while (~selected_atlas->occupancy[glyph_index / 64] == 0) {
-                    glyph_index += 64;
+                U32 glyph_location = 0;
+                while (~selected_atlas->occupancy[glyph_location / 64] == 0) {
+                    glyph_location += 64;
                 }
-                while ((selected_atlas->occupancy[glyph_index / 64] & (U64) (1 << glyph_index % 64)) != 0) {
-                    ++glyph_index;
+                while ((selected_atlas->occupancy[glyph_location / 64] & (U64) (1 << glyph_location % 64)) != 0) {
+                    ++glyph_location;
                 }
-                selected_atlas->occupancy[glyph_index / 64] |= (U64) (1 << glyph_index % 64);
+                selected_atlas->occupancy[glyph_location / 64] |= (U64) (1 << glyph_location % 64);
 
                 V2U32 atlas_position = v2u32(
-                    font->glyph_size * (glyph_index % ATLAS_GLYPHS_PER_SIDE),
-                    font->glyph_size * (glyph_index / ATLAS_GLYPHS_PER_SIDE)
+                    font->glyph_size * (glyph_location % ATLAS_GLYPHS_PER_SIDE),
+                    font->glyph_size * (glyph_location / ATLAS_GLYPHS_PER_SIDE)
                 );
 
                 render_texture_update(

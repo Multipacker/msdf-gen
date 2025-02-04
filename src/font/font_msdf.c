@@ -950,15 +950,13 @@ internal Void msdf_color_edges(Arena *arena, MSDF_Glyph glyph, MSDF_Log *log) {
     }
 }
 
-internal MSDF_RasterResult msdf_generate(Arena *arena, TTF_Font *font, U32 codepoint, U32 render_size) {
+internal MSDF_RasterResult msdf_generate_from_glyph_index(Arena *arena, TTF_Font *font, U32 glyph_index, U32 render_size) {
     prof_function_begin();
     MSDF_RasterResult result = { 0 };
+    result.glyph_index = glyph_index;
 
     Arena_Temporary scratch = arena_get_scratch(&arena, 1);
 
-    result.codepoint = codepoint;
-
-    U32 glyph_index = ttf_get_glyph_index(font, codepoint);
     MSDF_Glyph glyph = ttf_expand_contours_to_msdf(scratch.arena, font, glyph_index);
     TTF_HmtxMetrics metrics = ttf_get_metrics(font, glyph_index);
 
@@ -1148,5 +1146,11 @@ internal MSDF_RasterResult msdf_generate(Arena *arena, TTF_Font *font, U32 codep
     arena_end_temporary(scratch);
 
     prof_function_end();
+    return result;
+}
+
+internal MSDF_RasterResult msdf_generate_from_codepoint(Arena *arena, TTF_Font *font, U32 codepoint, U32 render_size) {
+    U32 glyph_index = ttf_get_glyph_index(font, codepoint);
+    MSDF_RasterResult result = msdf_generate_from_glyph_index(arena, font, glyph_index, render_size);
     return result;
 }

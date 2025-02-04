@@ -118,7 +118,7 @@ struct MSDF_RasterResult {
     V2F32 min;
     V2F32 max;
 
-    U32 codepoint;
+    U32 glyph_index;
 
     F32 advance_width;
     F32 left_side_bearing;
@@ -159,6 +159,7 @@ internal Void msdf_resolve_contour_overlap(Arena *arena, MSDF_Glyph *glyph, Aren
 internal Void msdf_convert_to_simple_polygons(Arena *arena, MSDF_Glyph *glyph);
 internal Void msdf_correct_contour_orientation(Arena *arena, MSDF_Glyph *glyph, MSDF_Log *log);
 
-internal MSDF_RasterResult msdf_generate(Arena *arena, TTF_Font *font, U32 codepoint, U32 render_size);
+internal MSDF_RasterResult msdf_generate_from_glyph_index(Arena *arena, TTF_Font *font, U32 glyph_index, U32 render_size);
+internal MSDF_RasterResult msdf_generate_from_codepoint(Arena *arena, TTF_Font *font, U32 codepoint, U32 render_size);
 
 #endif // MSDF_H

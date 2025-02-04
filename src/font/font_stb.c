@@ -46,10 +46,9 @@ internal Font_Metrics raster_get_font_metrics(Font_Raster *font) {
 internal MSDF_RasterResult raster_generate(Arena *arena, Font_Raster *font, U32 codepoint, U32 size) {
     MSDF_RasterResult result = { 0 };
 
-    result.codepoint = codepoint;
-
     if (font->initialized) {
         int glyph_index = stbtt_FindGlyphIndex(&font->font_info, (int) codepoint);
+        result.glyph_index = (U32) glyph_index;
 
         F32 scale = stbtt_ScaleForMappingEmToPixels(&font->font_info, (F32) size);
         int x_min = 0;
