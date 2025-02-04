@@ -906,6 +906,7 @@ internal Void update(Void) {
                     ui_event->flags = UI_EventFlag_ZeroDeltaOnSelection | UI_EventFlag_Delete;
                 } break;
                 case Command_Copy: {
+                    ui_event = arena_push_struct_zero(ui_frame_arena(), UI_Event);
                     ui_event->kind = UI_EventKind_Edit;
                     ui_event = arena_push_struct_zero(ui_frame_arena(), UI_Event);
                     ui_event->flags = UI_EventFlag_Copy | UI_EventFlag_KeepMark;
