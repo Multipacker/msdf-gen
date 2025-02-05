@@ -512,6 +512,7 @@ internal TTF_CodepointMap ttf_get_codepoint_map(Arena *arena, TTF_Font *font) {
                 codepoint_map.ranges[i].first_codepoint   = first_codepoint;
                 codepoint_map.ranges[i].first_glyph_index = first_glyph_index;
                 codepoint_map.ranges[i].size              = last_codepoint - first_codepoint + 1;
+                codepoint_map.codepoint_count += codepoint_map.ranges[i].size;
             }
         } break;
         case 13: {
