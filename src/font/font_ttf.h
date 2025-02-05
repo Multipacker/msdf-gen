@@ -247,6 +247,33 @@ typedef struct {
     Str8List   errors;
 } TTF_Glyph;
 
+typedef struct TTF_CodepointRange TTF_CodepointRange;
+struct TTF_CodepointRange {
+    U32 first_codepoint;
+    U32 first_glyph_index;
+    U32 size;
+};
+
+typedef struct TTF_CodepointMap TTF_CodepointMap;
+struct TTF_CodepointMap {
+    TTF_CodepointRange *ranges;
+    U32 range_count;
+    U32 codepoint_count;
+};
+
+typedef struct TTF_CodepointRangeNode TTF_CodepointRangeNode;
+struct TTF_CodepointRangeNode {
+    TTF_CodepointRangeNode *next;
+    TTF_CodepointRange range;
+};
+
+typedef struct TTF_CodepointRangeList TTF_CodepointRangeList;
+struct TTF_CodepointRangeList {
+    TTF_CodepointRangeNode *first;
+    TTF_CodepointRangeNode *last;
+    U32 range_count;
+};
+
 // Used ONLY for parsing
 typedef struct {
     Str8 tables[TTF_Table_COUNT];
@@ -272,9 +299,12 @@ typedef struct {
 
     Str8 character_map;
     U32  character_map_format;
+    TTF_CodepointMap codepoint_map;
 
     Str8List errors;
 } TTF_Font;
+
+internal U32 ttf_glyph_index_from_font_codepoint(TTF_Font *font, U32 codepoint);
 
 internal TTF_Font *ttf_load(Arena *arena, Str8 font_path);
 

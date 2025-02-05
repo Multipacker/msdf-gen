@@ -392,7 +392,7 @@ PANEL_BUILD_FUNCTION(view_glyph) {
                 F32 padding = 2.0f * (F32) ui_font_size_top();
                 F32 point_size = 0.4f * (F32) ui_font_size_top();
 
-                U32 glyph_index = ttf_get_glyph_index(global_state->ttf_font, global_state->selected_codepoint);
+                U32 glyph_index = ttf_glyph_index_from_font_codepoint(global_state->ttf_font, global_state->selected_codepoint);
                 MSDF_Glyph glyph = ttf_expand_contours_to_msdf(scratch.arena, global_state->ttf_font, glyph_index);
 
                 V2F32 box_size = r2f32_size(box->calculated_rectangle);

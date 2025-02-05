@@ -170,7 +170,7 @@ internal Font *font_create(Str8 font_path, U32 glyph_size) {
 internal Glyph *font_get_glyph(Font *font, U32 codepoint) {
     Arena_Temporary scratch = arena_get_scratch(0, 0);
 
-    U32 glyph_index = ttf_get_glyph_index(font->ttf, codepoint);
+    U32 glyph_index = ttf_glyph_index_from_font_codepoint(font->ttf, codepoint);
     U64 hash = u64_hash(glyph_index);
     GlyphList *glyphs = &font->glyph_lists[hash % array_count(font->glyph_lists)];
 

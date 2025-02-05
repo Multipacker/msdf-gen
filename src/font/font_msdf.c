@@ -1150,7 +1150,7 @@ internal MSDF_RasterResult msdf_generate_from_glyph_index(Arena *arena, TTF_Font
 }
 
 internal MSDF_RasterResult msdf_generate_from_codepoint(Arena *arena, TTF_Font *font, U32 codepoint, U32 render_size) {
-    U32 glyph_index = ttf_get_glyph_index(font, codepoint);
+    U32 glyph_index = ttf_glyph_index_from_font_codepoint(font, codepoint);
     MSDF_RasterResult result = msdf_generate_from_glyph_index(arena, font, glyph_index, render_size);
     return result;
 }
