@@ -63,7 +63,7 @@ PANEL_BUILD_FUNCTION(view_glyph_list) {
     F32 container_height = panel_size.y;
 
     typedef struct {
-        U32 scroll_codepoint;
+        U32 scroll_codepoint_index;
         F32 scroll_offset;
         U32 previous_codepoint;
     } ViewState;
@@ -83,8 +83,13 @@ PANEL_BUILD_FUNCTION(view_glyph_list) {
     ui_layout_axis_next(Axis2_Y);
     UI_Box *container = ui_create_box_from_string(0, str8_literal("glyphs"));
 
-    U32 first_codepoint = 0x000000;
-    U32 last_codepoint  = 0x10FFFF;
+    //TTF_CodepointRange codepoint_range = { 0 };
+    //codepoint_range.size = 0x110000;
+    //TTF_CodepointMap codepoint_map = { 0 };
+    //codepoint_map.ranges = &codepoint_range;
+    //codepoint_map.range_count = 1;
+    //codepoint_map.codepoint_count = codepoint_range.size;
+    TTF_CodepointMap codepoint_map = global_state->font->ttf->codepoint_map;
 
     F32 preferred_width = 3.0f * (F32) ui_font_size_top();
     U32 codepoints_per_row = (U32) f32_floor(container_width / preferred_width);
@@ -94,15 +99,17 @@ PANEL_BUILD_FUNCTION(view_glyph_list) {
     F32 width = container_width / (F32) codepoints_per_row;
     F32 height = width * 2.0f;
 
-    S32 first_row = 0;
-    S32 last_row  = (S32) (last_codepoint / codepoints_per_row);
+    S32 last_row  = (S32) ((codepoint_map.codepoint_count - 1) / codepoints_per_row);
 
-    S32 scroll_row = (S32) (state->scroll_codepoint / codepoints_per_row);
+    S32 scroll_row = (S32) (state->scroll_codepoint_index / codepoints_per_row);
     S32 target_row = scroll_row;
 
     S32 top_row    = scroll_row + (S32) f32_floor(state->scroll_offset);
     S32 bottom_row = s32_min(top_row + (state->scroll_offset != 0.0f) + (S32) f32_ceil(panel_size.y / height) - 1, last_row);
     container->view_offset.y = height * (f32_mod(state->scroll_offset, 1.0f) + (state->scroll_offset < 0.0f));
+
+    U32 top_codepoint_index = (U32) top_row * codepoints_per_row;
+    U32 bottom_codepoint_index = u32_min((U32) bottom_row * codepoints_per_row + codepoints_per_row - 1, codepoint_map.codepoint_count - 1);
 
     // NOTE(simon): Scrollbar container
     ui_width_next(ui_size_pixels(scrollbar_width, 1.0f));
@@ -112,10 +119,10 @@ PANEL_BUILD_FUNCTION(view_glyph_list) {
 
     ui_width(ui_size_parent_percent(1.0f, 1.0f))
     ui_parent(scroll_container) {
-        F32 rows_above   = (F32) (scroll_row - first_row) + state->scroll_offset;
+        F32 rows_above   = (F32) (scroll_row) + state->scroll_offset;
         F32 visible_rows = container_height / height;
-        F32 row_count    = (F32) (last_row - first_row) + visible_rows - 1.0f;
-        F32 rows_below   = (F32) (last_row - first_row) - 1.0f - (F32) scroll_row - state->scroll_offset;
+        F32 row_count    = (F32) (last_row) + visible_rows - 1.0f;
+        F32 rows_below   = (F32) (last_row) - 1.0f - (F32) scroll_row - state->scroll_offset;
 
         ui_hover_cursor_next(Gfx_Cursor_Hand);
         ui_height_next(ui_size_parent_percent(rows_above / row_count, 0.0f));
@@ -160,6 +167,20 @@ PANEL_BUILD_FUNCTION(view_glyph_list) {
     ui_parent(container)
     ui_focus(UI_Focus_Active)
     ui_palette(palette_from_code(PaletteCode_Button)) {
+        U32 range_index = 0;
+        U32 codepoint_index = 0;
+
+        // NOTE(simon): Find first range and index within it.
+        for (U32 search_codepoint_index = 0, search_range_index = 0; search_range_index < codepoint_map.range_count; ++search_range_index) {
+            if (top_codepoint_index - search_codepoint_index < codepoint_map.ranges[search_range_index].size) {
+                range_index = search_range_index;
+                codepoint_index = top_codepoint_index - search_codepoint_index;
+                break;
+            }
+
+            search_codepoint_index += codepoint_map.ranges[search_range_index].size;
+        }
+
         for (S32 row = top_row; row <= bottom_row; ++row) {
             ui_width_next(ui_size_parent_percent(1.0f, 1.0f));
             ui_height_next(ui_size_pixels(height, 1.0f));
@@ -169,11 +190,8 @@ PANEL_BUILD_FUNCTION(view_glyph_list) {
                 ui_draw_function(draw_ui_msdf)
                 ui_draw_data(draw_msdf)
                 ui_hover_cursor(Gfx_Cursor_Hand)
-                for (U32 column = 0; column < codepoints_per_row; ++column) {
-                    U32 codepoint = column + (U32) row * codepoints_per_row;
-                    if (codepoint > last_codepoint) {
-                        break;
-                    }
+                for (U32 column = 0; range_index < codepoint_map.range_count && column < codepoints_per_row; ++column) {
+                    U32 codepoint = codepoint_map.ranges[range_index].first_codepoint + codepoint_index;
 
                     ui_focus_next(codepoint == top_context()->codepoint ? UI_Focus_Active : UI_Focus_Inactive);
 
@@ -192,11 +210,17 @@ PANEL_BUILD_FUNCTION(view_glyph_list) {
                     if (input.input_flags & UI_InputFlag_LeftClicked) {
                         push_command(Command_SelectCodepoint, .codepoint = codepoint);
                     }
+
+                    ++codepoint_index;
+                    if (codepoint_index >= codepoint_map.ranges[range_index].size) {
+                        ++range_index;
+                        codepoint_index = 0;
+                    }
                 }
             }
         }
 
-        if (ui_is_focus_active()) {
+        /*if (ui_is_focus_active()) {
             for (UI_Event *event = global_ui_state->events->first; event; event = event->next) {
                 if (event->kind != UI_EventKind_Navigation) {
                     continue;
@@ -250,7 +274,7 @@ PANEL_BUILD_FUNCTION(view_glyph_list) {
                     } break;
                 }
             }
-        }
+        }*/
     }
 
     // NOTE(simon): Region
@@ -271,10 +295,10 @@ PANEL_BUILD_FUNCTION(view_glyph_list) {
     }
 
     // NOTE(simon): Scrolling
-    target_row = s32_min(s32_max(first_row, target_row), last_row);
+    target_row = s32_min(s32_max(0, target_row), last_row);
     state->scroll_offset += (F32) scroll_row - (F32) target_row;
     scroll_row = target_row;
-    state->scroll_codepoint = (U32) scroll_row * codepoints_per_row;
+    state->scroll_codepoint_index = (U32) scroll_row * codepoints_per_row;
 
     // NOTE(simon): Animation
     state->scroll_offset += -state->scroll_offset * ui_animation_slow_rate();
