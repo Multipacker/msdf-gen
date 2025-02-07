@@ -155,8 +155,8 @@ PANEL_BUILD_FUNCTION(view_glyph_list) {
     ui_parent(scroll_container) {
         F32 rows_above   = (F32) (scroll_row) + state->scroll_offset;
         F32 visible_rows = container_height / height;
-        F32 row_count    = (F32) (last_row) + visible_rows - 1.0f;
-        F32 rows_below   = (F32) (last_row) - 1.0f - (F32) scroll_row - state->scroll_offset;
+        F32 row_count    = (F32) (last_row) + visible_rows;
+        F32 rows_below   = (F32) (last_row) - (F32) scroll_row - state->scroll_offset;
 
         ui_hover_cursor_next(Gfx_Cursor_Hand);
         ui_height_next(ui_size_parent_percent(rows_above / row_count, 0.0f));
