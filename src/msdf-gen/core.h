@@ -152,7 +152,8 @@ struct Context {
     X(DeleteCharacter,      "Delete character")       \
     X(Copy,                 "Copy")                   \
     X(Paste,                "Paste")                  \
-    X(Cut,                  "Cut")
+    X(Cut,                  "Cut")                    \
+    X(ToggleListView,       "Toggle list view")
 
 #define X(pascal_case, display_string) Command_##pascal_case,
 typedef enum {
@@ -238,6 +239,7 @@ struct State {
     // NOTE(simon): Drag and drop state
     DragState drag_state;
 
+    B32 only_mapped;
     Font *font;
     TTF_Font *ttf_font;
     U32 selected_codepoint;

@@ -117,13 +117,18 @@ PANEL_BUILD_FUNCTION(view_glyph_list) {
     ui_layout_axis_next(Axis2_Y);
     UI_Box *container = ui_create_box_from_string(0, str8_literal("glyphs"));
 
-    //TTF_CodepointRange codepoint_range = { 0 };
-    //codepoint_range.size = 0x110000;
-    //TTF_CodepointMap codepoint_map = { 0 };
-    //codepoint_map.ranges = &codepoint_range;
-    //codepoint_map.range_count = 1;
-    //codepoint_map.codepoint_count = codepoint_range.size;
-    TTF_CodepointMap codepoint_map = global_state->font->ttf->codepoint_map;
+    TTF_CodepointMap codepoint_map = { 0 };
+    if (global_state->only_mapped) {
+        codepoint_map = global_state->font->ttf->codepoint_map;
+    } else {
+
+        TTF_CodepointRange *codepoint_range = arena_push_struct_zero(ui_frame_arena(), TTF_CodepointRange);
+        codepoint_range->size = 0x110000;
+
+        codepoint_map.ranges = codepoint_range;
+        codepoint_map.range_count = 1;
+        codepoint_map.codepoint_count = codepoint_range->size;
+    }
 
     F32 preferred_width = 3.0f * (F32) ui_font_size_top();
     U32 codepoints_per_row = (U32) f32_floor(container_width / preferred_width);
@@ -222,6 +227,11 @@ PANEL_BUILD_FUNCTION(view_glyph_list) {
                         U64 size = string_encode_utf8(buffer, codepoint);
                         Str8 string = str8(buffer, size);
 
+                        // TODO(simon): It would be nice to animate the glyphs
+                        // so that they visually move when switching between
+                        // different display modes, but we currently sudden
+                        // jump just as the scroll stabilises. Other than that,
+                        // it looks great!
                         UI_Box *box = ui_create_box_from_string(
                             UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawBorder |
                             UI_BoxFlag_DrawHot | UI_BoxFlag_DrawActive |

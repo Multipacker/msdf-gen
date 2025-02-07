@@ -379,6 +379,7 @@ internal Void update(Void) {
             { Gfx_Key_C,         Gfx_KeyModifier_Control,                         Command_Copy,                 },
             { Gfx_Key_V,         Gfx_KeyModifier_Control,                         Command_Paste,                },
             { Gfx_Key_X,         Gfx_KeyModifier_Control,                         Command_Cut,                  },
+            { Gfx_Key_T,         Gfx_KeyModifier_Control,                         Command_ToggleListView,       },
     };
 
     // NOTE(simon): Process key bindings.
@@ -920,6 +921,9 @@ internal Void update(Void) {
                     ui_event = arena_push_struct_zero(ui_frame_arena(), UI_Event);
                     ui_event->kind = UI_EventKind_Edit;
                     ui_event->flags = UI_EventFlag_Copy | UI_EventFlag_Delete;
+                } break;
+                case Command_ToggleListView: {
+                    state->only_mapped = !state->only_mapped;
                 } break;
             }
 
