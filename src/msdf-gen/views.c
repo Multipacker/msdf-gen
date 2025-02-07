@@ -220,61 +220,68 @@ PANEL_BUILD_FUNCTION(view_glyph_list) {
             }
         }
 
-        /*if (ui_is_focus_active()) {
+        if (ui_is_focus_active()) {
+            // TODO(simon): This needs to map from selected codepoint to index.
+            U32 index = state->scroll_codepoint_index;
+
             for (UI_Event *event = global_ui_state->events->first; event; event = event->next) {
                 if (event->kind != UI_EventKind_Navigation) {
                     continue;
                 }
 
-                U32 codepoint = top_context()->codepoint;
-
                 switch (event->unit) {
                     case UI_EventDeltaUnit_Null: {
                     } break;
                     case UI_EventDeltaUnit_Character: {
-                        if (event->delta.x == -1 && codepoint > 0) {
-                            push_command(Command_SelectCodepoint, .codepoint = codepoint - 1);
-                        } else if (event->delta.x == 1 && codepoint < 0x10FFFF) {
-                            push_command(Command_SelectCodepoint, .codepoint = codepoint + 1);
-                        } else if (event->delta.y == -1 && codepoint >= codepoints_per_row) {
-                            push_command(Command_SelectCodepoint, .codepoint = codepoint - codepoints_per_row);
-                        } else if (event->delta.y == 1 && codepoint <= 0x10FFFF - codepoints_per_row) {
-                            push_command(Command_SelectCodepoint, .codepoint = codepoint + codepoints_per_row);
+                        if (event->delta.x == -1 && index > 0) {
+                            --index;
+                        } else if (event->delta.x == 1 && index < 0x10FFFF) {
+                            ++index;
+                        } else if (event->delta.y == -1 && index >= codepoints_per_row) {
+                            index -= codepoints_per_row;
+                        } else if (event->delta.y == 1 && index <= 0x10FFFF - codepoints_per_row) {
+                            index += codepoints_per_row;
                         }
                     } break;
                     case UI_EventDeltaUnit_Word: {
                     } break;
                     case UI_EventDeltaUnit_Line: {
-                        U32 active_row = top_context()->codepoint / codepoints_per_row;
+                        U32 active_row = index / codepoints_per_row;
+
                         if (event->delta.x == -1) {
-                            push_command(Command_SelectCodepoint, .codepoint = active_row * codepoints_per_row);
+                            index = active_row * codepoints_per_row;
                         } else if (event->delta.x == 1) {
-                            U32 next_codepoint = active_row * codepoints_per_row + codepoints_per_row - 1;
-                            next_codepoint = u32_min(next_codepoint, last_codepoint);
-                            push_command(Command_SelectCodepoint, .codepoint = next_codepoint);
+                            index = u32_min(active_row * codepoints_per_row + codepoints_per_row - 1, codepoint_map.codepoint_count);
                         }
                     } break;
                     case UI_EventDeltaUnit_Page: {
                         U32 rows_per_page = (U32) f32_ceil(container_height / height);
                         U32 codepoints_per_page = rows_per_page * codepoints_per_row;
-                        if (event->delta.y == -1 && codepoint >= codepoints_per_page) {
-                            push_command(Command_SelectCodepoint, .codepoint = codepoint - codepoints_per_page);
-                        } else if (event->delta.y == 1 && codepoint <= 0x10FFFF - codepoints_per_page) {
-                            push_command(Command_SelectCodepoint, .codepoint = codepoint + codepoints_per_page);
+                        if (event->delta.y == -1 && index >= codepoints_per_page) {
+                            index -= codepoints_per_page;
+                        } else if (event->delta.y == 1 && index <= 0x10FFFF - codepoints_per_page) {
+                            index += codepoints_per_page;
                         }
                     } break;
                     case UI_EventDeltaUnit_Whole: {
                         if (event->delta.y == -1) {
-                            push_command(Command_SelectCodepoint, .codepoint = first_codepoint);
+                            index = 0;
                         } else if (event->delta.y == 1) {
-                            push_command(Command_SelectCodepoint, .codepoint = last_codepoint);
+                            index = codepoint_map.codepoint_count - 1;
                         }
                     } break;
                     case UI_EventDeltaUnit_COUNT: {
                     } break;
                 }
             }
-        }*/
+
+            // TODO(simon): Map index to codepoint
+            U32 new_codepoint = index;
+            if (new_codepoint != state->scroll_codepoint_index) {
+                state->scroll_codepoint_index = new_codepoint;
+                push_command(Command_SelectCodepoint, .codepoint = new_codepoint);
+            }
+        }
     }
 
     // NOTE(simon): Region
