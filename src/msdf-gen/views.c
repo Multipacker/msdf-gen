@@ -55,6 +55,40 @@ internal UI_BOX_DRAW_FUNCTION(draw_ui_msdf) {
     );
 }
 
+internal U32 index_from_map_codepoint(TTF_CodepointMap map, U32 codepoint) {
+    U32 result = 0;
+
+    for (U32 range_index = 0, codepoint_index = 0; range_index < map.range_count; ++range_index) {
+        TTF_CodepointRange range = map.ranges[range_index];
+
+        if (range.first_codepoint <= codepoint && codepoint < range.first_codepoint + range.size) {
+            result = codepoint_index + (codepoint - range.first_codepoint);
+            break;
+        }
+
+        codepoint_index += range.size;
+    }
+
+    return result;
+}
+
+internal U32 codepoint_from_map_index(TTF_CodepointMap map, U32 index) {
+    U32 result = 0;
+
+    for (U32 range_index = 0; range_index < map.range_count; ++range_index) {
+        TTF_CodepointRange range = map.ranges[range_index];
+
+        if (index < range.size) {
+            result = range.first_codepoint + index;
+            break;
+        }
+
+        index -= range.size;
+    }
+
+    return result;
+}
+
 PANEL_BUILD_FUNCTION(view_glyph_list) {
     prof_function_begin();
     V2F32 panel_size = r2f32_size(panel_rectangle);
@@ -167,118 +201,103 @@ PANEL_BUILD_FUNCTION(view_glyph_list) {
     ui_parent(container)
     ui_focus(UI_Focus_Active)
     ui_palette(palette_from_code(PaletteCode_Button)) {
-        U32 range_index = 0;
-        U32 codepoint_index = 0;
+        {
+            U32 codepoint_index = top_codepoint_index;
 
-        // NOTE(simon): Find first range and index within it.
-        for (U32 search_codepoint_index = 0, search_range_index = 0; search_range_index < codepoint_map.range_count; ++search_range_index) {
-            if (top_codepoint_index - search_codepoint_index < codepoint_map.ranges[search_range_index].size) {
-                range_index = search_range_index;
-                codepoint_index = top_codepoint_index - search_codepoint_index;
-                break;
-            }
+            for (S32 row = top_row; row <= bottom_row; ++row) {
+                ui_width_next(ui_size_parent_percent(1.0f, 1.0f));
+                ui_height_next(ui_size_pixels(height, 1.0f));
+                ui_row() {
+                    ui_width(ui_size_pixels(width, 1.0f))
+                    ui_height(ui_size_parent_percent(1.0f, 1.0f))
+                    ui_draw_function(draw_ui_msdf)
+                    ui_draw_data(draw_msdf)
+                    ui_hover_cursor(Gfx_Cursor_Hand)
+                    for (U32 column = 0; column < codepoints_per_row && codepoint_index < codepoint_map.codepoint_count; ++column, ++codepoint_index) {
+                        U32 codepoint = codepoint_from_map_index(codepoint_map, codepoint_index);
 
-            search_codepoint_index += codepoint_map.ranges[search_range_index].size;
-        }
+                        ui_focus_next(codepoint == top_context()->codepoint ? UI_Focus_Active : UI_Focus_Inactive);
 
-        for (S32 row = top_row; row <= bottom_row; ++row) {
-            ui_width_next(ui_size_parent_percent(1.0f, 1.0f));
-            ui_height_next(ui_size_pixels(height, 1.0f));
-            ui_row() {
-                ui_width(ui_size_pixels(width, 1.0f))
-                ui_height(ui_size_parent_percent(1.0f, 1.0f))
-                ui_draw_function(draw_ui_msdf)
-                ui_draw_data(draw_msdf)
-                ui_hover_cursor(Gfx_Cursor_Hand)
-                for (U32 column = 0; range_index < codepoint_map.range_count && column < codepoints_per_row; ++column) {
-                    U32 codepoint = codepoint_map.ranges[range_index].first_codepoint + codepoint_index;
+                        U8 buffer[4] = { 0 };
+                        U64 size = string_encode_utf8(buffer, codepoint);
+                        Str8 string = str8(buffer, size);
 
-                    ui_focus_next(codepoint == top_context()->codepoint ? UI_Focus_Active : UI_Focus_Inactive);
+                        UI_Box *box = ui_create_box_from_string(
+                            UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawBorder |
+                            UI_BoxFlag_DrawHot | UI_BoxFlag_DrawActive |
+                            UI_BoxFlag_Clickable,
+                            string
+                        );
+                        UI_Input input = ui_input_from_box(box);
 
-                    U8 buffer[4] = { 0 };
-                    U64 size = string_encode_utf8(buffer, codepoint);
-                    Str8 string = str8(buffer, size);
-
-                    UI_Box *box = ui_create_box_from_string(
-                        UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawBorder |
-                        UI_BoxFlag_DrawHot | UI_BoxFlag_DrawActive |
-                        UI_BoxFlag_Clickable,
-                        string
-                    );
-                    UI_Input input = ui_input_from_box(box);
-
-                    if (input.input_flags & UI_InputFlag_LeftClicked) {
-                        push_command(Command_SelectCodepoint, .codepoint = codepoint);
-                    }
-
-                    ++codepoint_index;
-                    if (codepoint_index >= codepoint_map.ranges[range_index].size) {
-                        ++range_index;
-                        codepoint_index = 0;
+                        if (input.input_flags & UI_InputFlag_LeftClicked) {
+                            push_command(Command_SelectCodepoint, .codepoint = codepoint);
+                        }
                     }
                 }
             }
         }
 
         if (ui_is_focus_active()) {
-            // TODO(simon): This needs to map from selected codepoint to index.
-            U32 index = state->scroll_codepoint_index;
+            S32 codepoint_index = (S32) index_from_map_codepoint(codepoint_map, top_context()->codepoint);
 
             for (UI_Event *event = global_ui_state->events->first; event; event = event->next) {
                 if (event->kind != UI_EventKind_Navigation) {
                     continue;
                 }
 
+                S32 codepoint_delta = 0;
                 switch (event->unit) {
                     case UI_EventDeltaUnit_Null: {
                     } break;
                     case UI_EventDeltaUnit_Character: {
-                        if (event->delta.x == -1 && index > 0) {
-                            --index;
-                        } else if (event->delta.x == 1 && index < 0x10FFFF) {
-                            ++index;
-                        } else if (event->delta.y == -1 && index >= codepoints_per_row) {
-                            index -= codepoints_per_row;
-                        } else if (event->delta.y == 1 && index <= 0x10FFFF - codepoints_per_row) {
-                            index += codepoints_per_row;
+                        if (event->delta.x == -1) {
+                            codepoint_delta = -1;
+                        } else if (event->delta.x == 1) {
+                            codepoint_delta = 1;
+                        } else if (event->delta.y == -1) {
+                            codepoint_delta = -(S32) codepoints_per_row;
+                        } else if (event->delta.y == 1) {
+                            codepoint_delta = (S32) codepoints_per_row;
                         }
                     } break;
                     case UI_EventDeltaUnit_Word: {
                     } break;
                     case UI_EventDeltaUnit_Line: {
-                        U32 active_row = index / codepoints_per_row;
+                        U32 active_row = (U32) codepoint_index / codepoints_per_row;
 
                         if (event->delta.x == -1) {
-                            index = active_row * codepoints_per_row;
+                            codepoint_delta = (S32) (active_row * codepoints_per_row) - codepoint_index;
                         } else if (event->delta.x == 1) {
-                            index = u32_min(active_row * codepoints_per_row + codepoints_per_row - 1, codepoint_map.codepoint_count);
+                            codepoint_delta = (S32) (active_row * codepoints_per_row + codepoints_per_row - 1) - codepoint_index;
                         }
                     } break;
                     case UI_EventDeltaUnit_Page: {
                         U32 rows_per_page = (U32) f32_ceil(container_height / height);
                         U32 codepoints_per_page = rows_per_page * codepoints_per_row;
-                        if (event->delta.y == -1 && index >= codepoints_per_page) {
-                            index -= codepoints_per_page;
-                        } else if (event->delta.y == 1 && index <= 0x10FFFF - codepoints_per_page) {
-                            index += codepoints_per_page;
+                        if (event->delta.y == -1) {
+                            codepoint_delta = -(S32) codepoints_per_page;
+                        } else if (event->delta.y == 1) {
+                            codepoint_delta = (S32) codepoints_per_page;
                         }
                     } break;
                     case UI_EventDeltaUnit_Whole: {
                         if (event->delta.y == -1) {
-                            index = 0;
+                            codepoint_delta = -codepoint_index;
                         } else if (event->delta.y == 1) {
-                            index = codepoint_map.codepoint_count - 1;
+                            codepoint_delta = (S32) codepoint_map.codepoint_count - 1 - codepoint_index;
                         }
                     } break;
                     case UI_EventDeltaUnit_COUNT: {
                     } break;
                 }
+
+                codepoint_index = s32_min(s32_max(0, codepoint_index + codepoint_delta), (S32) codepoint_map.codepoint_count - 1);
             }
 
-            // TODO(simon): Map index to codepoint
-            U32 new_codepoint = index;
-            if (new_codepoint != state->scroll_codepoint_index) {
-                state->scroll_codepoint_index = new_codepoint;
+            U32 new_codepoint = codepoint_from_map_index(codepoint_map, (U32) codepoint_index);
+
+            if (new_codepoint != top_context()->codepoint) {
                 push_command(Command_SelectCodepoint, .codepoint = new_codepoint);
             }
         }
@@ -293,7 +312,7 @@ PANEL_BUILD_FUNCTION(view_glyph_list) {
     if (top_context()->codepoint != state->previous_codepoint) {
         state->previous_codepoint = top_context()->codepoint;
 
-        S32 active_row = (S32) top_context()->codepoint / (S32) codepoints_per_row;
+        S32 active_row = (S32) index_from_map_codepoint(codepoint_map, top_context()->codepoint) / (S32) codepoints_per_row;
         if (active_row < top_row) {
             target_row += active_row - top_row - (bottom_row - top_row) / 2;
         } else if (bottom_row < active_row) {
