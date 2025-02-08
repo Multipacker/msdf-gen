@@ -351,10 +351,9 @@ internal S32 os_run(Str8List arguments) {
         os_file_read(scratch.arena, str8_literal("msdf.config"), &config);
         Str8List lines = str8_split_by_codepoints(scratch.arena, config, str8_literal("\n"));
         for (Str8Node *line = lines.first; line; line = line->next) {
-            U64 colon_index = 0;
-            str8_first_index_of(line->string, ':', &colon_index);
-            Str8 property = str8_prefix(line->string, colon_index);
-            Str8 value    = str8_skip(line->string, colon_index + 1);
+            U64 colon_index = str8_first_index_of(line->string, ':');
+            Str8 property   = str8_prefix(line->string, colon_index);
+            Str8 value      = str8_skip(line->string, colon_index + 1);
             while (value.size && *value.data == ' ') {
                 value = str8_skip(value, 1);
             }

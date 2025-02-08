@@ -139,8 +139,8 @@ internal B32 str8_equal(Str8 a, Str8 b) {
     return true;
 }
 
-internal B32 str8_first_index_of(Str8 string, U32 codepoint, U64 *result_index) {
-    B32 found  = false;
+internal U64 str8_first_index_of(Str8 string, U32 codepoint) {
+    U64 result = string.size;
     
     U8 *ptr = string.data;
     U8 *opl = string.data + string.size;
@@ -148,19 +148,17 @@ internal B32 str8_first_index_of(Str8 string, U32 codepoint, U64 *result_index) 
     while (ptr < opl) {
         StringDecode decode = string_decode_utf8(ptr, (U64) (ptr - opl));
         if (decode.codepoint == codepoint) {
-            found = true;
-            *result_index = (U64) (ptr - string.data);
+            result = (U64) (ptr - string.data);
             break;
         }
         ptr += decode.size;
     }
 
-    return found;
+    return result;
 }
 
-internal B32 str8_last_index_of(Str8 string, U32 codepoint, U64 *result_index) {
-    B32 found  = false;
-    U64 last_index = 0;
+internal U64 str8_last_index_of(Str8 string, U32 codepoint) {
+    U64 result = string.size;
     
     U8 *ptr = string.data;
     U8 *opl = string.data + string.size;
@@ -168,17 +166,12 @@ internal B32 str8_last_index_of(Str8 string, U32 codepoint, U64 *result_index) {
     while (ptr < opl) {
         StringDecode decode = string_decode_utf8(ptr, (U64) (ptr - opl));
         if (decode.codepoint == codepoint) {
-            found = true;
-            last_index = (U64) (ptr - string.data);
+            result = (U64) (ptr - string.data);
         }
         ptr += decode.size;
     }
 
-    if (found) {
-        *result_index = last_index;
-    }
-
-    return found;
+    return result;
 }
 
 internal Void str8_list_append(Arena *arena, Str8List *list, Str8List others) {

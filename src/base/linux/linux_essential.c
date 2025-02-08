@@ -389,10 +389,8 @@ internal Str8 os_file_path(Arena *arena, OS_SystemPath path) {
 
             Str8 result_path = str8(buffer, (U64) read);
 
-            U64 index = 0;
-            if (str8_last_index_of(result_path, '/', &index)) {
-                result_path = str8_prefix(result_path, index);
-            }
+            U64 index = str8_last_index_of(result_path, '/');
+            result_path = str8_prefix(result_path, index);
 
             result = str8_copy(arena, result_path);
         } break;

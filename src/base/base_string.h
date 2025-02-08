@@ -60,8 +60,8 @@ internal Str8 str8_chop(Str8 string, U64 size);
 internal Str8 str8_substring(Str8 string, U64 start, U64 size);
 
 internal B32 str8_equal(Str8 a, Str8 b);
-internal B32 str8_first_index_of(Str8 string, U32 codepoint, U64 *result_index);
-internal B32 str8_last_index_of(Str8 string, U32 codepoint, U64 *result_index);
+internal U64 str8_first_index_of(Str8 string, U32 codepoint);
+internal U64 str8_last_index_of(Str8 string, U32 codepoint);
 
 internal Void str8_list_append(Arena *arena, Str8List *list, Str8List others);
 internal Void str8_list_push_explicit(Str8List *list, Str8 string, Str8Node *node);
