@@ -19,8 +19,8 @@ TabSpecification *tab_specification_from_string(Str8 string) {
 
 typedef struct UIDrawMSDF UIDrawMSDF;
 struct UIDrawMSDF {
-    Font *font;
-    B32   render_raw;
+    TTF_Font *font;
+    B32 render_raw;
 };
 
 internal UI_BOX_DRAW_FUNCTION(draw_ui_msdf) {
@@ -28,7 +28,7 @@ internal UI_BOX_DRAW_FUNCTION(draw_ui_msdf) {
 
     StringDecode decode = string_decode_utf8(box->string.data, box->string.size);
 
-    Glyph *glyph = font_get_glyph(ui_draw_msdf->font, decode.codepoint);
+    MSDFCache_Glyph *glyph = msdf_cache_get_glyph(ui_draw_msdf->font, decode.codepoint);
 
     V2F32 box_size = v2f32_subtract(box->calculated_rectangle.max, box->calculated_rectangle.min);
     V2F32 glyph_size = r2f32_size(glyph->rectangle_pt);
@@ -119,7 +119,7 @@ PANEL_BUILD_FUNCTION(view_glyph_list) {
 
     TTF_CodepointMap codepoint_map = { 0 };
     if (global_state->only_mapped) {
-        codepoint_map = global_state->font->ttf->codepoint_map;
+        codepoint_map = global_state->ttf_font->codepoint_map;
     } else {
 
         TTF_CodepointRange *codepoint_range = arena_push_struct_zero(ui_frame_arena(), TTF_CodepointRange);
@@ -201,7 +201,7 @@ PANEL_BUILD_FUNCTION(view_glyph_list) {
     }
 
     UIDrawMSDF *draw_msdf = arena_push_struct_zero(ui_frame_arena(), UIDrawMSDF);
-    draw_msdf->font = global_state->font;
+    draw_msdf->font = global_state->ttf_font;
 
     ui_parent(container)
     ui_focus(UI_Focus_Active)
@@ -429,7 +429,7 @@ PANEL_BUILD_FUNCTION(view_glyph) {
                 state->offset = v2f32_subtract(relative_mouse, v2f32_scale(v2f32_subtract(relative_mouse, state->offset), old_zoom / state->zoom));
             }
 
-            Glyph *msdf_glyph = font_get_glyph(global_state->font, global_state->selected_codepoint);
+            MSDFCache_Glyph *msdf_glyph = msdf_cache_get_glyph(global_state->ttf_font, global_state->selected_codepoint);
             MSDF_LogEntry *log_entry = msdf_glyph->log.first;
             for (U64 i = 0; i < state->log_index; ++i) {
                 log_entry = log_entry->next;

@@ -240,7 +240,6 @@ struct State {
     DragState drag_state;
 
     B32 only_mapped;
-    Font *font;
     TTF_Font *ttf_font;
     U32 selected_codepoint;
     B32 running;
