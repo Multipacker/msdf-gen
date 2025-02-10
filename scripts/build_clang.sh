@@ -35,7 +35,7 @@ if [ -v error_limit ]; then
     errors+="-ferror-limit=5 "
 fi
 
-libraries="-lm -lSDL2 -lpthread"
+libraries="-lm -lSDL2 -lxcb -lxcb-cursor -lxcb-xkb -lxkbcommon -lxkbcommon-x11 -lpthread"
 common_compiler_flags="-I. ${errors}"
 common_linker_flags="${libraries}"
 
@@ -72,4 +72,5 @@ fi
 
 mkdir -p build
 
-clang $compiler_flags $linker_flags src/msdf-gen/main.c -o build/msdf-gen
+#clang $compiler_flags $linker_flags src/msdf-gen/main.c -o build/msdf-gen
+clang $compiler_flags $linker_flags src/msdf-gen/test.c -o build/test
