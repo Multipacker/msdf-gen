@@ -198,9 +198,9 @@ internal Gfx_EventList gfx_get_events(Arena *arena, B32 wait) {
     Gfx_EventList events = { 0 };
 
     // NOTE(simon): Collect events for this frame.
-    xcb_generic_event_t *xcb_event = { 0 };
+    xcb_generic_event_t *xcb_event = 0;
     if (!wait || state->first_event || (xcb_event = xcb_wait_for_event(state->connection))) {
-        for (B32 first_wait = wait; first_wait || (xcb_event = xcb_poll_for_event(state->connection)); first_wait = false) {
+        for (B32 first_wait = wait && !state->first_event; first_wait || (xcb_event = xcb_poll_for_event(state->connection)); first_wait = false) {
             X11_EventNode *event_node = arena_push_struct_zero(state->event_arena, X11_EventNode);
             event_node->event = xcb_event;
             sll_queue_push(state->first_event, state->last_event, event_node);
