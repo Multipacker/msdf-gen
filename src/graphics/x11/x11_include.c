@@ -18,6 +18,17 @@
  * https://freedesktop.org/wiki/Specifications/
  */
 
+/* TODO(simon):
+ * * We might want to support session management from ICCCM.
+ * * Verify that we follow the ICCCM efter major changes to this
+ *   implementation, even though I think we do.
+ * * How do we want key repeat to be exposed? Both key press and release
+ *   events, or just press events?
+ * * Do we care about ICE client rendezvous from ICCCM?
+ * * Do we care about device color characterization from ICCCM?
+ * * Implement Extended Window Manager Hints (EWMH).
+ */
+
 global X11_State global_x11_state;
 
 internal Void gfx_create(Str8 title, U32 width, U32 height) {
@@ -43,17 +54,6 @@ internal Void gfx_create(Str8 title, U32 width, U32 height) {
 
         // NOTE(simon): Intern atoms.
         {
-#define X11_ATOMS                               \
-    X(utf8_string,        "UTF8_STRING")        \
-    X(clipboard,          "CLIPBOARD")          \
-    X(clipboard_property, "CLIPBOARD_PROPERTY") \
-    X(incremental,        "INCR")               \
-    X(targets,            "TARGETS")            \
-    X(multiple,           "MULTIPLE")           \
-    X(timestamp,          "TIMESTAMP")          \
-    X(wm_protocols,       "WM_PROTOCOLS")       \
-    X(wm_delete_window,   "WM_DELETE_WINDOW")
-
             // NOTE(simon): Send requests.
 #define X(name, atom) xcb_intern_atom_cookie_t name##_cookie = xcb_intern_atom(state->connection, false, sizeof(atom) - 1, atom);
             X11_ATOMS
@@ -110,6 +110,65 @@ internal Void gfx_create(Str8 title, U32 width, U32 height) {
             (U32) title.size,
             title.data
         );
+
+        X11_IcccmWmSizeHints wm_normal_hints = { 0 };
+        wm_normal_hints.flags |= X11_IcccmWmSizeHint_MinSize;
+        wm_normal_hints.min_width  = 50;
+        wm_normal_hints.min_height = 50;
+        wm_normal_hints.flags |= X11_IcccmWmSizeHint_WindowGravity;
+        wm_normal_hints.window_gravity = XCB_GRAVITY_CENTER;
+
+        xcb_change_property(
+            state->connection,
+            XCB_PROP_MODE_REPLACE,
+            state->window,
+            XCB_ATOM_WM_NORMAL_HINTS,
+            XCB_ATOM_WM_SIZE_HINTS,
+            32,
+            sizeof(X11_IcccmWmSizeHints) / sizeof(U32),
+            &wm_normal_hints
+        );
+
+        X11_IcccmWmHints wm_hints = { 0 };
+        wm_hints.flags |= X11_IcccmWmHint_Input;
+        wm_hints.input = true;
+        wm_hints.flags |= X11_IcccmWmHint_State;
+        wm_hints.initial_state = X11_IcccmWmState_Normal;
+        // NOTE(simon): We might want to use window_group if and when we have multiple windows.
+
+        xcb_change_property(
+            state->connection,
+            XCB_PROP_MODE_REPLACE,
+            state->window,
+            XCB_ATOM_WM_HINTS,
+            XCB_ATOM_WM_HINTS,
+            32,
+            sizeof(X11_IcccmWmHints) / sizeof(U32),
+            &wm_hints
+        );
+
+        // NOTE(simon): wm_instance does not follow POSIX convention, but that
+        // should be fine.
+        Str8 wm_instance = str8_format(scratch.arena, "%d", getpid());
+        Str8 wm_class = title;
+        U64 wm_class_size = wm_instance.size + 1 + wm_class.size + 1;
+        U8 *wm_class_buffer = arena_push_array(scratch.arena, U8, wm_class_size);
+        memory_copy(wm_class_buffer, wm_instance.data, wm_instance.size);
+        wm_class_buffer[wm_instance.size] = 0;
+        memory_copy(&wm_class_buffer[wm_instance.size + 1], wm_class.data, wm_class.size);
+        wm_class_buffer[wm_instance.size + 1 + wm_instance.size] = 0;
+        xcb_change_property(
+            state->connection,
+            XCB_PROP_MODE_REPLACE,
+            state->window,
+            XCB_ATOM_WM_CLASS,
+            XCB_ATOM_STRING,
+            8,
+            (U32) wm_class_size,
+            wm_class_buffer
+        );
+
+        // TODO(simon): Do we insert an empty WM_COLORMAP_WINDOWS property?
 
         xcb_change_property(
             state->connection,
@@ -214,9 +273,11 @@ internal Gfx_EventList gfx_get_events(Arena *arena, B32 wait) {
             case XCB_EXPOSE: {
                 xcb_expose_event_t *expose = (xcb_expose_event_t *) event_node->event;
 
-                if (state->update) {
-                    state->update();
-                }
+                // TODO(simon): I'm not sure this is the right place to do
+                // extra updates, or if we even need to do it.
+                //if (state->update) {
+                    //state->update();
+                //}
             } break;
             case XCB_BUTTON_PRESS:
             case XCB_BUTTON_RELEASE: {
@@ -462,7 +523,7 @@ internal Gfx_EventList gfx_get_events(Arena *arena, B32 wait) {
             } break;
             default: {
                 if ((event_node->event->response_type & ~0x80) == state->xkb_first_event) {
-                    // NOTE(simon): HOW does this type not exist in the standard headers???
+                    // NOTE(simon): HOW does this type not exist in the library headers???
                     typedef struct XKB_Event XKB_Event;
                     struct XKB_Event {
                         U8 repsone_type;
@@ -473,36 +534,36 @@ internal Gfx_EventList gfx_get_events(Arena *arena, B32 wait) {
                     };
                     XKB_Event *xkb_event = (XKB_Event *) event_node->event;
 
-                    // TODO(simon): Check the device id
-
-                    switch (xkb_event->type) {
-                        case XCB_XKB_NEW_KEYBOARD_NOTIFY: {
-                            xcb_xkb_new_keyboard_notify_event_t *keyboard_notify = (xcb_xkb_new_keyboard_notify_event_t *) xkb_event;
-                            if (keyboard_notify->changed & XCB_XKB_NKN_DETAIL_KEYCODES) {
+                    if (xkb_event->deviceID == state->xkb_core_keyboard_id) {
+                        switch (xkb_event->type) {
+                            case XCB_XKB_NEW_KEYBOARD_NOTIFY: {
+                                xcb_xkb_new_keyboard_notify_event_t *keyboard_notify = (xcb_xkb_new_keyboard_notify_event_t *) xkb_event;
+                                if (keyboard_notify->changed & XCB_XKB_NKN_DETAIL_KEYCODES) {
+                                    xkb_keymap_unref(state->xkb_keymap);
+                                    xkb_state_unref(state->xkb_state);
+                                    state->xkb_keymap = xkb_x11_keymap_new_from_device(state->xkb_context, state->connection, state->xkb_core_keyboard_id, XKB_KEYMAP_COMPILE_NO_FLAGS);
+                                    state->xkb_state = xkb_x11_state_new_from_device(state->xkb_keymap, state->connection, state->xkb_core_keyboard_id);
+                                }
+                            } break;
+                            case XCB_XKB_MAP_NOTIFY: {
                                 xkb_keymap_unref(state->xkb_keymap);
                                 xkb_state_unref(state->xkb_state);
                                 state->xkb_keymap = xkb_x11_keymap_new_from_device(state->xkb_context, state->connection, state->xkb_core_keyboard_id, XKB_KEYMAP_COMPILE_NO_FLAGS);
                                 state->xkb_state = xkb_x11_state_new_from_device(state->xkb_keymap, state->connection, state->xkb_core_keyboard_id);
-                            }
-                        } break;
-                        case XCB_XKB_MAP_NOTIFY: {
-                            xkb_keymap_unref(state->xkb_keymap);
-                            xkb_state_unref(state->xkb_state);
-                            state->xkb_keymap = xkb_x11_keymap_new_from_device(state->xkb_context, state->connection, state->xkb_core_keyboard_id, XKB_KEYMAP_COMPILE_NO_FLAGS);
-                            state->xkb_state = xkb_x11_state_new_from_device(state->xkb_keymap, state->connection, state->xkb_core_keyboard_id);
-                        } break;
-                        case XCB_XKB_STATE_NOTIFY: {
-                            xcb_xkb_state_notify_event_t *state_notify = (xcb_xkb_state_notify_event_t *) xkb_event;
-                            xkb_state_update_mask(
-                                state->xkb_state,
-                                state_notify->baseMods,
-                                state_notify->latchedMods,
-                                state_notify->lockedMods,
-                                (xkb_layout_index_t) state_notify->baseGroup,
-                                (xkb_layout_index_t) state_notify->latchedGroup,
-                                (xkb_layout_index_t) state_notify->lockedGroup
-                            );
-                        } break;
+                            } break;
+                            case XCB_XKB_STATE_NOTIFY: {
+                                xcb_xkb_state_notify_event_t *state_notify = (xcb_xkb_state_notify_event_t *) xkb_event;
+                                xkb_state_update_mask(
+                                    state->xkb_state,
+                                    state_notify->baseMods,
+                                    state_notify->latchedMods,
+                                    state_notify->lockedMods,
+                                    (xkb_layout_index_t) state_notify->baseGroup,
+                                    (xkb_layout_index_t) state_notify->latchedGroup,
+                                    (xkb_layout_index_t) state_notify->lockedGroup
+                                );
+                            } break;
+                        }
                     }
                 }
             } break;

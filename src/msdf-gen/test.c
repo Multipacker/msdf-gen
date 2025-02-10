@@ -15,7 +15,7 @@ internal S32 os_run(Str8List arguments) {
     while (running) {
         Arena_Temporary scratch = arena_get_scratch(0, 0);
 
-        Gfx_EventList events = gfx_get_events(scratch.arena, false);
+        Gfx_EventList events = gfx_get_events(scratch.arena, true);
         for (Gfx_Event *event = events.first; event; event = event->next) {
             Str8 kind = { 0 };
             switch (event->kind) {
