@@ -140,6 +140,6 @@ internal Void          gfx_set_update_function(VoidFunction *update);
 
 // NOTE(simon): Clipboard
 internal Void gfx_set_clipboard_text(Str8 text);
-internal Str8 gfx_get_clipboard_text(Void *arena);
+internal Str8 gfx_get_clipboard_text(Arena *arena);
 
 #endif // GRAPHICS_CORE_H

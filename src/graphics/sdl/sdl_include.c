@@ -240,7 +240,7 @@ internal Void gfx_set_clipboard_text(Str8 text) {
     arena_end_temporary(scratch);
 }
 
-internal Str8 gfx_get_clipboard_text(Void *arena) {
+internal Str8 gfx_get_clipboard_text(Arena *arena) {
     char *text_c = SDL_GetClipboardText();
     Str8 result = str8_copy_cstr(arena, (U8 *) text_c);
     SDL_free(text_c);
