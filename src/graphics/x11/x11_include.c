@@ -477,6 +477,13 @@ internal Gfx_EventList gfx_get_events(Arena *arena, B32 wait) {
 
                     switch (xkb_event->type) {
                         case XCB_XKB_NEW_KEYBOARD_NOTIFY: {
+                            xcb_xkb_new_keyboard_notify_event_t *keyboard_notify = (xcb_xkb_new_keyboard_notify_event_t *) xkb_event;
+                            if (keyboard_notify->changed & XCB_XKB_NKN_DETAIL_KEYCODES) {
+                                xkb_keymap_unref(state->xkb_keymap);
+                                xkb_state_unref(state->xkb_state);
+                                state->xkb_keymap = xkb_x11_keymap_new_from_device(state->xkb_context, state->connection, state->xkb_core_keyboard_id, XKB_KEYMAP_COMPILE_NO_FLAGS);
+                                state->xkb_state = xkb_x11_state_new_from_device(state->xkb_keymap, state->connection, state->xkb_core_keyboard_id);
+                            }
                         } break;
                         case XCB_XKB_MAP_NOTIFY: {
                             xkb_keymap_unref(state->xkb_keymap);
