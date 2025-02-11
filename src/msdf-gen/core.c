@@ -401,6 +401,7 @@ internal Void update(Void) {
     }
 
     // NOTE(simon): Consume events.
+    // TODO(simon): This should be done per window.
     for (Gfx_Event *event = events.first, *next; event; event = next) {
         next = event->next;
         B32 consume = false;
@@ -423,7 +424,7 @@ internal Void update(Void) {
                 case Gfx_EventKind_FileDrop:   kind = UI_EventKind_Null;       break;
                 case Gfx_EventKind_COUNT:      kind = UI_EventKind_Null;       break;
             }
-            ui_event = arena_push_struct_zero(ui_frame_arena(), UI_Event);
+            ui_event = arena_push_struct_zero(frame_arena(), UI_Event);
             ui_event->kind      = kind;
             ui_event->text      = event->text;
             ui_event->position  = event->position;
