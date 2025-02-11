@@ -443,8 +443,8 @@ internal Gfx_EventList gfx_get_events(Arena *arena, B32 wait) {
                             key_event->kind = Gfx_EventKind_KeyRelease;
                         }
                         key_event->key = event_key;
-                        event->key_modifiers |= (key->state & XCB_MOD_MASK_SHIFT   ? Gfx_KeyModifier_Shift   : 0);
-                        event->key_modifiers |= (key->state & XCB_MOD_MASK_CONTROL ? Gfx_KeyModifier_Control : 0);
+                        key_event->key_modifiers |= (key->state & XCB_MOD_MASK_SHIFT   ? Gfx_KeyModifier_Shift   : 0);
+                        key_event->key_modifiers |= (key->state & XCB_MOD_MASK_CONTROL ? Gfx_KeyModifier_Control : 0);
 
                         dll_push_back(events.first, events.last, key_event);
                     }
