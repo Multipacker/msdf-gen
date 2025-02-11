@@ -48,7 +48,7 @@ internal Void gfx_create(Str8 title, U32 width, U32 height) {
             state->gl_context = SDL_GL_CreateContext(state->window);
 
 #define X(type, name) name = (type) SDL_GL_GetProcAddress(#name); assert(name);
-            GL_LINUX_FUNCTION(X)
+            GL_LINUX_FUNCTIONS(X)
             GL_FUNCTIONS(X)
 #undef X
 

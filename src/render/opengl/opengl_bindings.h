@@ -144,7 +144,7 @@ typedef Void      (*PFNGLVERTEXARRAYBINDINGDIVISORPROC)(GLuint vaobj, GLuint bin
 typedef Void      (*PFNGLVERTEXARRAYVERTEXBUFFERPROC)(GLuint vaobj, GLuint bindingindex, GLuint buffer, GLintptr offset, GLsizei stride);
 typedef Void     *(*PFNGLMAPNAMEDBUFFER)(GLuint buffer, GLenum access);
 
-#define GL_LINUX_FUNCTION(X) \
+#define GL_LINUX_FUNCTIONS(X) \
 X(PFNGLBLENDFUNCPROC,                 glBlendFunc)                 \
 X(PFNGLCLEARCOLORPROC,                glClearColor)                \
 X(PFNGLCLEARPROC,                     glClear)                     \
@@ -203,7 +203,7 @@ X(PFNGLVERTEXARRAYVERTEXBUFFERPROC,         glVertexArrayVertexBuffer)
 #define X(type, name) global type name;
 
 #if OS_LINUX
-GL_LINUX_FUNCTION(X)
+GL_LINUX_FUNCTIONS(X)
 #else
 void glBlendFunc(GLenum sfactor, GLenum dfactor);
 void glClear(GLbitfield mask);
