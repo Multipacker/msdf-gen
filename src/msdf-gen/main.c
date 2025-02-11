@@ -20,6 +20,8 @@
  * TODO before next release:
  * * Bake the UI font into the executable
  * * Improve the look of the preview when dragging tabs
+ * * Backspace and delete don't work, but control+backspace does. This might be
+ *   an old problem, or it was introduced with the XCB backend.
  *
  * TODO long term
  * * Focus and keyboard navigation / interaction
