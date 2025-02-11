@@ -4,7 +4,10 @@
 #include "opengl_bindings.h"
 
 #if OS_WINDOWS
-#include "win32_opengl.h"
+#  include "win32_opengl.h"
+#elif OS_LINUX
+//#  include "sdl_opengl.h"
+#  include "x11_opengl.h"
 #endif
 
 typedef struct OpenGL_Context OpenGL_Context;

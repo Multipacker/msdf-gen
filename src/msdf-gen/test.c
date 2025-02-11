@@ -10,6 +10,7 @@ internal S32 os_run(Str8List arguments) {
     Arena *arena = arena_create();
 
     gfx_create(str8_literal("Test"), 1280, 720);
+    render_init();
 
     B32 running = true;
     while (running) {
