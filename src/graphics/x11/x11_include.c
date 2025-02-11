@@ -359,8 +359,6 @@ internal Gfx_EventList gfx_get_events(Arena *arena, B32 wait) {
                 int keysym_count = xkb_keymap_key_get_syms_by_level(state->xkb_keymap, key->detail, 0, 0, (const xkb_keysym_t **) &keysyms);
 
                 for (int i = 0; i < keysym_count; ++i) {
-                    os_console_print(str8_format(arena, "keysym: %u\n", keysyms[i]));
-
                     Gfx_Key event_key = Gfx_Key_Null;
                     switch (keysyms[i]) {
                         case XKB_KEY_BackSpace:  event_key = Gfx_Key_Backspace; break;
