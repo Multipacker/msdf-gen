@@ -115,6 +115,7 @@ struct X11_State {
     Arena *copy_arena;
 
     xcb_window_t window;
+    VoidFunction *swap_buffers;
 
     VoidFunction *update;
 };

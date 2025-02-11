@@ -1,9 +1,8 @@
 #include <stdlib.h>
 
 #include <xcb/xkb.h>
-#include <xkbcommon/xkbcommon-x11.h>
 
-#include <linux/input-event-codes.h>
+#include <xkbcommon/xkbcommon-x11.h>
 
 /*
  * This implementation was derived from a lot of different sources and
@@ -27,6 +26,10 @@
  * * Do we care about ICE client rendezvous from ICCCM?
  * * Do we care about device color characterization from ICCCM?
  * * Implement Extended Window Manager Hints (EWMH).
+ * * We sometimes crash the XWayland server, I don't really know why or how
+ *   that happens. We really shouldn't though, fix it!
+ * * Drag-and-drop is missing, implement it!
+ * * XKB compose is missing, implement it!
  */
 
 global X11_State global_x11_state;
@@ -70,6 +73,43 @@ internal Void gfx_create(Str8 title, U32 width, U32 height) {
 #undef X
         }
 
+        xkb_x11_setup_xkb_extension(
+            state->connection,
+            1, 0,                        // NOTE(simon): Requested version
+            XKB_X11_SETUP_XKB_EXTENSION_NO_FLAGS,
+            0, 0,                        // NOTE(simon): Activve version
+            &state->xkb_first_event, 0  // NOTE(simon): First event codes
+        );
+
+        state->xkb_context = xkb_context_new(XKB_CONTEXT_NO_FLAGS);
+        state->xkb_core_keyboard_id = xkb_x11_get_core_keyboard_device_id(state->connection);
+
+        state->xkb_keymap = xkb_x11_keymap_new_from_device(state->xkb_context, state->connection, state->xkb_core_keyboard_id, XKB_KEYMAP_COMPILE_NO_FLAGS);
+        state->xkb_state = xkb_x11_state_new_from_device(state->xkb_keymap, state->connection, state->xkb_core_keyboard_id);
+
+        // NOTE(simon): I have no idea what this functions does or what the
+        // parameters mean, it is taken straight from this example:
+        // https://github.com/xkbcommon/libxkbcommon/blob/e7570bcb78a48c0e3fb48087991a85af95943e98/tools/interactive-x11.c#L236
+        // TODO(simon): Maybe check the result of the request.
+        xcb_xkb_select_events_details_t details = { 0 };
+        details.affectNewKeyboard  = XCB_XKB_NKN_DETAIL_KEYCODES;
+        details.newKeyboardDetails = XCB_XKB_NKN_DETAIL_KEYCODES;
+        details.affectState        = XCB_XKB_STATE_PART_MODIFIER_BASE | XCB_XKB_STATE_PART_MODIFIER_LATCH | XCB_XKB_STATE_PART_MODIFIER_LOCK | XCB_XKB_STATE_PART_GROUP_BASE | XCB_XKB_STATE_PART_GROUP_LATCH | XCB_XKB_STATE_PART_GROUP_LOCK;
+        details.stateDetails       = XCB_XKB_STATE_PART_MODIFIER_BASE | XCB_XKB_STATE_PART_MODIFIER_LATCH | XCB_XKB_STATE_PART_MODIFIER_LOCK | XCB_XKB_STATE_PART_GROUP_BASE | XCB_XKB_STATE_PART_GROUP_LATCH | XCB_XKB_STATE_PART_GROUP_LOCK;
+        xcb_xkb_select_events_aux(
+            state->connection,
+            (U16) state->xkb_core_keyboard_id,
+            XCB_XKB_EVENT_TYPE_NEW_KEYBOARD_NOTIFY | XCB_XKB_EVENT_TYPE_MAP_NOTIFY | XCB_XKB_EVENT_TYPE_STATE_NOTIFY,
+            0,
+            0,
+            XCB_XKB_MAP_PART_KEY_TYPES | XCB_XKB_MAP_PART_KEY_SYMS | XCB_XKB_MAP_PART_MODIFIER_MAP | XCB_XKB_MAP_PART_EXPLICIT_COMPONENTS | XCB_XKB_MAP_PART_KEY_ACTIONS | XCB_XKB_MAP_PART_VIRTUAL_MODS | XCB_XKB_MAP_PART_VIRTUAL_MOD_MAP,
+            XCB_XKB_MAP_PART_KEY_TYPES | XCB_XKB_MAP_PART_KEY_SYMS | XCB_XKB_MAP_PART_MODIFIER_MAP | XCB_XKB_MAP_PART_EXPLICIT_COMPONENTS | XCB_XKB_MAP_PART_KEY_ACTIONS | XCB_XKB_MAP_PART_VIRTUAL_MODS | XCB_XKB_MAP_PART_VIRTUAL_MOD_MAP,
+            &details
+        );
+    }
+
+    // NOTE(simon): Create the window.
+    if (state->connection) {
         U32 value_mask = XCB_CW_EVENT_MASK;
         U32 value_list[] = {
             XCB_EVENT_MASK_EXPOSURE | XCB_EVENT_MASK_BUTTON_PRESS | XCB_EVENT_MASK_BUTTON_RELEASE | XCB_EVENT_MASK_KEY_PRESS | XCB_EVENT_MASK_KEY_RELEASE | XCB_EVENT_MASK_POINTER_MOTION | XCB_EVENT_MASK_PROPERTY_CHANGE,
@@ -185,40 +225,6 @@ internal Void gfx_create(Str8 title, U32 width, U32 height) {
 
         xcb_flush(state->connection);
     }
-
-    xkb_x11_setup_xkb_extension(
-        state->connection,
-        1, 0,                        // NOTE(simon): Requested version
-        XKB_X11_SETUP_XKB_EXTENSION_NO_FLAGS,
-        0, 0,                        // NOTE(simon): Activve version
-        &state->xkb_first_event, 0  // NOTE(simon): First event codes
-    );
-
-    state->xkb_context = xkb_context_new(XKB_CONTEXT_NO_FLAGS);
-    state->xkb_core_keyboard_id = xkb_x11_get_core_keyboard_device_id(state->connection);
-
-    state->xkb_keymap = xkb_x11_keymap_new_from_device(state->xkb_context, state->connection, state->xkb_core_keyboard_id, XKB_KEYMAP_COMPILE_NO_FLAGS);
-    state->xkb_state = xkb_x11_state_new_from_device(state->xkb_keymap, state->connection, state->xkb_core_keyboard_id);
-
-    // NOTE(simon): I have no idea what this functions does or what the
-    // parameters mean, it is taken straight from this example:
-    // https://github.com/xkbcommon/libxkbcommon/blob/e7570bcb78a48c0e3fb48087991a85af95943e98/tools/interactive-x11.c#L236
-    // TODO(simon): Maybe check the result of the request.
-    xcb_xkb_select_events_details_t details = { 0 };
-    details.affectNewKeyboard  = XCB_XKB_NKN_DETAIL_KEYCODES;
-    details.newKeyboardDetails = XCB_XKB_NKN_DETAIL_KEYCODES;
-    details.affectState        = XCB_XKB_STATE_PART_MODIFIER_BASE | XCB_XKB_STATE_PART_MODIFIER_LATCH | XCB_XKB_STATE_PART_MODIFIER_LOCK | XCB_XKB_STATE_PART_GROUP_BASE | XCB_XKB_STATE_PART_GROUP_LATCH | XCB_XKB_STATE_PART_GROUP_LOCK;
-    details.stateDetails       = XCB_XKB_STATE_PART_MODIFIER_BASE | XCB_XKB_STATE_PART_MODIFIER_LATCH | XCB_XKB_STATE_PART_MODIFIER_LOCK | XCB_XKB_STATE_PART_GROUP_BASE | XCB_XKB_STATE_PART_GROUP_LATCH | XCB_XKB_STATE_PART_GROUP_LOCK;
-    xcb_xkb_select_events_aux(
-        state->connection,
-        (U16) state->xkb_core_keyboard_id,
-        XCB_XKB_EVENT_TYPE_NEW_KEYBOARD_NOTIFY | XCB_XKB_EVENT_TYPE_MAP_NOTIFY | XCB_XKB_EVENT_TYPE_STATE_NOTIFY,
-        0,
-        0,
-        XCB_XKB_MAP_PART_KEY_TYPES | XCB_XKB_MAP_PART_KEY_SYMS | XCB_XKB_MAP_PART_MODIFIER_MAP | XCB_XKB_MAP_PART_EXPLICIT_COMPONENTS | XCB_XKB_MAP_PART_KEY_ACTIONS | XCB_XKB_MAP_PART_VIRTUAL_MODS | XCB_XKB_MAP_PART_VIRTUAL_MOD_MAP,
-        XCB_XKB_MAP_PART_KEY_TYPES | XCB_XKB_MAP_PART_KEY_SYMS | XCB_XKB_MAP_PART_MODIFIER_MAP | XCB_XKB_MAP_PART_EXPLICIT_COMPONENTS | XCB_XKB_MAP_PART_KEY_ACTIONS | XCB_XKB_MAP_PART_VIRTUAL_MODS | XCB_XKB_MAP_PART_VIRTUAL_MOD_MAP,
-        &details
-    );
 
     arena_end_temporary(scratch);
 }
@@ -606,7 +612,9 @@ internal V2F32 gfx_get_mouse_position(Void) {
 
 internal Void gfx_swap_buffers(Void) {
     X11_State *state = &global_x11_state;
-    // TODO(simon): Implement
+    if (state->swap_buffers) {
+        state->swap_buffers();
+    }
 }
 
 internal Void gfx_set_cursor(Gfx_Cursor cursor) {
