@@ -247,7 +247,7 @@ internal V2U32 gfx_get_window_client_area(Void) {
     return result;
 }
 
-// TODO(simon): Double check that this works.
+// TODO(simon): We might want to use a custom atom for this.
 internal Void gfx_send_wakeup_event(Void) {
     X11_State *state = &global_x11_state;
     xcb_client_message_event_t client_message = {
