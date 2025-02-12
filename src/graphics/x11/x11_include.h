@@ -94,6 +94,7 @@ struct X11_EventNode {
 typedef struct X11_State X11_State;
 struct X11_State {
     xcb_connection_t     *connection;
+    int                   screen_index;
     xcb_screen_t         *screen;
     xcb_cursor_context_t *cursor_context;
 

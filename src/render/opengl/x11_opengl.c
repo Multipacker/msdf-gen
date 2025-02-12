@@ -4,12 +4,13 @@ internal B32 render_init(Void) {
     X11_State *x11_state = &global_x11_state;
     X11_OpenGLState *opengl_state = &global_x11_opengl_state;
 
+    PFNEGLGETPLATFORMDISPLAYEXTPROC eglGetPlatformDisplayEXT = (PFNEGLGETPLATFORMDISPLAYEXTPROC) eglGetProcAddress("eglGetPlatformDisplayEXT");
+
     const EGLint attributes[] = {
         EGL_PLATFORM_XCB_SCREEN_EXT,
-        0, // TODO(simon): Replace with screen from connection
+        x11_state->screen_index,
         EGL_NONE,
     };
-    PFNEGLGETPLATFORMDISPLAYEXTPROC eglGetPlatformDisplayEXT = (PFNEGLGETPLATFORMDISPLAYEXTPROC) eglGetProcAddress("eglGetPlatformDisplayEXT");
     opengl_state->display = eglGetPlatformDisplayEXT(EGL_PLATFORM_XCB_EXT, x11_state->connection, attributes);
 
     EGLint major = 0, minor = 0;

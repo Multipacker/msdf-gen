@@ -41,13 +41,12 @@ internal Void gfx_create(Str8 title, U32 width, U32 height) {
     state->event_arena = arena_create();
     state->copy_arena  = arena_create();
 
-    int screen_number = 0;
-    state->connection = xcb_connect(0, &screen_number);
+    state->connection = xcb_connect(0, &state->screen_index);
     if (state->connection) {
         const xcb_setup_t *setup = xcb_get_setup(state->connection);
 
         xcb_screen_iterator_t iter = xcb_setup_roots_iterator(setup);
-        for (int i = 0; i < screen_number; ++i) {
+        for (int i = 0; i < state->screen_index; ++i) {
             xcb_screen_next(&iter);
         }
 
@@ -210,6 +209,9 @@ internal Void gfx_create(Str8 title, U32 width, U32 height) {
 
         // TODO(simon): Do we insert an empty WM_COLORMAP_WINDOWS property?
 
+        xcb_atom_t wm_protocols[] = {
+            state->wm_delete_window_atom,
+        };
         xcb_change_property(
             state->connection,
             XCB_PROP_MODE_REPLACE,
@@ -217,8 +219,8 @@ internal Void gfx_create(Str8 title, U32 width, U32 height) {
             state->wm_protocols_atom,
             XCB_ATOM_ATOM,
             32,
-            1,
-            &state->wm_delete_window_atom
+            array_count(wm_protocols),
+            wm_protocols
         );
 
         xcb_map_window(state->connection, state->window);
@@ -274,79 +276,55 @@ internal Gfx_EventList gfx_get_events(Arena *arena, B32 wait) {
 
     // NOTE(simon): Process events.
     for (X11_EventNode *event_node = state->first_event; event_node; event_node = event_node->next) {
-        Gfx_Event *event = arena_push_struct_zero(arena, Gfx_Event);
-        switch (event_node->event->response_type & ~0x80) {
-            case XCB_EXPOSE: {
-                xcb_expose_event_t *expose = (xcb_expose_event_t *) event_node->event;
-
-                // TODO(simon): I'm not sure this is the right place to do
-                // extra updates, or if we even need to do it.
-                //if (state->update) {
-                    //state->update();
-                //}
-            } break;
+        U8 response_type = event_node->event->response_type & ~0x80;
+        switch (response_type) {
             case XCB_BUTTON_PRESS:
             case XCB_BUTTON_RELEASE: {
                 xcb_button_press_event_t *button = (xcb_button_press_event_t *) event_node->event;
 
-                Gfx_EventKind button_action = (button->response_type == XCB_BUTTON_PRESS ? Gfx_EventKind_KeyPress : Gfx_EventKind_KeyRelease);
+                Gfx_EventKind button_action = (response_type == XCB_BUTTON_PRESS ? Gfx_EventKind_KeyPress : Gfx_EventKind_KeyRelease);
+                Gfx_EventKind scroll_action = (response_type == XCB_BUTTON_PRESS ? Gfx_EventKind_Scroll   : Gfx_EventKind_Null);
 
-                switch (button->detail) {
-                    case XCB_BUTTON_INDEX_1: {
-                        event->kind = button_action;
-                        event->key = Gfx_Key_MouseLeft;
-                    } break;
-                    case XCB_BUTTON_INDEX_2: {
-                        event->kind = button_action;
-                        event->key = Gfx_Key_MouseMiddle;
-                    } break;
-                    case XCB_BUTTON_INDEX_3: {
-                        event->kind = button_action;
-                        event->key = Gfx_Key_MouseRight;
-                    } break;
-                    case XCB_BUTTON_INDEX_4: {
-                        if (button_action == Gfx_EventKind_KeyPress) {
-                            event->kind = Gfx_EventKind_Scroll;
-                            event->scroll = v2f32(0.0f, 1.0f);
-                        }
-                    } break;
-                    case XCB_BUTTON_INDEX_5: {
-                        if (button_action == Gfx_EventKind_KeyPress) {
-                            event->kind = Gfx_EventKind_Scroll;
-                            event->scroll = v2f32(0.0f, -1.0f);
-                        }
-                    } break;
-                    // NOTE(simon): These are not documented and are not
-                    // part of the headers, but through testing have been
-                    // determined to be horizontal scrolling.
-                    case 6: {
-                        if (button_action == Gfx_EventKind_KeyPress) {
-                            event->kind = Gfx_EventKind_Scroll;
-                            event->scroll = v2f32(1.0f, 0.0f);
-                        }
-                    } break;
-                    case 7: {
-                        if (button_action == Gfx_EventKind_KeyPress) {
-                            event->kind = Gfx_EventKind_Scroll;
-                            event->scroll = v2f32(-1.0f, 0.0f);
-                        }
-                    } break;
+                typedef struct MouseButton MouseButton;
+                struct MouseButton {
+                    Gfx_EventKind kind;
+                    Gfx_Key       key;
+                    V2F32         scroll;
+                };
+                // NOTE(simon): Horizontal scrolling is not documented but was
+                // determined through testing.
+                MouseButton buttons[] = {
+                    { Gfx_EventKind_Null, Gfx_Key_Null,        v2f32( 0.0f,  0.0f), },
+                    { button_action,      Gfx_Key_MouseLeft,   v2f32( 0.0f,  0.0f), },
+                    { button_action,      Gfx_Key_MouseMiddle, v2f32( 0.0f,  0.0f), },
+                    { button_action,      Gfx_Key_MouseRight,  v2f32( 0.0f,  0.0f), },
+                    { scroll_action,      Gfx_Key_Null,        v2f32( 0.0f,  1.0f), },
+                    { scroll_action,      Gfx_Key_Null,        v2f32( 0.0f, -1.0f), },
+                    { scroll_action,      Gfx_Key_Null,        v2f32( 1.0f,  0.0f), },
+                    { scroll_action,      Gfx_Key_Null,        v2f32(-1.0f,  0.0f), },
+                };
+
+                if (button->detail < array_count(buttons) && buttons[button->detail].kind != Gfx_EventKind_Null) {
+                    Gfx_Event *button_event = arena_push_struct_zero(arena, Gfx_Event);
+                    button_event->kind       = buttons[button->detail].kind;
+                    button_event->key        = buttons[button->detail].key;
+                    button_event->scroll     = buttons[button->detail].scroll;
+                    button_event->position.x = (F32) button->event_x;
+                    button_event->position.y = (F32) button->event_y;
+                    dll_push_back(events.first, events.last, button_event);
                 }
-
-                event->position.x = (F32) button->event_x;
-                event->position.y = (F32) button->event_y;
             } break;
             case XCB_KEY_PRESS: {
                 xcb_key_press_event_t *key = (xcb_key_press_event_t *) event_node->event;
 
                 int required_length = xkb_state_key_get_utf8(state->xkb_state, key->detail, 0, 0) + 1;
-                CStr buffer = arena_push_array_zero(arena, char, (U64) required_length);
-                int length = xkb_state_key_get_utf8(state->xkb_state, key->detail, buffer, (size_t) required_length);
+                if (required_length > 1) {
+                    CStr buffer = arena_push_array_zero(arena, char, (U64) required_length);
+                    int length = xkb_state_key_get_utf8(state->xkb_state, key->detail, buffer, (size_t) required_length);
 
-                if (length) {
                     Gfx_Event *text_event = arena_push_struct_zero(arena, Gfx_Event);
                     text_event->kind = Gfx_EventKind_Text;
-                    text_event->text = str8_cstr(buffer);
+                    text_event->text = str8((U8 *) buffer, (U64) length);
                     dll_push_back(events.first, events.last, text_event);
                 }
             }
@@ -435,15 +413,10 @@ internal Gfx_EventList gfx_get_events(Arena *arena, B32 wait) {
 
                     if (event_key != Gfx_Key_Null) {
                         Gfx_Event *key_event = arena_push_struct_zero(arena, Gfx_Event);
-                        if ((event_node->event->response_type & ~0x80) == XCB_KEY_PRESS) {
-                            key_event->kind = Gfx_EventKind_KeyPress;
-                        } else {
-                            key_event->kind = Gfx_EventKind_KeyRelease;
-                        }
-                        key_event->key = event_key;
+                        key_event->kind = (response_type == XCB_KEY_PRESS ? Gfx_EventKind_KeyPress : Gfx_EventKind_KeyRelease);
+                        key_event->key  = event_key;
                         key_event->key_modifiers |= (key->state & XCB_MOD_MASK_SHIFT   ? Gfx_KeyModifier_Shift   : 0);
                         key_event->key_modifiers |= (key->state & XCB_MOD_MASK_CONTROL ? Gfx_KeyModifier_Control : 0);
-
                         dll_push_back(events.first, events.last, key_event);
                     }
                 }
@@ -452,36 +425,26 @@ internal Gfx_EventList gfx_get_events(Arena *arena, B32 wait) {
                 xcb_client_message_event_t *client = (xcb_client_message_event_t *) event_node->event;
 
                 if (client->type == state->wm_protocols_atom && client->format == 32 && client->data.data32[0] == state->wm_delete_window_atom) {
-                    event->kind = Gfx_EventKind_Quit;
+                    Gfx_Event *quit_event = arena_push_struct_zero(arena, Gfx_Event);
+                    quit_event->kind = Gfx_EventKind_Quit;
+                    dll_push_back(events.first, events.last, quit_event);
                 }
             } break;
             case XCB_SELECTION_REQUEST: {
                 xcb_selection_request_event_t *request = (xcb_selection_request_event_t *) event_node->event;
 
                 xcb_atom_t property_atom = (request->property == XCB_ATOM_NONE ? request->target : request->property);
-                xcb_selection_notify_event_t selection_notify = {
-                    .response_type = XCB_SELECTION_NOTIFY,
-                    .time          = request->time,
-                    .requestor     = request->requestor,
-                    .selection     = request->selection,
-                    .target        = request->target,
-                    .property      = XCB_ATOM_NONE,
-                };
+                xcb_atom_t response_property_atom = XCB_ATOM_NONE;
 
-                if (
-                    request->property != XCB_ATOM_NONE &&
-                    request->selection == state->clipboard_atom &&
-                    request->owner == state->window
-                ) {
-                    xcb_atom_t type_atom = XCB_ATOM_NONE;
-                    U8 format = 0;
-                    Str8 data = { 0 };
-
+                if (property_atom != XCB_ATOM_NONE && request->selection == state->clipboard_atom && request->owner == state->window) {
                     xcb_atom_t targets[] = {
                         state->targets_atom,
                         state->utf8_string_atom,
                     };
 
+                    xcb_atom_t type_atom = XCB_ATOM_NONE;
+                    U8         format    = 0;
+                    Str8       data      = { 0 };
                     if (request->target == state->targets_atom) {
                         type_atom = XCB_ATOM_ATOM;
                         format    = 32;
@@ -517,16 +480,24 @@ internal Gfx_EventList gfx_get_events(Arena *arena, B32 wait) {
                         if (error) {
                             free(error);
                         } else {
-                            selection_notify.property = property_atom;
+                            response_property_atom = property_atom;
                         }
                     }
                 }
 
+                xcb_selection_notify_event_t selection_notify = {
+                    .response_type = XCB_SELECTION_NOTIFY,
+                    .time          = request->time,
+                    .requestor     = request->requestor,
+                    .selection     = request->selection,
+                    .target        = request->target,
+                    .property      = response_property_atom,
+                };
                 xcb_send_event(state->connection, false, request->requestor, 0, (const char *) &selection_notify);
                 xcb_flush(state->connection);
             } break;
             default: {
-                if ((event_node->event->response_type & ~0x80) == state->xkb_first_event) {
+                if (response_type == state->xkb_first_event) {
                     // NOTE(simon): HOW does this type not exist in the library headers???
                     typedef struct XKB_Event XKB_Event;
                     struct XKB_Event {
@@ -546,14 +517,14 @@ internal Gfx_EventList gfx_get_events(Arena *arena, B32 wait) {
                                     xkb_keymap_unref(state->xkb_keymap);
                                     xkb_state_unref(state->xkb_state);
                                     state->xkb_keymap = xkb_x11_keymap_new_from_device(state->xkb_context, state->connection, state->xkb_core_keyboard_id, XKB_KEYMAP_COMPILE_NO_FLAGS);
-                                    state->xkb_state = xkb_x11_state_new_from_device(state->xkb_keymap, state->connection, state->xkb_core_keyboard_id);
+                                    state->xkb_state  = xkb_x11_state_new_from_device(state->xkb_keymap, state->connection, state->xkb_core_keyboard_id);
                                 }
                             } break;
                             case XCB_XKB_MAP_NOTIFY: {
                                 xkb_keymap_unref(state->xkb_keymap);
                                 xkb_state_unref(state->xkb_state);
                                 state->xkb_keymap = xkb_x11_keymap_new_from_device(state->xkb_context, state->connection, state->xkb_core_keyboard_id, XKB_KEYMAP_COMPILE_NO_FLAGS);
-                                state->xkb_state = xkb_x11_state_new_from_device(state->xkb_keymap, state->connection, state->xkb_core_keyboard_id);
+                                state->xkb_state  = xkb_x11_state_new_from_device(state->xkb_keymap, state->connection, state->xkb_core_keyboard_id);
                             } break;
                             case XCB_XKB_STATE_NOTIFY: {
                                 xcb_xkb_state_notify_event_t *state_notify = (xcb_xkb_state_notify_event_t *) xkb_event;
@@ -571,10 +542,6 @@ internal Gfx_EventList gfx_get_events(Arena *arena, B32 wait) {
                     }
                 }
             } break;
-        }
-
-        if (event->kind != Gfx_EventKind_Null) {
-            dll_push_back(events.first, events.last, event);
         }
 
         free(event_node->event);
@@ -698,8 +665,7 @@ internal Str8 gfx_get_clipboard_text(Arena *arena) {
     } else {
         // NOTE(simon): Someone else owns the clipboard selection, and we are
         // incredibly sad :( There is no good solution to how you get selection
-        // contents, other than waiting for "some amount of time", or doing
-        // other dirty tricks.
+        // contents.
 
         Arena_Temporary scratch = arena_get_scratch(&arena, 1);
 
@@ -782,6 +748,11 @@ internal Str8 gfx_get_clipboard_text(Arena *arena) {
                 if (incremental && notify->atom == state->clipboard_property_atom && notify->state == XCB_PROPERTY_NEW_VALUE) {
                     consumed = true;
 
+                    // TODO(simon): We might need to do this request multiple
+                    // times if the X-server doesn't allow us to grab
+                    // everything from the property in one go. The maximum size
+                    // of a property might be larger than the maximum size of a
+                    // response.
                     xcb_get_property_cookie_t cookie = xcb_get_property(
                         state->connection,
                         true,
