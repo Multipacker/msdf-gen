@@ -35,7 +35,11 @@ if [ -v error_limit ]; then
     errors+="-ferror-limit=5 "
 fi
 
-libraries="-lm -lSDL2 -lxcb -lxcb-cursor -lxcb-xkb -lxkbcommon -lxkbcommon-x11 -lEGL -lpthread"
+wayland-scanner client-header < /usr/share/wayland-protocols/stable/xdg-shell/xdg-shell.xml > src/graphics/wayland/wayland_xdg_shell.generated.h
+wayland-scanner private-code  < /usr/share/wayland-protocols/stable/xdg-shell/xdg-shell.xml > src/graphics/wayland/wayland_xdg_shell.generated.c
+
+x11_libraries="-lxcb -lxcb-cursor -lxcb-xkb -lxkbcommon -lxkbcommon-x11 -lEGL"
+libraries="-lm -lSDL2 -lpthread -lwayland-client -lwayland-egl -lEGL -lxkbcommon"
 common_compiler_flags="-I. ${errors}"
 common_linker_flags="${libraries}"
 

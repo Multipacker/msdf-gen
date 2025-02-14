@@ -4,7 +4,8 @@
 #  include "win32_opengl.c"
 #elif OS_LINUX
 //#  include "sdl_opengl.c"
-#  include "x11_opengl.c"
+//#  include "x11_opengl.c"
+#  include "wayland_opengl.c"
 #endif
 
 global OpenGL_Context global_opengl_context;

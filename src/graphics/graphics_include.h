@@ -5,7 +5,8 @@
 
 #if OS_LINUX
 //#  include "sdl/sdl_include.h"
-#  include "x11/x11_include.h"
+//#  include "x11/x11_include.h"
+#  include "wayland/wayland_include.h"
 #elif OS_WINDOWS
 #  include "win32/win32_include.h"
 #else

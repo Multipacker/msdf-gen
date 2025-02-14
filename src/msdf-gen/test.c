@@ -1,16 +1,19 @@
 #include "src/base/base_include.h"
 #include "src/graphics/graphics_include.h"
 #include "src/render/render_include.h"
+#include "src/draw/draw_include.h"
 
 #include "src/base/base_include.c"
 #include "src/graphics/graphics_include.c"
 #include "src/render/render_include.c"
+#include "src/draw/draw_include.c"
 
 internal S32 os_run(Str8List arguments) {
     Arena *arena = arena_create();
 
     gfx_create(str8_literal("Test"), 1280, 720);
     render_init();
+    render_create();
 
     B32 running = true;
     while (running) {
@@ -61,6 +64,15 @@ internal S32 os_run(Str8List arguments) {
             os_console_print(kind);
             os_console_print(str8_literal("\n"));
         }
+
+        V2U32 client_area = gfx_get_window_client_area();
+        render_begin(client_area);
+        draw_begin_frame();
+        Draw_List *draw_list = draw_list_create();
+        draw_list_push(draw_list);
+        draw_rectangle(r2f32(100, 100, 200, 200), v4f32(1, 0, 0, 1), 0, 0, 0);
+        draw_submit_list(draw_list);
+        render_end();
 
         gfx_swap_buffers();
         arena_end_temporary(scratch);

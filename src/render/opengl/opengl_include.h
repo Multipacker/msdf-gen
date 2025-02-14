@@ -7,7 +7,8 @@
 #  include "win32_opengl.h"
 #elif OS_LINUX
 //#  include "sdl_opengl.h"
-#  include "x11_opengl.h"
+//#  include "x11_opengl.h"
+#  include "wayland_opengl.h"
 #endif
 
 typedef struct OpenGL_Context OpenGL_Context;
