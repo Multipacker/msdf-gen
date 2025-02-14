@@ -49,7 +49,6 @@ internal B32 render_init(Void) {
             if (context) {
                 const EGLAttrib surface_attributes[] = {
                     EGL_GL_COLORSPACE, EGL_GL_COLORSPACE_LINEAR,
-                    EGL_RENDER_BUFFER, EGL_SINGLE_BUFFER,
                     EGL_NONE,
                 };
 
