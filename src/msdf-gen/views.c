@@ -131,7 +131,7 @@ PANEL_BUILD_FUNCTION(view_glyph_list) {
     }
 
     F32 preferred_width = 3.0f * (F32) ui_font_size_top();
-    U32 codepoints_per_row = (U32) f32_floor(container_width / preferred_width);
+    U32 codepoints_per_row = (U32) s32_max(1, (S32) f32_floor(container_width / preferred_width));
     if (!codepoints_per_row) {
         codepoints_per_row = 1;
     }
