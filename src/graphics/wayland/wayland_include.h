@@ -10,29 +10,57 @@
 
 typedef struct Wayland_State Wayland_State;
 struct Wayland_State {
+    // NOTE(simon): Shared state.
     struct wl_display *display;
     struct wl_compositor *compositor;
     struct wl_data_device_manager *data_device_manager;
+    struct wl_shm *shm;
     struct xdg_wm_base *xdg_wm_base;
     struct xkb_context *xkb_context;
+    Arena *event_arena;
+    // TODO(simon): Maybe have a shared internal arena for events while they
+    // are being produced.
+    Gfx_EventList events;
 
+    // NOTE(simon): Per seat state.
     struct wl_seat *seat;
-    struct wl_pointer *pointer;
-    struct wl_keyboard *keyboard;
-    struct xkb_keymap *xkb_keymap;
-    struct xkb_state *xkb_state;
-    struct wl_data_device *data_device;
     U32 previous_capabilities;
 
+    // NOTE(simon): Per seat pointer state.
+    struct wl_pointer *pointer;
+    V2F32 pointer_axis;
+    V2F32 pointer_axis_discrete;
+    V2F32 pointer_position;
+
+    // NOTE(simon): Per seat keyboard state.
+    struct wl_keyboard *keyboard;
+    struct xkb_keymap  *xkb_keymap;
+    struct xkb_state   *xkb_state;
+    Gfx_KeyModifier     modifiers;
+
+    // NOTE(simon): Per seat data device state.
+    struct wl_data_device *data_device;
+    struct wl_data_offer  *selection_offer;
+    struct wl_data_source *selection_source;
+    Arena *selection_source_arena;
+    Str8   selection_source_str8;
+    // TODO(simon): What if we don't have a serial yet? Do what SDL does and
+    // wait for a serial and then send it.
+    U32    selection_source_serial;
+    struct wl_data_offer  *drag_and_drop_offer;
+
+    // NOTE(simon): Per window state.
     S32 width;
     S32 height;
-    struct wl_surface *wl_surface;
-    struct xdg_surface *xdg_surface;
+    struct wl_surface   *wl_surface;
+    struct xdg_surface  *xdg_surface;
     struct xdg_toplevel *xdg_toplevel;
     VoidFunction *swap_buffers;
     VoidFunction *resize;
     VoidFunction *update;
 };
+
+// NOTE(simon): Forward declaration of all event listeners.
 
 internal Void wayland_xdg_wm_base_ping(Void *data, struct xdg_wm_base *xdg_wm_base, U32 serial);
 
@@ -83,7 +111,7 @@ internal Void wayland_seat_name(Void *data, struct wl_seat *seat, const char *na
 
 global const struct wl_seat_listener wayland_seat_listener = {
     .capabilities = wayland_seat_capabilities,
-    .name = wayland_seat_name,
+    .name         = wayland_seat_name,
 };
 
 internal Void wayland_data_device_data_offer(Void *data, struct wl_data_device *data_device, struct wl_data_offer *id);
@@ -124,6 +152,32 @@ internal Void wayland_xdg_toplevel_close(Void *data, struct xdg_toplevel *xdg_to
 global const struct xdg_toplevel_listener wayland_xdg_toplevel_listener = {
     .configure = wayland_xdg_toplevel_configure,
     .close     = wayland_xdg_toplevel_close,
+};
+
+internal Void wayland_data_offer_offer(Void *data, struct wl_data_offer *wl_data_offer, const char *mime_type);
+internal Void wayland_data_offer_source_actions(Void *data, struct wl_data_offer *wl_data_offer, U32 source_actions);
+internal Void wayland_data_offer_action(Void *data, struct wl_data_offer *wl_data_offer, U32 dnd_action);
+
+global const struct wl_data_offer_listener wayland_data_offer_listener = {
+    .offer          = wayland_data_offer_offer,
+    .source_actions = wayland_data_offer_source_actions,
+    .action         = wayland_data_offer_action,
+};
+
+internal Void wayland_data_source_target(Void *data, struct wl_data_source *data_source, const char *mime_type);
+internal Void wayland_data_source_send(Void *data, struct wl_data_source *data_source, const char *mime_type, S32 fd);
+internal Void wayland_data_source_cancelled(Void *data, struct wl_data_source *data_source);
+internal Void wayland_data_source_dnd_drop_performed(Void *data, struct wl_data_source *data_source);
+internal Void wayland_data_source_dnd_finished(Void *data, struct wl_data_source *data_source);
+internal Void wayland_data_source_action(Void *data, struct wl_data_source *data_source, U32 dnd_action);
+
+global const struct wl_data_source_listener wayland_data_source_listener = {
+    .target             = wayland_data_source_target,
+    .send               = wayland_data_source_send,
+    .cancelled          = wayland_data_source_cancelled,
+    .dnd_drop_performed = wayland_data_source_dnd_drop_performed,
+    .dnd_finished       = wayland_data_source_dnd_finished,
+    .action             = wayland_data_source_action,
 };
 
 #endif // WAYLAND_INCLUDE_H
