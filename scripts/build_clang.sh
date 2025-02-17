@@ -39,7 +39,8 @@ wayland-scanner client-header < /usr/share/wayland-protocols/stable/xdg-shell/xd
 wayland-scanner private-code  < /usr/share/wayland-protocols/stable/xdg-shell/xdg-shell.xml > src/graphics/wayland/wayland_xdg_shell.generated.c
 
 x11_libraries="-lxcb -lxcb-cursor -lxcb-xkb -lxkbcommon -lxkbcommon-x11 -lEGL"
-libraries="-lm -lSDL2 -lpthread -lwayland-client -lwayland-egl -lEGL -lxkbcommon"
+wayland_libraries=" -lwayland-client -lwayland-egl -lEGL -lxkbcommon"
+libraries="-lm -lSDL2 -lpthread ${wayland_libraries}"
 common_compiler_flags="-I. ${errors}"
 common_linker_flags="${libraries}"
 
@@ -76,5 +77,5 @@ fi
 
 mkdir -p build
 
-#clang $compiler_flags $linker_flags src/msdf-gen/main.c -o build/msdf-gen
+clang $compiler_flags $linker_flags src/msdf-gen/main.c -o build/msdf-gen
 clang $compiler_flags $linker_flags src/msdf-gen/test.c -o build/test
