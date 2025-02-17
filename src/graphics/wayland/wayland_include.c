@@ -4,6 +4,7 @@
 #include <linux/input-event-codes.h>
 
 #include "wayland_xdg_shell.generated.c"
+#include "wayland_xdg_decoration.generated.c"
 
 global Wayland_State global_wayland_state;
 
@@ -467,7 +468,7 @@ internal Void wayland_xdg_surface_configure(Void *data, struct xdg_surface *xdg_
 
 
 
-// NOTE(simon): XDG toplevel events
+// NOTE(simon): XDG toplevel events.
 internal Void wayland_xdg_toplevel_configure(Void *data, struct xdg_toplevel *xgd_toplevel, S32 width, S32 height, struct wl_array *states) {
     Wayland_State *state = &global_wayland_state;
     state->width = width;
@@ -482,8 +483,13 @@ internal Void wayland_xdg_toplevel_close(Void *data, struct xdg_toplevel *xdg_to
 }
 
 
+// NOTE(simon): XDG toplevel decoration events.
+internal Void wayland_xdg_toplevel_decoration_configure(Void *data, struct zxdg_toplevel_decoration_v1 *xdg_toplevel_decoration, U32 mode) {
+}
 
-// NOTE(simon): Registry events
+
+
+// NOTE(simon): Registry events.
 internal Void wayland_register_global(Void *data, struct wl_registry *registry, U32 name, const char *interface, U32 version) {
     Wayland_State *state = &global_wayland_state;
 
@@ -498,6 +504,8 @@ internal Void wayland_register_global(Void *data, struct wl_registry *registry, 
     } else if (strcmp(interface, xdg_wm_base_interface.name) == 0) {
         state->xdg_wm_base = wl_registry_bind(registry, name, &xdg_wm_base_interface, 3);
         xdg_wm_base_add_listener(state->xdg_wm_base, &wayland_xdg_wm_base_listener, 0);
+    } else if (strcmp(interface, zxdg_decoration_manager_v1_interface.name) == 0) {
+        state->xdg_decoration_manager = wl_registry_bind(registry, name, &zxdg_decoration_manager_v1_interface, 1);
     }
 }
 
@@ -535,6 +543,11 @@ internal Void gfx_create(Str8 title, U32 width, U32 height) {
     xdg_toplevel_add_listener(state->xdg_toplevel, &wayland_xdg_toplevel_listener, 0);
     CStr title_cstr = cstr_from_str8(scratch.arena, title);
     xdg_toplevel_set_title(state->xdg_toplevel, title_cstr);
+    if (state->xdg_decoration_manager) {
+        state->xdg_toplevel_decoration = zxdg_decoration_manager_v1_get_toplevel_decoration(state->xdg_decoration_manager, state->xdg_toplevel);
+        zxdg_toplevel_decoration_v1_add_listener(state->xdg_toplevel_decoration, &wayland_xdg_toplevel_decoration_listener, 0);
+        zxdg_toplevel_decoration_v1_set_mode(state->xdg_toplevel_decoration, ZXDG_TOPLEVEL_DECORATION_V1_MODE_SERVER_SIDE);
+    }
     wl_surface_commit(state->wl_surface);
 
     arena_end_temporary(scratch);

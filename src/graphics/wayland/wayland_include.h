@@ -7,6 +7,7 @@
 #include <xkbcommon/xkbcommon.h>
 
 #include "wayland_xdg_shell.generated.h"
+#include "wayland_xdg_decoration.generated.h"
 
 typedef struct Wayland_State Wayland_State;
 struct Wayland_State {
@@ -16,6 +17,7 @@ struct Wayland_State {
     struct wl_data_device_manager *data_device_manager;
     struct wl_shm *shm;
     struct xdg_wm_base *xdg_wm_base;
+    struct zxdg_decoration_manager_v1 *xdg_decoration_manager;
     struct xkb_context *xkb_context;
     Arena *event_arena;
     // TODO(simon): Maybe have a shared internal arena for events while they
@@ -50,11 +52,13 @@ struct Wayland_State {
     struct wl_data_offer  *drag_and_drop_offer;
 
     // NOTE(simon): Per window state.
+    // TODO(simon): Track configuration of windows
     S32 width;
     S32 height;
     struct wl_surface   *wl_surface;
     struct xdg_surface  *xdg_surface;
     struct xdg_toplevel *xdg_toplevel;
+    struct zxdg_toplevel_decoration_v1 *xdg_toplevel_decoration;
     VoidFunction *swap_buffers;
     VoidFunction *resize;
     VoidFunction *update;
@@ -178,6 +182,12 @@ global const struct wl_data_source_listener wayland_data_source_listener = {
     .dnd_drop_performed = wayland_data_source_dnd_drop_performed,
     .dnd_finished       = wayland_data_source_dnd_finished,
     .action             = wayland_data_source_action,
+};
+
+internal Void wayland_xdg_toplevel_decoration_configure(Void *data, struct zxdg_toplevel_decoration_v1 *xdg_toplevel_decoration, U32 mode);
+
+global const struct zxdg_toplevel_decoration_v1_listener wayland_xdg_toplevel_decoration_listener = {
+    .configure = wayland_xdg_toplevel_decoration_configure,
 };
 
 #endif // WAYLAND_INCLUDE_H

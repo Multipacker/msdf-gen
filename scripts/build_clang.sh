@@ -52,6 +52,8 @@ if [ -v wayland ]; then
 
     wayland-scanner client-header < /usr/share/wayland-protocols/stable/xdg-shell/xdg-shell.xml > src/graphics/wayland/wayland_xdg_shell.generated.h
     wayland-scanner private-code  < /usr/share/wayland-protocols/stable/xdg-shell/xdg-shell.xml > src/graphics/wayland/wayland_xdg_shell.generated.c
+    wayland-scanner client-header < /usr/share/wayland-protocols/unstable/xdg-decoration/xdg-decoration-unstable-v1.xml > src/graphics/wayland/wayland_xdg_decoration.generated.h
+    wayland-scanner private-code  < /usr/share/wayland-protocols/unstable/xdg-decoration/xdg-decoration-unstable-v1.xml > src/graphics/wayland/wayland_xdg_decoration.generated.c
 elif [ -v x11 ]; then
     echo "X11 backend"
     libraries="${common_libraries} ${x11_libraries}"
