@@ -453,11 +453,13 @@ internal Void wayland_data_source_action(Void *data, struct wl_data_source *data
 // NOTE(simon): XDG surface events.
 internal Void wayland_xdg_surface_configure(Void *data, struct xdg_surface *xdg_surface, U32 serial) {
     Wayland_State *state = &global_wayland_state;
-    xdg_surface_ack_configure(xdg_surface, serial);
 
     if (state->resize) {
         state->resize();
     }
+
+    xdg_surface_ack_configure(xdg_surface, serial);
+
     if (state->update) {
         state->update();
     }
