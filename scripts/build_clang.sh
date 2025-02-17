@@ -3,8 +3,13 @@
 set -e
 
 for argument in "$@"; do declare $argument='1'; done
-if [ ! -v release ] && [ ! -v profile ]; then
+if [ ! -v debug ] && [ ! -v release ] && [ ! -v profile ]; then
+    echo "No version specified, using debug"
     debug=1
+fi
+if [ ! -v wayland ] && [ ! -v x11 ]; then
+    echo "No backend specified, choosing from XDG_SESSION_TYPE($XDG_SESSION_TYPE)"
+    declare $XDG_SESSION_TYPE='1'
 fi
 
 # Common flags
@@ -35,13 +40,25 @@ if [ -v error_limit ]; then
     errors+="-ferror-limit=5 "
 fi
 
-wayland-scanner client-header < /usr/share/wayland-protocols/stable/xdg-shell/xdg-shell.xml > src/graphics/wayland/wayland_xdg_shell.generated.h
-wayland-scanner private-code  < /usr/share/wayland-protocols/stable/xdg-shell/xdg-shell.xml > src/graphics/wayland/wayland_xdg_shell.generated.c
+wayland_libraries=" -lwayland-client -lwayland-egl"
+x11_libraries="-lxcb -lxcb-cursor -lxcb-xkb -lxkbcommon-x11"
+common_libraries="-lm -lpthread -lEGL -lxkbcommon"
 
-x11_libraries="-lxcb -lxcb-cursor -lxcb-xkb -lxkbcommon -lxkbcommon-x11 -lEGL"
-wayland_libraries=" -lwayland-client -lwayland-egl -lEGL -lxkbcommon"
-libraries="-lm -lSDL2 -lpthread ${wayland_libraries}"
-common_compiler_flags="-I. ${errors}"
+# Choose libraries
+if [ -v wayland ]; then
+    echo "Wayland backend"
+    libraries="${common_libraries} ${wayland_libraries}"
+    defines="-DLINUX_WAYLAND=1"
+
+    wayland-scanner client-header < /usr/share/wayland-protocols/stable/xdg-shell/xdg-shell.xml > src/graphics/wayland/wayland_xdg_shell.generated.h
+    wayland-scanner private-code  < /usr/share/wayland-protocols/stable/xdg-shell/xdg-shell.xml > src/graphics/wayland/wayland_xdg_shell.generated.c
+elif [ -v x11 ]; then
+    echo "X11 backend"
+    libraries="${common_libraries} ${x11_libraries}"
+    defines="-DLINUX_X11=1"
+fi
+
+common_compiler_flags="-I. ${errors} ${defines}"
 common_linker_flags="${libraries}"
 
 # Debug flags
