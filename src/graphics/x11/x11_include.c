@@ -626,6 +626,11 @@ internal Void gfx_set_update_function(VoidFunction *update) {
     state->update = update;
 }
 
+internal F32 gfx_dpi(Void) {
+    F32 dpi = 96.0f;
+    return dpi;
+}
+
 
 
 // NOTE(simon): Clipboard

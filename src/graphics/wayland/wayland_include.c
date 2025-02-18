@@ -80,6 +80,21 @@ internal Void wayland_update_selection_serial(U32 serial) {
     }
 }
 
+internal Void wayland_update_surface_scale(Void) {
+    Wayland_State *state = &global_wayland_state;
+
+    S32 scale = 1;
+    for (Wayland_OutputNode *node = state->first_surface_output; node; node = node->next) {
+        scale = s32_max(scale, node->output->scale);
+    }
+
+    state->scale = scale;
+    wl_surface_set_buffer_scale(state->wl_surface, scale);
+    if (state->resize) {
+        state->resize();
+    }
+}
+
 
 
 // NOTE(simon): XDG WM base events
@@ -585,6 +600,7 @@ internal Void wayland_output_mode(Void *data, struct wl_output *wl_output, U32 f
 internal Void wayland_output_done(Void *data, struct wl_output *wl_output) {
     Wayland_Output *output = (Wayland_Output *) data;
     output->scale = output->pending_scale;
+    wayland_update_surface_scale();
 }
 
 internal Void wayland_output_scale(Void *data, struct wl_output *wl_output, S32 factor) {
@@ -621,6 +637,8 @@ internal Void wayland_surface_enter(Void *data, struct wl_surface *surface, stru
         node->output = output;
         dll_push_back(state->first_surface_output, state->last_surface_output, node);
     }
+
+    wayland_update_surface_scale();
 }
 
 internal Void wayland_surface_leave(Void *data, struct wl_surface *surface, struct wl_output *output) {
@@ -635,6 +653,8 @@ internal Void wayland_surface_leave(Void *data, struct wl_surface *surface, stru
             break;
         }
     }
+
+    wayland_update_surface_scale();
 }
 
 
@@ -749,7 +769,7 @@ internal Void gfx_create(Str8 title, U32 width, U32 height) {
 
 internal V2U32 gfx_get_window_client_area(Void) {
     Wayland_State *state = &global_wayland_state;
-    V2U32 result = v2u32((U32) state->width, (U32) state->height);
+    V2U32 result = v2u32((U32) (state->scale * state->width), (U32) (state->scale * state->height));
     return result;
 }
 
@@ -831,6 +851,12 @@ internal Void gfx_set_cursor(Gfx_Cursor cursor) {
 internal Void gfx_set_update_function(VoidFunction *update) {
     Wayland_State *state = &global_wayland_state;
     state->update = update;
+}
+
+internal F32 gfx_dpi(Void) {
+    Wayland_State *state = &global_wayland_state;
+    F32 dpi = (F32) state->scale * 96.0f;
+    return dpi;
 }
 
 

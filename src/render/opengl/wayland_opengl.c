@@ -83,7 +83,7 @@ internal Void wayland_opengl_swap_buffers(Void) {
 internal Void wayland_opengl_resize(Void) {
     Wayland_State *wayland_state = &global_wayland_state;
     Wayland_OpenGLState *opengl_state = &global_wayland_opengl_state;
-    wl_egl_window_resize(opengl_state->window, wayland_state->width, wayland_state->height, 0, 0);
+    wl_egl_window_resize(opengl_state->window, wayland_state->scale * wayland_state->width, wayland_state->scale * wayland_state->height, 0, 0);
 }
 
 internal Void opengl_backend_init(Void) {

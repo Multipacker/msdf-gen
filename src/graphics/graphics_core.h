@@ -137,6 +137,7 @@ internal V2F32         gfx_get_mouse_position(Void);
 internal Void          gfx_swap_buffers(Void);
 internal Void          gfx_set_cursor(Gfx_Cursor cursor);
 internal Void          gfx_set_update_function(VoidFunction *update);
+internal F32           gfx_dpi(Void);
 
 // NOTE(simon): Clipboard
 internal Void gfx_set_clipboard_text(Str8 text);

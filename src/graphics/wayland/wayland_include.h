@@ -86,6 +86,7 @@ struct Wayland_State {
     // TODO(simon): Track configuration of windows
     S32 width;
     S32 height;
+    S32 scale;
     struct wl_surface   *wl_surface;
     struct xdg_surface  *xdg_surface;
     struct xdg_toplevel *xdg_toplevel;
