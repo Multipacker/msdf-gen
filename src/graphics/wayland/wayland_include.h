@@ -4,6 +4,7 @@
 #undef global
 #include <wayland-client.h>
 #define global static
+#include <wayland-cursor.h>
 #include <xkbcommon/xkbcommon.h>
 
 #include "wayland_xdg_shell.generated.h"
@@ -19,6 +20,7 @@ struct Wayland_State {
     struct xdg_wm_base *xdg_wm_base;
     struct zxdg_decoration_manager_v1 *xdg_decoration_manager;
     struct xkb_context *xkb_context;
+    struct wl_cursor_theme *cursor_theme;
     Arena *event_arena;
     // TODO(simon): Maybe have a shared internal arena for events while they
     // are being produced.
@@ -33,6 +35,8 @@ struct Wayland_State {
     V2F32 pointer_axis;
     V2F32 pointer_axis_discrete;
     V2F32 pointer_position;
+    U32 pointer_enter_serial;
+    Gfx_Cursor pointer_cursor;
 
     // NOTE(simon): Per seat keyboard state.
     struct wl_keyboard *keyboard;
@@ -156,6 +160,12 @@ internal Void wayland_xdg_toplevel_close(Void *data, struct xdg_toplevel *xdg_to
 global const struct xdg_toplevel_listener wayland_xdg_toplevel_listener = {
     .configure = wayland_xdg_toplevel_configure,
     .close     = wayland_xdg_toplevel_close,
+};
+
+internal Void wayland_buffer_release(Void *data, struct wl_buffer *buffer);
+
+global const struct wl_buffer_listener wayland_buffer_listener = {
+    .release = wayland_buffer_release,
 };
 
 internal Void wayland_data_offer_offer(Void *data, struct wl_data_offer *wl_data_offer, const char *mime_type);

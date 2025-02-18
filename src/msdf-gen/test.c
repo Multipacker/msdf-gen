@@ -53,6 +53,7 @@ internal Void update(Void) {
         if (event->kind == Gfx_EventKind_KeyPress && event->key == Gfx_Key_MouseLeft) {
             Str8 copy = gfx_get_clipboard_text(scratch.arena);
             os_console_print(copy);
+            gfx_set_cursor(Gfx_Cursor_Hand);
         }
         if (event->kind == Gfx_EventKind_KeyPress && event->key == Gfx_Key_MouseRight) {
             gfx_set_clipboard_text(str8_literal("This is a test text"));

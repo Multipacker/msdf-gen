@@ -40,7 +40,7 @@ if [ -v error_limit ]; then
     errors+="-ferror-limit=5 "
 fi
 
-wayland_libraries=" -lwayland-client -lwayland-egl"
+wayland_libraries=" -lwayland-client -lwayland-egl -lwayland-cursor"
 x11_libraries="-lxcb -lxcb-cursor -lxcb-xkb -lxkbcommon-x11"
 common_libraries="-lm -lpthread -lEGL -lxkbcommon"
 

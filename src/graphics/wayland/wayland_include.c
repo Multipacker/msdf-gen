@@ -8,6 +8,55 @@
 
 global Wayland_State global_wayland_state;
 
+
+
+internal Void wayland_update_cursor(Void) {
+    Wayland_State *state = &global_wayland_state;
+    if (!state->cursor_theme) {
+        return;
+    }
+
+    local struct wl_surface *cursors[Gfx_Cursor_COUNT] = { 0 };
+    local V2S32 hotspots[Gfx_Cursor_COUNT] = { 0 };
+
+    CStr names[] = {
+        [Gfx_Cursor_Pointer]  = "default",
+        [Gfx_Cursor_Hand]     = "pointer",
+        [Gfx_Cursor_Beam]     = "text",
+        [Gfx_Cursor_SizeNWSE] = "nwse-resize",
+        [Gfx_Cursor_SizeNESW] = "nesw-resize",
+        [Gfx_Cursor_SizeWE]   = "ew-resize",
+        [Gfx_Cursor_SizeNS]   = "ns-resize",
+        [Gfx_Cursor_SizeAll]  = "all-scroll",
+        [Gfx_Cursor_Disabled] = "not-allowd",
+    };
+
+    if (!cursors[state->pointer_cursor]) {
+        struct wl_cursor *theme_cursor = wl_cursor_theme_get_cursor(state->cursor_theme, names[state->pointer_cursor]);
+        if (theme_cursor && theme_cursor->image_count > 0) {
+            struct wl_cursor_image *image = theme_cursor->images[0];
+            struct wl_buffer *buffer = wl_cursor_image_get_buffer(image);
+            wl_buffer_add_listener(buffer, &wayland_buffer_listener, 0);
+            struct wl_surface *surface = wl_compositor_create_surface(state->compositor);
+            wl_surface_attach(surface, buffer, 0, 0);
+            wl_surface_commit(surface);
+
+            cursors[state->pointer_cursor]  = surface;
+            hotspots[state->pointer_cursor] = v2s32((S32) image->hotspot_x, (S32) image->hotspot_y);
+        }
+    }
+
+    if (cursors[state->pointer_cursor]) {
+        wl_pointer_set_cursor(
+            state->pointer,
+            state->pointer_enter_serial,
+            cursors[state->pointer_cursor],
+            hotspots[state->pointer_cursor].x,
+            hotspots[state->pointer_cursor].y
+        );
+    }
+}
+
 // NOTE(simon): XDG WM base events
 internal Void wayland_xdg_wm_base_ping(Void *data, struct xdg_wm_base *xdg_wm_base, U32 serial) {
     xdg_wm_base_pong(xdg_wm_base, serial);
@@ -19,11 +68,14 @@ internal Void wayland_xdg_wm_base_ping(Void *data, struct xdg_wm_base *xdg_wm_ba
 internal Void wayland_pointer_enter(Void *data, struct wl_pointer *pointer, U32 serial, struct wl_surface *surface, wl_fixed_t surface_x, wl_fixed_t surface_y) {
     Wayland_State *state = &global_wayland_state;
     state->selection_source_serial = serial;
+    state->pointer_enter_serial = serial;
 
     state->pointer_position = v2f32(
         (F32) wl_fixed_to_double(surface_x),
         (F32) wl_fixed_to_double(surface_y)
     );
+
+    wayland_update_cursor();
 }
 
 internal Void wayland_pointer_leave(Void *data, struct wl_pointer *pointer, U32 serial, struct wl_surface *surface) {
@@ -338,6 +390,13 @@ internal Void wayland_seat_name(Void *data, struct wl_seat *seat, const char *na
 
 
 
+// NOTE(simon): Buffer events.
+internal Void wayland_buffer_release(Void *data, struct wl_buffer *buffer) {
+    wl_buffer_destroy(buffer);
+}
+
+
+
 // NOTE(simon): Data offer events.
 internal Void wayland_data_offer_offer(Void *data, struct wl_data_offer *wl_data_offer, const char *mime_type) {
 }
@@ -501,6 +560,8 @@ internal Void wayland_register_global(Void *data, struct wl_registry *registry, 
         wl_seat_add_listener(state->seat, &wayland_seat_listener, 0);
     } else if (strcmp(interface, wl_data_device_manager_interface.name) == 0) {
         state->data_device_manager = wl_registry_bind(registry, name, &wl_data_device_manager_interface, 3);
+    } else if (strcmp(interface, wl_shm_interface.name) == 0) {
+        state->shm = wl_registry_bind(registry, name, &wl_shm_interface, 1);
     } else if (strcmp(interface, xdg_wm_base_interface.name) == 0) {
         state->xdg_wm_base = wl_registry_bind(registry, name, &xdg_wm_base_interface, 3);
         xdg_wm_base_add_listener(state->xdg_wm_base, &wayland_xdg_wm_base_listener, 0);
@@ -533,6 +594,17 @@ internal Void gfx_create(Str8 title, U32 width, U32 height) {
         state->data_device = wl_data_device_manager_get_data_device(state->data_device_manager, state->seat);
         wl_data_device_add_listener(state->data_device, &wayland_data_device_listener, 0);
     }
+
+    char *cursor_theme_name = getenv("XCURSOR_THEME");
+    if (!cursor_theme_name) {
+        cursor_theme_name = "default";
+    }
+    char *cursor_theme_size_string = getenv("XCURSOR_SIZE");
+    if (!cursor_theme_size_string) {
+        cursor_theme_size_string = "24";
+    }
+    int cursor_theme_size = (int) u64_from_str8(str8_cstr(cursor_theme_size_string)).value;
+    state->cursor_theme = wl_cursor_theme_load(cursor_theme_name, cursor_theme_size, state->shm);
 
     state->width = (S32) width;
     state->height = (S32) height;
@@ -630,6 +702,8 @@ internal Void gfx_swap_buffers(Void) {
 
 internal Void gfx_set_cursor(Gfx_Cursor cursor) {
     Wayland_State *state = &global_wayland_state;
+    state->pointer_cursor = cursor;
+    wayland_update_cursor();
 }
 
 internal Void gfx_set_update_function(VoidFunction *update) {
