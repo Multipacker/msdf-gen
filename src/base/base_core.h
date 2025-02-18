@@ -140,6 +140,8 @@
 #define integer_from_pointer(pointer) ((U64) ((uintptr_t) (pointer)))
 #define pointer_from_integer(integer) ((void *) ((uintptr_t) (integer)))
 
+#include <stddef.h>
+
 #define member(type, type_member) (((type *) 0)->type_member)
 #define member_offset(type, type_member) offsetof(type, type_member)
 
