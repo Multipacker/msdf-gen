@@ -57,6 +57,31 @@ internal Void wayland_update_cursor(Void) {
     }
 }
 
+internal Void wayland_set_selection(Void) {
+    Wayland_State *state = &global_wayland_state;
+
+    if (state->selection_source_serial) {
+        state->selection_source = wl_data_device_manager_create_data_source(state->data_device_manager);
+        wl_data_source_add_listener(state->selection_source, &wayland_data_source_listener, 0);
+        // TODO(simon): Look at availible mime types.
+        wl_data_source_offer(state->selection_source, "text/plain;charset=utf-8");
+        wl_data_source_offer(state->selection_source, "UTF8_STRING");
+        wl_data_device_set_selection(state->data_device, state->selection_source, state->selection_source_serial);
+    }
+}
+
+internal Void wayland_update_selection_serial(U32 serial) {
+    Wayland_State *state = &global_wayland_state;
+
+    state->selection_source_serial = serial;
+
+    if (!state->selection_source && state->selection_source_str8.size) {
+        wayland_set_selection();
+    }
+}
+
+
+
 // NOTE(simon): XDG WM base events
 internal Void wayland_xdg_wm_base_ping(Void *data, struct xdg_wm_base *xdg_wm_base, U32 serial) {
     xdg_wm_base_pong(xdg_wm_base, serial);
@@ -67,7 +92,6 @@ internal Void wayland_xdg_wm_base_ping(Void *data, struct xdg_wm_base *xdg_wm_ba
 // NOTE(simon): Pointer events
 internal Void wayland_pointer_enter(Void *data, struct wl_pointer *pointer, U32 serial, struct wl_surface *surface, wl_fixed_t surface_x, wl_fixed_t surface_y) {
     Wayland_State *state = &global_wayland_state;
-    state->selection_source_serial = serial;
     state->pointer_enter_serial = serial;
 
     state->pointer_position = v2f32(
@@ -76,11 +100,12 @@ internal Void wayland_pointer_enter(Void *data, struct wl_pointer *pointer, U32 
     );
 
     wayland_update_cursor();
+    wayland_update_selection_serial(serial);
 }
 
 internal Void wayland_pointer_leave(Void *data, struct wl_pointer *pointer, U32 serial, struct wl_surface *surface) {
     Wayland_State *state = &global_wayland_state;
-    state->selection_source_serial = serial;
+    wayland_update_selection_serial(serial);
 }
 
 internal Void wayland_pointer_motion(Void *data, struct wl_pointer *pointer, U32 time, wl_fixed_t surface_x, wl_fixed_t surface_y) {
@@ -94,7 +119,7 @@ internal Void wayland_pointer_motion(Void *data, struct wl_pointer *pointer, U32
 
 internal Void wayland_pointer_button(Void *data, struct wl_pointer *pointer, U32 serial, U32 time, U32 button, U32 button_state) {
     Wayland_State *state = &global_wayland_state;
-    state->selection_source_serial = serial;
+    wayland_update_selection_serial(serial);
 
     Gfx_EventKind kind = Gfx_EventKind_Null;
     switch (button_state) {
@@ -204,17 +229,17 @@ internal Void wayland_keyboard_keymap(Void *data, struct wl_keyboard *keyboard, 
 
 internal Void wayland_keyboard_enter(Void *data, struct wl_keyboard *keyboard, U32 serial, struct wl_surface *surface, struct wl_array *keys) {
     Wayland_State *state = &global_wayland_state;
-    state->selection_source_serial = serial;
+    wayland_update_selection_serial(serial);
 }
 
 internal Void wayland_keyboard_leave(Void *data, struct wl_keyboard *keyboard, U32 serial, struct wl_surface *surface) {
     Wayland_State *state = &global_wayland_state;
-    state->selection_source_serial = serial;
+    wayland_update_selection_serial(serial);
 }
 
 internal Void wayland_keyboard_key(Void *data, struct wl_keyboard *keyboard, U32 serial, U32 time, U32 key, U32 key_state) {
     Wayland_State *state = &global_wayland_state;
-    state->selection_source_serial = serial;
+    wayland_update_selection_serial(serial);
 
     U32 xkb_key = 8 + key;
 
@@ -337,7 +362,7 @@ internal Void wayland_keyboard_key(Void *data, struct wl_keyboard *keyboard, U32
 
 internal Void wayland_keyboard_modifiers(Void *data, struct wl_keyboard *keyboard, U32 serial, U32 mods_depressed, U32 mods_latched, U32 mods_locked, U32 group) {
     Wayland_State *state = &global_wayland_state;
-    state->selection_source_serial = serial;
+    wayland_update_selection_serial(serial);
 
     if (state->xkb_state) {
         xkb_state_update_mask(state->xkb_state, mods_depressed, mods_latched, mods_locked, 0, 0, group);
@@ -718,13 +743,7 @@ internal Void gfx_set_clipboard_text(Str8 text) {
 
     arena_reset(state->selection_source_arena);
     state->selection_source_str8 = str8_copy(state->selection_source_arena, text);
-
-    state->selection_source = wl_data_device_manager_create_data_source(state->data_device_manager);
-    wl_data_source_add_listener(state->selection_source, &wayland_data_source_listener, 0);
-    // TODO(simon): Look at availible mime types.
-    wl_data_source_offer(state->selection_source, "text/plain;charset=utf-8");
-    wl_data_source_offer(state->selection_source, "UTF8_STRING");
-    wl_data_device_set_selection(state->data_device, state->selection_source, state->selection_source_serial);
+    wayland_set_selection();
 }
 
 internal Str8 gfx_get_clipboard_text(Arena *arena) {

@@ -50,8 +50,6 @@ struct Wayland_State {
     struct wl_data_source *selection_source;
     Arena *selection_source_arena;
     Str8   selection_source_str8;
-    // TODO(simon): What if we don't have a serial yet? Do what SDL does and
-    // wait for a serial and then send it.
     U32    selection_source_serial;
     struct wl_data_offer  *drag_and_drop_offer;
 
