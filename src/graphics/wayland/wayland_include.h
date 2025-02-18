@@ -10,9 +10,32 @@
 #include "wayland_xdg_shell.generated.h"
 #include "wayland_xdg_decoration.generated.h"
 
+typedef struct Wayland_Output Wayland_Output;
+struct Wayland_Output {
+    Wayland_Output *next;
+    Wayland_Output *previous;
+
+    U32 name;
+    struct wl_output *output;
+
+    // NOTE(simon): Pending state.
+    S32 pending_scale;
+
+    // NOTE(simon): Active state.
+    S32 scale;
+};
+
+typedef struct Wayland_OutputNode Wayland_OutputNode;
+struct Wayland_OutputNode {
+    Wayland_OutputNode *next;
+    Wayland_OutputNode *previous;
+    Wayland_Output     *output;
+};
+
 typedef struct Wayland_State Wayland_State;
 struct Wayland_State {
     // NOTE(simon): Shared state.
+    Arena *arena;
     struct wl_display *display;
     struct wl_compositor *compositor;
     struct wl_data_device_manager *data_device_manager;
@@ -53,6 +76,12 @@ struct Wayland_State {
     U32    selection_source_serial;
     struct wl_data_offer  *drag_and_drop_offer;
 
+    // NOTE(simon): Outputs
+    Wayland_Output *output_freelist;
+    Wayland_Output *first_output;
+    Wayland_Output *last_output;
+    Wayland_OutputNode *output_node_freelist;
+
     // NOTE(simon): Per window state.
     // TODO(simon): Track configuration of windows
     S32 width;
@@ -61,6 +90,8 @@ struct Wayland_State {
     struct xdg_surface  *xdg_surface;
     struct xdg_toplevel *xdg_toplevel;
     struct zxdg_toplevel_decoration_v1 *xdg_toplevel_decoration;
+    Wayland_OutputNode *first_surface_output;
+    Wayland_OutputNode *last_surface_output;
     VoidFunction *swap_buffers;
     VoidFunction *resize;
     VoidFunction *update;
@@ -196,6 +227,30 @@ internal Void wayland_xdg_toplevel_decoration_configure(Void *data, struct zxdg_
 
 global const struct zxdg_toplevel_decoration_v1_listener wayland_xdg_toplevel_decoration_listener = {
     .configure = wayland_xdg_toplevel_decoration_configure,
+};
+
+internal Void wayland_output_geometry(Void *data, struct wl_output *wl_output, S32 x, S32 y, S32 physical_width, S32 physical_height, S32 subpixel, const char *make, const char *model, S32 transform);
+internal Void wayland_output_mode(Void *data, struct wl_output *wl_output, U32 flags, S32 width, S32 height, S32 refresh);
+internal Void wayland_output_done(Void *data, struct wl_output *wl_output);
+internal Void wayland_output_scale(Void *data, struct wl_output *wl_output, S32 factor);
+internal Void wayland_output_name(Void *data, struct wl_output *wl_output, const char *name);
+internal Void wayland_output_description(Void *data, struct wl_output *wl_output, const char *description);
+
+global const struct wl_output_listener wayland_output_listener = {
+    .geometry    = wayland_output_geometry,
+    .mode        = wayland_output_mode,
+    .done        = wayland_output_done,
+    .scale       = wayland_output_scale,
+    .name        = wayland_output_name,
+    .description = wayland_output_description,
+};
+
+internal Void wayland_surface_enter(Void *data, struct wl_surface *surface, struct wl_output *output);
+internal Void wayland_surface_leave(Void *data, struct wl_surface *surface, struct wl_output *output);
+
+global const struct wl_surface_listener wayland_surface_listener = {
+    .enter = wayland_surface_enter,
+    .leave = wayland_surface_leave,
 };
 
 #endif // WAYLAND_INCLUDE_H

@@ -573,12 +573,95 @@ internal Void wayland_xdg_toplevel_decoration_configure(Void *data, struct zxdg_
 
 
 
+// NOTE(simon): Output events.
+internal Void wayland_output_geometry(Void *data, struct wl_output *wl_output, S32 x, S32 y, S32 physical_width, S32 physical_height, S32 subpixel, const char *make, const char *model, S32 transform) {
+    Wayland_Output *output = (Wayland_Output *) data;
+}
+
+internal Void wayland_output_mode(Void *data, struct wl_output *wl_output, U32 flags, S32 width, S32 height, S32 refresh) {
+    Wayland_Output *output = (Wayland_Output *) data;
+}
+
+internal Void wayland_output_done(Void *data, struct wl_output *wl_output) {
+    Wayland_Output *output = (Wayland_Output *) data;
+    output->scale = output->pending_scale;
+}
+
+internal Void wayland_output_scale(Void *data, struct wl_output *wl_output, S32 factor) {
+    Wayland_Output *output = (Wayland_Output *) data;
+    output->pending_scale = factor;
+}
+
+internal Void wayland_output_name(Void *data, struct wl_output *wl_output, const char *name) {
+}
+
+internal Void wayland_output_description(Void *data, struct wl_output *wl_output, const char *description) {
+}
+
+
+
+// NOTE(simon): Surface events.
+internal Void wayland_surface_enter(Void *data, struct wl_surface *surface, struct wl_output *wl_output) {
+    Wayland_State *state = &global_wayland_state;
+
+    // NOTE(simon): Find output.
+    Wayland_Output *output = state->first_output;
+    while (output && output->output != wl_output) {
+        output = output->next;
+    }
+
+    if (output) {
+        Wayland_OutputNode *node = state->output_node_freelist;
+        if (node) {
+            sll_stack_pop(state->output_node_freelist);
+        } else {
+            node = arena_push_struct(state->arena, Wayland_OutputNode);
+        }
+
+        node->output = output;
+        dll_push_back(state->first_surface_output, state->last_surface_output, node);
+    }
+}
+
+internal Void wayland_surface_leave(Void *data, struct wl_surface *surface, struct wl_output *output) {
+    Wayland_State *state = &global_wayland_state;
+
+    for (Wayland_OutputNode *node = state->first_surface_output, *next = 0; node; node = next) {
+        next = node->next;
+
+        if (node->output->output == output) {
+            dll_remove(state->first_surface_output, state->last_surface_output, node);
+            sll_stack_push(state->output_node_freelist, node);
+            break;
+        }
+    }
+}
+
+
+
 // NOTE(simon): Registry events.
 internal Void wayland_register_global(Void *data, struct wl_registry *registry, U32 name, const char *interface, U32 version) {
     Wayland_State *state = &global_wayland_state;
 
     if (strcmp(interface, wl_compositor_interface.name) == 0) {
         state->compositor = wl_registry_bind(registry, name, &wl_compositor_interface, 4);
+    } else if (strcmp(interface, wl_output_interface.name) == 0) {
+        Wayland_Output *output = state->output_freelist;
+        if (output) {
+            sll_stack_pop(state->output_freelist);
+            memory_zero_struct(output);
+        } else {
+            output = arena_push_struct_zero(state->arena, Wayland_Output);
+        }
+
+        output->name = name;
+        output->output = wl_registry_bind(registry, name, &wl_output_interface, 4);
+
+        output->pending_scale = 1;
+        output->scale = 1;
+
+        wl_output_add_listener(output->output, &wayland_output_listener, output);
+        dll_push_back(state->first_output, state->last_output, output);
     } else if (strcmp(interface, wl_seat_interface.name) == 0) {
         // TODO(simon): Handle multiple seats
         state->seat = wl_registry_bind(registry, name, &wl_seat_interface, 7);
@@ -597,14 +680,29 @@ internal Void wayland_register_global(Void *data, struct wl_registry *registry, 
 
 internal Void wayland_register_global_remove(Void *data, struct wl_registry *registry, U32 name) {
     Wayland_State *state = &global_wayland_state;
+
+    for (Wayland_Output *output = state->first_output, *next = 0; output; output = next) {
+        next = output->next;
+
+        if (output->name == name) {
+            wl_output_release(output->output);
+            dll_remove(state->first_output, state->last_output, output);
+            sll_stack_push(state->output_freelist, output);
+            break;
+        }
+    }
 }
 
 
 
 internal Void gfx_create(Str8 title, U32 width, U32 height) {
     Arena_Temporary scratch = arena_get_scratch(0, 0);
+
     Wayland_State *state = &global_wayland_state;
+    state->arena = arena_create();
     state->event_arena = arena_create();
+    state->selection_source_arena = arena_create();
+
     state->display = wl_display_connect(0);
     struct wl_registry *registry = wl_display_get_registry(state->display);
     wl_registry_add_listener(registry, &wayland_registry_listener, 0);
@@ -612,8 +710,6 @@ internal Void gfx_create(Str8 title, U32 width, U32 height) {
     state->xkb_context = xkb_context_new(XKB_CONTEXT_NO_FLAGS);
 
     wl_display_roundtrip(state->display);
-
-    state->selection_source_arena = arena_create();
 
     if (state->data_device_manager && state->seat) {
         state->data_device = wl_data_device_manager_get_data_device(state->data_device_manager, state->seat);
@@ -634,6 +730,7 @@ internal Void gfx_create(Str8 title, U32 width, U32 height) {
     state->width = (S32) width;
     state->height = (S32) height;
     state->wl_surface = wl_compositor_create_surface(state->compositor);
+    wl_surface_add_listener(state->wl_surface, &wayland_surface_listener, 0);
     state->xdg_surface = xdg_wm_base_get_xdg_surface(state->xdg_wm_base, state->wl_surface);
     xdg_surface_add_listener(state->xdg_surface, &wayland_xdg_surface_listener, 0);
     state->xdg_toplevel = xdg_surface_get_toplevel(state->xdg_surface);
