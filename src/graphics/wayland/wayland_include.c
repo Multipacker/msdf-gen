@@ -106,8 +106,8 @@ internal Void wayland_pointer_enter(Void *data, struct wl_pointer *pointer, U32 
     state->pointer_enter_serial = serial;
 
     state->pointer_position = v2f32(
-        (F32) wl_fixed_to_double(surface_x),
-        (F32) wl_fixed_to_double(surface_y)
+        (F32) state->scale * (F32) wl_fixed_to_double(surface_x),
+        (F32) state->scale * (F32) wl_fixed_to_double(surface_y)
     );
 
     wayland_update_cursor();
@@ -123,8 +123,8 @@ internal Void wayland_pointer_motion(Void *data, struct wl_pointer *pointer, U32
     Wayland_State *state = &global_wayland_state;
 
     state->pointer_position = v2f32(
-        (F32) wl_fixed_to_double(surface_x),
-        (F32) wl_fixed_to_double(surface_y)
+        (F32) state->scale * (F32) wl_fixed_to_double(surface_x),
+        (F32) state->scale * (F32) wl_fixed_to_double(surface_y)
     );
 }
 
