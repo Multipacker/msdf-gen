@@ -51,7 +51,7 @@ internal B32 render_init(Void) {
                     EGL_NONE,
                 };
 
-                opengl_state->window = wl_egl_window_create(wayland_state->wl_surface, wayland_state->width, wayland_state->height);
+                opengl_state->window = wl_egl_window_create(wayland_state->surface->surface, wayland_state->width, wayland_state->height);
 
                 opengl_state->surface = eglCreatePlatformWindowSurface(opengl_state->display, config, opengl_state->window, surface_attributes);
                 if (opengl_state->surface) {

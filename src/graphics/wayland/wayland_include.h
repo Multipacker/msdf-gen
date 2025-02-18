@@ -32,6 +32,30 @@ struct Wayland_OutputNode {
     Wayland_Output     *output;
 };
 
+typedef struct Wayland_CursorTheme Wayland_CursorTheme;
+struct Wayland_CursorTheme {
+    Wayland_CursorTheme *next;
+    Wayland_CursorTheme *previous;
+
+    S32 scale;
+
+    struct wl_cursor_theme *theme;
+    struct wl_buffer *cursors[Gfx_Cursor_COUNT];
+    V2S32 hotspots[Gfx_Cursor_COUNT];
+};
+
+typedef struct Wayland_Surface Wayland_Surface;
+struct Wayland_Surface {
+    Wayland_Surface *next;
+    Wayland_Surface *previous;
+
+    struct wl_surface *surface;
+
+    S32 scale;
+    Wayland_OutputNode *first_output;
+    Wayland_OutputNode *last_output;
+};
+
 typedef struct Wayland_State Wayland_State;
 struct Wayland_State {
     // NOTE(simon): Shared state.
@@ -43,7 +67,13 @@ struct Wayland_State {
     struct xdg_wm_base *xdg_wm_base;
     struct zxdg_decoration_manager_v1 *xdg_decoration_manager;
     struct xkb_context *xkb_context;
-    struct wl_cursor_theme *cursor_theme;
+    Wayland_CursorTheme *first_cursor_theme;
+    Wayland_CursorTheme *last_cursor_theme;
+    Wayland_Surface *surface_freelist;
+    Wayland_Surface *first_surface;
+    Wayland_Surface *last_surface;
+    CStr cursor_theme_name;
+    U64 cursor_theme_size;
     Arena *event_arena;
     // TODO(simon): Maybe have a shared internal arena for events while they
     // are being produced.
@@ -55,6 +85,7 @@ struct Wayland_State {
 
     // NOTE(simon): Per seat pointer state.
     struct wl_pointer *pointer;
+    Wayland_Surface *pointer_surface;
     V2F32 pointer_axis;
     V2F32 pointer_axis_discrete;
     V2F32 pointer_position;
@@ -86,13 +117,10 @@ struct Wayland_State {
     // TODO(simon): Track configuration of windows
     S32 width;
     S32 height;
-    S32 scale;
-    struct wl_surface   *wl_surface;
+    Wayland_Surface     *surface;
     struct xdg_surface  *xdg_surface;
     struct xdg_toplevel *xdg_toplevel;
     struct zxdg_toplevel_decoration_v1 *xdg_toplevel_decoration;
-    Wayland_OutputNode *first_surface_output;
-    Wayland_OutputNode *last_surface_output;
     U32 xdg_surface_configure_serial;
     U32 xdg_surface_last_configure_serial;
     VoidFunction *swap_buffers;
@@ -191,12 +219,6 @@ internal Void wayland_xdg_toplevel_close(Void *data, struct xdg_toplevel *xdg_to
 global const struct xdg_toplevel_listener wayland_xdg_toplevel_listener = {
     .configure = wayland_xdg_toplevel_configure,
     .close     = wayland_xdg_toplevel_close,
-};
-
-internal Void wayland_buffer_release(Void *data, struct wl_buffer *buffer);
-
-global const struct wl_buffer_listener wayland_buffer_listener = {
-    .release = wayland_buffer_release,
 };
 
 internal Void wayland_data_offer_offer(Void *data, struct wl_data_offer *wl_data_offer, const char *mime_type);

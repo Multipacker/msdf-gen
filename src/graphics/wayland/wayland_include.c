@@ -12,47 +12,51 @@ global Wayland_State global_wayland_state;
 
 internal Void wayland_update_cursor(Void) {
     Wayland_State *state = &global_wayland_state;
-    if (!state->cursor_theme) {
-        return;
+
+    Wayland_CursorTheme *theme = state->first_cursor_theme;
+    while (theme && theme->scale != state->pointer_surface->scale) {
+        theme = theme->next;
     }
 
-    local struct wl_surface *cursors[Gfx_Cursor_COUNT] = { 0 };
-    local V2S32 hotspots[Gfx_Cursor_COUNT] = { 0 };
+    if (!theme) {
+        theme = arena_push_struct_zero(state->arena, Wayland_CursorTheme);
+        theme->scale = state->pointer_surface->scale;
+        theme->theme = wl_cursor_theme_load(state->cursor_theme_name, state->pointer_surface->scale * (S32) state->cursor_theme_size, state->shm);
+        dll_push_back(state->first_cursor_theme, state->last_cursor_theme, theme);
+    }
 
-    CStr names[] = {
-        [Gfx_Cursor_Pointer]  = "default",
-        [Gfx_Cursor_Hand]     = "pointer",
-        [Gfx_Cursor_Beam]     = "text",
-        [Gfx_Cursor_SizeNWSE] = "nwse-resize",
-        [Gfx_Cursor_SizeNESW] = "nesw-resize",
-        [Gfx_Cursor_SizeWE]   = "ew-resize",
-        [Gfx_Cursor_SizeNS]   = "ns-resize",
-        [Gfx_Cursor_SizeAll]  = "all-scroll",
-        [Gfx_Cursor_Disabled] = "not-allowd",
-    };
+    if (!theme->cursors[state->pointer_cursor]) {
+        CStr names[] = {
+            [Gfx_Cursor_Pointer]  = "default",
+            [Gfx_Cursor_Hand]     = "pointer",
+            [Gfx_Cursor_Beam]     = "text",
+            [Gfx_Cursor_SizeNWSE] = "nwse-resize",
+            [Gfx_Cursor_SizeNESW] = "nesw-resize",
+            [Gfx_Cursor_SizeWE]   = "ew-resize",
+            [Gfx_Cursor_SizeNS]   = "ns-resize",
+            [Gfx_Cursor_SizeAll]  = "all-scroll",
+            [Gfx_Cursor_Disabled] = "not-allowd",
+        };
 
-    if (!cursors[state->pointer_cursor]) {
-        struct wl_cursor *theme_cursor = wl_cursor_theme_get_cursor(state->cursor_theme, names[state->pointer_cursor]);
+        struct wl_cursor *theme_cursor = wl_cursor_theme_get_cursor(theme->theme, names[state->pointer_cursor]);
         if (theme_cursor && theme_cursor->image_count > 0) {
             struct wl_cursor_image *image = theme_cursor->images[0];
-            struct wl_buffer *buffer = wl_cursor_image_get_buffer(image);
-            wl_buffer_add_listener(buffer, &wayland_buffer_listener, 0);
-            struct wl_surface *surface = wl_compositor_create_surface(state->compositor);
-            wl_surface_attach(surface, buffer, 0, 0);
-            wl_surface_commit(surface);
-
-            cursors[state->pointer_cursor]  = surface;
-            hotspots[state->pointer_cursor] = v2s32((S32) image->hotspot_x, (S32) image->hotspot_y);
+            theme->cursors[state->pointer_cursor]  = wl_cursor_image_get_buffer(image);
+            theme->hotspots[state->pointer_cursor] = v2s32((S32) image->hotspot_x / theme->scale, (S32) image->hotspot_y / theme->scale);
         }
     }
 
-    if (cursors[state->pointer_cursor]) {
+    if (theme->cursors[state->pointer_cursor]) {
+        wl_surface_attach(state->pointer_surface->surface, theme->cursors[state->pointer_cursor], 0, 0);
+        wl_surface_damage_buffer(state->pointer_surface->surface, 0, 0, S32_MAX, S32_MAX);
+        wl_surface_set_buffer_scale(state->pointer_surface->surface, state->pointer_surface->scale);
+        wl_surface_commit(state->pointer_surface->surface);
         wl_pointer_set_cursor(
             state->pointer,
             state->pointer_enter_serial,
-            cursors[state->pointer_cursor],
-            hotspots[state->pointer_cursor].x,
-            hotspots[state->pointer_cursor].y
+            state->pointer_surface->surface,
+            theme->hotspots[state->pointer_cursor].x,
+            theme->hotspots[state->pointer_cursor].y
         );
     }
 }
@@ -80,15 +84,44 @@ internal Void wayland_update_selection_serial(U32 serial) {
     }
 }
 
-internal Void wayland_update_surface_scale(Void) {
-    Wayland_State *state = &global_wayland_state;
-
+internal Void wayland_update_surface_scale(Wayland_Surface *surface) {
     S32 scale = 1;
-    for (Wayland_OutputNode *node = state->first_surface_output; node; node = node->next) {
+    for (Wayland_OutputNode *node = surface->first_output; node; node = node->next) {
         scale = s32_max(scale, node->output->scale);
     }
 
-    state->scale = scale;
+    surface->scale = scale;
+}
+
+internal Wayland_Surface *wayland_surface_create(Void) {
+    Wayland_State *state = &global_wayland_state;
+
+    Wayland_Surface *surface = state->surface_freelist;
+    if (surface) {
+        sll_stack_pop(state->surface_freelist);
+        memory_zero_struct(surface);
+    } else {
+        surface = arena_push_struct_zero(state->arena, Wayland_Surface);
+    }
+    surface->surface = wl_compositor_create_surface(state->compositor);
+    wl_surface_add_listener(surface->surface, &wayland_surface_listener, surface);
+    dll_push_back(state->first_surface, state->last_surface, surface);
+
+    return surface;
+}
+
+internal Void wayland_surface_destroy(Wayland_Surface *surface) {
+    Wayland_State *state = &global_wayland_state;
+
+    for (Wayland_OutputNode *node = surface->first_output, *next = 0; node; node = next) {
+        next = node->next;
+        dll_remove(surface->first_output, surface->last_output, node);
+        sll_stack_push(state->output_node_freelist, node);
+    }
+
+    wl_surface_destroy(surface->surface);
+    dll_remove(state->first_surface, state->last_surface, surface);
+    sll_stack_push(state->surface_freelist, surface);
 }
 
 
@@ -106,8 +139,8 @@ internal Void wayland_pointer_enter(Void *data, struct wl_pointer *pointer, U32 
     state->pointer_enter_serial = serial;
 
     state->pointer_position = v2f32(
-        (F32) state->scale * (F32) wl_fixed_to_double(surface_x),
-        (F32) state->scale * (F32) wl_fixed_to_double(surface_y)
+        (F32) state->surface->scale * (F32) wl_fixed_to_double(surface_x),
+        (F32) state->surface->scale * (F32) wl_fixed_to_double(surface_y)
     );
 
     wayland_update_cursor();
@@ -123,8 +156,8 @@ internal Void wayland_pointer_motion(Void *data, struct wl_pointer *pointer, U32
     Wayland_State *state = &global_wayland_state;
 
     state->pointer_position = v2f32(
-        (F32) state->scale * (F32) wl_fixed_to_double(surface_x),
-        (F32) state->scale * (F32) wl_fixed_to_double(surface_y)
+        (F32) state->surface->scale * (F32) wl_fixed_to_double(surface_x),
+        (F32) state->surface->scale * (F32) wl_fixed_to_double(surface_y)
     );
 }
 
@@ -397,7 +430,9 @@ internal Void wayland_seat_capabilities(Void *data, struct wl_seat *seat, U32 ca
     state->previous_capabilities = capabilities;
 
     if (removed_capabilities & WL_SEAT_CAPABILITY_POINTER) {
+        wayland_surface_destroy(state->pointer_surface);
         wl_pointer_release(state->pointer);
+        state->pointer_surface = 0;
         state->pointer = 0;
     }
 
@@ -413,6 +448,7 @@ internal Void wayland_seat_capabilities(Void *data, struct wl_seat *seat, U32 ca
     if (added_capabilities & WL_SEAT_CAPABILITY_POINTER) {
         state->pointer = wl_seat_get_pointer(state->seat);
         wl_pointer_add_listener(state->pointer, &wayland_pointer_listener, 0);
+        state->pointer_surface = wayland_surface_create();
     }
 
     if (added_capabilities & WL_SEAT_CAPABILITY_KEYBOARD) {
@@ -422,13 +458,6 @@ internal Void wayland_seat_capabilities(Void *data, struct wl_seat *seat, U32 ca
 }
 
 internal Void wayland_seat_name(Void *data, struct wl_seat *seat, const char *name) {
-}
-
-
-
-// NOTE(simon): Buffer events.
-internal Void wayland_buffer_release(Void *data, struct wl_buffer *buffer) {
-    wl_buffer_destroy(buffer);
 }
 
 
@@ -590,9 +619,13 @@ internal Void wayland_output_mode(Void *data, struct wl_output *wl_output, U32 f
 }
 
 internal Void wayland_output_done(Void *data, struct wl_output *wl_output) {
+    Wayland_State *state = &global_wayland_state;
     Wayland_Output *output = (Wayland_Output *) data;
     output->scale = output->pending_scale;
-    wayland_update_surface_scale();
+
+    for (Wayland_Surface *surface = state->first_surface; surface; surface = surface->next) {
+        wayland_update_surface_scale(surface);
+    }
 }
 
 internal Void wayland_output_scale(Void *data, struct wl_output *wl_output, S32 factor) {
@@ -609,8 +642,9 @@ internal Void wayland_output_description(Void *data, struct wl_output *wl_output
 
 
 // NOTE(simon): Surface events.
-internal Void wayland_surface_enter(Void *data, struct wl_surface *surface, struct wl_output *wl_output) {
+internal Void wayland_surface_enter(Void *data, struct wl_surface *wl_surface, struct wl_output *wl_output) {
     Wayland_State *state = &global_wayland_state;
+    Wayland_Surface *surface = (Wayland_Surface *) data;
 
     // NOTE(simon): Find output.
     Wayland_Output *output = state->first_output;
@@ -627,26 +661,27 @@ internal Void wayland_surface_enter(Void *data, struct wl_surface *surface, stru
         }
 
         node->output = output;
-        dll_push_back(state->first_surface_output, state->last_surface_output, node);
+        dll_push_back(surface->first_output, surface->last_output, node);
     }
 
-    wayland_update_surface_scale();
+    wayland_update_surface_scale(surface);
 }
 
-internal Void wayland_surface_leave(Void *data, struct wl_surface *surface, struct wl_output *output) {
+internal Void wayland_surface_leave(Void *data, struct wl_surface *wl_surface, struct wl_output *output) {
     Wayland_State *state = &global_wayland_state;
+    Wayland_Surface *surface = (Wayland_Surface *) data;
 
-    for (Wayland_OutputNode *node = state->first_surface_output, *next = 0; node; node = next) {
+    for (Wayland_OutputNode *node = surface->first_output, *next = 0; node; node = next) {
         next = node->next;
 
         if (node->output->output == output) {
-            dll_remove(state->first_surface_output, state->last_surface_output, node);
+            dll_remove(surface->first_output, surface->last_output, node);
             sll_stack_push(state->output_node_freelist, node);
             break;
         }
     }
 
-    wayland_update_surface_scale();
+    wayland_update_surface_scale(surface);
 }
 
 
@@ -728,22 +763,21 @@ internal Void gfx_create(Str8 title, U32 width, U32 height) {
         wl_data_device_add_listener(state->data_device, &wayland_data_device_listener, 0);
     }
 
-    char *cursor_theme_name = getenv("XCURSOR_THEME");
-    if (!cursor_theme_name) {
-        cursor_theme_name = "default";
+    state->cursor_theme_name = getenv("XCURSOR_THEME");
+    if (!state->cursor_theme_name) {
+        state->cursor_theme_name = "default";
     }
+
     char *cursor_theme_size_string = getenv("XCURSOR_SIZE");
     if (!cursor_theme_size_string) {
         cursor_theme_size_string = "24";
     }
-    int cursor_theme_size = (int) u64_from_str8(str8_cstr(cursor_theme_size_string)).value;
-    state->cursor_theme = wl_cursor_theme_load(cursor_theme_name, cursor_theme_size, state->shm);
+    state->cursor_theme_size = u64_from_str8(str8_cstr(cursor_theme_size_string)).value;
 
     state->width = (S32) width;
     state->height = (S32) height;
-    state->wl_surface = wl_compositor_create_surface(state->compositor);
-    wl_surface_add_listener(state->wl_surface, &wayland_surface_listener, 0);
-    state->xdg_surface = xdg_wm_base_get_xdg_surface(state->xdg_wm_base, state->wl_surface);
+    state->surface = wayland_surface_create();
+    state->xdg_surface = xdg_wm_base_get_xdg_surface(state->xdg_wm_base, state->surface->surface);
     xdg_surface_add_listener(state->xdg_surface, &wayland_xdg_surface_listener, 0);
     state->xdg_toplevel = xdg_surface_get_toplevel(state->xdg_surface);
     xdg_toplevel_add_listener(state->xdg_toplevel, &wayland_xdg_toplevel_listener, 0);
@@ -754,14 +788,14 @@ internal Void gfx_create(Str8 title, U32 width, U32 height) {
         zxdg_toplevel_decoration_v1_add_listener(state->xdg_toplevel_decoration, &wayland_xdg_toplevel_decoration_listener, 0);
         zxdg_toplevel_decoration_v1_set_mode(state->xdg_toplevel_decoration, ZXDG_TOPLEVEL_DECORATION_V1_MODE_SERVER_SIDE);
     }
-    wl_surface_commit(state->wl_surface);
+    wl_surface_commit(state->surface->surface);
 
     arena_end_temporary(scratch);
 }
 
 internal V2U32 gfx_get_window_client_area(Void) {
     Wayland_State *state = &global_wayland_state;
-    V2U32 result = v2u32((U32) (state->scale * state->width), (U32) (state->scale * state->height));
+    V2U32 result = v2u32((U32) (state->surface->scale * state->width), (U32) (state->surface->scale * state->height));
     return result;
 }
 
@@ -830,7 +864,7 @@ internal V2F32 gfx_get_mouse_position(Void) {
 internal Void gfx_swap_buffers(Void) {
     Wayland_State *state = &global_wayland_state;
 
-    wl_surface_set_buffer_scale(state->wl_surface, state->scale);
+    wl_surface_set_buffer_scale(state->surface->surface, state->surface->scale);
 
     if (state->xdg_surface_configure_serial != state->xdg_surface_last_configure_serial) {
         xdg_surface_ack_configure(state->xdg_surface, state->xdg_surface_configure_serial);
@@ -855,7 +889,7 @@ internal Void gfx_set_update_function(VoidFunction *update) {
 
 internal F32 gfx_dpi(Void) {
     Wayland_State *state = &global_wayland_state;
-    F32 dpi = (F32) state->scale * 96.0f;
+    F32 dpi = (F32) state->surface->scale * 96.0f;
     return dpi;
 }
 
