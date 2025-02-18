@@ -93,8 +93,9 @@ struct Wayland_State {
     struct zxdg_toplevel_decoration_v1 *xdg_toplevel_decoration;
     Wayland_OutputNode *first_surface_output;
     Wayland_OutputNode *last_surface_output;
+    U32 xdg_surface_configure_serial;
+    U32 xdg_surface_last_configure_serial;
     VoidFunction *swap_buffers;
-    VoidFunction *resize;
     VoidFunction *update;
 };
 

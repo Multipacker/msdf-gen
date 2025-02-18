@@ -77,5 +77,8 @@ internal Void x11_opengl_swap_buffers(Void) {
     eglSwapBuffers(opengl_state->display, opengl_state->surface);
 }
 
+internal Void opengl_resize(V2U32 resolution) {
+}
+
 internal Void opengl_backend_init(Void) {
 }

@@ -10,8 +10,7 @@ internal B32 render_init(Void) {
         EGL_NONE,
     };
 
-    //opengl_state->display = eglGetPlatformDisplayEXT(EGL_PLATFORM_WAYLAND_EXT, wayland_state->display, attributes);
-    opengl_state->display = eglGetDisplay(wayland_state->display);
+    opengl_state->display = eglGetPlatformDisplayEXT(EGL_PLATFORM_WAYLAND_EXT, wayland_state->display, attributes);
 
     EGLint major = 0, minor = 0;
     if (eglInitialize(opengl_state->display, &major, &minor)) {
@@ -65,7 +64,6 @@ internal B32 render_init(Void) {
 
                     eglSwapInterval(opengl_state->display, 1);
                     wayland_state->swap_buffers = wayland_opengl_swap_buffers;
-                    wayland_state->resize = wayland_opengl_resize;
                 }
             }
         }
@@ -80,10 +78,9 @@ internal Void wayland_opengl_swap_buffers(Void) {
     eglSwapBuffers(opengl_state->display, opengl_state->surface);
 }
 
-internal Void wayland_opengl_resize(Void) {
-    Wayland_State *wayland_state = &global_wayland_state;
+internal Void opengl_resize(V2U32 resolution) {
     Wayland_OpenGLState *opengl_state = &global_wayland_opengl_state;
-    wl_egl_window_resize(opengl_state->window, wayland_state->scale * wayland_state->width, wayland_state->scale * wayland_state->height, 0, 0);
+    wl_egl_window_resize(opengl_state->window, (S32) resolution.width, (S32) resolution.height, 0, 0);
 }
 
 internal Void opengl_backend_init(Void) {

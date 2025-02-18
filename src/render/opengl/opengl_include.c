@@ -332,6 +332,7 @@ internal Void render_create(Void) {
 
 internal Void render_begin(V2U32 resolution) {
     OpenGL_Context *gfx = &global_opengl_context;
+    opengl_resize(resolution);
     gfx->resolution = resolution;
 
     glViewport(0, 0, (GLsizei) resolution.width, (GLsizei) resolution.height);

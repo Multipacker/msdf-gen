@@ -89,10 +89,6 @@ internal Void wayland_update_surface_scale(Void) {
     }
 
     state->scale = scale;
-    wl_surface_set_buffer_scale(state->wl_surface, scale);
-    if (state->resize) {
-        state->resize();
-    }
 }
 
 
@@ -554,12 +550,7 @@ internal Void wayland_data_source_action(Void *data, struct wl_data_source *data
 internal Void wayland_xdg_surface_configure(Void *data, struct xdg_surface *xdg_surface, U32 serial) {
     Wayland_State *state = &global_wayland_state;
 
-    if (state->resize) {
-        state->resize();
-    }
-
-    xdg_surface_ack_configure(xdg_surface, serial);
-
+    state->xdg_surface_configure_serial = serial;
     if (state->update) {
         state->update();
     }
@@ -570,6 +561,7 @@ internal Void wayland_xdg_surface_configure(Void *data, struct xdg_surface *xdg_
 // NOTE(simon): XDG toplevel events.
 internal Void wayland_xdg_toplevel_configure(Void *data, struct xdg_toplevel *xgd_toplevel, S32 width, S32 height, struct wl_array *states) {
     Wayland_State *state = &global_wayland_state;
+
     state->width = width;
     state->height = height;
 }
@@ -837,6 +829,14 @@ internal V2F32 gfx_get_mouse_position(Void) {
 
 internal Void gfx_swap_buffers(Void) {
     Wayland_State *state = &global_wayland_state;
+
+    wl_surface_set_buffer_scale(state->wl_surface, state->scale);
+
+    if (state->xdg_surface_configure_serial != state->xdg_surface_last_configure_serial) {
+        xdg_surface_ack_configure(state->xdg_surface, state->xdg_surface_configure_serial);
+        state->xdg_surface_last_configure_serial = state->xdg_surface_configure_serial;
+    }
+
     if (state->swap_buffers) {
         state->swap_buffers();
     }
