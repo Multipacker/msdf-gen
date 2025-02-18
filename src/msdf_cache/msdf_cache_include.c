@@ -149,10 +149,10 @@ internal Void msdf_cache_update(Void) {
                 while (~selected_atlas->occupancy[glyph_location / 64] == 0) {
                     glyph_location += 64;
                 }
-                while ((selected_atlas->occupancy[glyph_location / 64] & (U64) (1 << glyph_location % 64)) != 0) {
+                while ((selected_atlas->occupancy[glyph_location / 64] & (U64) ((U64) 1 << glyph_location % 64)) != 0) {
                     ++glyph_location;
                 }
-                selected_atlas->occupancy[glyph_location / 64] |= (U64) (1 << glyph_location % 64);
+                selected_atlas->occupancy[glyph_location / 64] |= ((U64) 1 << glyph_location % 64);
 
                 V2U32 atlas_position = v2u32(
                     state->glyph_size * (glyph_location % ATLAS_GLYPHS_PER_SIDE),

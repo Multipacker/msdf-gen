@@ -40,9 +40,9 @@ if [ -v error_limit ]; then
     errors+="-ferror-limit=5 "
 fi
 
-wayland_libraries=" -lwayland-client -lwayland-egl -lwayland-cursor"
-x11_libraries="-lxcb -lxcb-cursor -lxcb-xkb -lxkbcommon-x11"
-common_libraries="-lm -lpthread -lEGL -lxkbcommon"
+wayland_libraries=" -lwayland-client -lwayland-egl -lwayland-cursor -lEGL -lxkbcommon"
+x11_libraries="-lxcb -lxcb-cursor -lxcb-xkb -lxkbcommon-x11 -lEGL -lxkbcommon"
+common_libraries="-lm -lpthread"
 
 # Choose libraries
 if [ -v wayland ]; then
@@ -90,6 +90,14 @@ if [ -v profile ]; then
     echo "Profile build"
     compiler_flags="${profile_compiler_flags}"
     linker_flags="${profile_linker_flags}"
+fi
+if [ -v asan ]; then
+    echo "Address sanitizer"
+    compiler_flags+=" -fsanitize=address"
+fi
+if [ -v ubsan ]; then
+    echo "Undefined behaviour sanitizer"
+    compiler_flags+=" -fsanitize=undefined"
 fi
 
 # Build

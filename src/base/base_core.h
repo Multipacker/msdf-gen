@@ -141,7 +141,7 @@
 #define pointer_from_integer(integer) ((void *) ((uintptr_t) (integer)))
 
 #define member(type, type_member) (((type *) 0)->type_member)
-#define member_offset(type, type_member) integer_from_pointer(&member(type, type_member))
+#define member_offset(type, type_member) offsetof(type, type_member)
 
 #define kilobytes(value) ((U64) (value) << 10)
 #define megabytes(value) ((U64) (value) << 20)
