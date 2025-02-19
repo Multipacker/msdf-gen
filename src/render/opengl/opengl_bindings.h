@@ -37,6 +37,7 @@
 #define GL_TEXTURE_WRAP_T       0x2803
 #define GL_TRIANGLE_STRIP       0x0005
 #define GL_TRUE                 1
+#define GL_ONE                  1
 #define GL_UNPACK_ALIGNMENT     0x0CF5
 #define GL_UNSIGNED_BYTE        0x1401
 #define GL_UNSIGNED_INT         0x1405

@@ -25,6 +25,7 @@ internal B32 render_init(Void) {
             EGL_RED_SIZE,     8,
             EGL_GREEN_SIZE,   8,
             EGL_BLUE_SIZE,    8,
+            EGL_ALPHA_SIZE,   8,
             EGL_DEPTH_SIZE,   24,
             EGL_STENCIL_SIZE, 8,
 
@@ -47,7 +48,7 @@ internal B32 render_init(Void) {
             EGLContext *context = eglCreateContext(opengl_state->display, config, EGL_NO_CONTEXT, context_attributes);
             if (context) {
                 const EGLAttrib surface_attributes[] = {
-                    EGL_GL_COLORSPACE, EGL_GL_COLORSPACE_LINEAR,
+                    EGL_GL_COLORSPACE, EGL_GL_COLORSPACE_SRGB,
                     EGL_NONE,
                 };
 
