@@ -279,6 +279,7 @@ internal Void wayland_keyboard_enter(Void *data, struct wl_keyboard *keyboard, U
 internal Void wayland_keyboard_leave(Void *data, struct wl_keyboard *keyboard, U32 serial, struct wl_surface *surface) {
     Wayland_State *state = &global_wayland_state;
     wayland_update_selection_serial(serial);
+    state->last_key = 0;
 }
 
 internal Void wayland_keyboard_key(Void *data, struct wl_keyboard *keyboard, U32 serial, U32 time, U32 key, U32 key_state) {
@@ -286,6 +287,15 @@ internal Void wayland_keyboard_key(Void *data, struct wl_keyboard *keyboard, U32
     wayland_update_selection_serial(serial);
 
     U32 xkb_key = 8 + key;
+    if (key_state == WL_KEYBOARD_KEY_STATE_PRESSED) {
+        state->last_key = xkb_key;
+        state->last_key_time = os_now_nanoseconds() / 1000000;
+        state->key_delay = state->key_repeat_delay;
+    } else if (key_state == WL_KEYBOARD_KEY_STATE_RELEASED) {
+        if (state->last_key == xkb_key) {
+            state->last_key = 0;
+        }
+    }
 
     if (key_state == WL_KEYBOARD_KEY_STATE_PRESSED) {
         int required_length = xkb_state_key_get_utf8(state->xkb_state, xkb_key, 0, 0) + 1;
@@ -414,7 +424,9 @@ internal Void wayland_keyboard_modifiers(Void *data, struct wl_keyboard *keyboar
 }
 
 internal Void wayland_keyboard_repeat_info(Void *data, struct wl_keyboard *keyboard, S32 rate, S32 delay) {
-    // TODO(simon): Handle repeat info
+    Wayland_State *state = &global_wayland_state;
+    state->key_repeat_rate  = (U64) rate;
+    state->key_repeat_delay = (U64) delay;
 }
 
 
@@ -808,21 +820,49 @@ internal Gfx_EventList gfx_get_events(Arena *arena, B32 wait) {
     Wayland_State *state = &global_wayland_state;
 
     // TODO(simon): Error handling
+    if (state->last_key && state->key_delay) {
+        os_console_print(str8_format(arena, "%lu\n", state->key_delay - (os_now_nanoseconds() / 1000000 - state->last_key_time)));
+        while (os_now_nanoseconds() / 1000000 - state->last_key_time > state->key_delay) {
+            os_console_print(str8_literal("key repeat!\n"));
+            state->last_key_time += state->key_delay;
+            state->key_delay = 1000 / state->key_repeat_rate;
+        }
+    }
+
     if (wait && !state->events.first) {
         for (;;) {
+            U64 before_ns = os_now_nanoseconds();
             int dispatched_events = 0;
             while (wl_display_prepare_read(state->display) != 0) {
                 dispatched_events += wl_display_dispatch_pending(state->display);
             }
             wl_display_flush(state->display);
 
+            int wait_ms = -1;
+            if (state->last_key && state->key_delay) {
+                U64 elapsed = os_now_nanoseconds() / 1000000 - state->last_key_time;
+                wait_ms = (int) (state->key_delay - elapsed);
+            }
+
             struct pollfd fd = { 0 };
             fd.fd = wl_display_get_fd(state->display);
             fd.events = POLLIN;
-            poll(&fd, 1, -1);
+            poll(&fd, 1, wait_ms);
 
             wl_display_read_events(state->display);
             dispatched_events += wl_display_dispatch_pending(state->display);
+            U64 after_ns = os_now_nanoseconds();
+
+            os_console_print(str8_format(arena, "Sleep: %lu, wait: %d, key_delay: %lu\n", (after_ns - before_ns) / 1000000,  wait_ms, state->key_delay));
+
+            if (state->last_key && state->key_delay) {
+                while (os_now_nanoseconds() / 1000000 - state->last_key_time > state->key_delay) {
+                    os_console_print(str8_literal("key repeat!\n"));
+                    state->last_key_time += state->key_delay;
+                    state->key_delay = 1000 / state->key_repeat_rate;
+                }
+            }
+
             if (dispatched_events > 0) {
                 break;
             }
@@ -878,8 +918,11 @@ internal Void gfx_swap_buffers(Void) {
 
 internal Void gfx_set_cursor(Gfx_Cursor cursor) {
     Wayland_State *state = &global_wayland_state;
-    state->pointer_cursor = cursor;
-    wayland_update_cursor();
+
+    if (cursor != state->pointer_cursor) {
+        state->pointer_cursor = cursor;
+        wayland_update_cursor();
+    }
 }
 
 internal Void gfx_set_update_function(VoidFunction *update) {
