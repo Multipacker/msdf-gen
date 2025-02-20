@@ -29,10 +29,12 @@ internal Void update(Void) {
             case Gfx_EventKind_Quit:       { kind = str8_literal("Quit");       } break;
             case Gfx_EventKind_KeyPress:   { kind = str8_literal("KeyPress");   } break;
             case Gfx_EventKind_KeyRelease: { kind = str8_literal("KeyRelease"); } break;
+            case Gfx_EventKind_MouseMove:  { kind = str8_literal("MouseMove");  } break;
             case Gfx_EventKind_Text:       { kind = str8_literal("Text");       } break;
             case Gfx_EventKind_Scroll:     { kind = str8_literal("Scroll");     } break;
             case Gfx_EventKind_Resize:     { kind = str8_literal("Resize");     } break;
             case Gfx_EventKind_FileDrop:   { kind = str8_literal("FileDrop");   } break;
+            case Gfx_EventKind_Wakeup:     { kind = str8_literal("Wakeup");     } break;
             case Gfx_EventKind_COUNT: {
             } break;
         }

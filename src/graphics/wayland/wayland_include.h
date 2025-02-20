@@ -282,4 +282,11 @@ global const struct wl_surface_listener wayland_surface_listener = {
     .leave = wayland_surface_leave,
 };
 
+
+internal Void wayland_wakeup_callback_done(Void *data, struct wl_callback *wl_callback, U32 callback_data);
+
+global const struct wl_callback_listener wayland_wakeup_callback_listener = {
+    .done = wayland_wakeup_callback_done,
+};
+
 #endif // WAYLAND_INCLUDE_H

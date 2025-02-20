@@ -418,10 +418,12 @@ internal Void update(Void) {
                 case Gfx_EventKind_Quit:       kind = UI_EventKind_Null;       break;
                 case Gfx_EventKind_KeyPress:   kind = UI_EventKind_KeyPress;   break;
                 case Gfx_EventKind_KeyRelease: kind = UI_EventKind_KeyRelease; break;
+                case Gfx_EventKind_MouseMove:  kind = UI_EventKind_Null;       break;
                 case Gfx_EventKind_Text:       kind = UI_EventKind_Text;       break;
                 case Gfx_EventKind_Scroll:     kind = UI_EventKind_Scroll;     break;
                 case Gfx_EventKind_Resize:     kind = UI_EventKind_Null;       break;
                 case Gfx_EventKind_FileDrop:   kind = UI_EventKind_Null;       break;
+                case Gfx_EventKind_Wakeup:     kind = UI_EventKind_Null;       break;
                 case Gfx_EventKind_COUNT:      kind = UI_EventKind_Null;       break;
             }
             ui_event = arena_push_struct_zero(frame_arena(), UI_Event);

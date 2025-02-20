@@ -6,9 +6,11 @@ typedef enum {
     Gfx_EventKind_Quit,
     Gfx_EventKind_KeyPress,
     Gfx_EventKind_KeyRelease,
+    Gfx_EventKind_MouseMove,
     Gfx_EventKind_Text,
     Gfx_EventKind_Scroll,
     Gfx_EventKind_Resize,
+    Gfx_EventKind_Wakeup,
     Gfx_EventKind_FileDrop,
 
     Gfx_EventKind_COUNT,

@@ -126,6 +126,17 @@ internal Void wayland_surface_destroy(Wayland_Surface *surface) {
 
 
 
+// NOTE(simon): Wakeup callback events
+internal Void wayland_wakeup_callback_done(Void *data, struct wl_callback *wl_callback, U32 callback_data) {
+    Wayland_State *state = &global_wayland_state;
+
+    Gfx_Event *event = arena_push_struct_zero(state->event_arena, Gfx_Event);
+    event->kind = Gfx_EventKind_Wakeup;
+    dll_push_back(state->events.first, state->events.last, event);
+}
+
+
+
 // NOTE(simon): XDG WM base events
 internal Void wayland_xdg_wm_base_ping(Void *data, struct xdg_wm_base *xdg_wm_base, U32 serial) {
     xdg_wm_base_pong(xdg_wm_base, serial);
@@ -159,6 +170,11 @@ internal Void wayland_pointer_motion(Void *data, struct wl_pointer *pointer, U32
         (F32) state->surface->scale * (F32) wl_fixed_to_double(surface_x),
         (F32) state->surface->scale * (F32) wl_fixed_to_double(surface_y)
     );
+
+    Gfx_Event *event = arena_push_struct_zero(state->event_arena, Gfx_Event);
+    event->kind = Gfx_EventKind_MouseMove;
+    event->position = state->pointer_position;
+    dll_push_back(state->events.first, state->events.last, event);
 }
 
 internal Void wayland_pointer_button(Void *data, struct wl_pointer *pointer, U32 serial, U32 time, U32 button, U32 button_state) {
@@ -813,7 +829,8 @@ internal V2U32 gfx_get_window_client_area(Void) {
 
 internal Void gfx_send_wakeup_event(Void) {
     Wayland_State *state = &global_wayland_state;
-    wl_display_sync(state->display);
+    struct wl_callback *wakeup_callback = wl_display_sync(state->display);
+    wl_callback_add_listener(wakeup_callback, &wayland_wakeup_callback_listener, 0);
 }
 
 internal Gfx_EventList gfx_get_events(Arena *arena, B32 wait) {
@@ -830,16 +847,21 @@ internal Gfx_EventList gfx_get_events(Arena *arena, B32 wait) {
     }
 
     if (wait && !state->events.first) {
-        for (;;) {
+        do {
             U64 before_ns = os_now_nanoseconds();
-            int dispatched_events = 0;
             while (wl_display_prepare_read(state->display) != 0) {
-                dispatched_events += wl_display_dispatch_pending(state->display);
+                wl_display_dispatch_pending(state->display);
             }
             wl_display_flush(state->display);
 
             int wait_ms = -1;
             if (state->last_key && state->key_delay) {
+                while (os_now_nanoseconds() / 1000000 - state->last_key_time > state->key_delay) {
+                    os_console_print(str8_literal("key repeat!\n"));
+                    state->last_key_time += state->key_delay;
+                    state->key_delay = 1000 / state->key_repeat_rate;
+                }
+
                 U64 elapsed = os_now_nanoseconds() / 1000000 - state->last_key_time;
                 wait_ms = (int) (state->key_delay - elapsed);
             }
@@ -850,7 +872,7 @@ internal Gfx_EventList gfx_get_events(Arena *arena, B32 wait) {
             poll(&fd, 1, wait_ms);
 
             wl_display_read_events(state->display);
-            dispatched_events += wl_display_dispatch_pending(state->display);
+            wl_display_dispatch_pending(state->display);
             U64 after_ns = os_now_nanoseconds();
 
             os_console_print(str8_format(arena, "Sleep: %lu, wait: %d, key_delay: %lu\n", (after_ns - before_ns) / 1000000,  wait_ms, state->key_delay));
@@ -862,11 +884,7 @@ internal Gfx_EventList gfx_get_events(Arena *arena, B32 wait) {
                     state->key_delay = 1000 / state->key_repeat_rate;
                 }
             }
-
-            if (dispatched_events > 0) {
-                break;
-            }
-        }
+        } while (!state-> events.first);
     } else {
         while (wl_display_prepare_read(state->display) != 0) {
             wl_display_dispatch_pending(state->display);
