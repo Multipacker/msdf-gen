@@ -654,6 +654,7 @@ internal Void wayland_output_done(Void *data, struct wl_output *wl_output) {
     for (Wayland_Surface *surface = state->first_surface; surface; surface = surface->next) {
         wayland_update_surface_scale(surface);
     }
+    gfx_send_wakeup_event();
 }
 
 internal Void wayland_output_scale(Void *data, struct wl_output *wl_output, S32 factor) {
