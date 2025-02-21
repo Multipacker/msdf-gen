@@ -74,10 +74,6 @@ struct Wayland_State {
     Wayland_Surface *last_surface;
     CStr cursor_theme_name;
     U64 cursor_theme_size;
-    Arena *event_arena;
-    // TODO(simon): Maybe have a shared internal arena for events while they
-    // are being produced.
-    Gfx_EventList events;
 
     // NOTE(simon): Per seat state.
     struct wl_seat *seat;
@@ -130,6 +126,8 @@ struct Wayland_State {
     U32 xdg_surface_last_configure_serial;
     VoidFunction *swap_buffers;
     VoidFunction *update;
+    Arena        *event_arena;
+    Gfx_EventList events;
 };
 
 // NOTE(simon): Forward declaration of all event listeners.

@@ -782,7 +782,6 @@ internal Void gfx_create(Str8 title, U32 width, U32 height) {
 
     Wayland_State *state = &global_wayland_state;
     state->arena = arena_create();
-    state->event_arena = arena_create();
     state->selection_source_arena = arena_create();
 
     state->display = wl_display_connect(0);
@@ -812,6 +811,7 @@ internal Void gfx_create(Str8 title, U32 width, U32 height) {
     state->width = (S32) width;
     state->height = (S32) height;
     state->surface = wayland_surface_create();
+    state->event_arena = arena_create();
     state->xdg_surface = xdg_wm_base_get_xdg_surface(state->xdg_wm_base, state->surface->surface);
     xdg_surface_add_listener(state->xdg_surface, &wayland_xdg_surface_listener, 0);
     state->xdg_toplevel = xdg_surface_get_toplevel(state->xdg_surface);
