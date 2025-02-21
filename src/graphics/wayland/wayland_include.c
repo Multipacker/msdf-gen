@@ -1,6 +1,8 @@
 #include <poll.h>
 #include <string.h>
 
+#include <sys/timerfd.h>
+
 #include <linux/input-event-codes.h>
 
 #include "wayland_xdg_shell.generated.c"
@@ -416,23 +418,37 @@ internal Void wayland_keyboard_leave(Void *data, struct wl_keyboard *keyboard, U
     Wayland_State *state = &global_wayland_state;
     wayland_update_selection_serial(serial);
     state->last_key = 0;
+    struct itimerspec timer = { 0 };
+    timerfd_settime(state->key_repeat_fd, 0, &timer, 0);
 }
 
 internal Void wayland_keyboard_key(Void *data, struct wl_keyboard *keyboard, U32 serial, U32 time, U32 key, U32 key_state) {
     Wayland_State *state = &global_wayland_state;
     wayland_update_selection_serial(serial);
 
+    struct itimerspec timer = { 0 };
+
     U32 xkb_key = 8 + key;
     if (key_state == WL_KEYBOARD_KEY_STATE_PRESSED) {
         state->last_key = xkb_key;
-        state->last_key_time = os_now_nanoseconds() / 1000000;
-        state->key_delay = state->key_repeat_delay;
+
+        if (state->key_repeat_rate) {
+            if (state->key_repeat_rate > 1) {
+                timer.it_interval.tv_nsec = 1000000000 / state->key_repeat_rate;
+            } else {
+                timer.it_interval.tv_sec = 1;
+            }
+
+            timer.it_value.tv_sec  = state->key_repeat_delay / 1000;
+            timer.it_value.tv_nsec = (state->key_repeat_delay % 1000) * 1000000;
+        }
     } else if (key_state == WL_KEYBOARD_KEY_STATE_RELEASED) {
         if (state->last_key == xkb_key) {
             state->last_key = 0;
         }
     }
 
+    timerfd_settime(state->key_repeat_fd, 0, &timer, 0);
     wayland_handle_key(xkb_key, key_state);
 }
 
@@ -488,6 +504,7 @@ internal Void wayland_seat_capabilities(Void *data, struct wl_seat *seat, U32 ca
     if (added_capabilities & WL_SEAT_CAPABILITY_KEYBOARD) {
         state->keyboard = wl_seat_get_keyboard(state->seat);
         wl_keyboard_add_listener(state->keyboard, &wayland_keyboard_listener, 0);
+        state->key_repeat_fd = timerfd_create(CLOCK_MONOTONIC, TFD_NONBLOCK | TFD_CLOEXEC);
     }
 }
 
@@ -848,33 +865,17 @@ internal Void gfx_send_wakeup_event(Void) {
 internal Gfx_EventList gfx_get_events(Arena *arena, B32 wait) {
     Wayland_State *state = &global_wayland_state;
 
-    // NOTE(simon): Handle key repeat.
-    if (state->last_key && state->key_delay) {
-        while (os_now_nanoseconds() / 1000000 - state->last_key_time > state->key_delay) {
-            wayland_handle_key(state->last_key, WL_KEYBOARD_KEY_STATE_PRESSED);
-            state->last_key_time += state->key_delay;
-            state->key_delay = 1000 / state->key_repeat_rate;
-        }
-    }
-
     // TODO(simon): Error handling
     // NOTE(simon): Do we need to read more events?
     if (wl_display_prepare_read(state->display) == 0) {
         wl_display_flush(state->display);
 
-        // NOTE(simon): Determine if we should wait or immediately continue.
-        int wait_ms = 0;
-        if (state->last_key && state->key_delay) {
-            U64 elapsed = os_now_nanoseconds() / 1000000 - state->last_key_time;
-            wait_ms = s32_max(0, (int) state->key_delay - (int) elapsed);
-        } else if (wait && !state->events.first) {
-            wait_ms = -1;
-        }
-
-        struct pollfd fd = { 0 };
-        fd.fd = wl_display_get_fd(state->display);
-        fd.events = POLLIN;
-        poll(&fd, 1, wait_ms);
+        struct pollfd fds[2] = { 0 };
+        fds[0].fd     = wl_display_get_fd(state->display);
+        fds[0].events = POLLIN;
+        fds[1].fd     = state->key_repeat_fd;
+        fds[1].events = POLLIN;
+        poll(fds, array_count(fds), wait ? -1 : 0);
 
         if (wl_display_get_error(state->display) == 0) {
             wl_display_read_events(state->display);
@@ -885,12 +886,10 @@ internal Gfx_EventList gfx_get_events(Arena *arena, B32 wait) {
 
     wl_display_dispatch_pending(state->display);
 
-    // NOTE(simon): If we waited, we might need to process more key repeats.
-    if (state->last_key && state->key_delay) {
-        while (os_now_nanoseconds() / 1000000 - state->last_key_time > state->key_delay) {
+    U64 key_repeats = 0;
+    if (read(state->key_repeat_fd, &key_repeats, sizeof(key_repeats)) == sizeof(key_repeats)) {
+        for (U64 i = 0; i < key_repeats; ++i) {
             wayland_handle_key(state->last_key, WL_KEYBOARD_KEY_STATE_PRESSED);
-            state->last_key_time += state->key_delay;
-            state->key_delay = 1000 / state->key_repeat_rate;
         }
     }
 

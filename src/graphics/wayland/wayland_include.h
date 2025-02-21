@@ -94,10 +94,9 @@ struct Wayland_State {
     struct xkb_state   *xkb_state;
     Gfx_KeyModifier     modifiers;
     U32 last_key;
-    U64 last_key_time;
-    U64 key_delay;
     U64 key_repeat_delay;
     U64 key_repeat_rate;
+    S32 key_repeat_fd;
 
     // NOTE(simon): Per seat data device state.
     struct wl_data_device *data_device;
