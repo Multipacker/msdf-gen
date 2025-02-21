@@ -811,6 +811,11 @@ internal Void gfx_create(Str8 title, U32 width, U32 height) {
     state->width = (S32) width;
     state->height = (S32) height;
     state->surface = wayland_surface_create();
+    // TODO(simon): Does this need to be redone on resize?
+    struct wl_region *region = wl_compositor_create_region(state->compositor);
+    wl_region_add(region, 0, 0, S32_MAX, S32_MAX);
+    wl_surface_set_opaque_region(state->surface->surface, region);
+    wl_region_destroy(region);
     state->event_arena = arena_create();
     state->xdg_surface = xdg_wm_base_get_xdg_surface(state->xdg_wm_base, state->surface->surface);
     xdg_surface_add_listener(state->xdg_surface, &wayland_xdg_surface_listener, 0);

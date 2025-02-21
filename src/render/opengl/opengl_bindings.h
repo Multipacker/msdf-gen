@@ -37,7 +37,6 @@
 #define GL_TEXTURE_WRAP_T       0x2803
 #define GL_TRIANGLE_STRIP       0x0005
 #define GL_TRUE                 1
-#define GL_ONE                  1
 #define GL_UNPACK_ALIGNMENT     0x0CF5
 #define GL_UNSIGNED_BYTE        0x1401
 #define GL_UNSIGNED_INT         0x1405
@@ -108,7 +107,6 @@ typedef Void      (*PFNGLBINDSAMPLERPROC)(GLuint unit, GLuint sampler);
 typedef Void      (*PFNGLBINDTEXTUREUNITPROC)(GLuint unit, GLuint texture);
 typedef Void      (*PFNGLBINDVERTEXARRAYPROC)(GLuint array);
 typedef Void      (*PFNGLBLENDFUNCPROC)(GLenum sfactor, GLenum dfactor);
-typedef Void      (*PFNGLBLENDFUNCSEPARATEPROC)(GLenum srcRGB, GLenum dstRGB, GLenum srcAlpha, GLenum dstAlpha);
 typedef Void      (*PFNGLCOMPILESHADERPROC)(GLuint shader);
 typedef Void      (*PFNGLCREATEBUFFERSPROC)(GLsizei n, GLuint *buffers);
 typedef Void      (*PFNGLCREATESAMPLERSPROC)(GLsizei n, GLuint *samplers);
@@ -160,7 +158,6 @@ X(PFNGLATTACHSHADERPROC,                    glAttachShader)                    \
 X(PFNGLBINDSAMPLERPROC,                     glBindSampler)                     \
 X(PFNGLBINDTEXTUREUNITPROC,                 glBindTextureUnit)                 \
 X(PFNGLBINDVERTEXARRAYPROC,                 glBindVertexArray)                 \
-X(PFNGLBLENDFUNCSEPARATEPROC,               glBlendFuncSeparate)               \
 X(PFNGLCOMPILESHADERPROC,                   glCompileShader)                   \
 X(PFNGLCREATEBUFFERSPROC,                   glCreateBuffers)                   \
 X(PFNGLCREATEPROGRAMPROC,                   glCreateProgram)                   \
