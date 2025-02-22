@@ -376,6 +376,7 @@ internal Void update(Void) {
             { Gfx_Key_Delete,    Gfx_KeyModifier_Control,                         Command_DeleteWord,           },
             { Gfx_Key_Backspace, 0,                                               Command_RemoveCharacter,      },
             { Gfx_Key_Delete,    0,                                               Command_DeleteCharacter,      },
+            { Gfx_Key_A,         Gfx_KeyModifier_Control,                         Command_SelectAll,            },
             { Gfx_Key_C,         Gfx_KeyModifier_Control,                         Command_Copy,                 },
             { Gfx_Key_V,         Gfx_KeyModifier_Control,                         Command_Paste,                },
             { Gfx_Key_X,         Gfx_KeyModifier_Control,                         Command_Cut,                  },
@@ -856,28 +857,28 @@ internal Void update(Void) {
                 case Command_SelectWholeUp: {
                     ui_event = arena_push_struct_zero(ui_frame_arena(), UI_Event);
                     ui_event->kind = UI_EventKind_Navigation;
-                    ui_event->delta.y = -1;
+                    ui_event->delta.x = -1;
                     ui_event->unit = UI_EventDeltaUnit_Whole;
                     ui_event->flags = UI_EventFlag_KeepMark;
                 } break;
                 case Command_SelectWholeDown: {
                     ui_event = arena_push_struct_zero(ui_frame_arena(), UI_Event);
                     ui_event->kind = UI_EventKind_Navigation;
-                    ui_event->delta.y = 1;
+                    ui_event->delta.x = 1;
                     ui_event->unit = UI_EventDeltaUnit_Whole;
                     ui_event->flags = UI_EventFlag_KeepMark;
                 } break;
                 case Command_MoveWholeUp: {
                     ui_event = arena_push_struct_zero(ui_frame_arena(), UI_Event);
                     ui_event->kind = UI_EventKind_Navigation;
-                    ui_event->delta.y = -1;
+                    ui_event->delta.x = -1;
                     ui_event->unit = UI_EventDeltaUnit_Whole;
                     ui_event->flags = UI_EventFlag_PickSelectSide | UI_EventFlag_ZeroDeltaOnSelection;
                 } break;
                 case Command_MoveWholeDown: {
                     ui_event = arena_push_struct_zero(ui_frame_arena(), UI_Event);
                     ui_event->kind = UI_EventKind_Navigation;
-                    ui_event->delta.y = 1;
+                    ui_event->delta.x = 1;
                     ui_event->unit = UI_EventDeltaUnit_Whole;
                     ui_event->flags = UI_EventFlag_PickSelectSide | UI_EventFlag_ZeroDeltaOnSelection;
                 } break;
@@ -908,6 +909,19 @@ internal Void update(Void) {
                     ui_event->delta.x = 1;
                     ui_event->unit = UI_EventDeltaUnit_Character;
                     ui_event->flags = UI_EventFlag_ZeroDeltaOnSelection | UI_EventFlag_Delete;
+                } break;
+                case Command_SelectAll: {
+                    UI_Event *move_start = arena_push_struct_zero(ui_frame_arena(), UI_Event);
+                    move_start->kind = UI_EventKind_Navigation;
+                    move_start->unit = UI_EventDeltaUnit_Whole;
+                    move_start->delta.x = -1;
+                    ui_event_list_push_event(&ui_events, move_start);
+
+                    ui_event = arena_push_struct_zero(ui_frame_arena(), UI_Event);
+                    ui_event->kind = UI_EventKind_Navigation;
+                    ui_event->flags = UI_EventFlag_KeepMark;
+                    ui_event->unit = UI_EventDeltaUnit_Whole;
+                    ui_event->delta.x = 1;
                 } break;
                 case Command_Copy: {
                     ui_event = arena_push_struct_zero(ui_frame_arena(), UI_Event);

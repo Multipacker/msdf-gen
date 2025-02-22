@@ -292,9 +292,9 @@ PANEL_BUILD_FUNCTION(view_glyph_list) {
                         }
                     } break;
                     case UI_EventDeltaUnit_Whole: {
-                        if (event->delta.y == -1) {
+                        if (event->delta.x == -1) {
                             codepoint_delta = -codepoint_index;
-                        } else if (event->delta.y == 1) {
+                        } else if (event->delta.x == 1) {
                             codepoint_delta = (S32) codepoint_map.codepoint_count - 1 - codepoint_index;
                         }
                     } break;

@@ -150,6 +150,7 @@ struct Context {
     X(DeleteWord,           "Delete word")            \
     X(RemoveCharacter,      "Remove character")       \
     X(DeleteCharacter,      "Delete character")       \
+    X(SelectAll,            "Select all")             \
     X(Copy,                 "Copy")                   \
     X(Paste,                "Paste")                  \
     X(Cut,                  "Cut")                    \

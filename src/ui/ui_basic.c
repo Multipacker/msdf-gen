@@ -279,6 +279,11 @@ internal UI_Input ui_line_edit(U8 *buffer, U64 *buffer_size, U64 buffer_capacity
                 case UI_EventDeltaUnit_Page: {
                 } break;
                 case UI_EventDeltaUnit_Whole: {
+                    if (event->delta.x < 0) {
+                        cursor_delta = -(S64) *cursor;
+                    } else {
+                        cursor_delta = (S64) edit_string.size - (S64) *cursor;
+                    }
                 } break;
                 case UI_EventDeltaUnit_COUNT: {
                 } break;
