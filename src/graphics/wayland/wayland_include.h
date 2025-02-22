@@ -92,7 +92,6 @@ struct Wayland_State {
     struct wl_keyboard *keyboard;
     struct xkb_keymap  *xkb_keymap;
     struct xkb_state   *xkb_state;
-    Gfx_KeyModifier     modifiers;
     U32 last_key;
     U64 key_repeat_delay;
     U64 key_repeat_rate;

@@ -90,14 +90,16 @@ internal Void wayland_handle_key(U32 key, U32 key_state) {
     Wayland_State *state = &global_wayland_state;
 
     if (key_state == WL_KEYBOARD_KEY_STATE_PRESSED) {
-        int required_length = xkb_state_key_get_utf8(state->xkb_state, key, 0, 0) + 1;
-        if (required_length > 1) {
-            CStr buffer = arena_push_array_zero(state->event_arena, char, (U64) required_length);
-            int length = xkb_state_key_get_utf8(state->xkb_state, key, buffer, (size_t) required_length);
+        U32 codepoint = xkb_state_key_get_utf32(state->xkb_state, key);
 
+        B32 is_c0_control = codepoint <= 0x1F || codepoint == 0x7F;
+        B32 is_c1_control = (0x80 <= codepoint && codepoint <= 0x9F);
+
+        if (!is_c0_control && !is_c1_control) {
             Gfx_Event *event = arena_push_struct_zero(state->event_arena, Gfx_Event);
             event->kind = Gfx_EventKind_Text;
-            event->text = str8((U8 *) buffer, (U64) length);
+            event->text.data = arena_push_array(state->event_arena, U8, 4);
+            event->text.size = string_encode_utf8(event->text.data, codepoint);
             dll_push_back(state->events.first, state->events.last, event);
         }
     }
@@ -183,25 +185,9 @@ internal Void wayland_handle_key(U32 key, U32 key_state) {
             Gfx_Event *event = arena_push_struct_zero(state->event_arena, Gfx_Event);
             event->kind = (key_state == WL_KEYBOARD_KEY_STATE_PRESSED ? Gfx_EventKind_KeyPress : Gfx_EventKind_KeyRelease);
             event->key  = event_key;
-            event->key_modifiers = state->modifiers;
+            event->key_modifiers |= (xkb_state_mod_name_is_active(state->xkb_state, XKB_MOD_NAME_SHIFT, XKB_STATE_MODS_EFFECTIVE) > 0 ? Gfx_KeyModifier_Shift   : 0);
+            event->key_modifiers |= (xkb_state_mod_name_is_active(state->xkb_state, XKB_MOD_NAME_CTRL,  XKB_STATE_MODS_EFFECTIVE) > 0 ? Gfx_KeyModifier_Control : 0);
             dll_push_back(state->events.first, state->events.last, event);
-        }
-
-        // NOTE(simon): Update modifiers.
-        {
-            Gfx_KeyModifier modifier = 0;
-            if (event_key == Gfx_Key_Control ) {
-                modifier = Gfx_KeyModifier_Control;
-            }
-            if (event_key == Gfx_Key_Shift ) {
-                modifier = Gfx_KeyModifier_Shift;
-            }
-
-            if (key_state == WL_KEYBOARD_KEY_STATE_PRESSED) {
-                state->modifiers |= modifier;
-            } else {
-                state->modifiers &= ~modifier;
-            }
         }
     }
 }
