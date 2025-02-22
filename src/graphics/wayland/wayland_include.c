@@ -866,8 +866,11 @@ internal Gfx_EventList gfx_get_events(Arena *arena, B32 wait) {
     Wayland_State *state = &global_wayland_state;
 
     // TODO(simon): Error handling
-    // NOTE(simon): Do we need to read more events?
-    if (wl_display_prepare_read(state->display) == 0) {
+    do {
+        while (wl_display_prepare_read(state->display) != 0) {
+            wl_display_dispatch_pending(state->display);
+        }
+
         wl_display_flush(state->display);
 
         struct pollfd fds[2] = { 0 };
@@ -882,16 +885,16 @@ internal Gfx_EventList gfx_get_events(Arena *arena, B32 wait) {
         } else {
             wl_display_cancel_read(state->display);
         }
-    }
 
-    wl_display_dispatch_pending(state->display);
+        wl_display_dispatch_pending(state->display);
 
-    U64 key_repeats = 0;
-    if (read(state->key_repeat_fd, &key_repeats, sizeof(key_repeats)) == sizeof(key_repeats)) {
-        for (U64 i = 0; i < key_repeats; ++i) {
-            wayland_handle_key(state->last_key, WL_KEYBOARD_KEY_STATE_PRESSED);
+        U64 key_repeats = 0;
+        if (read(state->key_repeat_fd, &key_repeats, sizeof(key_repeats)) == sizeof(key_repeats)) {
+            for (U64 i = 0; i < key_repeats; ++i) {
+                wayland_handle_key(state->last_key, WL_KEYBOARD_KEY_STATE_PRESSED);
+            }
         }
-    }
+    } while (wait && !state->events.first);
 
     // NOTE(simon): Copy events to the provided arena.
     Gfx_EventList events = { 0 };
