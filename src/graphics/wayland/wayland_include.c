@@ -717,6 +717,7 @@ internal Void wayland_surface_enter(Void *data, struct wl_surface *wl_surface, s
     }
 
     wayland_update_surface_scale(surface);
+    gfx_send_wakeup_event();
 }
 
 internal Void wayland_surface_leave(Void *data, struct wl_surface *wl_surface, struct wl_output *output) {
@@ -734,6 +735,7 @@ internal Void wayland_surface_leave(Void *data, struct wl_surface *wl_surface, s
     }
 
     wayland_update_surface_scale(surface);
+    gfx_send_wakeup_event();
 }
 
 
