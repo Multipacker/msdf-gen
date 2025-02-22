@@ -877,7 +877,11 @@ internal Gfx_EventList gfx_get_events(Arena *arena, B32 wait) {
         wl_display_dispatch_pending(state->display);
 
         U64 key_repeats = 0;
-        if (read(state->key_repeat_fd, &key_repeats, sizeof(key_repeats)) == sizeof(key_repeats)) {
+        ssize_t bytes_read = 0;
+        do {
+            bytes_read = read(state->key_repeat_fd, &key_repeats, sizeof(key_repeats));
+        } while (bytes_read == -1 && errno == EINTR);
+        if (bytes_read == sizeof(key_repeats)) {
             for (U64 i = 0; i < key_repeats; ++i) {
                 wayland_handle_key(state->last_key, WL_KEYBOARD_KEY_STATE_PRESSED);
             }
