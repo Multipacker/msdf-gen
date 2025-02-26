@@ -848,6 +848,7 @@ internal Void gfx_send_wakeup_event(Void) {
     Wayland_State *state = &global_wayland_state;
     struct wl_callback *wakeup_callback = wl_display_sync(state->display);
     wl_callback_add_listener(wakeup_callback, &wayland_wakeup_callback_listener, 0);
+    wl_display_flush(state->display);
 }
 
 internal Gfx_EventList gfx_get_events(Arena *arena, B32 wait) {
