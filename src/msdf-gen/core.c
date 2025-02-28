@@ -381,6 +381,7 @@ internal Void update(Void) {
             { Gfx_Key_V,         Gfx_KeyModifier_Control,                         Command_Paste,                },
             { Gfx_Key_X,         Gfx_KeyModifier_Control,                         Command_Cut,                  },
             { Gfx_Key_T,         Gfx_KeyModifier_Control,                         Command_ToggleListView,       },
+            { Gfx_Key_F1,        0                      ,                         Command_OpenCommandLister,    },
     };
 
     // NOTE(simon): Process key bindings.
@@ -941,6 +942,11 @@ internal Void update(Void) {
                 case Command_ToggleListView: {
                     state->only_mapped = !state->only_mapped;
                 } break;
+                case Command_OpenCommandLister: {
+                    state->show_command_lister = true;
+                } break;
+                case Command_COUNT: {
+                } break;
             }
 
             if (ui_event && ui_event->kind != UI_EventKind_Null) {
@@ -997,6 +1003,219 @@ internal Void update(Void) {
             Handle panel;
             Handle tab;
         };
+
+        // NOTE(simon): Build command lister
+        if (state->show_command_lister) {
+            F32 command_rectangle_width = (F32) client_area.width * 0.6f;
+            F32 command_rectangle_height = (F32) client_area.height * 0.8f;
+            ui_fixed_x_next(((F32) client_area.width - command_rectangle_width) / 2.0f);
+            ui_fixed_y_next(((F32) client_area.height - command_rectangle_height) / 2.0f);
+            ui_width_next(ui_size_pixels(command_rectangle_width, 1.0f));
+            ui_height_next(ui_size_pixels(command_rectangle_height, 1.0f));
+            ui_layout_axis_next(Axis2_X);
+            ui_focus_next(UI_Focus_Root);
+            UI_Box *command_box = ui_create_box_from_string(
+                UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawBorder | UI_BoxFlag_DrawDropShadow | UI_BoxFlag_Clickable | UI_BoxFlag_Scrollable,
+                str8_literal("command_lister")
+            );
+
+            ui_width(ui_size_fill())
+            ui_height(ui_size_fill())
+            ui_parent(command_box)
+            ui_padding(ui_size_ems(0.5f, 1.0f))
+            ui_column()
+            ui_padding(ui_size_ems(0.5f, 1.0f))
+            ui_height(ui_size_ems(1.5f, 1.0f))
+            ui_text_padding(ui_size_ems(0.5f, 1.0f).value)
+            {
+                local U8 buffer[1024];
+                local U64 buffer_size = 0;
+                local U64 cursor = 0;
+                local U64 mark = 0;
+                local S32 active_index = 0;
+
+                UI_Key key = ui_key_from_string(ui_active_seed_key(), str8_literal("query"));
+                ui_palette(palette_from_code(PaletteCode_Button))
+                ui_focus(UI_Focus_Active) {
+                    ui_line_edit(buffer, &buffer_size, array_count(buffer), &cursor, &mark, key);
+                }
+
+                ui_spacer_sized(ui_size_ems(0.5f, 1.0f));
+
+                local F32 scroll_offset = 0.0f;
+
+                // NOTE(simon): Scroll region
+                // TODO(simon): Replace with fixed size.
+                ui_width_next(ui_size_fill());
+                ui_height_next(ui_size_fill());
+                ui_layout_axis_next(Axis2_X);
+                UI_Box *region = ui_create_box_from_string(UI_BoxFlag_OverflowY | UI_BoxFlag_Clip | UI_BoxFlag_Scrollable, str8_literal("region"));
+                ui_parent_push(region);
+
+                V2F32 region_size = region->calculated_size;
+
+                F32 scrollbar_width = (F32) ui_font_size_top();
+                F32 container_width = region_size.width - scrollbar_width;
+                F32 container_height = region_size.height;
+                F32 height = ui_size_ems(3.0, 1.0f).value;
+
+                // NOTE(simon): Scroll container
+                ui_width_next(ui_size_pixels(container_width, 1.0f));
+                ui_height_next(ui_size_pixels(container_height, 1.0f));
+                ui_layout_axis_next(Axis2_Y);
+                UI_Box *container = ui_create_box_from_string(0, str8_literal("commands"));
+
+                S32 last_row = Command_COUNT - 1;
+
+                local S32 scroll_row = 0;
+                S32 target_row = scroll_row;
+
+                S32 top_row    = scroll_row + (S32) f32_floor(scroll_offset);
+                S32 bottom_row = s32_min(top_row + (scroll_offset != 0.0f) + (S32) f32_ceil(region_size.height / height) - 1, last_row);
+                container->view_offset.y = height * (f32_mod(scroll_offset, 1.0f) + (scroll_offset < 0.0f));
+
+                // NOTE(simon): Scrollbar container
+                ui_width_next(ui_size_pixels(scrollbar_width, 1.0f));
+                ui_height_next(ui_size_pixels(region_size.height, 1.0f));
+                ui_layout_axis_next(Axis2_Y);
+                UI_Box *scroll_container = ui_create_box_from_string(UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawBorder, str8_literal("scrollbar"));
+
+                ui_width(ui_size_parent_percent(1.0f, 1.0f))
+                ui_parent(scroll_container) {
+                    F32 rows_above   = (F32) (scroll_row) + scroll_offset;
+                    F32 visible_rows = container_height / height;
+                    F32 row_count    = (F32) (last_row) + visible_rows;
+                    F32 rows_below   = (F32) (last_row) - (F32) scroll_row - scroll_offset;
+
+                    ui_hover_cursor_next(Gfx_Cursor_Hand);
+                    ui_height_next(ui_size_parent_percent(rows_above / row_count, 0.0f));
+                    UI_Box *scroll_before = ui_create_box_from_string(UI_BoxFlag_Clickable, str8_literal("before"));
+
+                    ui_palette_next(palette_from_code(PaletteCode_Button));
+                    ui_hover_cursor_next(Gfx_Cursor_Hand);
+                    ui_height_next(ui_size_parent_percent(f32_max(0.01f, visible_rows / row_count), 1.0f));
+                    UI_Box *scroll = ui_create_box_from_string(UI_BoxFlag_Clickable | UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawBorder | UI_BoxFlag_DrawHot | UI_BoxFlag_DrawActive, str8_literal("scroll"));
+
+                    ui_hover_cursor_next(Gfx_Cursor_Hand);
+                    ui_height_next(ui_size_parent_percent(rows_below / row_count, 0.0f));
+                    UI_Box *scroll_after = ui_create_box_from_string(UI_BoxFlag_Clickable, str8_literal("after"));
+
+                    UI_Input before_input = ui_input_from_box(scroll_before);
+                    if (before_input.input_flags & UI_InputFlag_LeftClicked) {
+                        target_row -= (S32) f32_floor(visible_rows);
+                    }
+
+                    UI_Input scroll_input = ui_input_from_box(scroll);
+                    if (scroll_input.input_flags & UI_InputFlag_LeftDragging) {
+                        if (scroll_input.input_flags & UI_InputFlag_LeftPressed) {
+                            ui_set_drag_data(&top_row);
+                        }
+
+                        S32 start_row = *ui_get_drag_data(S32);
+
+                        F32 scroll_size = region_size.height - scroll->calculated_size.height;
+                        F32 drag_percent = ui_drag_delta().y / scroll_size;
+                        target_row = start_row + (S32) f32_floor(drag_percent * (row_count - visible_rows));
+                    }
+
+                    UI_Input after_input  = ui_input_from_box(scroll_after);
+                    if (after_input.input_flags & UI_InputFlag_LeftClicked) {
+                        target_row += (S32) f32_floor(visible_rows);
+                    }
+                }
+
+                ui_parent(container)
+                ui_palette(palette_from_code(PaletteCode_Button))
+                ui_palette(palette_from_code(PaletteCode_Button)) {
+                    ui_width(ui_size_fill())
+                    ui_height(ui_size_pixels(height, 1.0f))
+                    for (S32 i = top_row; i <= bottom_row; ++i) {
+                        if (i == active_index) {
+                            ui_focus_next(UI_Focus_Active);
+                        }
+                        UI_Input command_button_input = ui_button(command_names[i]);
+                        if (command_button_input.input_flags & UI_InputFlag_LeftClicked) {
+                            push_command((CommandKind) i);
+                            state->show_command_lister = 0;
+                        }
+                    }
+
+                    for (UI_Event *event = global_ui_state->events->first, *next = 0; event; event = next) {
+                        next = event->next;
+
+                        if (event->kind != UI_EventKind_Navigation) {
+                            continue;
+                        }
+
+                        S32 delta = 0;
+                        switch (event->unit) {
+                            case UI_EventDeltaUnit_Null: {
+                            } break;
+                            case UI_EventDeltaUnit_Character: {
+                                if (event->delta.y == -1) {
+                                    delta = -1;
+                                } else if (event->delta.y == 1) {
+                                    delta = 1;
+                                }
+                            } break;
+                            case UI_EventDeltaUnit_Word: {
+                            } break;
+                            case UI_EventDeltaUnit_Line: {
+                            } break;
+                            case UI_EventDeltaUnit_Page: {
+                                S32 rows_per_page = (S32) f32_ceil(container_height / height);
+                                if (event->delta.y == -1) {
+                                    delta = -rows_per_page;
+                                } else if (event->delta.y == 1) {
+                                    delta = rows_per_page;
+                                }
+                            } break;
+                            case UI_EventDeltaUnit_Whole: {
+                                if (event->delta.x == -1) {
+                                    delta = -active_index;
+                                } else if (event->delta.x == 1) {
+                                    delta = last_row - active_index;
+                                }
+                            } break;
+                            case UI_EventDeltaUnit_COUNT: {
+                            } break;
+                        }
+
+                        active_index = s32_min(s32_max(0, active_index + delta), Command_COUNT - 1);
+                    }
+                }
+
+                // NOTE(simon): Region
+                ui_parent_pop();
+
+                UI_Input region_input = ui_input_from_box(region);
+                target_row -= (S32) region_input.scroll.y;
+
+                // NOTE(simon): Scrolling
+                target_row = s32_min(s32_max(0, target_row), last_row);
+                scroll_offset += (F32) scroll_row - (F32) target_row;
+                scroll_row = target_row;
+
+                // NOTE(simon): Animation
+                scroll_offset += -scroll_offset * ui_animation_slow_rate();
+                if (f32_abs(scroll_offset) < 0.001f) {
+                    scroll_offset = 0.0f;
+                } else {
+                    request_frame();
+                }
+            }
+
+            ui_input_from_box(command_box);
+
+            for (UI_Event *event = global_ui_state->events->first; event; event = event->next) {
+                if (
+                    (event->kind == UI_EventKind_KeyPress || event->kind == UI_EventKind_KeyRelease) &&
+                    (event->key == Gfx_Key_MouseLeft || event->key == Gfx_Key_MouseMiddle || event->key == Gfx_Key_MouseRight)
+                ) {
+                    state->show_command_lister = 0;
+                }
+            }
+        }
 
         // NOTE(simon): Only build preview if we are actually dragging the
         // view. Otherwise, the tooltip will be clipped to the current window.
@@ -1283,7 +1502,7 @@ internal Void update(Void) {
 
             push_context(.panel = handle_from_panel(panel), .tab = panel->active_tab);
 
-            ui_focus(panel == panel_from_handle(state->active_panel) ? UI_Focus_None : UI_Focus_Inactive) {
+            ui_focus(panel == panel_from_handle(state->active_panel) && !state->show_command_lister ? UI_Focus_None : UI_Focus_Inactive) {
                 R2F32 panel_rectangle = r2f32_pad(rectangle_from_panel(panel, root_rectangle), -panel_pad);
 
                 if (drag_is_active() && r2f32_contains_v2f32(panel_rectangle, ui_mouse())) {
@@ -1452,7 +1671,7 @@ internal Void update(Void) {
                 R2F32 tab_bar_rectangle = r2f32(panel_rectangle.min.x, panel_rectangle.min.y, panel_rectangle.max.x, panel_rectangle.min.y + tab_height.value);
                 R2F32 content_rectangle = r2f32(panel_rectangle.min.x, panel_rectangle.min.y + tab_height.value, panel_rectangle.max.x, panel_rectangle.max.y);
 
-                if (panel != panel_from_handle(state->active_panel)) {
+                if (panel != panel_from_handle(state->active_panel) || state->show_command_lister) {
                     UI_Palette overlay = ui_palette_top();
                     overlay.background = color_from_theme(ThemeColor_InactivePanelOverlay);
                     ui_palette_next(overlay);

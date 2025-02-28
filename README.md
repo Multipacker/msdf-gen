@@ -75,3 +75,5 @@ way that MSDFs are rendered, the sudden jumps in the samples will produce these
 artefacts. If the glyphs are rendered one by one, the artefacts won't show up.
 
 [thesis]: https://github.com/Chlumsky/msdfgen/files/3050967/thesis.pdf
+
+https://www.researchgate.net/publication/2880206_Distance_Field_Compression

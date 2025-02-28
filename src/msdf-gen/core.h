@@ -154,12 +154,20 @@ struct Context {
     X(Copy,                 "Copy")                   \
     X(Paste,                "Paste")                  \
     X(Cut,                  "Cut")                    \
-    X(ToggleListView,       "Toggle list view")
+    X(ToggleListView,       "Toggle list view")       \
+    X(OpenCommandLister,    "Open command lister")
 
 #define X(pascal_case, display_string) Command_##pascal_case,
 typedef enum {
     COMMANDS
+    Command_COUNT,
 } CommandKind;
+#undef X
+
+#define X(name, display_name) str8_literal_compile(display_name),
+global Str8 command_names[] = {
+    COMMANDS
+};
 #undef X
 
 typedef struct {
@@ -261,6 +269,8 @@ struct State {
     Context *context_stack;
 
     U64 previous_auto_save;
+
+    B32 show_command_lister;
 };
 
 global State *global_state;
