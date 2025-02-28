@@ -119,6 +119,7 @@ struct UI_Box {
     FontCache_Font     *font;
     U32                 font_size;
     UI_TextAlign        text_align;
+    F32                 text_padding;
     Gfx_Cursor          hover_cursor;
     Draw_List          *draw_list;
     UI_BoxDrawFunction *draw_function;
@@ -365,6 +366,7 @@ struct UI_Context {
     UI_BoxDrawFunctionStack draw_function_stack;
     UI_PointerStack         draw_data_stack;
     UI_TextAlignStack       text_align_stack;
+    UI_F32Stack             text_padding_stack;
     UI_F32Stack             corner_radius_stacks[Corner_COUNT];
     UI_FocusStack           focus_stack;
 };
@@ -550,6 +552,13 @@ internal B32 ui_is_animating_from_context(UI_Context *ui);
 #define ui_draw_data_next(data) ui_pointer_stack_push(&global_ui_state->draw_data_stack, data, true)
 #define ui_draw_data_auto_pop() ui_pointer_stack_auto_pop(&global_ui_state->draw_data_stack)
 #define ui_draw_data_top()      (global_ui_state->draw_data_stack.top->item)
+
+#define ui_text_padding_push(padding) ui_f32_stack_push(&global_ui_state->text_padding_stack, padding, false)
+#define ui_text_padding_pop()         ui_f32_stack_pop(&global_ui_state->text_padding_stack)
+#define ui_text_padding(padding)      defer_loop(ui_text_padding_push(padding), ui_text_padding_pop())
+#define ui_text_padding_next(padding) ui_f32_stack_push(&global_ui_state->text_padding_stack, padding, true)
+#define ui_text_padding_auto_pop()    ui_f32_stack_auto_pop(&global_ui_state->text_padding_stack)
+#define ui_text_padding_top()         (global_ui_state->text_padding_stack.top->item)
 
 #define ui_corner_radius_00_push(radius) ui_f32_stack_push(&global_ui_state->corner_radius_stacks[Corner_00], radius, false)
 #define ui_corner_radius_00_pop()        ui_f32_stack_pop(&global_ui_state->corner_radius_stacks[Corner_00])
