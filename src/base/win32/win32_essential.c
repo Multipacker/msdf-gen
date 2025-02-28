@@ -270,6 +270,10 @@ internal OS_Thread os_thread_start(OS_ThreadFunction entry_point, Void *data) {
     return result;
 }
 
+internal Void os_thread_set_name(OS_Thread handle, Str8 name) {
+    // TODO(simon): Implement this correctly.
+}
+
 internal B32 os_thread_join(OS_Thread handle) {
     Win32_Resource *thread = (Win32_Resource *) pointer_from_integer(handle.u64[0]);
     DWORD wait_result = WaitForSingleObject(thread->thread.handle, INFINITE);

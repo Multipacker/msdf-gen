@@ -253,3 +253,20 @@ internal Void gfx_set_cursor(Gfx_Cursor cursor) {
 internal Void gfx_set_update_function(VoidFunction *update) {
     global_gfx_win32_state.update = update;
 }
+
+internal F32 gfx_dpi(Void) {
+    // TODO(simon): Implement this correctly.
+    F32 dpi = 96.0f;
+    return dpi;
+}
+
+
+
+// NOTE(simon): Clipboard
+internal Void gfx_set_clipboard_text(Str8 text) {
+}
+
+internal Str8 gfx_get_clipboard_text(Arena *arena) {
+    Str8 result = { 0 };
+    return result;
+}
