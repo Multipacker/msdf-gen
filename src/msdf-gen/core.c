@@ -1006,6 +1006,7 @@ internal Void update(Void) {
 
         // NOTE(simon): Build command lister
         if (state->show_command_lister) {
+            Arena_Temporary scratch = arena_get_scratch(0, 0);
             F32 command_rectangle_width = (F32) client_area.width * 0.6f;
             F32 command_rectangle_height = (F32) client_area.height * 0.8f;
             ui_fixed_x_next(((F32) client_area.width - command_rectangle_width) / 2.0f);
@@ -1042,6 +1043,35 @@ internal Void update(Void) {
 
                 ui_spacer_sized(ui_size_ems(0.5f, 1.0f));
 
+                typedef struct CommandItem CommandItem;
+                struct CommandItem {
+                    CommandKind command;
+                    Str8 name;
+                    FuzzyMatchList fuzzy_matches;
+                };
+                CommandItem commands[Command_COUNT] = { 0 };
+                U64 command_count = array_count(commands);
+
+                {
+                    // NOTE(simon): Fill commands
+                    for (CommandKind command = 0; command < command_count; ++command) {
+                        commands[command].command       = command;
+                        commands[command].name          = command_names[command];
+                        commands[command].fuzzy_matches = str8_fuzzy_match(scratch.arena, str8(buffer, buffer_size), command_names[command]);
+                    }
+
+                    // NOTE(simon): Filter on number of matched parts
+                    for (U64 i = 0; i < command_count;) {
+                        FuzzyMatchList matches = commands[i].fuzzy_matches;
+                        if (matches.needle_parts != matches.count) {
+                            swap(commands[i], commands[command_count - 1], CommandItem);
+                            --command_count;
+                        } else {
+                            ++i;
+                        }
+                    }
+                }
+
                 local F32 scroll_offset = 0.0f;
 
                 // NOTE(simon): Scroll region
@@ -1065,7 +1095,7 @@ internal Void update(Void) {
                 ui_layout_axis_next(Axis2_Y);
                 UI_Box *container = ui_create_box_from_string(0, str8_literal("commands"));
 
-                S32 last_row = Command_COUNT - 1;
+                S32 last_row = (S32) command_count - 1;
 
                 local S32 scroll_row = 0;
                 S32 target_row = scroll_row;
@@ -1133,9 +1163,19 @@ internal Void update(Void) {
                         if (i == active_index) {
                             ui_focus_next(UI_Focus_Active);
                         }
-                        UI_Input command_button_input = ui_button(command_names[i]);
+
+                        ui_hover_cursor_next(Gfx_Cursor_Hand);
+                        UI_Box *command_button_box = ui_create_box_from_string(
+                            UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawText | UI_BoxFlag_DrawBorder |
+                            UI_BoxFlag_DrawHot | UI_BoxFlag_DrawActive |
+                            UI_BoxFlag_Clickable,
+                            commands[i].name
+                        );
+                        ui_box_set_fuzzy_match_list(command_button_box, commands[i].fuzzy_matches);
+                        UI_Input command_button_input = ui_input_from_box(command_button_box);
+
                         if (command_button_input.input_flags & UI_InputFlag_LeftClicked) {
-                            push_command((CommandKind) i);
+                            push_command(commands[i].command);
                             state->show_command_lister = 0;
                         }
                     }
@@ -1182,6 +1222,8 @@ internal Void update(Void) {
                         }
 
                         active_index = s32_min(s32_max(0, active_index + delta), Command_COUNT - 1);
+
+                        dll_remove(global_ui_state->events->first, global_ui_state->events->last, event);
                     }
                 }
 
@@ -1215,6 +1257,8 @@ internal Void update(Void) {
                     state->show_command_lister = 0;
                 }
             }
+
+            arena_end_temporary(scratch);
         }
 
         // NOTE(simon): Only build preview if we are actually dragging the
