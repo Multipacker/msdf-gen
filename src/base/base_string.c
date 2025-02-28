@@ -570,3 +570,76 @@ internal U64Decode u64_from_str8(Str8 string) {
     result.size      = (U64) (ptr - string.data);
     return result;
 }
+
+
+
+internal U64 str8_find(Str8 needle, Str8 haystack) {
+    U8 *haystack_ptr = haystack.data;
+    U8 *haystack_opl = haystack.data + haystack.size;
+
+    for (; needle.size <= (U64) (haystack_opl - haystack_ptr); ++haystack_ptr) {
+        if (memory_equal(haystack_ptr, needle.data, needle.size)) {
+            break;
+        }
+    }
+
+    if (needle.size > (U64) (haystack_opl - haystack_ptr)) {
+        haystack_ptr = haystack_opl;
+    }
+
+    U64 index = (U64) (haystack_ptr - haystack.data);
+    return index;
+}
+
+internal FuzzyMatchList str8_fuzzy_match(Arena *arena, Str8 needle, Str8 haystack) {
+    FuzzyMatchList matches = { 0 };
+    Arena_Temporary scratch = arena_get_scratch(&arena, 1);
+    Str8List parts = str8_split_by_codepoints(scratch.arena, needle, str8_literal(" \t"));
+    matches.needle_parts = parts.node_count;
+
+    for (Str8Node *part = parts.first; part; part = part->next) {
+        U64 index = 0;
+        while (index < haystack.size) {
+            index = str8_find(part->string, str8_skip(haystack, index));
+
+            B32 already_matched = false;
+            for (FuzzyMatch *match = matches.first; match; match = match->next) {
+                if (match->min <= index && index < match->max) {
+                    already_matched = true;
+                    break;
+                }
+            }
+
+            if (!already_matched) {
+                break;
+            }
+        }
+
+        if (index < haystack.size) {
+            FuzzyMatch *match = arena_push_struct_zero(arena, FuzzyMatch);
+            match->min = index;
+            match->max = index + part->string.size;
+
+            dll_push_back(matches.first, matches.last, match);
+            ++matches.count;
+            matches.total_length += part->string.size;
+        }
+    }
+
+    arena_end_temporary(scratch);
+    return matches;
+}
+
+internal FuzzyMatchList fuzzy_match_list_copy(Arena *arena, FuzzyMatchList fuzzy_matches) {
+    FuzzyMatchList result = fuzzy_matches;
+    result.first = 0;
+    result.last  = 0;
+
+    for (FuzzyMatch *old_match = fuzzy_matches.first; old_match; old_match = old_match->next) {
+        FuzzyMatch *new_match = arena_push_struct(arena, FuzzyMatch);
+        *new_match = *old_match;
+        dll_push_back(result.first, result.last, new_match);
+    }
+
+    return result;
+}

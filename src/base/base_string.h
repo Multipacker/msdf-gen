@@ -41,6 +41,23 @@ struct U64Decode {
     U64 size;
 };
 
+typedef struct FuzzyMatch FuzzyMatch;
+struct FuzzyMatch {
+    FuzzyMatch *next;
+    FuzzyMatch *previous;
+    U64 min;
+    U64 max;
+};
+
+typedef struct FuzzyMatchList FuzzyMatchList;
+struct FuzzyMatchList {
+    FuzzyMatch *first;
+    FuzzyMatch *last;
+    U64 needle_parts;
+    U64 count;
+    U64 total_length;
+};
+
 internal Str8 str8(U8 *data, U64 size);
 internal Str8 str8_range(U8 *start, U8 *opl);
 internal Str8 str8_copy(Arena *arena, Str8 string);
@@ -90,5 +107,9 @@ internal U64 str8_next_codepoint_offset(Str8 string, U64 start_offset, Side side
 
 // NOTE(simon): Basic parsing routines
 internal U64Decode u64_from_str8(Str8 string);
+
+internal U64 str8_find(Str8 needle, Str8 haystack);
+internal FuzzyMatchList str8_fuzzy_match(Arena *arena, Str8 needle, Str8 haystack);
+internal FuzzyMatchList fuzzy_match_list_copy(Arena *arena, FuzzyMatchList fuzzy_matches);
 
 #endif // STRING_H
