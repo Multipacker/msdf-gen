@@ -810,6 +810,11 @@ internal Void ui_box_set_string(UI_Box *box, Str8 string) {
     }
 }
 
+internal Void ui_box_set_fuzzy_match_list(UI_Box *box, FuzzyMatchList fuzzy_matches) {
+    box->fuzzy_matches = fuzzy_match_list_copy(ui_frame_arena(), fuzzy_matches);
+    box->flags |= UI_BoxFlag_DrawFuzzyMatches;
+}
+
 internal Void ui_box_set_draw_list(UI_Box *box, Draw_List *list) {
     box->draw_list = list;
 }

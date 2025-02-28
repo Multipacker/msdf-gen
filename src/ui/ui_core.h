@@ -67,30 +67,31 @@ union UI_Palette {
 
 typedef enum {
     // NOTE(simon): Interaction
-    UI_BoxFlag_Disabled       = 1 << 0,
-    UI_BoxFlag_Clickable      = 1 << 1,
-    UI_BoxFlag_Scrollable     = 1 << 2,
-    UI_BoxFlag_DropTarget     = 1 << 3,
+    UI_BoxFlag_Disabled         = 1 << 0,
+    UI_BoxFlag_Clickable        = 1 << 1,
+    UI_BoxFlag_Scrollable       = 1 << 2,
+    UI_BoxFlag_DropTarget       = 1 << 3,
 
     // NOTE(simon): Layout
-    UI_BoxFlag_OverflowX      = 1 << 4,
-    UI_BoxFlag_OverflowY      = 1 << 5,
-    UI_BoxFlag_FloatingX      = 1 << 6,
-    UI_BoxFlag_FloatingY      = 1 << 7,
+    UI_BoxFlag_OverflowX        = 1 << 4,
+    UI_BoxFlag_OverflowY        = 1 << 5,
+    UI_BoxFlag_FloatingX        = 1 << 6,
+    UI_BoxFlag_FloatingY        = 1 << 7,
 
     // NOTE(simon): Appearance
-    UI_BoxFlag_AnimateX       = 1 << 8,
-    UI_BoxFlag_AnimateY       = 1 << 9,
-    UI_BoxFlag_DrawBackground = 1 << 10,
-    UI_BoxFlag_DrawBorder     = 1 << 11,
-    UI_BoxFlag_DrawText       = 1 << 12,
-    UI_BoxFlag_DrawHot        = 1 << 13,
-    UI_BoxFlag_DrawActive     = 1 << 14,
-    UI_BoxFlag_DrawDropShadow = 1 << 15,
-    UI_BoxFlag_Clip           = 1 << 16,
+    UI_BoxFlag_AnimateX         = 1 << 8,
+    UI_BoxFlag_AnimateY         = 1 << 9,
+    UI_BoxFlag_DrawBackground   = 1 << 10,
+    UI_BoxFlag_DrawBorder       = 1 << 11,
+    UI_BoxFlag_DrawText         = 1 << 12,
+    UI_BoxFlag_DrawHot          = 1 << 13,
+    UI_BoxFlag_DrawActive       = 1 << 14,
+    UI_BoxFlag_DrawDropShadow   = 1 << 15,
+    UI_BoxFlag_DrawFuzzyMatches = 1 << 16,
+    UI_BoxFlag_Clip             = 1 << 17,
 
-    UI_BoxFlag_FocusActive    = 1 << 17,
-    UI_BoxFlag_FocusDisabled  = 1 << 18,
+    UI_BoxFlag_FocusActive      = 1 << 18,
+    UI_BoxFlag_FocusDisabled    = 1 << 19,
 
     // NOTE(simon): Convenient combinations
     UI_BoxFlag_Overflow         = UI_BoxFlag_OverflowX | UI_BoxFlag_OverflowY,
@@ -127,6 +128,7 @@ struct UI_Box {
     F32                 corner_radies[Corner_COUNT];
 
     FontCache_Text text;
+    FuzzyMatchList fuzzy_matches;
     V2F32 calculated_size;
     V2F32 calculated_position;
     R2F32 calculated_rectangle;
@@ -410,6 +412,7 @@ internal UI_Box *ui_create_box_from_string(UI_BoxFlags flags, Str8 string);
 internal UI_Box *ui_create_box_from_string_format(UI_BoxFlags flags, CStr format, ...);
 
 internal Void     ui_box_set_string(UI_Box *box, Str8 string);
+internal Void     ui_box_set_fuzzy_match_list(UI_Box *box, FuzzyMatchList fuzzy_matches);
 internal Void     ui_box_set_draw_list(UI_Box *box, Draw_List *list);
 internal V2F32    ui_box_text_location(UI_Box *box);
 internal UI_Input ui_input_from_box(UI_Box *box);

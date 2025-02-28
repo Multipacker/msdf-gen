@@ -1870,21 +1870,62 @@ internal Void update(Void) {
 
             if (box->flags & UI_BoxFlag_DrawText) {
                 V2F32 origin = ui_box_text_location(box);
-                F32 advance = 0.0f;
-                for (U64 i = 0; i < box->text.letter_count; ++i) {
-                    FontCache_Letter *letter = &box->text.letters[i];
-                    draw_glyph(
-                        r2f32(
-                            f32_floor(origin.x + letter->offset.x + advance),
-                            f32_floor(origin.y + letter->offset.y),
-                            f32_floor(origin.x + letter->offset.x + advance + letter->size.x),
-                            f32_floor(origin.y + letter->offset.y + letter->size.y)
-                        ),
-                        letter->source,
-                        letter->texture,
-                        box->palette.text
-                    );
-                    advance += letter->advance;
+
+                {
+                    F32 advance = 0.0f;
+                    for (U64 i = 0; i < box->text.letter_count; ++i) {
+                        FontCache_Letter *letter = &box->text.letters[i];
+                        draw_glyph(
+                            r2f32(
+                                f32_floor(origin.x + letter->offset.x + advance),
+                                f32_floor(origin.y + letter->offset.y),
+                                f32_floor(origin.x + letter->offset.x + advance + letter->size.x),
+                                f32_floor(origin.y + letter->offset.y + letter->size.y)
+                            ),
+                            letter->source,
+                            letter->texture,
+                            box->palette.text
+                        );
+                        advance += letter->advance;
+                    }
+                }
+
+                if (box->flags & UI_BoxFlag_DrawFuzzyMatches) {
+                    F32 ascent = box->text.ascent;
+                    F32 descent = box->text.descent;
+                    for (FuzzyMatch *match = box->fuzzy_matches.first; match; match = match->next) {
+                        F32 pixel_min =  f32_infinity();
+                        F32 pixel_max = -f32_infinity();
+                        U64 byte_offset = 0;
+                        F32 advance = 0.0f;
+                        for (U64 i = 0; i < box->text.letter_count; ++i) {
+                            FontCache_Letter *letter = &box->text.letters[i];
+
+                            if (match->min <= byte_offset && byte_offset < match->max) {
+                                F32 pre_offset  = advance + letter->offset.x;
+                                F32 post_offset = advance + letter->advance;
+                                pixel_min = f32_min(pre_offset,  pixel_min);
+                                pixel_max = f32_max(post_offset, pixel_max);
+                            }
+
+                            advance += letter->advance;
+                            byte_offset += letter->decode_size;
+                        }
+                        V4F32 color = color_from_theme(ThemeColor_Focus);
+                        color.a *= 0.2f;
+                        draw_rectangle(
+                            r2f32(
+                                f32_floor(origin.x + pixel_min),
+                                f32_floor(origin.y - ascent),
+                                f32_floor(origin.x + pixel_max),
+                                f32_floor(origin.y - descent)
+                            ),
+                            color,
+                            0,
+                            0,
+                            0
+                        );
+                    }
                 }
             }
 
