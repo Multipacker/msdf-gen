@@ -146,3 +146,6 @@ internal Void opengl_backend_init(Void) {
         // OpenGL does not support required pixel format!
     }
 }
+
+internal Void opengl_resize(V2U32 resolution) {
+}

@@ -308,16 +308,16 @@ internal Void render_create(Void) {
 
     glCreateVertexArrays(1, &result->vao);
 
-    opengl_vertex_array_instance_attribute_float(result->vao,   0, 4, GL_FLOAT,        GL_FALSE, member_offset(Render_Shape, position),  0);
-    opengl_vertex_array_instance_attribute_float(result->vao,   1, 4, GL_FLOAT,        GL_FALSE, member_offset(Render_Shape, colors[0]), 0);
-    opengl_vertex_array_instance_attribute_float(result->vao,   2, 4, GL_FLOAT,        GL_FALSE, member_offset(Render_Shape, colors[1]), 0);
-    opengl_vertex_array_instance_attribute_float(result->vao,   3, 4, GL_FLOAT,        GL_FALSE, member_offset(Render_Shape, colors[2]), 0);
-    opengl_vertex_array_instance_attribute_float(result->vao,   4, 4, GL_FLOAT,        GL_FALSE, member_offset(Render_Shape, colors[3]), 0);
-    opengl_vertex_array_instance_attribute_float(result->vao,   5, 4, GL_FLOAT,        GL_FALSE, member_offset(Render_Shape, source),    0);
-    opengl_vertex_array_instance_attribute_integer(result->vao, 6, 1, GL_UNSIGNED_INT,           member_offset(Render_Shape, flags),     0);
-    opengl_vertex_array_instance_attribute_float(result->vao,   7, 1, GL_FLOAT,        GL_FALSE, member_offset(Render_Shape, thickness), 0);
-    opengl_vertex_array_instance_attribute_float(result->vao,   8, 1, GL_FLOAT,        GL_FALSE, member_offset(Render_Shape, softness),  0);
-    opengl_vertex_array_instance_attribute_float(result->vao,   9, 4, GL_FLOAT,        GL_FALSE, member_offset(Render_Shape, radies),    0);
+    opengl_vertex_array_instance_attribute_float(result->vao,   0, 4, GL_FLOAT,        GL_FALSE, (GLuint) member_offset(Render_Shape, position),  0);
+    opengl_vertex_array_instance_attribute_float(result->vao,   1, 4, GL_FLOAT,        GL_FALSE, (GLuint) member_offset(Render_Shape, colors[0]), 0);
+    opengl_vertex_array_instance_attribute_float(result->vao,   2, 4, GL_FLOAT,        GL_FALSE, (GLuint) member_offset(Render_Shape, colors[1]), 0);
+    opengl_vertex_array_instance_attribute_float(result->vao,   3, 4, GL_FLOAT,        GL_FALSE, (GLuint) member_offset(Render_Shape, colors[2]), 0);
+    opengl_vertex_array_instance_attribute_float(result->vao,   4, 4, GL_FLOAT,        GL_FALSE, (GLuint) member_offset(Render_Shape, colors[3]), 0);
+    opengl_vertex_array_instance_attribute_float(result->vao,   5, 4, GL_FLOAT,        GL_FALSE, (GLuint) member_offset(Render_Shape, source),    0);
+    opengl_vertex_array_instance_attribute_integer(result->vao, 6, 1, GL_UNSIGNED_INT,           (GLuint) member_offset(Render_Shape, flags),     0);
+    opengl_vertex_array_instance_attribute_float(result->vao,   7, 1, GL_FLOAT,        GL_FALSE, (GLuint) member_offset(Render_Shape, thickness), 0);
+    opengl_vertex_array_instance_attribute_float(result->vao,   8, 1, GL_FLOAT,        GL_FALSE, (GLuint) member_offset(Render_Shape, softness),  0);
+    opengl_vertex_array_instance_attribute_float(result->vao,   9, 4, GL_FLOAT,        GL_FALSE, (GLuint) member_offset(Render_Shape, radies),    0);
 
     glCreateBuffers(1, &result->vbo);
     glVertexArrayVertexBuffer(result->vao, 0, result->vbo, 0, sizeof(Render_Shape));
