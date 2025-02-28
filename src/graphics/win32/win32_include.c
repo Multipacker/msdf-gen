@@ -117,6 +117,19 @@ internal LRESULT CALLBACK win32_window_proc(HWND hwnd, UINT message, WPARAM wpar
                     event->key_modifiers |= (GetAsyncKeyState(VK_CONTROL) & 0x8000) ? Gfx_KeyModifier_Control : 0;
                 }
             } break;
+            case WM_CHAR: {
+                U32 codepoint = wparam;
+                B32 is_c0_control = codepoint <= 0x1F || codepoint == 0x7F;
+                B32 is_c1_control = (0x80 <= codepoint && codepoint <= 0x9F);
+
+                if (!is_c0_control && !is_c1_control) {
+                    U8 *buffer = arena_push_array_zero(win32_event_arena, U8, 4);
+                    U64 length = string_encode_utf8(buffer, codepoint);
+
+                    event->kind = Gfx_EventKind_Text;
+                    event->text = str8(buffer, length);
+                }
+            } break;
             default: {
                 result = DefWindowProc(hwnd, message, wparam, lparam);
             } break;
