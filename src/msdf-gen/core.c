@@ -945,6 +945,21 @@ internal Void update(Void) {
                 case Command_OpenCommandLister: {
                     state->show_command_lister = true;
                 } break;
+                case Command_OpenGlyphListView: {
+                    push_command(Command_OpenTab, .tab_specification = str8_literal("GlyphList"));
+                } break;
+                case Command_OpenGlyphViewView: {
+                    push_command(Command_OpenTab, .tab_specification = str8_literal("GlyphView"));
+                } break;
+                case Command_OpenRenderStatsView: {
+                    push_command(Command_OpenTab, .tab_specification = str8_literal("RenderStats"));
+                } break;
+                case Command_OpenThemeView: {
+                    push_command(Command_OpenTab, .tab_specification = str8_literal("Theme"));
+                } break;
+                case Command_OpenTestView: {
+                    push_command(Command_OpenTab, .tab_specification = str8_literal("Test"));
+                } break;
                 case Command_COUNT: {
                 } break;
             }

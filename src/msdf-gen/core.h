@@ -155,7 +155,12 @@ struct Context {
     X(Paste,                "Paste")                  \
     X(Cut,                  "Cut")                    \
     X(ToggleListView,       "Toggle list view")       \
-    X(OpenCommandLister,    "Open command lister")
+    X(OpenCommandLister,    "Open command lister")    \
+    X(OpenGlyphListView,    "Open glyph list view")   \
+    X(OpenGlyphViewView,    "Open glyph view")        \
+    X(OpenRenderStatsView,  "Open render statistics view") \
+    X(OpenThemeView,        "Open theme view")        \
+    X(OpenTestView,         "Open test view")
 
 #define X(pascal_case, display_string) Command_##pascal_case,
 typedef enum {
