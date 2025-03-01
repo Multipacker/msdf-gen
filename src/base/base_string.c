@@ -618,8 +618,8 @@ internal U64 str8_last_index_of(Str8 string, U32 codepoint) {
     return result;
 }
 
-internal U64 str8_find(Str8 needle, Str8 haystack) {
-    U8 *haystack_ptr = haystack.data;
+internal U64 str8_find(U64 offset, Str8 needle, Str8 haystack) {
+    U8 *haystack_ptr = haystack.data + u64_min(offset, haystack.size);
     U8 *haystack_opl = haystack.data + haystack.size;
 
     for (; needle.size <= (U64) (haystack_opl - haystack_ptr); ++haystack_ptr) {
@@ -649,7 +649,7 @@ internal FuzzyMatchList str8_fuzzy_match(Arena *arena, Str8 needle, Str8 haystac
     for (Str8Node *part = parts.first; part; part = part->next) {
         U64 index = 0;
         while (index < lowercase_haystack.size) {
-            index = str8_find(part->string, str8_skip(lowercase_haystack, index));
+            index = str8_find(index, part->string, lowercase_haystack);
 
             B32 already_matched = false;
             for (FuzzyMatch *match = matches.first; match; match = match->next) {
