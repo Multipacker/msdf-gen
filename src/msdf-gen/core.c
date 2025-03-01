@@ -1112,13 +1112,13 @@ internal Void update(Void) {
                 ui_layout_axis_next(Axis2_Y);
                 UI_Box *container = ui_create_box_from_string(0, str8_literal("commands"));
 
-                S32 last_row = (S32) command_count - 1;
+                S32 last_row = (S32) command_count;
 
                 local S32 scroll_row = 0;
                 S32 target_row = scroll_row;
 
                 S32 top_row    = scroll_row + (S32) f32_floor(scroll_offset);
-                S32 bottom_row = s32_min(top_row + (scroll_offset != 0.0f) + (S32) f32_ceil(region_size.height / height) - 1, last_row);
+                S32 bottom_row = s32_min(top_row + (scroll_offset != 0.0f) + (S32) f32_ceil(region_size.height / height) - 1, last_row - 1);
                 container->view_offset.y = height * (f32_mod(scroll_offset, 1.0f) + (scroll_offset < 0.0f));
 
                 // NOTE(simon): Scrollbar container
@@ -1131,8 +1131,8 @@ internal Void update(Void) {
                 ui_parent(scroll_container) {
                     F32 rows_above   = (F32) (scroll_row) + scroll_offset;
                     F32 visible_rows = container_height / height;
-                    F32 row_count    = (F32) (last_row) + visible_rows;
-                    F32 rows_below   = (F32) (last_row) - (F32) scroll_row - scroll_offset;
+                    F32 row_count    = (F32) last_row + visible_rows - 1;
+                    F32 rows_below   = (F32) last_row - (F32) scroll_row - scroll_offset - 1;
 
                     ui_hover_cursor_next(Gfx_Cursor_Hand);
                     ui_height_next(ui_size_parent_percent(rows_above / row_count, 0.0f));
@@ -1231,17 +1231,19 @@ internal Void update(Void) {
                                 if (event->delta.x == -1) {
                                     delta = -active_index;
                                 } else if (event->delta.x == 1) {
-                                    delta = last_row - active_index;
+                                    delta = last_row - active_index - 1;
                                 }
                             } break;
                             case UI_EventDeltaUnit_COUNT: {
                             } break;
                         }
 
-                        active_index = s32_min(s32_max(0, active_index + delta), Command_COUNT - 1);
+                        active_index = s32_min(s32_max(0, active_index + delta), (S32) command_count - 1);
 
                         dll_remove(global_ui_state->events->first, global_ui_state->events->last, event);
                     }
+
+                    active_index = s32_min(s32_max(0, active_index), (S32) command_count - 1);
                 }
 
                 // NOTE(simon): Region
@@ -1251,7 +1253,7 @@ internal Void update(Void) {
                 target_row -= (S32) region_input.scroll.y;
 
                 // NOTE(simon): Scrolling
-                target_row = s32_min(s32_max(0, target_row), last_row);
+                target_row = s32_min(s32_max(0, target_row), s32_max(0, last_row - 1));
                 scroll_offset += (F32) scroll_row - (F32) target_row;
                 scroll_row = target_row;
 
