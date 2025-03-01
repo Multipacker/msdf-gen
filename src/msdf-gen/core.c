@@ -77,7 +77,9 @@ internal Panel *panel_create(State *state) {
 }
 
 internal Void panel_free(State *state, Panel *panel) {
-    for (Tab *tab = panel->tab_first; tab; tab = tab->next) {
+    for (Tab *tab = panel->tab_first, *next = 0; tab; tab = next) {
+        next = tab->next;
+        panel_remove_tab(panel, tab);
         tab_free(state, tab);
     }
 
