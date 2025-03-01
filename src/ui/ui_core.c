@@ -449,6 +449,22 @@ internal Void ui_end(Void) {
 
     UI_Context *ui = global_ui_state;
 
+    if (!ui_keys_match(ui->context_menu_key, global_ui_null_key)) {
+        for (UI_Event *event = ui->events->first, *next; event; event = next) {
+            next = event->next;
+            B32 consumed = false;
+
+            if (event->kind == UI_EventKind_Cancel) {
+                ui_context_menu_close();
+                consumed = true;
+            }
+
+            if (consumed) {
+                ui_event_list_consume_event(ui->events, event);
+            }
+        }
+    }
+
     // NOTE(simon): Remove untouched boxes.
     for (U32 i = 0; i < UI_BOX_TABLE_SIZE; ++i) {
         UI_BoxList *boxes = &ui->box_table[i];
@@ -857,6 +873,8 @@ internal UI_Input ui_input_from_box(UI_Box *box) {
     UI_Input result = { 0 };
     result.box = box;
 
+    B32 is_focused = box->flags & UI_BoxFlag_FocusActive && !(box->flags & UI_BoxFlag_FocusDisabled);
+
     R2F32 bounds = box->calculated_rectangle;
     for (UI_Box *parent = box; parent != &global_ui_null_box; parent = parent->parent) {
         if (parent->flags & UI_BoxFlag_Clip) {
@@ -926,6 +944,11 @@ internal UI_Input ui_input_from_box(UI_Box *box) {
             result.input_flags |= (UI_InputFlag) (UI_InputFlag_LeftReleased << mouse_key);
             ui->active_key[mouse_key] = global_ui_null_key;
             ui->hot_key = global_ui_null_key;
+            consumed = true;
+        }
+
+        if ((box->flags & UI_BoxFlag_KeyboardClickable) && is_focused && event->kind == UI_EventKind_Accept) {
+            result.input_flags |= UI_InputFlag_KeyboardPressed;
             consumed = true;
         }
 

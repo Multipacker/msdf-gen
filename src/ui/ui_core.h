@@ -67,36 +67,37 @@ union UI_Palette {
 
 typedef enum {
     // NOTE(simon): Interaction
-    UI_BoxFlag_Disabled         = 1 << 0,
-    UI_BoxFlag_Clickable        = 1 << 1,
-    UI_BoxFlag_Scrollable       = 1 << 2,
-    UI_BoxFlag_DropTarget       = 1 << 3,
+    UI_BoxFlag_Disabled          = 1 << 0,
+    UI_BoxFlag_Clickable         = 1 << 1,
+    UI_BoxFlag_Scrollable        = 1 << 2,
+    UI_BoxFlag_DropTarget        = 1 << 3,
+    UI_BoxFlag_KeyboardClickable = 1 << 4,
 
     // NOTE(simon): Layout
-    UI_BoxFlag_OverflowX        = 1 << 4,
-    UI_BoxFlag_OverflowY        = 1 << 5,
-    UI_BoxFlag_FloatingX        = 1 << 6,
-    UI_BoxFlag_FloatingY        = 1 << 7,
+    UI_BoxFlag_OverflowX         = 1 << 5,
+    UI_BoxFlag_OverflowY         = 1 << 6,
+    UI_BoxFlag_FloatingX         = 1 << 7,
+    UI_BoxFlag_FloatingY         = 1 << 8,
 
     // NOTE(simon): Appearance
-    UI_BoxFlag_AnimateX         = 1 << 8,
-    UI_BoxFlag_AnimateY         = 1 << 9,
-    UI_BoxFlag_DrawBackground   = 1 << 10,
-    UI_BoxFlag_DrawBorder       = 1 << 11,
-    UI_BoxFlag_DrawText         = 1 << 12,
-    UI_BoxFlag_DrawHot          = 1 << 13,
-    UI_BoxFlag_DrawActive       = 1 << 14,
-    UI_BoxFlag_DrawDropShadow   = 1 << 15,
-    UI_BoxFlag_DrawFuzzyMatches = 1 << 16,
-    UI_BoxFlag_Clip             = 1 << 17,
+    UI_BoxFlag_AnimateX          = 1 << 9,
+    UI_BoxFlag_AnimateY          = 1 << 10,
+    UI_BoxFlag_DrawBackground    = 1 << 11,
+    UI_BoxFlag_DrawBorder        = 1 << 12,
+    UI_BoxFlag_DrawText          = 1 << 13,
+    UI_BoxFlag_DrawHot           = 1 << 14,
+    UI_BoxFlag_DrawActive        = 1 << 15,
+    UI_BoxFlag_DrawDropShadow    = 1 << 16,
+    UI_BoxFlag_DrawFuzzyMatches  = 1 << 17,
+    UI_BoxFlag_Clip              = 1 << 18,
 
-    UI_BoxFlag_FocusActive      = 1 << 18,
-    UI_BoxFlag_FocusDisabled    = 1 << 19,
+    UI_BoxFlag_FocusActive       = 1 << 19,
+    UI_BoxFlag_FocusDisabled     = 1 << 20,
 
     // NOTE(simon): Convenient combinations
-    UI_BoxFlag_Overflow         = UI_BoxFlag_OverflowX | UI_BoxFlag_OverflowY,
-    UI_BoxFlag_AnimatePosition  = UI_BoxFlag_AnimateX  | UI_BoxFlag_AnimateY,
-    UI_BoxFlag_FloatingPosition = UI_BoxFlag_FloatingX | UI_BoxFlag_FloatingY,
+    UI_BoxFlag_Overflow          = UI_BoxFlag_OverflowX | UI_BoxFlag_OverflowY,
+    UI_BoxFlag_AnimatePosition   = UI_BoxFlag_AnimateX  | UI_BoxFlag_AnimateY,
+    UI_BoxFlag_FloatingPosition  = UI_BoxFlag_FloatingX | UI_BoxFlag_FloatingY,
 } UI_BoxFlags;
 
 struct UI_Box {
@@ -221,33 +222,36 @@ struct UI_BoxList {
 
 typedef enum {
     // NOTE(simon): Pressed while hovering.
-    UI_InputFlag_LeftPressed    = 1 << 0,
-    UI_InputFlag_MiddlePressed  = 1 << 1,
-    UI_InputFlag_RightPressed   = 1 << 2,
+    UI_InputFlag_LeftPressed     = 1 << 0,
+    UI_InputFlag_MiddlePressed   = 1 << 1,
+    UI_InputFlag_RightPressed    = 1 << 2,
 
     // NOTE(simon): Previously pressed and now user released the button.
-    UI_InputFlag_LeftReleased   = 1 << 3,
-    UI_InputFlag_MiddleReleased = 1 << 4,
-    UI_InputFlag_RightReleased  = 1 << 5,
+    UI_InputFlag_LeftReleased    = 1 << 3,
+    UI_InputFlag_MiddleReleased  = 1 << 4,
+    UI_InputFlag_RightReleased   = 1 << 5,
 
     // NOTE(simon): Previously pressed and released in bounds.
-    UI_InputFlag_LeftClicked    = 1 << 6,
-    UI_InputFlag_MiddleClicked  = 1 << 7,
-    UI_InputFlag_RightClicked   = 1 << 8,
+    UI_InputFlag_LeftClicked     = 1 << 6,
+    UI_InputFlag_MiddleClicked   = 1 << 7,
+    UI_InputFlag_RightClicked    = 1 << 8,
 
     // NOTE(simon): Pressed and holding in box.
-    UI_InputFlag_LeftDragging    = 1 << 9,
-    UI_InputFlag_MiddleDragging  = 1 << 10,
-    UI_InputFlag_RightDragging   = 1 << 11,
+    UI_InputFlag_LeftDragging     = 1 << 9,
+    UI_InputFlag_MiddleDragging   = 1 << 10,
+    UI_InputFlag_RightDragging    = 1 << 11,
 
     // NOTE(simon): Mouse is over this box.
-    UI_InputFlag_Hovering       = 1 << 12,
+    UI_InputFlag_Hovering        = 1 << 12,
+
+    // NOTE(simon): Keyboard interaction with
+    UI_InputFlag_KeyboardPressed = 1 << 13,
 
     // NOTE(simon): Convenient combinations
-    UI_InputFlag_Pressed  = UI_InputFlag_LeftPressed  | UI_InputFlag_MiddlePressed  | UI_InputFlag_RightPressed,
-    UI_InputFlag_Released = UI_InputFlag_LeftReleased | UI_InputFlag_MiddleReleased | UI_InputFlag_RightReleased,
-    UI_InputFlag_Clicked  = UI_InputFlag_LeftClicked  | UI_InputFlag_MiddleClicked  | UI_InputFlag_RightClicked,
-    UI_InputFlag_Dragging = UI_InputFlag_LeftDragging | UI_InputFlag_MiddleDragging | UI_InputFlag_RightDragging,
+    UI_InputFlag_Pressed  = UI_InputFlag_LeftPressed  | UI_InputFlag_KeyboardPressed,
+    UI_InputFlag_Released = UI_InputFlag_LeftReleased,
+    UI_InputFlag_Clicked  = UI_InputFlag_LeftClicked  | UI_InputFlag_KeyboardPressed,
+    UI_InputFlag_Dragging = UI_InputFlag_LeftDragging,
 } UI_InputFlag;
 
 typedef struct UI_Input UI_Input;
@@ -265,6 +269,8 @@ typedef enum {
     UI_EventKind_Navigation,
     UI_EventKind_Edit,
     UI_EventKind_Scroll,
+    UI_EventKind_Accept,
+    UI_EventKind_Cancel,
     UI_EventKind_COUNT,
 } UI_EventKind;
 

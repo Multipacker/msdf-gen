@@ -80,7 +80,7 @@ internal UI_Input ui_button(Str8 string) {
     UI_Box *box = ui_create_box_from_string(
         UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawText | UI_BoxFlag_DrawBorder |
         UI_BoxFlag_DrawHot | UI_BoxFlag_DrawActive |
-        UI_BoxFlag_Clickable,
+        UI_BoxFlag_Clickable | UI_BoxFlag_KeyboardClickable,
         string
     );
     UI_Input result = ui_input_from_box(box);
