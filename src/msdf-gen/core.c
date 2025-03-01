@@ -384,6 +384,8 @@ internal Void update(Void) {
             { Gfx_Key_X,         Gfx_KeyModifier_Control,                         Command_Cut,                  },
             { Gfx_Key_T,         Gfx_KeyModifier_Control,                         Command_ToggleListView,       },
             { Gfx_Key_F1,        0                      ,                         Command_OpenCommandLister,    },
+            { Gfx_Key_Return,    0                      ,                         Command_Accept,               },
+            { Gfx_Key_Escape,    0                      ,                         Command_Cancel,               },
     };
 
     // NOTE(simon): Process key bindings.
@@ -962,6 +964,14 @@ internal Void update(Void) {
                 case Command_OpenTestView: {
                     push_command(Command_OpenTab, .tab_specification = str8_literal("Test"));
                 } break;
+                case Command_Accept: {
+                    ui_event = arena_push_struct_zero(ui_frame_arena(), UI_Event);
+                    ui_event->kind = UI_EventKind_Accept;
+                } break;
+                case Command_Cancel: {
+                    ui_event = arena_push_struct_zero(ui_frame_arena(), UI_Event);
+                    ui_event->kind = UI_EventKind_Cancel;
+                } break;
                 case Command_COUNT: {
                 } break;
             }
@@ -1185,13 +1195,13 @@ internal Void update(Void) {
                         UI_Box *command_button_box = ui_create_box_from_string(
                             UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawText | UI_BoxFlag_DrawBorder |
                             UI_BoxFlag_DrawHot | UI_BoxFlag_DrawActive |
-                            UI_BoxFlag_Clickable,
+                            UI_BoxFlag_Clickable | UI_BoxFlag_KeyboardClickable,
                             commands[i].name
                         );
                         ui_box_set_fuzzy_match_list(command_button_box, commands[i].fuzzy_matches);
                         UI_Input command_button_input = ui_input_from_box(command_button_box);
 
-                        if (command_button_input.input_flags & UI_InputFlag_LeftClicked) {
+                        if (command_button_input.input_flags & UI_InputFlag_Clicked) {
                             push_command(commands[i].command);
                             state->show_command_lister = 0;
                         }
@@ -1268,12 +1278,23 @@ internal Void update(Void) {
 
             ui_input_from_box(command_box);
 
-            for (UI_Event *event = global_ui_state->events->first; event; event = event->next) {
+            for (UI_Event *event = global_ui_state->events->first, *next = 0; event; event = next) {
+                next = event->next;
+                B32 consumed = false;
+
                 if (
                     (event->kind == UI_EventKind_KeyPress || event->kind == UI_EventKind_KeyRelease) &&
                     (event->key == Gfx_Key_MouseLeft || event->key == Gfx_Key_MouseMiddle || event->key == Gfx_Key_MouseRight)
                 ) {
                     state->show_command_lister = 0;
+                }
+                if (event->kind == UI_EventKind_Cancel) {
+                    state->show_command_lister = 0;
+                    consumed = true;
+                }
+
+                if (consumed) {
+                    ui_event_list_consume_event(global_ui_state->events, event);
                 }
             }
 

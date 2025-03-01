@@ -160,7 +160,9 @@ struct Context {
     X(OpenGlyphViewView,    "Open glyph view")        \
     X(OpenRenderStatsView,  "Open render statistics view") \
     X(OpenThemeView,        "Open theme view")        \
-    X(OpenTestView,         "Open test view")
+    X(OpenTestView,         "Open test view")         \
+    X(Accept,               "Accept")                 \
+    X(Cancel,               "Cancel")
 
 #define X(pascal_case, display_string) Command_##pascal_case,
 typedef enum {
