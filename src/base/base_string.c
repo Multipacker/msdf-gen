@@ -655,6 +655,7 @@ internal FuzzyMatchList str8_fuzzy_match(Arena *arena, Str8 needle, Str8 haystac
             for (FuzzyMatch *match = matches.first; match; match = match->next) {
                 if (match->min <= index && index < match->max) {
                     already_matched = true;
+                    index = match->max;
                     break;
                 }
             }
