@@ -277,9 +277,41 @@ internal F32 gfx_dpi(Void) {
 
 // NOTE(simon): Clipboard
 internal Void gfx_set_clipboard_text(Str8 text) {
+    Gfx_Win32State *state = &global_gfx_win32_state;
+    Arena_Temporary scratch = arena_get_scratch(0, 0);
+
+    Str16 str16 = str16_from_str8(scratch.arena, text);
+
+    if (OpenClipboard(0)) {
+        EmptyClipboard();
+        HANDLE global_memory = GlobalAlloc(GMEM_MOVEABLE, (str16.size + 1) * sizeof(U16));
+        if (global_memory) {
+            U16 *global_memory_ptr = GlobalLock(global_memory);
+            memory_copy(global_memory_ptr, str16.data, str16.size * sizeof(U16));
+            global_memory_ptr[str16.size] = 0;
+            GlobalUnlock(global_memory_ptr);
+            SetClipboardData(CF_UNICODETEXT, global_memory);
+        }
+        CloseClipboard();
+    }
+
+    arena_end_temporary(scratch);
 }
 
 internal Str8 gfx_get_clipboard_text(Arena *arena) {
     Str8 result = { 0 };
+
+    if (IsClipboardFormatAvailable(CF_UNICODETEXT) && OpenClipboard(0)) {
+        HANDLE global_memory = GetClipboardData(CF_UNICODETEXT);
+        if (global_memory) {
+            Void *global_memory_ptr = GlobalLock(global_memory);
+            if (global_memory_ptr) {
+                result = str8_from_str16(arena, str16_cstr16(global_memory_ptr));
+                GlobalUnlock(global_memory);
+            }
+        }
+        CloseClipboard();
+    }
+
     return result;
 }
