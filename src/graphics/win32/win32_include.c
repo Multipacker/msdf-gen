@@ -269,7 +269,7 @@ internal Void gfx_set_update_function(VoidFunction *update) {
 
 internal F32 gfx_dpi(Void) {
     // TODO(simon): Implement this correctly.
-    F32 dpi = 96.0f;
+    F32 dpi = USER_DEFAULT_SCREEN_DPI;
     return dpi;
 }
 
