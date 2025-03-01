@@ -139,41 +139,9 @@ internal B32 str8_equal(Str8 a, Str8 b) {
     return true;
 }
 
-internal U64 str8_first_index_of(Str8 string, U32 codepoint) {
-    U64 result = string.size;
-    
-    U8 *ptr = string.data;
-    U8 *opl = string.data + string.size;
 
-    while (ptr < opl) {
-        StringDecode decode = string_decode_utf8(ptr, (U64) (ptr - opl));
-        if (decode.codepoint == codepoint) {
-            result = (U64) (ptr - string.data);
-            break;
-        }
-        ptr += decode.size;
-    }
 
-    return result;
-}
-
-internal U64 str8_last_index_of(Str8 string, U32 codepoint) {
-    U64 result = string.size;
-    
-    U8 *ptr = string.data;
-    U8 *opl = string.data + string.size;
-
-    while (ptr < opl) {
-        StringDecode decode = string_decode_utf8(ptr, (U64) (ptr - opl));
-        if (decode.codepoint == codepoint) {
-            result = (U64) (ptr - string.data);
-        }
-        ptr += decode.size;
-    }
-
-    return result;
-}
-
+// NOTE(simon): String lists.
 internal Void str8_list_append(Arena *arena, Str8List *list, Str8List others) {
     for (Str8Node *node = others.first; node; node = node->next) {
         str8_list_push(arena, list, node->string);
@@ -264,6 +232,9 @@ internal Str8List str8_split_by_codepoints(Arena *arena, Str8 string, Str8 codep
     return result;
 }
 
+
+
+// NOTE(simon): Encoding and decoding.
 internal StringDecode string_decode_utf8(U8 *string, U64 size) {
     // 0:  // 0 bytes needed
     // 4:  // Invalid
@@ -555,6 +526,7 @@ internal U64 str8_next_codepoint_offset(Str8 string, U64 start_offset, Side side
 
 
 
+// NOTE(simon): Basic parsing routines.
 internal U64Decode u64_from_str8(Str8 string) {
     U8 *ptr = string.data;
     U8 *opl = string.data + string.size;
@@ -572,6 +544,79 @@ internal U64Decode u64_from_str8(Str8 string) {
 }
 
 
+
+// NOTE(simon): String transformations.
+internal Str8 str8_lowercase_ascii(Arena *arena, Str8 string) {
+    Str8 result = { 0 };
+    result.data = arena_push_array_zero(arena, U8, string.size);
+
+    for (U64 i = 0; i < string.size; ++i) {
+        U8 character = string.data[i];
+
+        if ('A' <= character && character <= 'Z') {
+            character = character - 'A' + 'a';
+        }
+
+        result.data[result.size++] = character;
+    }
+
+    return result;
+}
+
+internal Str8 str8_uppercase_ascii(Arena *arena, Str8 string) {
+    Str8 result = { 0 };
+    result.data = arena_push_array_zero(arena, U8, string.size);
+
+    for (U64 i = 0; i < string.size; ++i) {
+        U8 character = string.data[i];
+
+        if ('a' <= character && character <= 'z') {
+            character = character - 'a' + 'A';
+        }
+
+        result.data[result.size++] = character;
+    }
+
+    return result;
+}
+
+
+
+// NOTE(simon): Searching
+internal U64 str8_first_index_of(Str8 string, U32 codepoint) {
+    U64 result = string.size;
+
+    U8 *ptr = string.data;
+    U8 *opl = string.data + string.size;
+
+    while (ptr < opl) {
+        StringDecode decode = string_decode_utf8(ptr, (U64) (ptr - opl));
+        if (decode.codepoint == codepoint) {
+            result = (U64) (ptr - string.data);
+            break;
+        }
+        ptr += decode.size;
+    }
+
+    return result;
+}
+
+internal U64 str8_last_index_of(Str8 string, U32 codepoint) {
+    U64 result = string.size;
+
+    U8 *ptr = string.data;
+    U8 *opl = string.data + string.size;
+
+    while (ptr < opl) {
+        StringDecode decode = string_decode_utf8(ptr, (U64) (ptr - opl));
+        if (decode.codepoint == codepoint) {
+            result = (U64) (ptr - string.data);
+        }
+        ptr += decode.size;
+    }
+
+    return result;
+}
 
 internal U64 str8_find(Str8 needle, Str8 haystack) {
     U8 *haystack_ptr = haystack.data;
@@ -594,13 +639,17 @@ internal U64 str8_find(Str8 needle, Str8 haystack) {
 internal FuzzyMatchList str8_fuzzy_match(Arena *arena, Str8 needle, Str8 haystack) {
     FuzzyMatchList matches = { 0 };
     Arena_Temporary scratch = arena_get_scratch(&arena, 1);
-    Str8List parts = str8_split_by_codepoints(scratch.arena, needle, str8_literal(" \t"));
+
+    Str8 lowercase_needle   = str8_lowercase_ascii(scratch.arena, needle);
+    Str8 lowercase_haystack = str8_lowercase_ascii(scratch.arena, haystack);
+
+    Str8List parts = str8_split_by_codepoints(scratch.arena, lowercase_needle, str8_literal(" \t"));
     matches.needle_parts = parts.node_count;
 
     for (Str8Node *part = parts.first; part; part = part->next) {
         U64 index = 0;
-        while (index < haystack.size) {
-            index = str8_find(part->string, str8_skip(haystack, index));
+        while (index < lowercase_haystack.size) {
+            index = str8_find(part->string, str8_skip(lowercase_haystack, index));
 
             B32 already_matched = false;
             for (FuzzyMatch *match = matches.first; match; match = match->next) {
@@ -615,7 +664,7 @@ internal FuzzyMatchList str8_fuzzy_match(Arena *arena, Str8 needle, Str8 haystac
             }
         }
 
-        if (index < haystack.size) {
+        if (index < lowercase_haystack.size) {
             FuzzyMatch *match = arena_push_struct_zero(arena, FuzzyMatch);
             match->min = index;
             match->max = index + part->string.size;

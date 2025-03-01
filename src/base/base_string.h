@@ -77,19 +77,20 @@ internal Str8 str8_chop(Str8 string, U64 size);
 internal Str8 str8_substring(Str8 string, U64 start, U64 size);
 
 internal B32 str8_equal(Str8 a, Str8 b);
-internal U64 str8_first_index_of(Str8 string, U32 codepoint);
-internal U64 str8_last_index_of(Str8 string, U32 codepoint);
 
+// NOTE(simon): String lists.
 internal Void str8_list_append(Arena *arena, Str8List *list, Str8List others);
 internal Void str8_list_push_explicit(Str8List *list, Str8 string, Str8Node *node);
 internal Void str8_list_push(Arena *arena, Str8List *list, Str8 string);
 internal Str8 str8_join(Arena *arena, Str8List *list);
 
+// NOTE(simon): Formatting.
 internal Str8 str8_format(Arena *arena, CStr format, ...);
 internal Str8 str8_format_list(Arena *arena, CStr format, va_list arguments);
 
 internal Str8List str8_split_by_codepoints(Arena *arena, Str8 string, Str8 codepoints);
 
+// NOTE(simon): Encoding and decoding.
 internal StringDecode string_decode_utf8(U8 *string, U64 size);
 internal U64          string_encode_utf8(U8 *destination, U32 codepoint);
 internal StringDecode string_decode_utf16(U16 *string, U64 size);
@@ -105,9 +106,16 @@ internal CStr16 cstr16_from_str8(Arena *arena, Str8 string);
 
 internal U64 str8_next_codepoint_offset(Str8 string, U64 start_offset, Side side);
 
-// NOTE(simon): Basic parsing routines
+// NOTE(simon): Basic parsing routines.
 internal U64Decode u64_from_str8(Str8 string);
 
+// NOTE(simon): String transformations.
+internal Str8 str8_lowercase_ascii(Arena *arena, Str8 string);
+internal Str8 str8_uppercase_ascii(Arena *arena, Str8 string);
+
+// NOTE(simon): Searching
+internal U64 str8_first_index_of(Str8 string, U32 codepoint);
+internal U64 str8_last_index_of(Str8 string, U32 codepoint);
 internal U64 str8_find(Str8 needle, Str8 haystack);
 internal FuzzyMatchList str8_fuzzy_match(Arena *arena, Str8 needle, Str8 haystack);
 internal FuzzyMatchList fuzzy_match_list_copy(Arena *arena, FuzzyMatchList fuzzy_matches);
