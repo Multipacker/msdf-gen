@@ -331,6 +331,7 @@ internal Void render_create(Void) {
 }
 
 internal Void render_begin(V2U32 resolution) {
+    prof_function_begin();
     OpenGL_Context *gfx = &global_opengl_context;
     opengl_resize(resolution);
     gfx->resolution = resolution;
@@ -347,6 +348,7 @@ internal Void render_begin(V2U32 resolution) {
     glDisable(GL_SCISSOR_TEST);
     glClear(GL_COLOR_BUFFER_BIT);
     glEnable(GL_SCISSOR_TEST);
+    prof_function_end();
 }
 
 internal Void render_submit(Render_BatchList batches) {
