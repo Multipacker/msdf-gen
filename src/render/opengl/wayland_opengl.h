@@ -8,6 +8,8 @@
 typedef struct Wayland_OpenGLState Wayland_OpenGLState;
 struct Wayland_OpenGLState {
     EGLDisplay display;
+    EGLConfig  config;
+    EGLContext context;
 
     struct wl_egl_window *window;
     EGLSurface *surface;
