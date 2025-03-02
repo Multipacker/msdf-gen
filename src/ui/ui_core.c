@@ -1,6 +1,3 @@
-// TODO(simon): Allow specifying fonts directly from `FontCache_Font`s.
-// TODO(simon): Allow padding for text.
-
 global UI_Context *global_ui_state;
 
 global UI_Key global_ui_null_key = { 0 };
