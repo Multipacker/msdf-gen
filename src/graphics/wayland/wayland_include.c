@@ -852,6 +852,7 @@ internal Void gfx_send_wakeup_event(Void) {
 }
 
 internal Gfx_EventList gfx_get_events(Arena *arena, B32 wait) {
+    prof_function_begin();
     Wayland_State *state = &global_wayland_state;
 
     // TODO(simon): Error handling
@@ -869,22 +870,26 @@ internal Gfx_EventList gfx_get_events(Arena *arena, B32 wait) {
         fds[1].events = POLLIN;
         poll(fds, array_count(fds), wait ? -1 : 0);
 
-        if (wl_display_get_error(state->display) == 0) {
+        // NOTE(simon): Handle display events.
+        if (fds[0].revents & POLLIN) {
             wl_display_read_events(state->display);
+            wl_display_dispatch_pending(state->display);
         } else {
             wl_display_cancel_read(state->display);
         }
 
-        wl_display_dispatch_pending(state->display);
+        // NOTE(simon): Handle key repeats.
+        if (fds[1].revents & POLLIN) {
+            U64 key_repeats = 0;
+            ssize_t bytes_read = 0;
+            do {
+                bytes_read = read(state->key_repeat_fd, &key_repeats, sizeof(key_repeats));
+            } while (bytes_read == -1 && errno == EINTR);
 
-        U64 key_repeats = 0;
-        ssize_t bytes_read = 0;
-        do {
-            bytes_read = read(state->key_repeat_fd, &key_repeats, sizeof(key_repeats));
-        } while (bytes_read == -1 && errno == EINTR);
-        if (bytes_read == sizeof(key_repeats)) {
-            for (U64 i = 0; i < key_repeats; ++i) {
-                wayland_handle_key(state->last_key, WL_KEYBOARD_KEY_STATE_PRESSED);
+            if (bytes_read == sizeof(key_repeats)) {
+                for (U64 i = 0; i < key_repeats; ++i) {
+                    wayland_handle_key(state->last_key, WL_KEYBOARD_KEY_STATE_PRESSED);
+                }
             }
         }
     } while (wait && !state->events.first);
@@ -903,6 +908,7 @@ internal Gfx_EventList gfx_get_events(Arena *arena, B32 wait) {
     arena_reset(state->event_arena);
     memory_zero_struct(&state->events);
 
+    prof_function_end();
     return events;
 }
 
