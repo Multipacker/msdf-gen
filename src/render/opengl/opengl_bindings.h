@@ -18,6 +18,7 @@
 #define GL_LINEAR               0x2601
 #define GL_LINK_STATUS          0x8B82
 #define GL_NEAREST              0x2600
+#define GL_ONE                  1
 #define GL_ONE_MINUS_SRC1_COLOR 0x88FA
 #define GL_ONE_MINUS_SRC_ALPHA  0x0303
 #define GL_R8                   0x8229
@@ -106,7 +107,7 @@ typedef Void      (*PFNGLATTACHSHADERPROC)(GLuint program, GLuint shader);
 typedef Void      (*PFNGLBINDSAMPLERPROC)(GLuint unit, GLuint sampler);
 typedef Void      (*PFNGLBINDTEXTUREUNITPROC)(GLuint unit, GLuint texture);
 typedef Void      (*PFNGLBINDVERTEXARRAYPROC)(GLuint array);
-typedef Void      (*PFNGLBLENDFUNCPROC)(GLenum sfactor, GLenum dfactor);
+typedef Void      (*PFNGLBLENDFUNCSEPARATEPROC)(GLenum srcRGB, GLenum dstRGB, GLenum srcAlpha, GLenum dstAlpha);
 typedef Void      (*PFNGLCOMPILESHADERPROC)(GLuint shader);
 typedef Void      (*PFNGLCREATEBUFFERSPROC)(GLsizei n, GLuint *buffers);
 typedef Void      (*PFNGLCREATESAMPLERSPROC)(GLsizei n, GLuint *samplers);
@@ -144,7 +145,6 @@ typedef Void      (*PFNGLVERTEXARRAYVERTEXBUFFERPROC)(GLuint vaobj, GLuint bindi
 typedef Void     *(*PFNGLMAPNAMEDBUFFER)(GLuint buffer, GLenum access);
 
 #define GL_LINUX_FUNCTIONS(X) \
-X(PFNGLBLENDFUNCPROC,                 glBlendFunc)                 \
 X(PFNGLCLEARCOLORPROC,                glClearColor)                \
 X(PFNGLCLEARPROC,                     glClear)                     \
 X(PFNGLDISABLEPROC,                   glDisable)                   \
@@ -158,6 +158,7 @@ X(PFNGLATTACHSHADERPROC,                    glAttachShader)                    \
 X(PFNGLBINDSAMPLERPROC,                     glBindSampler)                     \
 X(PFNGLBINDTEXTUREUNITPROC,                 glBindTextureUnit)                 \
 X(PFNGLBINDVERTEXARRAYPROC,                 glBindVertexArray)                 \
+X(PFNGLBLENDFUNCSEPARATEPROC,               glBlendFuncSeparate)               \
 X(PFNGLCOMPILESHADERPROC,                   glCompileShader)                   \
 X(PFNGLCREATEBUFFERSPROC,                   glCreateBuffers)                   \
 X(PFNGLCREATEPROGRAMPROC,                   glCreateProgram)                   \

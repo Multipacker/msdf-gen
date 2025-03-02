@@ -20,7 +20,6 @@
  * TODO before next release:
  * * Bake the UI font into the executable
  * * Improve the look of the preview when dragging tabs
- * * Rendering on my desktop and laptop doesn't look the same on wayland
  * * Think about sorting in the command lister
  *   * Alphabetically or by match length, or maybe both
  * * More carefully think about how filtering in the command lister works
