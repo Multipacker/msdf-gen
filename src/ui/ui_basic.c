@@ -227,9 +227,7 @@ internal UI_Input ui_line_edit(U8 *buffer, U64 *buffer_size, U64 buffer_capacity
     // NOTE(simon): Input handling
     if (ui_is_focus_active()) {
         prof_zone_begin(prof_events, "events");
-        for (UI_Event *event = global_ui_state->events->first, *next = 0; event; event = next) {
-            next = event->next;
-
+        for (UI_Event *event = 0; ui_next_event(&event);) {
             if (!(event->kind == UI_EventKind_Text || event->kind == UI_EventKind_Edit || event->kind == UI_EventKind_Navigation)) {
                 continue;
             }
@@ -359,7 +357,7 @@ internal UI_Input ui_line_edit(U8 *buffer, U64 *buffer_size, U64 buffer_capacity
                 *buffer_size += to_insert;
             }
 
-            dll_remove(global_ui_state->events->first, global_ui_state->events->last, event);
+            ui_consume_event(event);
         }
         prof_zone_end(prof_events);
     }

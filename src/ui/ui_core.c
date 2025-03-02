@@ -19,12 +19,47 @@ internal Void ui_select_state(UI_Context *ui_state) {
 
 
 
+// NOTE(simon): Event lists
 internal Void ui_event_list_push_event(UI_EventList *list, UI_Event *event) {
     dll_push_back(list->first, list->last, event);
 }
 
 internal Void ui_event_list_consume_event(UI_EventList *list, UI_Event *event) {
     dll_remove(list->first, list->last, event);
+}
+
+
+
+// NOTE(simon): Events
+internal B32 ui_next_event(UI_Event **event) {
+    UI_Context *ui = global_ui_state;
+
+    UI_Event *next_event = ui->events->first;
+
+    if (*event) {
+        next_event = (*event)->next;
+    }
+
+    *event = next_event;
+    B32 result = !!next_event;
+    return result;
+}
+
+internal Void ui_consume_event(UI_Event *event) {
+    UI_Context *ui = global_ui_state;
+    ui_event_list_consume_event(ui->events, event);
+}
+
+internal UI_Event *ui_consume_event_kind(UI_EventKind kind) {
+    UI_Event *result = 0;
+    for (UI_Event *event = 0; ui_next_event(&event);) {
+        if (event->kind == kind) {
+            result = event;
+            ui_consume_event(event);
+            break;
+        }
+    }
+    return result;
 }
 
 
@@ -450,18 +485,8 @@ internal Void ui_end(Void) {
     UI_Context *ui = global_ui_state;
 
     if (!ui_keys_match(ui->context_menu_key, global_ui_null_key)) {
-        for (UI_Event *event = ui->events->first, *next; event; event = next) {
-            next = event->next;
-            B32 consumed = false;
-
-            if (event->kind == UI_EventKind_Cancel) {
-                ui_context_menu_close();
-                consumed = true;
-            }
-
-            if (consumed) {
-                ui_event_list_consume_event(ui->events, event);
-            }
+        if (ui_consume_event_kind(UI_EventKind_Cancel)) {
+            ui_context_menu_close();
         }
     }
 
@@ -896,8 +921,7 @@ internal UI_Input ui_input_from_box(UI_Box *box) {
         exclude_bounds = ui->context_menu_root->calculated_rectangle;
     }
 
-    for (UI_Event *event = ui->events->first, *next; event; event = next) {
-        next = event->next;
+    for (UI_Event *event = 0; ui_next_event(&event);) {
         B32 consumed = false;
 
         B32 is_in_bounds = r2f32_contains_v2f32(bounds, event->position) && !r2f32_contains_v2f32(exclude_bounds, event->position);
@@ -958,7 +982,7 @@ internal UI_Input ui_input_from_box(UI_Box *box) {
         }
 
         if (consumed) {
-            ui_event_list_consume_event(ui->events, event);
+            ui_consume_event(event);
         }
     }
 

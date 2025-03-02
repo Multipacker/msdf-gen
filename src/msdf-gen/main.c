@@ -307,27 +307,16 @@ internal S32 os_run(Str8List arguments) {
         Panel *left = panel_create(state);
         push_command(Command_OpenTab, .panel = handle_from_panel(left), .tab_specification = str8_literal("Theme"));
         push_command(Command_OpenTab, .panel = handle_from_panel(left), .tab_specification = str8_literal("GlyphList"));
-        push_command(Command_OpenTab, .panel = handle_from_panel(left), .tab_specification = str8_literal("Test"));
 
         Panel *right = panel_create(state);
-        right->split_axis = Axis2_Y;
+        push_command(Command_OpenTab, .panel = handle_from_panel(right), .tab_specification = str8_literal("GlyphView"));
+
         left->percentage_of_parent = 0.65f;
         right->percentage_of_parent = 0.35f;
         panel_insert(state->panel_root, 0, left);
         panel_insert(state->panel_root, left, right);
 
         state->active_panel = handle_from_panel(left);
-
-        Panel *top = panel_create(state);
-        push_command(Command_OpenTab, .panel = handle_from_panel(top), .tab_specification = str8_literal("GlyphView"));
-
-        Panel *bottom = panel_create(state);
-        push_command(Command_OpenTab, .panel = handle_from_panel(bottom), .tab_specification = str8_literal("RenderStats"));
-
-        top->percentage_of_parent = 0.65f;
-        bottom->percentage_of_parent = 0.35f;
-        panel_insert(right, 0, top);
-        panel_insert(right, top, bottom);
     }
 
     state->running = true;

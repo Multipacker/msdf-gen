@@ -1207,9 +1207,7 @@ internal Void update(Void) {
                         }
                     }
 
-                    for (UI_Event *event = global_ui_state->events->first, *next = 0; event; event = next) {
-                        next = event->next;
-
+                    for (UI_Event *event = 0; ui_next_event(&event);) {
                         if (event->kind != UI_EventKind_Navigation) {
                             continue;
                         }
@@ -1250,7 +1248,7 @@ internal Void update(Void) {
 
                         active_index = s32_min(s32_max(0, active_index + delta), (S32) command_count - 1);
 
-                        dll_remove(global_ui_state->events->first, global_ui_state->events->last, event);
+                        ui_consume_event(event);
                     }
 
                     active_index = s32_min(s32_max(0, active_index), (S32) command_count - 1);
@@ -1278,23 +1276,20 @@ internal Void update(Void) {
 
             ui_input_from_box(command_box);
 
-            for (UI_Event *event = global_ui_state->events->first, *next = 0; event; event = next) {
-                next = event->next;
-                B32 consumed = false;
+            if (ui_consume_event_kind(UI_EventKind_Cancel)) {
+                state->show_command_lister = 0;
+            }
 
+            // NOTE(simon): Close lister if you click outside of the dialog.
+            for (UI_Event *event = 0; ui_next_event(&event);) {
                 if (
-                    (event->kind == UI_EventKind_KeyPress || event->kind == UI_EventKind_KeyRelease) &&
-                    (event->key == Gfx_Key_MouseLeft || event->key == Gfx_Key_MouseMiddle || event->key == Gfx_Key_MouseRight)
+                    event->kind == UI_EventKind_KeyPress && (
+                        event->key == Gfx_Key_MouseLeft ||
+                        event->key == Gfx_Key_MouseMiddle ||
+                        event->key == Gfx_Key_MouseRight
+                    )
                 ) {
                     state->show_command_lister = 0;
-                }
-                if (event->kind == UI_EventKind_Cancel) {
-                    state->show_command_lister = 0;
-                    consumed = true;
-                }
-
-                if (consumed) {
-                    ui_event_list_consume_event(global_ui_state->events, event);
                 }
             }
 
@@ -1735,7 +1730,7 @@ internal Void update(Void) {
                     }
                 }
 
-                for (UI_Event *event = global_ui_state->events->first; event; event = event->next) {
+                for (UI_Event *event = 0; ui_next_event(&event);) {
                     if (
                         event->kind == UI_EventKind_KeyPress && (
                             event->key == Gfx_Key_MouseLeft ||

@@ -381,9 +381,14 @@ struct UI_Context {
 
 internal Void ui_select_state(UI_Context *state);
 
-// NOTE(simon): Event functions
+// NOTE(simon): Event lists
 internal Void ui_event_list_push_event(UI_EventList *list, UI_Event *event);
 internal Void ui_event_list_consume_event(UI_EventList *list, UI_Event *event);
+
+// NOTE(simon): Events
+internal B32       ui_next_event(UI_Event **event);
+internal Void      ui_consume_event(UI_Event *event);
+internal UI_Event *ui_consume_event_kind(UI_EventKind kind);
 
 internal Str8 ui_hash_part_from_string(Str8 string);
 internal Str8 ui_display_part_from_string(Str8 string);

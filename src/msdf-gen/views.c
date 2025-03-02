@@ -251,7 +251,7 @@ PANEL_BUILD_FUNCTION(view_glyph_list) {
         if (ui_is_focus_active()) {
             S32 codepoint_index = (S32) index_from_map_codepoint(codepoint_map, top_context()->codepoint);
 
-            for (UI_Event *event = global_ui_state->events->first; event; event = event->next) {
+            for (UI_Event *event = 0; ui_next_event(&event);) {
                 if (event->kind != UI_EventKind_Navigation) {
                     continue;
                 }
@@ -303,6 +303,7 @@ PANEL_BUILD_FUNCTION(view_glyph_list) {
                 }
 
                 codepoint_index = s32_min(s32_max(0, codepoint_index + codepoint_delta), (S32) codepoint_map.codepoint_count - 1);
+                ui_consume_event(event);
             }
 
             U32 new_codepoint = codepoint_from_map_index(codepoint_map, (U32) codepoint_index);
