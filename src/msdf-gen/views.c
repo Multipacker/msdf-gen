@@ -235,12 +235,12 @@ PANEL_BUILD_FUNCTION(view_glyph_list) {
                         UI_Box *box = ui_create_box_from_string(
                             UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawBorder |
                             UI_BoxFlag_DrawHot | UI_BoxFlag_DrawActive |
-                            UI_BoxFlag_Clickable,
+                            UI_BoxFlag_Clickable | UI_BoxFlag_KeyboardClickable,
                             string
                         );
                         UI_Input input = ui_input_from_box(box);
 
-                        if (input.input_flags & UI_InputFlag_LeftClicked) {
+                        if (input.input_flags & UI_InputFlag_Clicked) {
                             push_command(Command_SelectCodepoint, .codepoint = codepoint);
                         }
                     }

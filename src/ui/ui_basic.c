@@ -112,7 +112,7 @@ internal UI_Input ui_checkbox(B32 is_checked, Str8 label) {
     UI_Box *check = ui_create_box_from_string_format(
         UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawBorder | (is_checked ? UI_BoxFlag_DrawText : 0) |
         UI_BoxFlag_DrawHot | UI_BoxFlag_DrawActive |
-        UI_BoxFlag_Clickable,
+        UI_BoxFlag_Clickable | UI_BoxFlag_KeyboardClickable,
         "X###check_%.*s", str8_expand(label)
     );
 
@@ -141,7 +141,7 @@ internal UI_Input ui_checkbox_format(B32 is_checked, CStr format, ...) {
 
 internal UI_Input ui_checkbox_b32(B32 *is_checked, Str8 label) {
     UI_Input input = ui_checkbox(*is_checked, label);
-    if (input.input_flags & UI_InputFlag_LeftClicked) {
+    if (input.input_flags & UI_InputFlag_Clicked) {
         *is_checked = !(*is_checked);
     }
     return input;

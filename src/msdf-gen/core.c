@@ -1183,9 +1183,9 @@ internal Void update(Void) {
 
                 ui_parent(container)
                 ui_palette(palette_from_code(PaletteCode_Button))
-                ui_palette(palette_from_code(PaletteCode_Button)) {
-                    ui_width(ui_size_fill())
-                    ui_height(ui_size_pixels(height, 1.0f))
+                ui_palette(palette_from_code(PaletteCode_Button))
+                ui_width(ui_size_fill())
+                ui_height(ui_size_pixels(height, 1.0f)) {
                     for (S32 i = top_row; i <= bottom_row; ++i) {
                         if (i == active_index) {
                             ui_focus_next(UI_Focus_Active);
