@@ -1135,9 +1135,10 @@ internal Void update(Void) {
                 ui_width_next(ui_size_pixels(scrollbar_width, 1.0f));
                 ui_height_next(ui_size_pixels(region_size.height, 1.0f));
                 ui_layout_axis_next(Axis2_Y);
-                UI_Box *scroll_container = ui_create_box_from_string(UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawBorder, str8_literal("scrollbar"));
+                UI_Box *scroll_container = ui_create_box_from_string(UI_BoxFlag_DrawBorder, str8_literal("scrollbar"));
 
                 ui_width(ui_size_parent_percent(1.0f, 1.0f))
+                ui_palette(palette_from_code(PaletteCode_Button))
                 ui_parent(scroll_container) {
                     F32 rows_above   = (F32) (scroll_row) + scroll_offset;
                     F32 visible_rows = container_height / height;
@@ -1148,7 +1149,6 @@ internal Void update(Void) {
                     ui_height_next(ui_size_parent_percent(rows_above / row_count, 0.0f));
                     UI_Box *scroll_before = ui_create_box_from_string(UI_BoxFlag_Clickable, str8_literal("before"));
 
-                    ui_palette_next(palette_from_code(PaletteCode_Button));
                     ui_hover_cursor_next(Gfx_Cursor_Hand);
                     ui_height_next(ui_size_parent_percent(f32_max(0.01f, visible_rows / row_count), 1.0f));
                     UI_Box *scroll = ui_create_box_from_string(UI_BoxFlag_Clickable | UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawBorder | UI_BoxFlag_DrawHot | UI_BoxFlag_DrawActive, str8_literal("scroll"));

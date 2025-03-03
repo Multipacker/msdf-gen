@@ -463,3 +463,62 @@ internal UI_Input ui_slider(F32 min, F32 *value, F32 max, UI_Key key) {
 
     return input;
 }
+
+internal UI_ScrollPosition ui_scroll_bar(UI_ScrollPosition position, S64 rows_above, S64 visible_rows, S64 row_count, S64 rows_below) {
+    UI_Box *scroll = &global_ui_null_box;
+
+    UI_Input before_input = { 0 };
+    UI_Input scroll_input = { 0 };
+    UI_Input after_input  = { 0 };
+
+    // NOTE(simon): Build
+    ui_layout_axis_next(Axis2_Y);
+    UI_Box *scroll_container = ui_create_box_from_string(UI_BoxFlag_DrawBorder, str8_literal("##scroll_container"));
+
+    ui_parent(scroll_container)
+    ui_hover_cursor(Gfx_Cursor_Hand) {
+        ui_height_next(ui_size_parent_percent((F32) rows_above / (F32) row_count, 0.0f));
+        UI_Box *scroll_before = ui_create_box_from_string(UI_BoxFlag_Clickable, str8_literal("##before"));
+        before_input = ui_input_from_box(scroll_before);
+
+        ui_height_next(ui_size_parent_percent(f32_max(0.01f, (F32) visible_rows / (F32) row_count), 1.0f));
+        scroll = ui_create_box_from_string(
+            UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawBorder | UI_BoxFlag_DrawHot | UI_BoxFlag_DrawActive |
+            UI_BoxFlag_Clickable,
+            str8_literal("##scrollbar")
+        );
+        scroll_input = ui_input_from_box(scroll);
+
+        ui_height_next(ui_size_parent_percent((F32) rows_below / (F32) row_count, 0.0f));
+        UI_Box *scroll_after = ui_create_box_from_string(UI_BoxFlag_Clickable, str8_literal("##after"));
+        after_input = ui_input_from_box(scroll_after);
+    }
+
+    // NOTE(simon): Input
+    UI_ScrollPosition result = position;
+
+    if (before_input.input_flags & UI_InputFlag_LeftClicked) {
+        result.index  -= visible_rows;
+        result.offset += (F32) visible_rows;
+    }
+
+    if (scroll_input.input_flags & UI_InputFlag_LeftDragging) {
+        if (scroll_input.input_flags & UI_InputFlag_LeftPressed) {
+            ui_set_drag_data(&position.index);
+        }
+
+        S64 start_row = *ui_get_drag_data(S64);
+
+        F32 scroll_size = scroll_container->calculated_size.height - scroll->calculated_size.height;
+        F32 drag_percent = ui_drag_delta().y / scroll_size;
+        result.index  = start_row + (S64) f32_floor(drag_percent * (F32) (row_count - visible_rows));
+        result.offset = 0.0f;
+    }
+
+    if (after_input.input_flags & UI_InputFlag_LeftClicked) {
+        result.index  += visible_rows;
+        result.offset -= (F32) visible_rows;
+    }
+
+    return result;
+}

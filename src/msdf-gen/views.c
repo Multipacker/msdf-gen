@@ -141,7 +141,7 @@ PANEL_BUILD_FUNCTION(view_glyph_list) {
     S32 last_row  = (S32) ((codepoint_map.codepoint_count - 1) / codepoints_per_row);
 
     S32 scroll_row = (S32) (state->scroll_codepoint_index / codepoints_per_row);
-    S32 target_row = scroll_row;
+    S64 target_row = scroll_row;
 
     S32 top_row    = scroll_row + (S32) f32_floor(state->scroll_offset);
     S32 bottom_row = s32_min(top_row + (state->scroll_offset != 0.0f) + (S32) f32_ceil(panel_size.y / height) - 1, last_row);
@@ -150,55 +150,23 @@ PANEL_BUILD_FUNCTION(view_glyph_list) {
     U32 top_codepoint_index = (U32) top_row * codepoints_per_row;
     U32 bottom_codepoint_index = u32_min((U32) bottom_row * codepoints_per_row + codepoints_per_row - 1, codepoint_map.codepoint_count - 1);
 
-    // NOTE(simon): Scrollbar container
-    ui_width_next(ui_size_pixels(scrollbar_width, 1.0f));
-    ui_height_next(ui_size_pixels(panel_size.y, 1.0f));
-    ui_layout_axis_next(Axis2_Y);
-    UI_Box *scroll_container = ui_create_box_from_string(UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawBorder, str8_literal("scrollbar"));
+    UI_ScrollPosition position = {
+        .index  = target_row,
+        .offset = state->scroll_offset,
+    };
 
-    ui_width(ui_size_parent_percent(1.0f, 1.0f))
-    ui_parent(scroll_container) {
-        F32 rows_above   = (F32) (scroll_row) + state->scroll_offset;
-        F32 visible_rows = container_height / height;
-        F32 row_count    = (F32) (last_row) + visible_rows;
-        F32 rows_below   = (F32) (last_row) - (F32) scroll_row - state->scroll_offset;
+    ui_palette(palette_from_code(PaletteCode_Button))
+    ui_width(ui_size_pixels(scrollbar_width, 1.0f))
+    ui_height(ui_size_pixels(panel_size.y, 1.0f)) {
+        S64 rows_above   = scroll_row;
+        S64 visible_rows = (S64) f32_ceil(container_height / height);
+        S64 row_count    = last_row + visible_rows;
+        S64 rows_below   = last_row - scroll_row;
 
-        ui_hover_cursor_next(Gfx_Cursor_Hand);
-        ui_height_next(ui_size_parent_percent(rows_above / row_count, 0.0f));
-        UI_Box *scroll_before = ui_create_box_from_string(UI_BoxFlag_Clickable, str8_literal("before"));
-
-        ui_palette_next(palette_from_code(PaletteCode_Button));
-        ui_hover_cursor_next(Gfx_Cursor_Hand);
-        ui_height_next(ui_size_parent_percent(f32_max(0.01f, visible_rows / row_count), 1.0f));
-        UI_Box *scroll = ui_create_box_from_string(UI_BoxFlag_Clickable | UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawBorder | UI_BoxFlag_DrawHot | UI_BoxFlag_DrawActive, str8_literal("scroll"));
-
-        ui_hover_cursor_next(Gfx_Cursor_Hand);
-        ui_height_next(ui_size_parent_percent(rows_below / row_count, 0.0f));
-        UI_Box *scroll_after = ui_create_box_from_string(UI_BoxFlag_Clickable, str8_literal("after"));
-
-        UI_Input before_input = ui_input_from_box(scroll_before);
-        if (before_input.input_flags & UI_InputFlag_LeftClicked) {
-            target_row -= (S32) f32_floor(visible_rows);
-        }
-
-        UI_Input scroll_input = ui_input_from_box(scroll);
-        if (scroll_input.input_flags & UI_InputFlag_LeftDragging) {
-            if (scroll_input.input_flags & UI_InputFlag_LeftPressed) {
-                ui_set_drag_data(&top_row);
-            }
-
-            S32 start_row = *ui_get_drag_data(S32);
-
-            F32 scroll_size = panel_size.y - scroll->calculated_size.height;
-            F32 drag_percent = ui_drag_delta().y / scroll_size;
-            target_row = start_row + (S32) f32_floor(drag_percent * (row_count - visible_rows));
-        }
-
-        UI_Input after_input  = ui_input_from_box(scroll_after);
-        if (after_input.input_flags & UI_InputFlag_LeftClicked) {
-            target_row += (S32) f32_floor(visible_rows);
-        }
+        position = ui_scroll_bar(position, rows_above, visible_rows, row_count, rows_below);
     }
+    target_row = position.index;
+    state->scroll_offset = position.offset;
 
     UIDrawMSDF *draw_msdf = arena_push_struct_zero(ui_frame_arena(), UIDrawMSDF);
     draw_msdf->font = global_state->ttf_font;
@@ -318,7 +286,7 @@ PANEL_BUILD_FUNCTION(view_glyph_list) {
     ui_parent_pop();
 
     UI_Input region_input = ui_input_from_box(region);
-    target_row -= (S32) region_input.scroll.y;
+    target_row -= (S64) region_input.scroll.y;
 
     if (top_context()->codepoint != state->previous_codepoint) {
         state->previous_codepoint = top_context()->codepoint;
@@ -332,9 +300,9 @@ PANEL_BUILD_FUNCTION(view_glyph_list) {
     }
 
     // NOTE(simon): Scrolling
-    target_row = s32_min(s32_max(0, target_row), last_row);
+    target_row = s64_min(s64_max(0, target_row), last_row);
     state->scroll_offset += (F32) scroll_row - (F32) target_row;
-    scroll_row = target_row;
+    scroll_row = (S32) target_row;
     state->scroll_codepoint_index = (U32) scroll_row * codepoints_per_row;
 
     // NOTE(simon): Animation
