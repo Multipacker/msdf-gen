@@ -1044,7 +1044,7 @@ internal Void update(Void) {
             ui_focus_next(UI_Focus_Root);
             UI_Box *command_box = ui_create_box_from_string(
                 UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawBorder | UI_BoxFlag_DrawDropShadow | UI_BoxFlag_Clickable | UI_BoxFlag_Scrollable,
-                str8_literal("command_lister")
+                str8_literal("##command_lister")
             );
 
             ui_width(ui_size_fill())
@@ -1062,7 +1062,7 @@ internal Void update(Void) {
                 local U64 mark = 0;
                 local S32 active_index = 0;
 
-                UI_Key key = ui_key_from_string(ui_active_seed_key(), str8_literal("query"));
+                UI_Key key = ui_key_from_string(ui_active_seed_key(), str8_literal("##query"));
                 ui_palette(palette_from_code(PaletteCode_Button))
                 ui_focus(UI_Focus_Active) {
                     ui_line_edit(buffer, &buffer_size, array_count(buffer), &cursor, &mark, key);
@@ -1106,7 +1106,7 @@ internal Void update(Void) {
                 ui_width_next(ui_size_fill());
                 ui_height_next(ui_size_fill());
                 ui_layout_axis_next(Axis2_X);
-                UI_Box *region = ui_create_box_from_string(UI_BoxFlag_OverflowY | UI_BoxFlag_Clip | UI_BoxFlag_Scrollable, str8_literal("region"));
+                UI_Box *region = ui_create_box_from_string(UI_BoxFlag_OverflowY | UI_BoxFlag_Clip | UI_BoxFlag_Scrollable, str8_literal("##region"));
                 ui_parent_push(region);
 
                 V2F32 region_size = region->calculated_size;
@@ -1120,7 +1120,7 @@ internal Void update(Void) {
                 ui_width_next(ui_size_pixels(container_width, 1.0f));
                 ui_height_next(ui_size_pixels(container_height, 1.0f));
                 ui_layout_axis_next(Axis2_Y);
-                UI_Box *container = ui_create_box_from_string(0, str8_literal("commands"));
+                UI_Box *container = ui_create_box_from_string(0, str8_literal("##commands"));
 
                 S32 last_row = (S32) command_count;
 
@@ -1135,7 +1135,7 @@ internal Void update(Void) {
                 ui_width_next(ui_size_pixels(scrollbar_width, 1.0f));
                 ui_height_next(ui_size_pixels(region_size.height, 1.0f));
                 ui_layout_axis_next(Axis2_Y);
-                UI_Box *scroll_container = ui_create_box_from_string(UI_BoxFlag_DrawBorder, str8_literal("scrollbar"));
+                UI_Box *scroll_container = ui_create_box_from_string(UI_BoxFlag_DrawBorder, str8_literal("##scrollbar"));
 
                 ui_width(ui_size_parent_percent(1.0f, 1.0f))
                 ui_palette(palette_from_code(PaletteCode_Button))
@@ -1147,15 +1147,15 @@ internal Void update(Void) {
 
                     ui_hover_cursor_next(Gfx_Cursor_Hand);
                     ui_height_next(ui_size_parent_percent(rows_above / row_count, 0.0f));
-                    UI_Box *scroll_before = ui_create_box_from_string(UI_BoxFlag_Clickable, str8_literal("before"));
+                    UI_Box *scroll_before = ui_create_box_from_string(UI_BoxFlag_Clickable, str8_literal("##before"));
 
                     ui_hover_cursor_next(Gfx_Cursor_Hand);
                     ui_height_next(ui_size_parent_percent(f32_max(0.01f, visible_rows / row_count), 1.0f));
-                    UI_Box *scroll = ui_create_box_from_string(UI_BoxFlag_Clickable | UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawBorder | UI_BoxFlag_DrawHot | UI_BoxFlag_DrawActive, str8_literal("scroll"));
+                    UI_Box *scroll = ui_create_box_from_string(UI_BoxFlag_Clickable | UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawBorder | UI_BoxFlag_DrawHot | UI_BoxFlag_DrawActive, str8_literal("##scroll"));
 
                     ui_hover_cursor_next(Gfx_Cursor_Hand);
                     ui_height_next(ui_size_parent_percent(rows_below / row_count, 0.0f));
-                    UI_Box *scroll_after = ui_create_box_from_string(UI_BoxFlag_Clickable, str8_literal("after"));
+                    UI_Box *scroll_after = ui_create_box_from_string(UI_BoxFlag_Clickable, str8_literal("##after"));
 
                     UI_Input before_input = ui_input_from_box(scroll_before);
                     if (before_input.input_flags & UI_InputFlag_LeftClicked) {

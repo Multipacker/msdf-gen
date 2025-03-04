@@ -464,8 +464,12 @@ internal UI_Input ui_slider(F32 min, F32 *value, F32 max, UI_Key key) {
     return input;
 }
 
-internal UI_ScrollPosition ui_scroll_bar(UI_ScrollPosition position, S64 rows_above, S64 visible_rows, S64 row_count, S64 rows_below) {
+internal UI_ScrollPosition ui_scroll_bar(UI_ScrollPosition position, S64 first_row, S64 last_row, S64 visible_rows) {
     UI_Box *scroll = &global_ui_null_box;
+
+    S64 rows_above = position.index - first_row;
+    S64 row_count  = s64_max(0, last_row - first_row - 1) + visible_rows;
+    S64 rows_below = last_row - 1 - position.index;
 
     UI_Input before_input = { 0 };
     UI_Input scroll_input = { 0 };
@@ -477,7 +481,7 @@ internal UI_ScrollPosition ui_scroll_bar(UI_ScrollPosition position, S64 rows_ab
 
     ui_parent(scroll_container)
     ui_hover_cursor(Gfx_Cursor_Hand) {
-        ui_height_next(ui_size_parent_percent((F32) rows_above / (F32) row_count, 0.0f));
+        ui_height_next(ui_size_parent_percent(((F32) rows_above + position.offset) / (F32) row_count, 0.0f));
         UI_Box *scroll_before = ui_create_box_from_string(UI_BoxFlag_Clickable, str8_literal("##before"));
         before_input = ui_input_from_box(scroll_before);
 
@@ -489,7 +493,7 @@ internal UI_ScrollPosition ui_scroll_bar(UI_ScrollPosition position, S64 rows_ab
         );
         scroll_input = ui_input_from_box(scroll);
 
-        ui_height_next(ui_size_parent_percent((F32) rows_below / (F32) row_count, 0.0f));
+        ui_height_next(ui_size_parent_percent(((F32) rows_below - position.offset) / (F32) row_count, 0.0f));
         UI_Box *scroll_after = ui_create_box_from_string(UI_BoxFlag_Clickable, str8_literal("##after"));
         after_input = ui_input_from_box(scroll_after);
     }
@@ -509,15 +513,25 @@ internal UI_ScrollPosition ui_scroll_bar(UI_ScrollPosition position, S64 rows_ab
 
         S64 start_row = *ui_get_drag_data(S64);
 
-        F32 scroll_size = scroll_container->calculated_size.height - scroll->calculated_size.height;
+        F32 scroll_size  = scroll_container->calculated_size.height - scroll->calculated_size.height;
         F32 drag_percent = ui_drag_delta().y / scroll_size;
-        result.index  = start_row + (S64) f32_floor(drag_percent * (F32) (row_count - visible_rows));
+        result.index  = start_row + (S64) f32_round(drag_percent * (F32) (row_count - visible_rows));
+        result.index  = s64_min(s64_max(first_row, result.index), last_row - 1);
         result.offset = 0.0f;
     }
 
     if (after_input.input_flags & UI_InputFlag_LeftClicked) {
         result.index  += visible_rows;
         result.offset -= (F32) visible_rows;
+    }
+
+    // NOTE(simon): Clamp scrolling.
+    if (result.index < 0) {
+        result.offset += (F32) result.index;
+        result.index = 0;
+    } else if (last_row <= result.index) {
+        result.offset -= (F32) (s64_max(0, last_row - 1) - result.index);
+        result.index = s64_max(0, last_row - 1);
     }
 
     return result;

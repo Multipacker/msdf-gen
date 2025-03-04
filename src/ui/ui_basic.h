@@ -7,6 +7,12 @@ struct UI_DrawLineEdit {
     U64 mark;
 };
 
+typedef struct UI_ScrollPosition UI_ScrollPosition;
+struct UI_ScrollPosition {
+    S64 index;
+    F32 offset;
+};
+
 internal UI_Size ui_size_fill(Void);
 
 internal UI_Box *ui_spacer(Void);
@@ -45,12 +51,7 @@ internal UI_Input ui_line_edit(U8 *buffer, U64 *buffer_size, U64 buffer_capacity
 
 internal UI_Input ui_slider(F32 min, F32 *value, F32 max, UI_Key key);
 
-typedef struct UI_ScrollPosition UI_ScrollPosition;
-struct UI_ScrollPosition {
-    S64 index;
-    F32 offset;
-};
-
-internal UI_ScrollPosition ui_scroll_bar(UI_ScrollPosition position, S64 rows_above, S64 visible_rows, S64 row_count, S64 rows_below);
+// NOTE(simon): Scrolling
+internal UI_ScrollPosition ui_scroll_bar(UI_ScrollPosition position, S64 first_row, S64 last_row, S64 visible_rows);
 
 #endif //UI_BASIC_H
