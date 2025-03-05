@@ -1200,8 +1200,9 @@ internal Void update(Void) {
 
                 // NOTE(simon): Scrolling
                 UI_Input region_input = ui_input_from_box(region);
-                position.index  -= (S64) region_input.scroll.y;
-                position.offset += region_input.scroll.y;
+                S64 scroll_delta = (S64) f32_round(region_input.scroll.y);
+                position.index  -= scroll_delta;
+                position.offset += (F32) scroll_delta;
 
                 // NOTE(simon): Clamp scrolling.
                 if (position.index < 0) {

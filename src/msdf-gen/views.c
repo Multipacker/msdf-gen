@@ -232,8 +232,9 @@ PANEL_BUILD_FUNCTION(view_glyph_list) {
 
     // NOTE(simon): Scrolling.
     UI_Input region_input = ui_input_from_box(region);
-    state->position.index  -= (S64) region_input.scroll.y;
-    state->position.offset += region_input.scroll.y;
+    S64 scroll_delta = (S64) f32_round(region_input.scroll.y);
+    state->position.index  -= scroll_delta;
+    state->position.offset += (F32) scroll_delta;
 
     // NOTE(simon): Recenter if the new codepoint is out of view.
     if (top_context()->codepoint != state->previous_codepoint) {
