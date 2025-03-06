@@ -117,6 +117,7 @@ internal Str8 str8_uppercase_ascii(Arena *arena, Str8 string);
 internal U64 str8_first_index_of(Str8 string, U32 codepoint);
 internal U64 str8_last_index_of(Str8 string, U32 codepoint);
 internal U64 str8_find(U64 offset, Str8 needle, Str8 haystack);
+internal S64 str8_compare_ascii(Str8 a, Str8 b);
 internal FuzzyMatchList str8_fuzzy_match(Arena *arena, Str8 needle, Str8 haystack);
 internal FuzzyMatchList fuzzy_match_list_copy(Arena *arena, FuzzyMatchList fuzzy_matches);
 

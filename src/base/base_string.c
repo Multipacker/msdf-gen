@@ -636,6 +636,39 @@ internal U64 str8_find(U64 offset, Str8 needle, Str8 haystack) {
     return index;
 }
 
+internal S64 str8_compare_ascii(Str8 a, Str8 b) {
+    S64 result = 0;
+    Arena_Temporary scratch = arena_get_scratch(0, 0);
+
+    Str8 a_lowercase = str8_lowercase_ascii(scratch.arena, a);
+    Str8 b_lowercase = str8_lowercase_ascii(scratch.arena, b);
+
+    // NOTE(simon): Shorter strings should come before longer strings if their
+    // prefix is identical.
+    if (a_lowercase.size < b_lowercase.size) {
+        result = -1;
+    } else if (a_lowercase.size > b_lowercase.size) {
+        result = 1;
+    }
+
+    // NOTE(simon): Compare character by character.
+    U64 length = u64_min(a_lowercase.size, b_lowercase.size);
+    for (U64 i = 0; i < length; ++i) {
+        U8 a_character = a_lowercase.data[i];
+        U8 b_character = b_lowercase.data[i];
+        if (a_character < b_character) {
+            result = -1;
+            break;
+        } else if (a_character > b_character) {
+            result = 1;
+            break;
+        }
+    }
+
+    arena_end_temporary(scratch);
+    return result;
+}
+
 internal FuzzyMatchList str8_fuzzy_match(Arena *arena, Str8 needle, Str8 haystack) {
     FuzzyMatchList matches = { 0 };
     Arena_Temporary scratch = arena_get_scratch(&arena, 1);
