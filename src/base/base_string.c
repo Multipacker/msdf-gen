@@ -677,9 +677,14 @@ internal FuzzyMatchList str8_fuzzy_match(Arena *arena, Str8 needle, Str8 haystac
     Str8 lowercase_haystack = str8_lowercase_ascii(scratch.arena, haystack);
 
     Str8List parts = str8_split_by_codepoints(scratch.arena, lowercase_needle, str8_literal(" \t"));
-    matches.needle_parts = parts.node_count;
 
     for (Str8Node *part = parts.first; part; part = part->next) {
+        if (part->string.size == 0) {
+            continue;
+        }
+
+        ++matches.needle_parts;
+
         U64 index = 0;
         while (index < lowercase_haystack.size) {
             index = str8_find(index, part->string, lowercase_haystack);
