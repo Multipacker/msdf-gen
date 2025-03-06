@@ -1230,6 +1230,8 @@ internal Void update(Void) {
                 S64 last_row     = (S64) command_count;
                 S64 visible_rows = (S64) f32_ceil(container_height / height);
 
+                S64 previous_active_index = active_index;
+
                 // NOTE(simon): Properties of the current view.
                 S64 top_row    = position.index + (S64) f32_floor(position.offset);
                 S64 bottom_row = s64_min(top_row + (position.offset != 0.0f) + visible_rows, last_row);
@@ -1246,9 +1248,7 @@ internal Void update(Void) {
                 ui_width(ui_size_fill())
                 ui_height(ui_size_pixels(height, 1.0f)) {
                     for (S64 i = top_row; i < bottom_row; ++i) {
-                        if (i == active_index) {
-                            ui_focus_next(UI_Focus_Active);
-                        }
+                        ui_focus_next(i == active_index ? UI_Focus_Active : UI_Focus_Inactive);
 
                         ui_hover_cursor_next(Gfx_Cursor_Hand);
                         UI_Box *command_button_box = ui_create_box_from_string(
@@ -1292,12 +1292,12 @@ internal Void update(Void) {
                             } break;
                         }
 
-                        active_index = s64_min(s64_max(0, active_index + delta), (S64) command_count);
+                        active_index = s64_min(s64_max(0, active_index + delta), (S64) command_count - 1);
 
                         ui_consume_event(event);
                     }
 
-                    active_index = s64_min(s64_max(0, active_index), (S64) command_count);
+                    active_index = s64_min(s64_max(0, active_index), (S64) command_count - 1);
                 }
 
                 ui_palette(palette_from_code(PaletteCode_Button))
@@ -1314,6 +1314,16 @@ internal Void update(Void) {
                 S64 scroll_delta = (S64) f32_round(region_input.scroll.y);
                 position.index  -= scroll_delta;
                 position.offset += (F32) scroll_delta;
+
+                // NOTE(simon): Recenter if the active index is out of view.
+                if (previous_active_index != active_index) {
+                    if (!(top_row <= active_index && active_index < bottom_row)) {
+                        S64 target_row = active_index - visible_rows / 2;
+                        S64 delta = target_row - position.index;
+                        position.index  += delta;
+                        position.offset -= (F32) delta;
+                    }
+                }
 
                 // NOTE(simon): Clamp scrolling.
                 if (position.index < 0) {
