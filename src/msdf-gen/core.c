@@ -299,6 +299,103 @@ internal Arena *frame_arena(Void) {
     return result;
 }
 
+typedef struct CommandItem CommandItem;
+struct CommandItem {
+    CommandKind command;
+    Str8 name;
+    FuzzyMatchList fuzzy_matches;
+};
+
+internal S64 command_item_compare(CommandItem a, CommandItem b) {
+    S64 result = 0;
+
+    // NOTE(simon): More matches mean make items appear earlier.
+    if (result == 0) {
+        if (a.fuzzy_matches.count > b.fuzzy_matches.count) {
+            result = -1;
+        } else if (a.fuzzy_matches.count < b.fuzzy_matches.count) {
+            result = 1;
+        }
+    }
+
+    // NOTE(simon): Earlier first matches make items appear earlier.
+    if (result == 0) {
+        U64 a_first_fuzzy = U64_MAX;
+        for (FuzzyMatch *match = a.fuzzy_matches.first; match; match = match->next) {
+            a_first_fuzzy = u64_min(match->min, a_first_fuzzy);
+        }
+
+        U64 b_first_fuzzy = U64_MAX;
+        for (FuzzyMatch *match = b.fuzzy_matches.first; match; match = match->next) {
+            b_first_fuzzy = u64_min(match->min, b_first_fuzzy);
+        }
+
+        if (a_first_fuzzy < b_first_fuzzy) {
+            result = -1;
+        } else if (a_first_fuzzy > b_first_fuzzy) {
+            result = 1;
+        }
+    }
+
+    // NOTE(simon): Fallback on lexigraphical ordering.
+    if (result == 0) {
+        result = str8_compare_ascii(a.name, b.name);
+    }
+
+    return result;
+}
+
+internal Void quicksort(CommandItem *commands, U64 command_count) {
+    if (command_count <= 1) {
+        return;
+    }
+
+    // NOTE(simon): Choose pivot by median of three.
+    // NOTE(simon): This makes the sort unstable!!!
+    U64 pivot_index  = 0;
+    U64 first_index  = 0;
+    U64 middle_index = command_count / 2;
+    U64 last_index   = command_count - 1;
+    if (command_item_compare(commands[first_index], commands[middle_index]) > 0 ^ command_item_compare(commands[first_index], commands[last_index]) > 0) {
+        pivot_index = first_index;
+    } else if (command_item_compare(commands[middle_index], commands[first_index]) < 0 ^ command_item_compare(commands[middle_index], commands[last_index]) < 0) {
+        pivot_index = middle_index;
+    } else {
+        pivot_index = last_index;
+    }
+
+    // NOTE(simon): Swap pivot to start of list
+    swap(commands[0], commands[pivot_index], CommandItem);
+    pivot_index = 0;
+
+    // NOTE(simon): Partition
+    U64 low_index = 1;
+    U64 high_index = command_count;
+    for (;;) {
+        while (low_index < high_index && command_item_compare(commands[low_index], commands[pivot_index]) <= 0) {
+            ++low_index;
+        }
+
+        while (low_index < high_index && command_item_compare(commands[pivot_index], commands[high_index - 1]) <= 0) {
+            --high_index;
+        }
+
+        if (low_index < high_index) {
+            swap(commands[low_index], commands[high_index - 1], CommandItem);
+        } else {
+            break;
+        }
+    }
+
+    // NOTE(simon): Swap pivot to the middle.
+    pivot_index = low_index - 1;
+    swap(commands[0], commands[pivot_index], CommandItem);
+
+    // NOTE(simon): Recurse
+    quicksort(commands, pivot_index);
+    quicksort(&commands[pivot_index + 1], command_count - pivot_index - 1);
+}
+
 internal Void update(Void) {
     State *state = global_state;
 
@@ -1042,12 +1139,6 @@ internal Void update(Void) {
             local S64 active_index = 0;
             local UI_ScrollPosition position = { 0 };
 
-            typedef struct CommandItem CommandItem;
-            struct CommandItem {
-                CommandKind command;
-                Str8 name;
-                FuzzyMatchList fuzzy_matches;
-            };
             CommandItem commands[Command_COUNT] = { 0 };
             U64 command_count = 0;
 
@@ -1063,13 +1154,33 @@ internal Void update(Void) {
                 // NOTE(simon): Filter on number of matched parts
                 for (U64 i = 0; i < command_count;) {
                     FuzzyMatchList matches = commands[i].fuzzy_matches;
-                    if (matches.needle_parts != matches.count) {
+
+                    B32 remove = false;
+
+                    // NOTE(simon): If there are search terms and no matches, remove the item.
+                    remove |= matches.needle_parts && !matches.count;
+
+                    // NOTE(simon): If the number of mathes and number of
+                    // search terms differ by more than 1, remove the item.
+                    // TODO(simon): This rule can include more items when you
+                    // specify more terms, meaning a more specific search could
+                    // introduce more items. This is generally undesireable,
+                    // but means you get a bit more out of the fuzzy matcher
+                    // which could help you find what you want. Sorting bases
+                    // on number of matches partially solves this issue, but
+                    // I'd like to find an even better filter.
+                    remove |= matches.needle_parts - matches.count > 1;
+
+                    if (remove) {
                         swap(commands[i], commands[command_count - 1], CommandItem);
                         --command_count;
                     } else {
                         ++i;
                     }
                 }
+
+                // NOTE(simon): Sort by name.
+                quicksort(commands, command_count);
             }
 
             F32 command_rectangle_width  = (F32) client_area.width * 0.6f;
