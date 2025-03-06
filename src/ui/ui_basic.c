@@ -300,9 +300,9 @@ internal UI_Input ui_line_edit(U8 *buffer, U64 *buffer_size, U64 buffer_capacity
 
             if (*cursor != *mark && (event->flags & UI_EventFlag_PickSelectSide)) {
                 if (event->delta.x < 0) {
-                    new_cursor = u64_min(*cursor, *mark);
+                    *cursor = u64_min(*cursor, *mark);
                 } else if (0 < event->delta.x) {
-                    new_cursor = u64_max(*cursor, *mark);
+                    *cursor = u64_max(*cursor, *mark);
                 }
             }
 
