@@ -130,10 +130,10 @@ struct Context {
     X(MoveWordUp,           "Move word up")           \
     X(MoveWordRight,        "Move word right")        \
     X(MoveWordDown,         "Move word down")         \
-    X(MoveCharacterLeft,    "Move Character left")    \
-    X(MoveCharacterUp,      "Move Character up")      \
-    X(MoveCharacterRight,   "Move Character right")   \
-    X(MoveCharacterDown,    "Move Character down")    \
+    X(MoveCharacterLeft,    "Move character left")    \
+    X(MoveCharacterUp,      "Move character up")      \
+    X(MoveCharacterRight,   "Move character right")   \
+    X(MoveCharacterDown,    "Move character down")    \
     X(SelectHome,           "Select home")            \
     X(SelectEnd,            "Select end")             \
     X(MoveHome,             "Move home")              \
