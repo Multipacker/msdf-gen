@@ -1264,6 +1264,10 @@ internal Void update(Void) {
                             push_command(commands[i].command);
                             state->show_command_lister = 0;
                             buffer_size = 0;
+                            cursor = 0;
+                            mark = 0;
+                            active_index = 0;
+                            memory_zero_struct(&position);
                         }
                     }
 
@@ -1348,6 +1352,10 @@ internal Void update(Void) {
             if (ui_consume_event_kind(UI_EventKind_Cancel)) {
                 state->show_command_lister = 0;
                 buffer_size = 0;
+                cursor = 0;
+                mark = 0;
+                active_index = 0;
+                memory_zero_struct(&position);
             }
 
             // NOTE(simon): Close lister if you click outside of the dialog.
@@ -1361,6 +1369,10 @@ internal Void update(Void) {
                 ) {
                     state->show_command_lister = 0;
                     buffer_size = 0;
+                    cursor = 0;
+                    mark = 0;
+                    active_index = 0;
+                    memory_zero_struct(&position);
                 }
             }
 
