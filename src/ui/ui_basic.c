@@ -477,7 +477,7 @@ internal UI_ScrollPosition ui_scroll_bar(UI_ScrollPosition position, S64 first_r
 
     // NOTE(simon): Build
     ui_layout_axis_next(Axis2_Y);
-    UI_Box *scroll_container = ui_create_box_from_string(UI_BoxFlag_DrawBorder, str8_literal("##scroll_container"));
+    UI_Box *scroll_container = ui_create_box_from_string(0, str8_literal("##scroll_container"));
 
     ui_parent(scroll_container)
     ui_hover_cursor(Gfx_Cursor_Hand) {
@@ -486,8 +486,9 @@ internal UI_ScrollPosition ui_scroll_bar(UI_ScrollPosition position, S64 first_r
         before_input = ui_input_from_box(scroll_before);
 
         ui_height_next(ui_size_parent_percent(f32_max(0.01f, (F32) visible_rows / (F32) row_count), 1.0f));
+        ui_corner_radius_next(ui_parent_top()->calculated_size.width / 2.0f);
         scroll = ui_create_box_from_string(
-            UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawBorder | UI_BoxFlag_DrawHot | UI_BoxFlag_DrawActive |
+            UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawHot | UI_BoxFlag_DrawActive |
             UI_BoxFlag_Clickable,
             str8_literal("##scrollbar")
         );
