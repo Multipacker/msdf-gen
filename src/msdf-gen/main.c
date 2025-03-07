@@ -20,8 +20,6 @@
  * TODO before next release:
  * * Bake the UI font into the executable
  * * Improve the look of the preview when dragging tabs
- * * Think about sorting in the command lister
- *   * Alphabetically or by match length, or maybe both
  * * More carefully think about how filtering in the command lister works
  *
  * TODO long term
@@ -40,6 +38,77 @@
 
 #include "core.c"
 #include "views.c"
+
+#if 0
+#include <fontconfig/fontconfig.h>
+
+typedef enum {
+    Font_Default,
+    Font_Proportional,
+    Font_Monospace,
+    Font_SansSerif,
+    Font_Serif,
+    Font_COUNT,
+} Font;
+
+// TODO(simon): Properties that could be interesting to look at:
+// * FC_CHARSET
+// * FC_FONTFORMAT
+// * FC_FONT_WRAPPER
+internal Str8 gfx_get_font_path(Arena *arena, Font font) {
+    Str8 result = { 0 };
+    FcInit();
+
+    // NOTE(simon): Acquire system root.
+    FcConfig *config = FcConfigReference(0);
+    Str8 sys_root = str8_cstr((CStr) FcConfigGetSysRoot(config));
+    FcConfigDestroy(config);
+
+    // NOTE(simon): Fill pattern based on what kind of font was requested.
+    FcPattern *pattern = FcPatternCreate();
+    switch (font) {
+        case Font_Default: {
+        } break;
+        case Font_Proportional: {
+            FcPatternAddInteger(pattern, FC_SPACING, FC_PROPORTIONAL);
+        } break;
+        case Font_Monospace: {
+            FcPatternAddString(pattern, FC_FAMILY, (FcChar8 *) "monospace");
+            FcPatternAddInteger(pattern, FC_SPACING, FC_MONO);
+        } break;
+        case Font_SansSerif: {
+            FcPatternAddString(pattern, FC_FAMILY, (FcChar8 *) "sans serif");
+        } break;
+        case Font_Serif: {
+            FcPatternAddString(pattern, FC_FAMILY, (FcChar8 *) "serif");
+        } break;
+        case Font_COUNT: {
+        } break;
+    }
+
+    // NOTE(simon): Perform user configured substitutions and apply fontconfigs
+    // defaults.
+    // TODO(simon): FcMatchPattern or FcMatchFont, which one do we use?
+    FcConfigSubstitute(0, pattern, FcMatchPattern);
+    FcDefaultSubstitute(pattern);
+
+    FcResult match_result = 0;
+    FcPattern *selected_font = FcFontMatch(0, pattern, &match_result);
+    if (match_result == FcResultMatch) {
+        FcChar8 *name = 0;
+        FcResult get_result = FcPatternGetString(selected_font, FC_FILE, 0, &name);
+        if (get_result == FcResultMatch) {
+            // TODO(simon): Join with sys root to get absolute path
+            result = str8_copy_cstr(arena, name);
+        }
+        FcPatternDestroy(selected_font);
+    }
+
+    FcPatternDestroy(pattern);
+
+    return result;
+}
+#endif
 
 internal S32 os_run(Str8List arguments) {
     if (!arguments.first->next) {
