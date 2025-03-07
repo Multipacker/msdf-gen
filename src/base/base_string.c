@@ -27,11 +27,11 @@ internal Str8 str8_copy(Arena *arena, Str8 string) {
 }
 
 internal Str8 str8_cstr(CStr data) {
-    Str8 result;
+    Str8 result = { 0 };
     result.data = (U8 *) data;
     result.size = 0;
 
-    while (result.data[result.size]) {
+    while (result.data && result.data[result.size]) {
         ++result.size;
     }
 
@@ -39,10 +39,10 @@ internal Str8 str8_cstr(CStr data) {
 }
 
 internal Str8 str8_copy_cstr(Arena *arena, U8 *data) {
-    Str8 result;
+    Str8 result = { 0 };
     result.size = 0;
 
-    while (data[result.size]) {
+    while (data && data[result.size]) {
         ++result.size;
     }
 
@@ -57,7 +57,7 @@ internal Str16 str16_cstr16(CStr16 data) {
     result.data = (U16 *) data;
     result.size = 0;
 
-    while (result.data[result.size]) {
+    while (result.data && result.data[result.size]) {
         ++result.size;
     }
 
