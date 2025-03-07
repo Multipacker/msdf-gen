@@ -469,9 +469,11 @@ internal UI_ScrollPosition ui_scroll_bar(UI_ScrollPosition position, S64 first_r
     S64 row_count  = s64_max(0, last_row - first_row - 1) + visible_rows;
     S64 rows_below = last_row - 1 - position.index;
 
+    UI_Input up_input     = { 0 };
     UI_Input before_input = { 0 };
     UI_Input scroll_input = { 0 };
     UI_Input after_input  = { 0 };
+    UI_Input down_input   = { 0 };
 
     // NOTE(simon): Build
     ui_layout_axis_next(Axis2_Y);
@@ -479,6 +481,10 @@ internal UI_ScrollPosition ui_scroll_bar(UI_ScrollPosition position, S64 first_r
 
     ui_parent(scroll_container)
     ui_hover_cursor(Gfx_Cursor_Hand) {
+        ui_height_next(ui_size_pixels(ui_parent_top()->calculated_size.width, 1.0f));
+        ui_text_align_next(UI_TextAlign_Center);
+        up_input = ui_button(str8_literal("^"));
+
         ui_height_next(ui_size_parent_percent(((F32) rows_above + position.offset) / (F32) row_count, 0.0f));
         UI_Box *scroll_before = ui_create_box_from_string(UI_BoxFlag_Clickable, str8_literal("##before"));
         before_input = ui_input_from_box(scroll_before);
@@ -495,14 +501,23 @@ internal UI_ScrollPosition ui_scroll_bar(UI_ScrollPosition position, S64 first_r
         ui_height_next(ui_size_parent_percent(((F32) rows_below - position.offset) / (F32) row_count, 0.0f));
         UI_Box *scroll_after = ui_create_box_from_string(UI_BoxFlag_Clickable, str8_literal("##after"));
         after_input = ui_input_from_box(scroll_after);
+
+        ui_height_next(ui_size_pixels(ui_parent_top()->calculated_size.width, 1.0f));
+        ui_text_align_next(UI_TextAlign_Center);
+        down_input = ui_button(str8_literal("v"));
     }
 
     // NOTE(simon): Input
     UI_ScrollPosition result = position;
 
-    if (before_input.input_flags & UI_InputFlag_LeftClicked) {
+    if (up_input.input_flags & UI_InputFlag_LeftClicked) {
         result.index  -= visible_rows;
         result.offset += (F32) visible_rows;
+    }
+
+    if (before_input.input_flags & UI_InputFlag_LeftDragging) {
+        result.index  -= 1;
+        result.offset += 1;
     }
 
     if (scroll_input.input_flags & UI_InputFlag_LeftDragging) {
@@ -519,7 +534,12 @@ internal UI_ScrollPosition ui_scroll_bar(UI_ScrollPosition position, S64 first_r
         result.offset = 0.0f;
     }
 
-    if (after_input.input_flags & UI_InputFlag_LeftClicked) {
+    if (after_input.input_flags & UI_InputFlag_LeftDragging) {
+        result.index  += 1;
+        result.offset -= 1;
+    }
+
+    if (down_input.input_flags & UI_InputFlag_LeftClicked) {
         result.index  += visible_rows;
         result.offset -= (F32) visible_rows;
     }
