@@ -105,74 +105,87 @@ struct Context {
     .tab_specification = top_context()->tab_specification, \
     .codepoint         = top_context()->codepoint,
 
-#define COMMANDS                                      \
-    X(FocusPanel,           "Focus panel")            \
-    X(ClosePanel,           "Close panel")            \
-    X(SplitPanel,           "Split panel")            \
-    X(OpenTab,              "Open tab")               \
-    X(CloseTab,             "Close tab")              \
-    X(PreviousTab,          "Previous tab")           \
-    X(NextTab,              "Next tab")               \
-    X(MoveTab,              "Move tab")               \
-    X(SaveProject,          "Save project")           \
-    X(SelectCodepoint,      "Select codepoint")       \
-    X(NextTheme,            "Next theme")             \
-    X(PreviousTheme,        "Previous theme")         \
-    X(SelectWordLeft,       "Select word left")       \
-    X(SelectWordUp,         "Select word up")         \
-    X(SelectWordRight,      "Select word right")      \
-    X(SelectWordDown,       "Select word down")       \
-    X(SelectCharacterLeft,  "Select character left")  \
-    X(SelectCharacterUp,    "Select character up")    \
-    X(SelectCharacterRight, "Select character right") \
-    X(SelectCharacterDown,  "Select character down")  \
-    X(MoveWordLeft,         "Move word left")         \
-    X(MoveWordUp,           "Move word up")           \
-    X(MoveWordRight,        "Move word right")        \
-    X(MoveWordDown,         "Move word down")         \
-    X(MoveCharacterLeft,    "Move character left")    \
-    X(MoveCharacterUp,      "Move character up")      \
-    X(MoveCharacterRight,   "Move character right")   \
-    X(MoveCharacterDown,    "Move character down")    \
-    X(SelectHome,           "Select home")            \
-    X(SelectEnd,            "Select end")             \
-    X(MoveHome,             "Move home")              \
-    X(MoveEnd,              "Move end")               \
-    X(SelectPageUp,         "Select page up")         \
-    X(SelectPageDown,       "Select page down")       \
-    X(MovePageUp,           "Move page up")           \
-    X(MovePageDown,         "Move page down")         \
-    X(SelectWholeUp,        "Select whole up")        \
-    X(SelectWholeDown,      "Select whole down")      \
-    X(MoveWholeUp,          "Move whole up")          \
-    X(MoveWholeDown,        "Move whole end")         \
-    X(RemoveWord,           "Remove word")            \
-    X(DeleteWord,           "Delete word")            \
-    X(RemoveCharacter,      "Remove character")       \
-    X(DeleteCharacter,      "Delete character")       \
-    X(SelectAll,            "Select all")             \
-    X(Copy,                 "Copy")                   \
-    X(Paste,                "Paste")                  \
-    X(Cut,                  "Cut")                    \
-    X(ToggleListView,       "Toggle list view")       \
-    X(OpenCommandLister,    "Open command lister")    \
-    X(OpenGlyphListView,    "Open glyph list view")   \
-    X(OpenGlyphViewView,    "Open glyph view")        \
-    X(OpenRenderStatsView,  "Open render statistics view") \
-    X(OpenThemeView,        "Open theme view")        \
-    X(OpenTestView,         "Open test view")         \
-    X(Accept,               "Accept")                 \
-    X(Cancel,               "Cancel")
+// NOTE(simon): Enum name, show in command lister, display name, description
+#define COMMANDS                                                                                                                                  \
+    X(FocusPanel,           false, "Focus panel",                 "Focuses a panel")                                                              \
+    X(ClosePanel,           true,  "Close panel",                 "Closes the current panel")                                                     \
+    X(SplitPanel,           true,  "Split panel",                 "Splits a panel")                                                               \
+    X(OpenTab,              false, "Open tab",                    "Opens a new tab")                                                              \
+    X(CloseTab,             true,  "Close tab",                   "Closes the current tab")                                                       \
+    X(NextTab,              true,  "Next tab",                    "Switches to the next tab")                                                     \
+    X(PreviousTab,          true,  "Previous tab",                "Switches to the previous tab")                                                 \
+    X(MoveTab,              false, "Move tab",                    "Moves a tab from one panel to another")                                        \
+    X(SaveProject,          true,  "Save project",                "Saves settings from this run of the program")                                  \
+    X(SelectCodepoint,      false, "Select codepoint",            "Selects a codepoint as the active one")                                        \
+    X(NextTheme,            true,  "Next theme",                  "Switches to the next theme")                                                   \
+    X(PreviousTheme,        true,  "Previous theme",              "Switches to the previous theme")                                               \
+    X(SelectWordLeft,       true,  "Select word left",            "Extends the selection one word to the left")                                   \
+    X(SelectWordUp,         true,  "Select word up",              "Extends the selection one word up")                                            \
+    X(SelectWordRight,      true,  "Select word right",           "Extends the selection one word to the right")                                  \
+    X(SelectWordDown,       true,  "Select word down",            "Extends the selection one word down")                                          \
+    X(SelectCharacterLeft,  true,  "Select character left",       "Extends the selection one character to the left")                              \
+    X(SelectCharacterUp,    true,  "Select character up",         "Extends the selection one character up")                                       \
+    X(SelectCharacterRight, true,  "Select character right",      "Extends the selection one character to the right")                             \
+    X(SelectCharacterDown,  true,  "Select character down",       "Extends the selection one character down")                                     \
+    X(MoveWordLeft,         true,  "Move word left",              "Moves one word to the left")                                                   \
+    X(MoveWordUp,           true,  "Move word up",                "Moves one word up")                                                            \
+    X(MoveWordRight,        true,  "Move word right",             "Moves one word to the right")                                                  \
+    X(MoveWordDown,         true,  "Move word down",              "Moves one word down")                                                          \
+    X(MoveCharacterLeft,    true,  "Move character left",         "Moves one character to the left")                                              \
+    X(MoveCharacterUp,      true,  "Move character up",           "Moves one character up")                                                       \
+    X(MoveCharacterRight,   true,  "Move character right",        "Moves one character to the right")                                             \
+    X(MoveCharacterDown,    true,  "Move character down",         "Moves one character down")                                                     \
+    X(SelectHome,           true,  "Select home",                 "Extends the selection to the start of the line")                               \
+    X(SelectEnd,            true,  "Select end",                  "Extends the selection to the end of the line")                                 \
+    X(MoveHome,             true,  "Move home",                   "Moves to the start of the line")                                               \
+    X(MoveEnd,              true,  "Move end",                    "Moves to the end of the line")                                                 \
+    X(SelectPageUp,         true,  "Select page up",              "Extends the selection on page up")                                             \
+    X(SelectPageDown,       true,  "Select page down",            "Extends the selection on page down")                                           \
+    X(MovePageUp,           true,  "Move page up",                "Moves one page up")                                                            \
+    X(MovePageDown,         true,  "Move page down",              "Moves one page down")                                                          \
+    X(SelectWholeUp,        true,  "Select whole up",             "Extends the selection to the begining")                                        \
+    X(SelectWholeDown,      true,  "Select whole down",           "Extends the selection to the start")                                           \
+    X(MoveWholeUp,          true,  "Move whole up",               "Moves to the begingin")                                                        \
+    X(MoveWholeDown,        true,  "Move whole end",              "Moves to the end")                                                             \
+    X(RemoveWord,           true,  "Remove word",                 "Removes one word")                                                             \
+    X(DeleteWord,           true,  "Delete word",                 "Deletes one word")                                                             \
+    X(RemoveCharacter,      true,  "Remove character",            "Removes one character")                                                        \
+    X(DeleteCharacter,      true,  "Delete character",            "Deletes one character")                                                        \
+    X(SelectAll,            true,  "Select all",                  "Selects everything")                                                           \
+    X(Copy,                 true,  "Copy",                        "Copies the current selection to the clipboard")                                \
+    X(Paste,                true,  "Paste",                       "Pastes the current clipboard contents")                                        \
+    X(Cut,                  true,  "Cut",                         "Copies the current selection to the clipboard and deletes it")                 \
+    X(ToggleListView,       true,  "Toggle list view",            "Toggles the display mode of glyph lists between unicode mode and mapped mode") \
+    X(OpenCommandLister,    true,  "Open command lister",         "Opens the command lister")                                                     \
+    X(OpenGlyphListView,    true,  "Open glyph list view",        "Opens a new tab with a glyph list")                                            \
+    X(OpenGlyphViewView,    true,  "Open glyph view",             "Opens a new tab with a glyph inspector")                                       \
+    X(OpenRenderStatsView,  true,  "Open render statistics view", "Opens a new tab with render statistics")                                       \
+    X(OpenThemeView,        true,  "Open theme view",             "Opens a new tab with theme settings")                                          \
+    X(OpenTestView,         true,  "Open test view",              "Opens a new tab with a test view")                                             \
+    X(Accept,               true,  "Accept",                      "Accepts the current action")                                                   \
+    X(Cancel,               true,  "Cancel",                      "Cancles the current action")
 
-#define X(pascal_case, display_string) Command_##pascal_case,
+#define X(name, show_in_ui, display_string, description) Command_##name,
 typedef enum {
     COMMANDS
     Command_COUNT,
 } CommandKind;
 #undef X
 
-#define X(name, display_name) str8_literal_compile(display_name),
+#define X(name, show_in_ui, display_string, description) str8_literal_compile(display_string),
 global Str8 command_names[] = {
+    COMMANDS
+};
+#undef X
+
+#define X(name, show_in_ui, display_string, description) show_in_ui,
+global B8 command_show_in_ui[] = {
+    COMMANDS
+};
+#undef X
+
+#define X(name, show_in_ui, display_string, description) str8_literal_compile(description),
+global Str8 command_descriptions[] = {
     COMMANDS
 };
 #undef X
