@@ -94,6 +94,7 @@ internal S32 os_run(Str8List arguments) {
             V4F32 crust     = color_from_srgba_u32(0xDCE0E8FF);
 
             theme->text  = text;
+            theme->weak_text = subtext0;
             theme->hover = overlay2;
             theme->cursor = rosewater;
             theme->selection = overlay2;
@@ -153,6 +154,7 @@ internal S32 os_run(Str8List arguments) {
             V4F32 crust     = color_from_srgba_u32(0x232634FF);
 
             theme->text  = text;
+            theme->weak_text = subtext0;
             theme->hover = overlay2;
             theme->cursor = rosewater;
             theme->selection = overlay2;
@@ -212,6 +214,7 @@ internal S32 os_run(Str8List arguments) {
             V4F32 crust     = color_from_srgba_u32(0x181926FF);
 
             theme->text  = text;
+            theme->weak_text = subtext0;
             theme->hover = overlay2;
             theme->cursor = rosewater;
             theme->selection = overlay2;
@@ -271,6 +274,7 @@ internal S32 os_run(Str8List arguments) {
             V4F32 crust     = color_from_srgba_u32(0x11111BFF);
 
             theme->text  = text;
+            theme->weak_text = subtext0;
             theme->hover = overlay2;
             theme->cursor = rosewater;
             theme->selection = overlay2;

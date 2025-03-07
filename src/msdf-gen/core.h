@@ -3,6 +3,7 @@
 
 #define THEME_COLORS \
     X(Text,                  text,                    "Text")                    \
+    X(WeakText,              weak_text,               "Weak text")               \
     X(Hover,                 hover,                   "Hover")                   \
     X(Cursor,                cursor,                  "Cursor")                  \
     X(Selection,             selection,               "Selection")               \
