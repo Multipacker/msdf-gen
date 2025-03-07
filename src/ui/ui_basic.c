@@ -172,7 +172,6 @@ UI_BOX_DRAW_FUNCTION(ui_draw_line_edit) {
     F32 cursor_width = f32_max(2.0f, (F32) box->font_size / 5.0f);
 
     V4F32 selection_color = box->palette.selection;
-    selection_color.a = 0.25f;
     V4F32 cursor_color = box->palette.cursor;
 
     if (draw_data->mark != draw_data->cursor) {
@@ -417,7 +416,6 @@ UI_BOX_DRAW_FUNCTION(ui_draw_slider) {
     R2F32 rectangle = box->calculated_rectangle;
     rectangle.max.x = rectangle.min.x + percentage_filled * r2f32_size(rectangle).width;
     V4F32 selection_color = box->palette.selection;
-    selection_color.a = 0.25f;
     Render_Shape *shape = draw_rectangle(
         rectangle,
         selection_color,

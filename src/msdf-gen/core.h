@@ -146,8 +146,8 @@ struct Context {
     X(MovePageDown,         true,  "Move page down",              "Moves one page down")                                                          \
     X(SelectWholeUp,        true,  "Select whole up",             "Extends the selection to the begining")                                        \
     X(SelectWholeDown,      true,  "Select whole down",           "Extends the selection to the start")                                           \
-    X(MoveWholeUp,          true,  "Move whole up",               "Moves to the begingin")                                                        \
-    X(MoveWholeDown,        true,  "Move whole end",              "Moves to the end")                                                             \
+    X(MoveWholeUp,          true,  "Move whole up",               "Moves to the beginging")                                                       \
+    X(MoveWholeDown,        true,  "Move whole down",             "Moves to the end")                                                             \
     X(RemoveWord,           true,  "Remove word",                 "Removes one word")                                                             \
     X(DeleteWord,           true,  "Delete word",                 "Deletes one word")                                                             \
     X(RemoveCharacter,      true,  "Remove character",            "Removes one character")                                                        \

@@ -1183,7 +1183,7 @@ internal Void update(Void) {
                     }
                 }
 
-                // NOTE(simon): Sort by name.
+                // NOTE(simon): Sort by number of matches and name.
                 quicksort(commands, command_count);
             }
 
@@ -1875,8 +1875,8 @@ internal Void update(Void) {
                 ui_height(tab_height)
                 ui_layout_axis(Axis2_X)
                 ui_parent(tab_bar_box)
-                ui_corner_radius_00(10.0f)
-                ui_corner_radius_01(10.0f) {
+                ui_corner_radius_00(ui_size_ems(0.75f, 1.0f).value)
+                ui_corner_radius_01(ui_size_ems(0.75f, 1.0f).value) {
                     for (Tab *tab = panel->tab_first; tab; tab = tab->next) {
                         push_context(.tab = handle_from_tab(tab));
                         if (tab == tab_from_handle(panel->active_tab)) {
@@ -1931,6 +1931,7 @@ internal Void update(Void) {
                         if (tab == tab_from_handle(panel->active_tab)) {
                             ui_palette_pop();
                         }
+
                         pop_context();
                     }
                 }
