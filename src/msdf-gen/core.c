@@ -303,6 +303,7 @@ typedef struct CommandItem CommandItem;
 struct CommandItem {
     CommandKind command;
     Str8 name;
+    Str8 description;
     FuzzyMatchList fuzzy_matches;
 };
 
@@ -1145,10 +1146,13 @@ internal Void update(Void) {
             {
                 // NOTE(simon): Fill commands
                 for (CommandKind command = 0; command < array_count(commands); ++command) {
-                    commands[command_count].command       = command;
-                    commands[command_count].name          = command_names[command];
-                    commands[command_count].fuzzy_matches = str8_fuzzy_match(scratch.arena, str8(buffer, buffer_size), command_names[command]);
-                    ++command_count;
+                    if (command_show_in_ui[command]) {
+                        commands[command_count].command       = command;
+                        commands[command_count].name          = command_names[command];
+                        commands[command_count].description   = command_descriptions[command];
+                        commands[command_count].fuzzy_matches = str8_fuzzy_match(scratch.arena, str8(buffer, buffer_size), command_names[command]);
+                        ++command_count;
+                    }
                 }
 
                 // NOTE(simon): Filter on number of matched parts
@@ -1248,16 +1252,28 @@ internal Void update(Void) {
                 ui_width(ui_size_fill())
                 ui_height(ui_size_pixels(height, 1.0f)) {
                     for (S64 i = top_row; i < bottom_row; ++i) {
-                        ui_focus_next(i == active_index ? UI_Focus_Active : UI_Focus_Inactive);
+                        ui_focus_push(i == active_index ? UI_Focus_Active : UI_Focus_Inactive);
 
                         ui_hover_cursor_next(Gfx_Cursor_Hand);
-                        UI_Box *command_button_box = ui_create_box_from_string(
-                            UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawText | UI_BoxFlag_DrawBorder |
+                        ui_layout_axis_next(Axis2_Y);
+                        UI_Box *command_button_box = ui_create_box_from_string_format(
+                            UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawBorder |
                             UI_BoxFlag_DrawHot | UI_BoxFlag_DrawActive |
                             UI_BoxFlag_Clickable | UI_BoxFlag_KeyboardClickable,
-                            commands[i].name
+                            "##command_%u", commands[i].command
                         );
-                        ui_box_set_fuzzy_match_list(command_button_box, commands[i].fuzzy_matches);
+
+                        ui_height(ui_size_text_content(0.0f, 1.0f))
+                        ui_parent(command_button_box) {
+                            UI_Box *name_box = ui_create_box_from_string(UI_BoxFlag_DrawText, commands[i].name);
+                            ui_box_set_fuzzy_match_list(name_box, commands[i].fuzzy_matches);
+
+                            ui_font_size_next(((U32) (0.9f * (F32) ui_font_size_top())));
+                            UI_Palette palette = ui_palette_top();
+                            palette.text = color_from_theme(ThemeColor_WeakText);
+                            ui_palette_next(palette);
+                            ui_label(commands[i].description);
+                        }
                         UI_Input command_button_input = ui_input_from_box(command_button_box);
 
                         if (command_button_input.input_flags & UI_InputFlag_Clicked) {
@@ -1269,6 +1285,8 @@ internal Void update(Void) {
                             active_index = 0;
                             memory_zero_struct(&position);
                         }
+
+                        ui_focus_pop();
                     }
 
                     for (UI_Event *event = 0; ui_next_event(&event);) {
