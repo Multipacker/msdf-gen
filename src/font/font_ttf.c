@@ -205,27 +205,29 @@ internal Void ttf_validate_metrics(Arena *arena, TTF_Font *font) {
 }
 
 internal TTF_HmtxMetrics ttf_get_metrics(TTF_Font *font, U32 glyph_index) {
-    assert(glyph_index < font->glyph_count);
+    TTF_HmtxMetrics result = { 0 };
 
-    TTF_HheaTable *hhea = (TTF_HheaTable *) font->tables[TTF_Table_Hhea].data;
-    Str8 hmtx_data = font->tables[TTF_Table_Hmtx];
+    if (glyph_index < font->glyph_count) {
+        TTF_HheaTable *hhea = (TTF_HheaTable *) font->tables[TTF_Table_Hhea].data;
+        Str8 hmtx_data = font->tables[TTF_Table_Hmtx];
 
-    U32 advance_width_count     = u16_big_to_local_endian(hhea->num_of_long_hor_metrics);
-    U32 left_side_bearing_count = font->glyph_count - advance_width_count;
+        U32 advance_width_count     = u16_big_to_local_endian(hhea->num_of_long_hor_metrics);
+        U32 left_side_bearing_count = font->glyph_count - advance_width_count;
 
-    TTF_HmtxMetrics *metrics            = (TTF_HmtxMetrics *) hmtx_data.data;
-    TTF_FWord       *left_side_bearings = (TTF_FWord *) &hmtx_data.data[advance_width_count * sizeof(TTF_HmtxMetrics)];
+        TTF_HmtxMetrics *metrics            = (TTF_HmtxMetrics *) hmtx_data.data;
+        TTF_FWord       *left_side_bearings = (TTF_FWord *) &hmtx_data.data[advance_width_count * sizeof(TTF_HmtxMetrics)];
 
-    U32 base_metrics_index = u32_min(glyph_index, advance_width_count - 1);
-    TTF_HmtxMetrics result = metrics[base_metrics_index];
+        U32 base_metrics_index = u32_min(glyph_index, advance_width_count - 1);
+        result = metrics[base_metrics_index];
 
-    if (glyph_index >= advance_width_count) {
-        U32 left_side_bearing_index = glyph_index - advance_width_count;
-        result.left_side_bearing = left_side_bearings[left_side_bearing_index];
+        if (glyph_index >= advance_width_count) {
+            U32 left_side_bearing_index = glyph_index - advance_width_count;
+            result.left_side_bearing = left_side_bearings[left_side_bearing_index];
+        }
+
+        result.advance_width     = u16_big_to_local_endian(result.advance_width);
+        result.left_side_bearing = s16_big_to_local_endian(result.left_side_bearing);
     }
-
-    result.advance_width     = u16_big_to_local_endian(result.advance_width);
-    result.left_side_bearing = s16_big_to_local_endian(result.left_side_bearing);
 
     return result;
 }
@@ -279,10 +281,10 @@ internal Void ttf_codepoint_range_list_push(Arena *arena, TTF_CodepointRangeList
 internal U32 ttf_glyph_index_from_font_codepoint(TTF_Font *font, U32 codepoint) {
     TTF_CodepointMap map = font->codepoint_map;
 
-    U32 low = 0;
-    U32 high = map.range_count - 1;
+    S64 low = 0;
+    S64 high = (S64) map.range_count - 1;
     while (low < high) {
-        U32 middle = (low + high) / 2;
+        S64 middle = (low + high) / 2;
         TTF_CodepointRange range = map.ranges[middle];
 
         if (codepoint < range.first_codepoint) {
@@ -668,8 +670,12 @@ internal TTF_Glyph ttf_get_glyph_outlines(Arena *arena, TTF_Font *font, U32 glyp
     result.x_coordinates      = arena_push_array(arena, TTF_FWord, font->point_capacity);
     result.y_coordinates      = arena_push_array(arena, TTF_FWord, font->point_capacity);
 
-    Str8 glyph_data = font->raw_glyph_data[glyph_index];
+    Str8 glyph_data = { 0 };
     U32  read_index = 0;
+
+    if (glyph_index < font->glyph_count) {
+        glyph_data = font->raw_glyph_data[glyph_index];
+    }
 
     TTF_GlyphHeader *header = 0;
     S16 contour_count       = 0;
