@@ -14,7 +14,7 @@ internal U8 u8_max(U8 a, U8 b) {
 }
 
 internal U8 u8_clamp(U8 x, U8 min, U8 max) {
-    U8 result = u8_min(u8_max(min, x), max);
+    U8 result = u8_max(min, u8_min(x, max));
     return result;
 }
 
@@ -72,7 +72,7 @@ internal U16 u16_max(U16 a, U16 b) {
 }
 
 internal U16 u16_clamp(U16 x, U16 min, U16 max) {
-    U16 result = u16_min(u16_max(min, x), max);
+    U16 result = u16_max(min, u16_min(x, max));
     return result;
 }
 
@@ -143,7 +143,7 @@ internal U32 u32_max(U32 a, U32 b) {
 }
 
 internal U32 u32_clamp(U32 x, U32 min, U32 max) {
-    U32 result = u32_min(u32_max(min, x), max);
+    U32 result = u32_max(min, u32_min(x, max));
     return result;
 }
 
@@ -217,7 +217,7 @@ internal U64 u64_max(U64 a, U64 b) {
 }
 
 internal U64 u64_clamp(U64 x, U64 min, U64 max) {
-    U64 result = u64_min(u64_max(min, x), max);
+    U64 result = u64_max(min, u64_min(x, max));
     return result;
 }
 
@@ -294,7 +294,7 @@ internal S8 s8_max(S8 a, S8 b) {
 }
 
 internal S8 s8_clamp(S8 x, S8 min, S8 max) {
-    S8 result = s8_min(s8_max(min, x), max);
+    S8 result = s8_max(min, s8_min(x, max));
     return result;
 }
 
@@ -316,7 +316,7 @@ internal S16 s16_max(S16 a, S16 b) {
 }
 
 internal S16 s16_clamp(S16 x, S16 min, S16 max) {
-    S16 result = s16_min(s16_max(min, x), max);
+    S16 result = s16_max(min, s16_min(x, max));
     return result;
 }
 
@@ -349,7 +349,7 @@ internal S32 s32_max(S32 a, S32 b) {
 }
 
 internal S32 s32_clamp(S32 x, S32 min, S32 max) {
-    S32 result = s32_min(s32_max(min, x), max);
+    S32 result = s32_max(min, s32_min(x, max));
     return result;
 }
 
@@ -382,7 +382,7 @@ internal S64 s64_max(S64 a, S64 b) {
 }
 
 internal S64 s64_clamp(S64 x, S64 min, S64 max) {
-    S64 result = s64_min(s64_max(min, x), max);
+    S64 result = s64_max(min, s64_min(x, max));
     return result;
 }
 
@@ -440,7 +440,7 @@ internal F32 f32_max(F32 a, F32 b) {
 }
 
 internal F32 f32_clamp(F32 x, F32 min, F32 max) {
-    F32 result = f32_min(f32_max(min, x), max);
+    F32 result = f32_max(min, f32_min(x, max));
     return result;
 }
 
@@ -708,7 +708,7 @@ internal F64 f64_max(F64 a, F64 b) {
 }
 
 internal F64 f64_clamp(F64 x, F64 min, F64 max) {
-    F64 result = f64_min(f64_max(min, x), max);
+    F64 result = f64_max(min, f64_min(x, max));
     return result;
 }
 
