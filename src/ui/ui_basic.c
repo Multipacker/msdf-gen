@@ -467,7 +467,7 @@ internal UI_ScrollPosition ui_scroll_bar(UI_ScrollPosition position, S64 first_r
 
     S64 rows_above = position.index - first_row;
     S64 row_count  = s64_max(0, last_row - first_row - 1) + visible_rows;
-    S64 rows_below = last_row - 1 - position.index;
+    S64 rows_below = s64_max(0, last_row - position.index - 1);
 
     UI_Input up_input     = { 0 };
     UI_Input before_input = { 0 };
@@ -489,7 +489,7 @@ internal UI_ScrollPosition ui_scroll_bar(UI_ScrollPosition position, S64 first_r
         UI_Box *scroll_before = ui_create_box_from_string(UI_BoxFlag_Clickable, str8_literal("##before"));
         before_input = ui_input_from_box(scroll_before);
 
-        ui_height_next(ui_size_parent_percent(f32_max(0.01f, (F32) visible_rows / (F32) row_count), 1.0f));
+        ui_height_next(ui_size_parent_percent(f32_max(0.01f, (F32) visible_rows / (F32) row_count), 0.0f));
         ui_corner_radius_next(ui_parent_top()->calculated_size.width / 2.0f);
         scroll = ui_create_box_from_string(
             UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawHot | UI_BoxFlag_DrawActive |
@@ -530,7 +530,7 @@ internal UI_ScrollPosition ui_scroll_bar(UI_ScrollPosition position, S64 first_r
         F32 scroll_size  = scroll_container->calculated_size.height - scroll->calculated_size.height;
         F32 drag_percent = ui_drag_delta().y / scroll_size;
         result.index  = start_row + (S64) f32_round(drag_percent * (F32) (row_count - visible_rows));
-        result.index  = s64_min(s64_max(first_row, result.index), last_row - 1);
+        result.index  = s64_clamp(result.index, first_row, last_row - 1);
         result.offset = 0.0f;
     }
 
