@@ -1070,6 +1070,19 @@ internal Void update(Void) {
                     ui_event = arena_push_struct_zero(ui_frame_arena(), UI_Event);
                     ui_event->kind = UI_EventKind_Cancel;
                 } break;
+                case Command_UnloadFont: {
+                    msdf_cache_clear();
+                    arena_reset(state->ttf_arena);
+                    state->ttf_font = &ttf_font_nil;
+                } break;
+                case Command_LoadFont: {
+                    // NOTE(simon): Unload any previous font
+                    msdf_cache_clear();
+                    arena_reset(state->ttf_arena);
+                    state->ttf_font = &ttf_font_nil;
+
+                    state->ttf_font = ttf_load(state->ttf_arena, command_context->path);
+                } break;
                 case Command_COUNT: {
                 } break;
             }

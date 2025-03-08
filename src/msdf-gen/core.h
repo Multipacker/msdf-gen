@@ -86,6 +86,7 @@ struct Context {
     // NOTE(simon): What are we acting on?
     Handle tab;
     Handle panel;
+    Str8   path;
 
     // NOTE(simon): Where are we going?
     Handle destination_panel;
@@ -164,7 +165,9 @@ struct Context {
     X(OpenThemeView,        true,  "Open theme view",             "Opens a new tab with theme settings")                                          \
     X(OpenTestView,         true,  "Open test view",              "Opens a new tab with a test view")                                             \
     X(Accept,               true,  "Accept",                      "Accepts the current action")                                                   \
-    X(Cancel,               true,  "Cancel",                      "Cancles the current action")
+    X(Cancel,               true,  "Cancel",                      "Cancles the current action")                                                   \
+    X(UnloadFont,           true,  "Unload font",                 "Unloads the current font")                                                     \
+    X(LoadFont,             false, "Load font",                   "Loads a new font")
 
 #define X(name, show_in_ui, display_string, description) Command_##name,
 typedef enum {
@@ -270,6 +273,7 @@ struct State {
     DragState drag_state;
 
     B32 only_mapped;
+    Arena *ttf_arena;
     TTF_Font *ttf_font;
     U32 selected_codepoint;
     B32 running;

@@ -54,6 +54,7 @@ struct MSDFCache_Result {
 typedef struct MSDFCache_State MSDFCache_State;
 struct MSDFCache_State {
     Arena *arena;
+    Arena *glyph_arena;
 
     U32 glyph_size;
     U32 glyphs_per_side;
@@ -62,8 +63,6 @@ struct MSDFCache_State {
     MSDFCache_Atlas *last_atlas;
 
     MSDFCache_GlyphList glyph_lists[2048];
-
-    U32 next_glyph_index;
 
     MSDFCache_Request *request_buffer;
     U32                request_size;
@@ -83,7 +82,8 @@ struct MSDFCache_State {
 };
 
 internal Void msdf_font_create(U32 glyph_size, VoidFunction *wakeup);
-internal Void font_update_cache(Void);
+internal Void msdf_cache_update(Void);
+internal Void msdf_cache_clear(Void);
 
 internal Void msdf_cache_generate_glyphs_thread_entry(Void *data);
 

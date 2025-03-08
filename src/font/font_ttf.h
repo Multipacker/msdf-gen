@@ -304,6 +304,8 @@ typedef struct {
     Str8List errors;
 } TTF_Font;
 
+global TTF_Font ttf_font_nil = { 0 };
+
 internal U32 ttf_glyph_index_from_font_codepoint(TTF_Font *font, U32 codepoint);
 
 internal TTF_Font *ttf_load(Arena *arena, Str8 font_path);

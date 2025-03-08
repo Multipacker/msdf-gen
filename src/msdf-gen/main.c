@@ -111,11 +111,6 @@ internal Str8 gfx_get_font_path(Arena *arena, Font font) {
 #endif
 
 internal S32 os_run(Str8List arguments) {
-    if (!arguments.first->next) {
-        os_console_print(str8_literal("You have to pass a file\n"));
-        os_exit(1);
-    }
-
     Arena *arena = arena_create();
     State *state = arena_push_struct(arena, State);
     state->arena = arena;
@@ -376,26 +371,6 @@ internal S32 os_run(Str8List arguments) {
         }
     }
 
-    state->ui = ui_create();
-    state->panel_root = arena_push_struct_zero(state->arena, Panel);
-    state->panel_root->percentage_of_parent = 1.0f;
-    state->panel_root->split_axis = Axis2_X;
-    {
-        Panel *left = panel_create(state);
-        push_command(Command_OpenTab, .panel = handle_from_panel(left), .tab_specification = str8_literal("Theme"));
-        push_command(Command_OpenTab, .panel = handle_from_panel(left), .tab_specification = str8_literal("GlyphList"));
-
-        Panel *right = panel_create(state);
-        push_command(Command_OpenTab, .panel = handle_from_panel(right), .tab_specification = str8_literal("GlyphView"));
-
-        left->percentage_of_parent = 0.65f;
-        right->percentage_of_parent = 0.35f;
-        panel_insert(state->panel_root, 0, left);
-        panel_insert(state->panel_root, left, right);
-
-        state->active_panel = handle_from_panel(left);
-    }
-
     state->running = true;
 
     state->theme_index = 3;
@@ -404,6 +379,9 @@ internal S32 os_run(Str8List arguments) {
     state->font_size = 11.0f;
 
     state->frames_to_render = 4;
+
+    state->ttf_arena = arena_create();
+    state->ttf_font = &ttf_font_nil;
 
     gfx_create(str8_literal("MSDF-gen"), 1280, 720);
     render_init();
@@ -440,7 +418,29 @@ internal S32 os_run(Str8List arguments) {
         arena_end_temporary(scratch);
     }
 
-    state->ttf_font = ttf_load(arena, arguments.first->next->string);
+    state->ui = ui_create();
+    state->panel_root = arena_push_struct_zero(state->arena, Panel);
+    state->panel_root->percentage_of_parent = 1.0f;
+    state->panel_root->split_axis = Axis2_X;
+    {
+        Panel *left = panel_create(state);
+        push_command(Command_OpenTab, .panel = handle_from_panel(left), .tab_specification = str8_literal("Theme"));
+        push_command(Command_OpenTab, .panel = handle_from_panel(left), .tab_specification = str8_literal("GlyphList"));
+
+        Panel *right = panel_create(state);
+        push_command(Command_OpenTab, .panel = handle_from_panel(right), .tab_specification = str8_literal("GlyphView"));
+
+        left->percentage_of_parent = 0.65f;
+        right->percentage_of_parent = 0.35f;
+        panel_insert(state->panel_root, 0, left);
+        panel_insert(state->panel_root, left, right);
+
+        state->active_panel = handle_from_panel(left);
+    }
+
+    if (arguments.first->next) {
+        push_command(Command_LoadFont, .path = arguments.first->next->string);
+    }
 
     while (state->running) {
         update();
