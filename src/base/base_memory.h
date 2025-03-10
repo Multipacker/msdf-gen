@@ -14,7 +14,7 @@ typedef struct {
 } Arena_Temporary;
 
 #define ARENA_DEFAULT_RESERVE_SIZE gigabytes(1)
-#define ARENA_COMMIT_BLOCK_SIZE    megabytes(64)
+#define ARENA_COMMIT_BLOCK_SIZE    kilobytes(64)
 
 internal Arena *arena_create_reserve(U64 reserve_size);
 internal Arena *arena_create(Void);
