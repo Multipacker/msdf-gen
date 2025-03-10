@@ -56,6 +56,23 @@ struct Wayland_Surface {
     Wayland_OutputNode *last_output;
 };
 
+typedef enum {
+    Wayland_MimeType_TextUriList   = 1 << 0,
+    Wayland_MimeType_TextPlainUtf8 = 1 << 1,
+    Wayland_MimeType_Utf8String    = 1 << 2,
+} Wayland_MimeType;
+
+typedef struct Wayland_DataOffer Wayland_DataOffer;
+struct Wayland_DataOffer {
+    Wayland_DataOffer *next;
+    Wayland_DataOffer *previous;
+
+    struct wl_data_offer *data_offer;
+    enum   wl_data_device_manager_dnd_action source_actions;
+    enum   wl_data_device_manager_dnd_action action;
+    Wayland_MimeType mime_types;
+};
+
 typedef struct Wayland_State Wayland_State;
 struct Wayland_State {
     // NOTE(simon): Shared state.
@@ -99,12 +116,16 @@ struct Wayland_State {
 
     // NOTE(simon): Per seat data device state.
     struct wl_data_device *data_device;
-    struct wl_data_offer  *selection_offer;
+    Wayland_DataOffer *first_data_offer;
+    Wayland_DataOffer *last_data_offer;
+    Wayland_DataOffer *data_offer_freelist;
+    Wayland_DataOffer *selection_offer;
     struct wl_data_source *selection_source;
     Arena *selection_source_arena;
     Str8   selection_source_str8;
     U32    selection_source_serial;
-    struct wl_data_offer  *drag_and_drop_offer;
+    Wayland_DataOffer *drag_and_drop_offer;
+    V2F32              drag_and_drop_position;
 
     // NOTE(simon): Outputs
     Wayland_Output *output_freelist;

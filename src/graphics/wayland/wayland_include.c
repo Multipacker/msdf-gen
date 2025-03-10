@@ -10,6 +10,92 @@
 
 global Wayland_State global_wayland_state;
 
+typedef enum {
+    UriFlag_HasAuthority = 1 << 0,
+    UriFlag_HasQuery     = 1 << 1,
+    UriFlag_HasFragment  = 1 << 2,
+} UriFlags;
+
+typedef struct Uri Uri;
+struct Uri {
+    UriFlags flags;
+
+    Str8 scheme;
+    Str8 authority;
+    Str8 path;
+    Str8 query;
+    Str8 fragment;
+};
+
+// TODO(simon): There is a lot more to do here, but this will do for a *very*
+// basic implementation.
+internal Uri uri_from_string(Str8 string) {
+    Uri uri = { 0 };
+
+    // NOTE(simon): Scheme
+    {
+        U64 colon_index = str8_first_index_of(string, ':');
+        uri.scheme = str8_prefix(string, colon_index);
+        string = str8_skip(string, colon_index + 1);
+    }
+
+    // TODO(simon): Validation of shceme according to https://datatracker.ietf.org/doc/html/rfc3986#section-3.1
+
+    // NOTE(simon): Hier-part
+
+    // NOTE(simon): Authority
+    if (string.size >= 2 && string.data[0] == '/' && string.data[1] == '/') {
+        string = str8_skip(string, 2);
+        uri.flags |= UriFlag_HasAuthority;
+
+        U64 slash_index         = str8_first_index_of(string, '/');
+        U64 question_mark_index = str8_first_index_of(string, '?');
+        U64 number_sign_index   = str8_first_index_of(string, '#');
+        U64 authority_end       = u64_min(u64_min(slash_index, question_mark_index), number_sign_index);
+
+        uri.authority = str8_prefix(string, authority_end);
+        string = str8_skip(string, authority_end);
+
+        // TODO(simon): Validate according to https://datatracker.ietf.org/doc/html/rfc3986#section-3.2
+    }
+
+    // NOTE(simon): Path
+    {
+        U64 question_mark_index = str8_first_index_of(string, '?');
+        U64 number_sign_index   = str8_first_index_of(string, '#');
+        U64 path_end            = u64_min(question_mark_index, number_sign_index);
+
+        uri.path = str8_prefix(string, path_end);
+        string = str8_skip(string, path_end);
+
+        // TODO(simon): Validation according to https://datatracker.ietf.org/doc/html/rfc3986#section-3.3
+    }
+
+    // NOTE(simon): Query
+    if (string.size >= 1 && string.data[0] == '?') {
+        string = str8_skip(string, 1);
+        uri.flags |= UriFlag_HasQuery;
+
+        U64 number_sign_index = str8_first_index_of(string, '#');
+        uri.query = str8_prefix(string, number_sign_index);
+        string = str8_skip(string, number_sign_index);
+
+        // TODO(simon): Validation according to https://datatracker.ietf.org/doc/html/rfc3986#section-3.4
+    }
+
+    // NOTE(simon): Fragment
+    if (string.size >= 1 && string.data[0] == '#') {
+        string = str8_skip(string, 1);
+        uri.flags |= UriFlag_HasFragment;
+
+        uri.fragment = string;
+
+        // TODO(simon): Validation according to https://datatracker.ietf.org/doc/html/rfc3986#section-3.5
+    }
+
+    return uri;
+}
+
 
 
 internal Void wayland_update_cursor(Void) {
@@ -230,6 +316,64 @@ internal Void wayland_surface_destroy(Wayland_Surface *surface) {
     wl_surface_destroy(surface->surface);
     dll_remove(state->first_surface, state->last_surface, surface);
     sll_stack_push(state->surface_freelist, surface);
+}
+
+internal Str8 wayland_data_offer_receive(Arena *arena, Wayland_DataOffer *data_offer, CStr mime_type) {
+    Wayland_State *state = &global_wayland_state;
+    Arena_Temporary scratch = arena_get_scratch(&arena, 1);
+
+    Str8List segments = { 0 };
+    int file_descriptors[2] = { 0 };
+
+    if (pipe(file_descriptors) != -1) {
+        // TODO(simon): Look at offered mime types.
+        wl_data_offer_receive(data_offer->data_offer, mime_type, file_descriptors[1]);
+        wl_display_flush(state->display);
+
+        // NOTE(simon): Close the write file descriptor as we are done with
+        // it on our side.
+        close(file_descriptors[1]);
+
+        size_t buffer_capacity = (size_t) s64_min(1 << 16, (S64) SSIZE_MAX);
+
+        for (;;) {
+            U8 *buffer = arena_push_array_zero(scratch.arena, U8, buffer_capacity);
+            U64 buffer_size = 0;
+
+            for (;;) {
+                ssize_t bytes_read = read(file_descriptors[0], buffer, buffer_capacity);
+
+                if (bytes_read >= 0) {
+                    buffer_size = (U64) bytes_read;
+                    break;
+                } else if (errno != EINTR) {
+                    // NOTE(simon): Unrecoverable error, abort the copy.
+                    break;
+                }
+            }
+
+            if (buffer_size != 0) {
+                str8_list_push(scratch.arena, &segments, str8(buffer, buffer_size));
+            } else {
+                break;
+            }
+        }
+
+        close(file_descriptors[0]);
+    }
+
+    Str8 result = str8_join(arena, &segments);
+
+    arena_end_temporary(scratch);
+    return result;
+}
+
+internal Void wayland_data_offer_destroy(Wayland_DataOffer *data_offer) {
+    Wayland_State *state = &global_wayland_state;
+
+    wl_data_offer_destroy(data_offer->data_offer);
+    dll_remove(state->first_data_offer, state->last_data_offer, data_offer);
+    sll_stack_push(state->data_offer_freelist, data_offer);
 }
 
 
@@ -501,12 +645,27 @@ internal Void wayland_seat_name(Void *data, struct wl_seat *seat, const char *na
 
 // NOTE(simon): Data offer events.
 internal Void wayland_data_offer_offer(Void *data, struct wl_data_offer *wl_data_offer, const char *mime_type) {
+    Wayland_DataOffer *data_offer = (Wayland_DataOffer *) data;
+
+    if (strcmp(mime_type, "text/uri-list") == 0) {
+        data_offer->mime_types |= Wayland_MimeType_TextUriList;
+    }
+    if (strcmp(mime_type, "text/plain;charset=utf-8") == 0) {
+        data_offer->mime_types |= Wayland_MimeType_TextPlainUtf8;
+    }
+    if (strcmp(mime_type, "UTF8_STRING") == 0) {
+        data_offer->mime_types |= Wayland_MimeType_Utf8String;
+    }
 }
 
 internal Void wayland_data_offer_source_actions(Void *data, struct wl_data_offer *wl_data_offer, U32 source_actions) {
+    Wayland_DataOffer *data_offer = (Wayland_DataOffer *) data;
+    data_offer->source_actions = source_actions;
 }
 
 internal Void wayland_data_offer_action(Void *data, struct wl_data_offer *wl_data_offer, U32 dnd_action) {
+    Wayland_DataOffer *data_offer = (Wayland_DataOffer *) data;
+    data_offer->action = dnd_action;
 }
 
 
@@ -514,40 +673,120 @@ internal Void wayland_data_offer_action(Void *data, struct wl_data_offer *wl_dat
 // NOTE(simon): Data device events.
 internal Void wayland_data_device_data_offer(Void *data, struct wl_data_device *data_device, struct wl_data_offer *id) {
     Wayland_State *state = &global_wayland_state;
-    wl_data_offer_add_listener(id, &wayland_data_offer_listener, 0);
+
+    Wayland_DataOffer *data_offer = state->data_offer_freelist;
+    if (data_offer) {
+        sll_stack_pop(state->data_offer_freelist);
+        memory_zero_struct(data_offer);
+    } else {
+        data_offer = arena_push_struct_zero(state->arena, Wayland_DataOffer);
+    }
+
+    data_offer->data_offer = id;
+    wl_data_offer_add_listener(id, &wayland_data_offer_listener, data_offer);
+    dll_push_back(state->first_data_offer, state->last_data_offer, data_offer);
 }
 
 internal Void wayland_data_device_enter(Void *data, struct wl_data_device *data_device, U32 serial, struct wl_surface *surface, wl_fixed_t x, wl_fixed_t y, struct wl_data_offer *id) {
     Wayland_State *state = &global_wayland_state;
 
-    state->drag_and_drop_offer = id;
+    // NOTE(simon): Replace any previous drag-and-drop operation.
+    if (state->drag_and_drop_offer) {
+        wayland_data_offer_destroy(state->drag_and_drop_offer);
+        state->drag_and_drop_offer = 0;
+    }
+
+    // NOTE(simon): Find the state for the new drag-and-drop offer.
+    for (Wayland_DataOffer *data_offer = state->first_data_offer; data_offer; data_offer = data_offer->next) {
+        if (data_offer->data_offer == id) {
+            state->drag_and_drop_offer = data_offer;
+            break;
+        }
+    }
+
+    // NOTE(simon): Drag-and-drop data offers are introduced through wayland_data_device_data_offer.
+    assert(state->drag_and_drop_offer);
+
+    if (state->drag_and_drop_offer) {
+        wl_data_offer_set_actions(id, WL_DATA_DEVICE_MANAGER_DND_ACTION_COPY, WL_DATA_DEVICE_MANAGER_DND_ACTION_COPY);
+        wl_data_offer_accept(id, serial, "text/uri-list");
+        state->drag_and_drop_position = v2f32(
+            (F32) wl_fixed_to_double(x),
+            (F32) wl_fixed_to_double(y)
+        );
+    }
 }
 
 internal Void wayland_data_device_leave(Void *data, struct wl_data_device *data_device) {
     Wayland_State *state = &global_wayland_state;
 
-    wl_data_offer_destroy(state->drag_and_drop_offer);
-    state->drag_and_drop_offer = 0;
+    if (state->drag_and_drop_offer) {
+        wayland_data_offer_destroy(state->drag_and_drop_offer);
+        state->drag_and_drop_offer = 0;
+    }
 }
 
 internal Void wayland_data_device_motion(Void *data, struct wl_data_device *data_device, U32 time, wl_fixed_t x, wl_fixed_t y) {
+    Wayland_State *state = &global_wayland_state;
+
+    state->drag_and_drop_position = v2f32(
+        (F32) wl_fixed_to_double(x),
+        (F32) wl_fixed_to_double(y)
+    );
 }
 
 internal Void wayland_data_device_drop(Void *data, struct wl_data_device *data_device) {
     Wayland_State *state = &global_wayland_state;
-    wl_data_offer_destroy(state->drag_and_drop_offer);
-    state->drag_and_drop_offer = 0;
+    Arena_Temporary scratch = arena_get_scratch(0, 0);
+
+    if (state->drag_and_drop_offer && state->drag_and_drop_offer->mime_types & Wayland_MimeType_TextUriList) {
+        Str8 drag_and_drop = wayland_data_offer_receive(scratch.arena, state->drag_and_drop_offer, "text/uri-list");
+
+        // NOTE(simon): Implementation of https://datatracker.ietf.org/doc/html/rfc2483#section-5
+        // NOTE(simon): Iterate through lines.
+        for (U64 index = 0; index < drag_and_drop.size;) {
+            U64 next_index = str8_find(index, str8_literal("\r\n"), drag_and_drop);
+            Str8 line = str8_substring(drag_and_drop, index, next_index - index);
+            index = next_index + 2;
+
+            // NOTE(simon): Lines starting with a '#' are comments.
+            if (line.size >= 1 && line.data[0] == '#') {
+                continue;
+            }
+
+            Uri uri = uri_from_string(line);
+
+            // NOTE(simon): We only accept files from localhost.
+            if (str8_equal(uri.scheme, str8_literal("file")) && uri.authority.size == 0) {
+                Gfx_Event *event = arena_push_struct_zero(state->event_arena, Gfx_Event);
+                event->kind     = Gfx_EventKind_FileDrop;
+                event->position = state->drag_and_drop_position;
+                event->path     = str8_copy(state->event_arena, uri.path);
+                dll_push_back(state->events.first, state->events.last, event);
+            }
+        }
+
+        wl_data_offer_finish(state->drag_and_drop_offer->data_offer);
+    }
+
+    arena_end_temporary(scratch);
 }
 
 internal Void wayland_data_device_selection(Void *data, struct wl_data_device *data_device, struct wl_data_offer *id) {
     Wayland_State *state = &global_wayland_state;
 
     if (state->selection_offer) {
-        wl_data_offer_destroy(state->selection_offer);
+        wayland_data_offer_destroy(state->selection_offer);
         state->selection_offer = 0;
     }
 
-    state->selection_offer = id;
+    // NOTE(simon): Find the state for the new selection offer.
+    for (Wayland_DataOffer *data_offer = state->first_data_offer; data_offer; data_offer = data_offer->next) {
+        if (data_offer->data_offer == id) {
+            state->selection_offer = data_offer;
+            break;
+        }
+    }
 }
 
 
@@ -960,59 +1199,28 @@ internal Void gfx_set_clipboard_text(Str8 text) {
 
 internal Str8 gfx_get_clipboard_text(Arena *arena) {
     Wayland_State *state = &global_wayland_state;
-    Arena_Temporary scratch = arena_get_scratch(&arena, 1);
 
-    Str8List segments = { 0 };
+    Str8 result = { 0 };
 
     if (state->selection_offer) {
         if (state->selection_source) {
             // NOTE(simon): We own the selection! Perform an internal copy to
             // avoid having to both read and write to a pipe in the same
             // process.
-            str8_list_push(scratch.arena, &segments, state->selection_source_str8);
+            result = str8_copy(arena, state->selection_source_str8);
         } else {
-            int file_descriptors[2] = { 0 };
-            if (pipe(file_descriptors) != -1) {
-                // TODO(simon): Look at offered mime types.
-                wl_data_offer_receive(state->selection_offer, "UTF8_STRING", file_descriptors[1]);
-                wl_display_flush(state->display);
+            CStr mime_type = 0;
+            if (state->selection_offer->mime_types & Wayland_MimeType_Utf8String) {
+                mime_type = "UTF8_STRING";
+            } else if (state->selection_offer->mime_types & Wayland_MimeType_TextPlainUtf8) {
+                mime_type = "text/plain;charset=utf-8";
+            }
 
-                // NOTE(simon): Close the write file descriptor as we are done with
-                // it on our side.
-                close(file_descriptors[1]);
-
-                size_t buffer_capacity = (size_t) s64_min(1 << 16, (S64) SSIZE_MAX);
-
-                for (;;) {
-                    U8 *buffer = arena_push_array_zero(scratch.arena, U8, buffer_capacity);
-                    U64 buffer_size = 0;
-
-                    for (;;) {
-                        ssize_t bytes_read = read(file_descriptors[0], buffer, buffer_capacity);
-
-                        if (bytes_read >= 0) {
-                            buffer_size = (U64) bytes_read;
-                            break;
-                        } else if (errno != EINTR) {
-                            // NOTE(simon): Unrecoverable error, abort the copy.
-                            break;
-                        }
-                    }
-
-                    if (buffer_size != 0) {
-                        str8_list_push(scratch.arena, &segments, str8(buffer, buffer_size));
-                    } else {
-                        break;
-                    }
-                }
-
-                close(file_descriptors[0]);
+            if (mime_type) {
+                result = wayland_data_offer_receive(arena, state->selection_offer, mime_type);
             }
         }
     }
 
-    Str8 result = str8_join(arena, &segments);
-
-    arena_end_temporary(scratch);
     return result;
 }
