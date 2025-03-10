@@ -514,6 +514,9 @@ internal Void update(Void) {
         if (event->kind == Gfx_EventKind_Quit) {
             consume = true;
             state->running = false;
+        } else if (event->kind == Gfx_EventKind_FileDrop) {
+            consume = true;
+            push_command(Command_LoadFont, .path = event->path);
         } else if (event->kind == Gfx_EventKind_KeyPress || event->kind == Gfx_EventKind_KeyRelease || event->kind == Gfx_EventKind_Text || event->kind == Gfx_EventKind_Scroll) {
             consume = true;
             UI_EventKind kind = UI_EventKind_Null;
@@ -1082,6 +1085,10 @@ internal Void update(Void) {
                     state->ttf_font = &ttf_font_nil;
 
                     state->ttf_font = ttf_load(state->ttf_arena, command_context->path);
+
+                    for (Str8Node *error = state->ttf_font->errors.first; error; error = error->next) {
+                        os_console_print(error->string);
+                    }
                 } break;
                 case Command_COUNT: {
                 } break;
