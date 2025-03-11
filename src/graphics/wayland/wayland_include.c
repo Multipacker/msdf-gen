@@ -6,6 +6,8 @@
 #include <linux/input-event-codes.h>
 
 #include "wayland_xdg_shell.generated.c"
+#include "wayland_viewporter.generated.c"
+#include "wayland_fractional_scale.generated.c"
 #include "wayland_xdg_decoration.generated.c"
 
 global Wayland_State global_wayland_state;
@@ -109,7 +111,7 @@ internal Void wayland_update_cursor(Void) {
     if (!theme) {
         theme = arena_push_struct_zero(state->arena, Wayland_CursorTheme);
         theme->scale = state->pointer_surface->scale;
-        theme->theme = wl_cursor_theme_load(state->cursor_theme_name, state->pointer_surface->scale * (S32) state->cursor_theme_size, state->shm);
+        theme->theme = wl_cursor_theme_load(state->cursor_theme_name, (S32) f64_ceil(state->pointer_surface->scale * (F64) state->cursor_theme_size), state->shm);
         dll_push_back(state->first_cursor_theme, state->last_cursor_theme, theme);
     }
 
@@ -130,14 +132,33 @@ internal Void wayland_update_cursor(Void) {
         if (theme_cursor && theme_cursor->image_count > 0) {
             struct wl_cursor_image *image = theme_cursor->images[0];
             theme->cursors[state->pointer_cursor]  = wl_cursor_image_get_buffer(image);
-            theme->hotspots[state->pointer_cursor] = v2s32((S32) image->hotspot_x / theme->scale, (S32) image->hotspot_y / theme->scale);
+            theme->hotspots[state->pointer_cursor] = v2s32((S32) f64_ceil((F64) image->hotspot_x / theme->scale), (S32) f64_ceil((F64) image->hotspot_y / theme->scale));
+            theme->sizes[state->pointer_cursor]    = v2s32((S32) image->width, (S32) image->height);
         }
     }
 
     if (theme->cursors[state->pointer_cursor]) {
         wl_surface_attach(state->pointer_surface->surface, theme->cursors[state->pointer_cursor], 0, 0);
         wl_surface_damage_buffer(state->pointer_surface->surface, 0, 0, S32_MAX, S32_MAX);
-        wl_surface_set_buffer_scale(state->pointer_surface->surface, state->pointer_surface->scale);
+
+        if (state->pointer_surface->viewport && state->pointer_surface->fractional_scale) {
+            wp_viewport_set_source(
+                state->pointer_surface->viewport,
+                wl_fixed_from_int(0),
+                wl_fixed_from_int(0),
+                wl_fixed_from_double((F64) theme->sizes[state->pointer_cursor].width),
+                wl_fixed_from_double((F64) theme->sizes[state->pointer_cursor].height)
+            );
+            wp_viewport_set_destination(
+                state->pointer_surface->viewport,
+                (S32) f64_ceil(theme->sizes[state->pointer_cursor].width  / state->pointer_surface->scale),
+                (S32) f64_ceil(theme->sizes[state->pointer_cursor].height / state->pointer_surface->scale)
+            );
+            wl_surface_set_buffer_scale(state->pointer_surface->surface, 1);
+        } else {
+            wl_surface_set_buffer_scale(state->pointer_surface->surface, (S32) f64_ceil(state->pointer_surface->scale));
+        }
+
         wl_surface_commit(state->pointer_surface->surface);
         wl_pointer_set_cursor(
             state->pointer,
@@ -284,7 +305,9 @@ internal Void wayland_update_surface_scale(Wayland_Surface *surface) {
         scale = s32_max(scale, node->output->scale);
     }
 
-    surface->scale = scale;
+    if (!(surface->viewport && surface->fractional_scale)) {
+        surface->scale = (F64) scale;
+    }
 }
 
 internal Wayland_Surface *wayland_surface_create(Void) {
@@ -297,8 +320,17 @@ internal Wayland_Surface *wayland_surface_create(Void) {
     } else {
         surface = arena_push_struct_zero(state->arena, Wayland_Surface);
     }
+
     surface->surface = wl_compositor_create_surface(state->compositor);
     wl_surface_add_listener(surface->surface, &wayland_surface_listener, surface);
+    surface->scale = 1.0;
+
+    if (state->viewporter && state->fractional_scale_manager) {
+        surface->viewport         = wp_viewporter_get_viewport(state->viewporter, surface->surface);
+        surface->fractional_scale = wp_fractional_scale_manager_v1_get_fractional_scale(state->fractional_scale_manager, surface->surface);
+        wp_fractional_scale_v1_add_listener(surface->fractional_scale, &wayland_fractional_scale_listener, surface);
+    }
+
     dll_push_back(state->first_surface, state->last_surface, surface);
 
     return surface;
@@ -326,7 +358,6 @@ internal Str8 wayland_data_offer_receive(Arena *arena, Wayland_DataOffer *data_o
     int file_descriptors[2] = { 0 };
 
     if (pipe(file_descriptors) != -1) {
-        // TODO(simon): Look at offered mime types.
         wl_data_offer_receive(data_offer->data_offer, mime_type, file_descriptors[1]);
         wl_display_flush(state->display);
 
@@ -402,8 +433,8 @@ internal Void wayland_pointer_enter(Void *data, struct wl_pointer *pointer, U32 
     state->pointer_enter_serial = serial;
 
     state->pointer_position = v2f32(
-        (F32) state->surface->scale * (F32) wl_fixed_to_double(surface_x),
-        (F32) state->surface->scale * (F32) wl_fixed_to_double(surface_y)
+        (F32) (wl_fixed_to_double(surface_x) * state->surface->scale),
+        (F32) (wl_fixed_to_double(surface_y) * state->surface->scale)
     );
 
     wayland_update_cursor();
@@ -419,8 +450,8 @@ internal Void wayland_pointer_motion(Void *data, struct wl_pointer *pointer, U32
     Wayland_State *state = &global_wayland_state;
 
     state->pointer_position = v2f32(
-        (F32) state->surface->scale * (F32) wl_fixed_to_double(surface_x),
-        (F32) state->surface->scale * (F32) wl_fixed_to_double(surface_y)
+        (F32) (wl_fixed_to_double(surface_x) * state->surface->scale),
+        (F32) (wl_fixed_to_double(surface_y) * state->surface->scale)
     );
 
     Gfx_Event *event = arena_push_struct_zero(state->event_arena, Gfx_Event);
@@ -711,8 +742,8 @@ internal Void wayland_data_device_enter(Void *data, struct wl_data_device *data_
         wl_data_offer_set_actions(id, WL_DATA_DEVICE_MANAGER_DND_ACTION_COPY, WL_DATA_DEVICE_MANAGER_DND_ACTION_COPY);
         wl_data_offer_accept(id, serial, "text/uri-list");
         state->drag_and_drop_position = v2f32(
-            (F32) wl_fixed_to_double(x),
-            (F32) wl_fixed_to_double(y)
+            (F32) (wl_fixed_to_double(x) * state->surface->scale),
+            (F32) (wl_fixed_to_double(y) * state->surface->scale)
         );
     }
 }
@@ -730,8 +761,8 @@ internal Void wayland_data_device_motion(Void *data, struct wl_data_device *data
     Wayland_State *state = &global_wayland_state;
 
     state->drag_and_drop_position = v2f32(
-        (F32) wl_fixed_to_double(x),
-        (F32) wl_fixed_to_double(y)
+        (F32) (wl_fixed_to_double(x) * state->surface->scale),
+        (F32) (wl_fixed_to_double(y) * state->surface->scale)
     );
 }
 
@@ -800,7 +831,6 @@ internal Void wayland_data_source_send(Void *data, struct wl_data_source *data_s
     Wayland_State *state = &global_wayland_state;
 
     if (data_source == state->selection_source) {
-        // TODO(simon): Look at availible mime types.
         if (
             strcmp(mime_type, "text/plain;charset=utf-8") == 0 ||
             strcmp(mime_type, "UTF8_STRING") == 0
@@ -867,8 +897,10 @@ internal Void wayland_xdg_surface_configure(Void *data, struct xdg_surface *xdg_
 internal Void wayland_xdg_toplevel_configure(Void *data, struct xdg_toplevel *xgd_toplevel, S32 width, S32 height, struct wl_array *states) {
     Wayland_State *state = &global_wayland_state;
 
-    state->width = width;
-    state->height = height;
+    if (width != 0 && height != 0) {
+        state->width = width;
+        state->height = height;
+    }
 }
 
 internal Void wayland_xdg_toplevel_close(Void *data, struct xdg_toplevel *xdg_toplevel) {
@@ -902,6 +934,8 @@ internal Void wayland_output_done(Void *data, struct wl_output *wl_output) {
     for (Wayland_Surface *surface = state->first_surface; surface; surface = surface->next) {
         wayland_update_surface_scale(surface);
     }
+
+    wayland_update_cursor();
     gfx_send_wakeup_event();
 }
 
@@ -942,6 +976,7 @@ internal Void wayland_surface_enter(Void *data, struct wl_surface *wl_surface, s
     }
 
     wayland_update_surface_scale(surface);
+    wayland_update_cursor();
     gfx_send_wakeup_event();
 }
 
@@ -960,6 +995,18 @@ internal Void wayland_surface_leave(Void *data, struct wl_surface *wl_surface, s
     }
 
     wayland_update_surface_scale(surface);
+    wayland_update_cursor();
+    gfx_send_wakeup_event();
+}
+
+
+
+// NOTE(simon): Fractional scale events.
+internal Void wayland_fractional_scale_preferred_scale(Void *data, struct wp_fractional_scale_v1 *fractional_scale, U32 scale) {
+    Wayland_Surface *surface = (Wayland_Surface *) data;
+    surface->scale = (F64) scale / 120.0;
+
+    wayland_update_cursor();
     gfx_send_wakeup_event();
 }
 
@@ -999,6 +1046,10 @@ internal Void wayland_register_global(Void *data, struct wl_registry *registry, 
     } else if (strcmp(interface, xdg_wm_base_interface.name) == 0) {
         state->xdg_wm_base = wl_registry_bind(registry, name, &xdg_wm_base_interface, 3);
         xdg_wm_base_add_listener(state->xdg_wm_base, &wayland_xdg_wm_base_listener, 0);
+    } else if (strcmp(interface, wp_viewporter_interface.name) == 0) {
+        state->viewporter = wl_registry_bind(registry, name, &wp_viewporter_interface, 1);
+    } else if (strcmp(interface, wp_fractional_scale_manager_v1_interface.name) == 0) {
+        state->fractional_scale_manager = wl_registry_bind(registry, name, &wp_fractional_scale_manager_v1_interface, 1);
     } else if (strcmp(interface, zxdg_decoration_manager_v1_interface.name) == 0) {
         state->xdg_decoration_manager = wl_registry_bind(registry, name, &zxdg_decoration_manager_v1_interface, 1);
     }
@@ -1074,7 +1125,11 @@ internal Void gfx_create(Str8 title, U32 width, U32 height) {
 
 internal V2U32 gfx_get_window_client_area(Void) {
     Wayland_State *state = &global_wayland_state;
-    V2U32 result = v2u32((U32) (state->surface->scale * state->width), (U32) (state->surface->scale * state->height));
+
+    V2U32 result = v2u32(
+        (U32) f64_ceil((F64) state->width  * state->surface->scale),
+        (U32) f64_ceil((F64) state->height * state->surface->scale)
+    );
     return result;
 }
 
@@ -1155,7 +1210,19 @@ internal V2F32 gfx_get_mouse_position(Void) {
 internal Void gfx_swap_buffers(Void) {
     Wayland_State *state = &global_wayland_state;
 
-    wl_surface_set_buffer_scale(state->surface->surface, state->surface->scale);
+    if (state->surface->viewport && state->surface->fractional_scale) {
+        wp_viewport_set_source(
+            state->surface->viewport,
+            wl_fixed_from_int(0),
+            wl_fixed_from_int(0),
+            wl_fixed_from_double((F64) state->width  * state->surface->scale),
+            wl_fixed_from_double((F64) state->height * state->surface->scale)
+        );
+        wp_viewport_set_destination(state->surface->viewport, state->width, state->height);
+        wl_surface_set_buffer_scale(state->surface->surface, 1);
+    } else {
+        wl_surface_set_buffer_scale(state->surface->surface, (S32) f64_ceil(state->surface->scale));
+    }
 
     if (state->xdg_surface_configure_serial != state->xdg_surface_last_configure_serial) {
         xdg_surface_ack_configure(state->xdg_surface, state->xdg_surface_configure_serial);
@@ -1183,7 +1250,7 @@ internal Void gfx_set_update_function(VoidFunction *update) {
 
 internal F32 gfx_dpi(Void) {
     Wayland_State *state = &global_wayland_state;
-    F32 dpi = (F32) state->surface->scale * 96.0f;
+    F32 dpi = (F32) (96.0 * state->surface->scale);
     return dpi;
 }
 

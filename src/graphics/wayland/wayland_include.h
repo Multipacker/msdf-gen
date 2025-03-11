@@ -8,6 +8,8 @@
 #include <xkbcommon/xkbcommon.h>
 
 #include "wayland_xdg_shell.generated.h"
+#include "wayland_viewporter.generated.h"
+#include "wayland_fractional_scale.generated.h"
 #include "wayland_xdg_decoration.generated.h"
 
 typedef struct Wayland_Output Wayland_Output;
@@ -37,11 +39,12 @@ struct Wayland_CursorTheme {
     Wayland_CursorTheme *next;
     Wayland_CursorTheme *previous;
 
-    S32 scale;
+    F64 scale;
 
     struct wl_cursor_theme *theme;
     struct wl_buffer *cursors[Gfx_Cursor_COUNT];
     V2S32 hotspots[Gfx_Cursor_COUNT];
+    V2S32 sizes[Gfx_Cursor_COUNT];
 };
 
 typedef struct Wayland_Surface Wayland_Surface;
@@ -49,9 +52,11 @@ struct Wayland_Surface {
     Wayland_Surface *next;
     Wayland_Surface *previous;
 
-    struct wl_surface *surface;
+    struct wl_surface  *surface;
+    struct wp_viewport *viewport;
+    struct wp_fractional_scale_v1 *fractional_scale;
 
-    S32 scale;
+    F64 scale;
     Wayland_OutputNode *first_output;
     Wayland_OutputNode *last_output;
 };
@@ -82,6 +87,8 @@ struct Wayland_State {
     struct wl_data_device_manager *data_device_manager;
     struct wl_shm *shm;
     struct xdg_wm_base *xdg_wm_base;
+    struct wp_viewporter *viewporter;
+    struct wp_fractional_scale_manager_v1 *fractional_scale_manager;
     struct zxdg_decoration_manager_v1 *xdg_decoration_manager;
     struct xkb_context *xkb_context;
     Wayland_CursorTheme *first_cursor_theme;
@@ -299,6 +306,11 @@ global const struct wl_surface_listener wayland_surface_listener = {
     .leave = wayland_surface_leave,
 };
 
+internal Void wayland_fractional_scale_preferred_scale(Void *data, struct wp_fractional_scale_v1 *fractional_scale, U32 scale);
+
+global const struct wp_fractional_scale_v1_listener wayland_fractional_scale_listener = {
+    .preferred_scale = wayland_fractional_scale_preferred_scale,
+};
 
 internal Void wayland_wakeup_callback_done(Void *data, struct wl_callback *wl_callback, U32 callback_data);
 
