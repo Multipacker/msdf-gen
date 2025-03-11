@@ -305,7 +305,7 @@ internal Void wayland_update_surface_scale(Wayland_Surface *surface) {
         scale = s32_max(scale, node->output->scale);
     }
 
-    if (!(surface->viewport && surface->fractional_scale)) {
+    if (wl_surface_get_version(surface->surface) != 6 && !(surface->viewport && surface->fractional_scale)) {
         surface->scale = (F64) scale;
     }
 }
@@ -999,6 +999,21 @@ internal Void wayland_surface_leave(Void *data, struct wl_surface *wl_surface, s
     gfx_send_wakeup_event();
 }
 
+internal Void wayland_surface_preferred_buffer_scale(Void *data, struct wl_surface *wl_surface, S32 factor) {
+    Wayland_Surface *surface = (Wayland_Surface *) data;
+
+    if (!(surface->viewport && surface->fractional_scale)) {
+        surface->scale = (S32) factor;
+    }
+
+    wayland_update_surface_scale(surface);
+    wayland_update_cursor();
+    gfx_send_wakeup_event();
+}
+
+internal Void wayland_surface_preferred_buffer_transform(Void *data, struct wl_surface *wl_surface, U32 transform) {
+}
+
 
 
 // NOTE(simon): Fractional scale events.
@@ -1013,11 +1028,15 @@ internal Void wayland_fractional_scale_preferred_scale(Void *data, struct wp_fra
 
 
 // NOTE(simon): Registry events.
-internal Void wayland_register_global(Void *data, struct wl_registry *registry, U32 name, const char *interface, U32 version) {
+internal Void wayland_registry_global(Void *data, struct wl_registry *registry, U32 name, const char *interface, U32 version) {
     Wayland_State *state = &global_wayland_state;
 
     if (strcmp(interface, wl_compositor_interface.name) == 0) {
-        state->compositor = wl_registry_bind(registry, name, &wl_compositor_interface, 4);
+        if (version >= 6) {
+            state->compositor = wl_registry_bind(registry, name, &wl_compositor_interface, 6);
+        } else {
+            state->compositor = wl_registry_bind(registry, name, &wl_compositor_interface, 4);
+        }
     } else if (strcmp(interface, wl_output_interface.name) == 0) {
         Wayland_Output *output = state->output_freelist;
         if (output) {
@@ -1055,7 +1074,7 @@ internal Void wayland_register_global(Void *data, struct wl_registry *registry, 
     }
 }
 
-internal Void wayland_register_global_remove(Void *data, struct wl_registry *registry, U32 name) {
+internal Void wayland_registry_global_remove(Void *data, struct wl_registry *registry, U32 name) {
     Wayland_State *state = &global_wayland_state;
 
     for (Wayland_Output *output = state->first_output, *next = 0; output; output = next) {

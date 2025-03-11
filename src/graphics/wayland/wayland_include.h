@@ -226,14 +226,14 @@ global const struct wl_data_device_listener wayland_data_device_listener = {
     .selection  = wayland_data_device_selection,
 };
 
-internal Void wayland_register_global(Void *data, struct wl_registry *registry, U32 name, const char *interface, U32 version);
-internal Void wayland_register_global_remove(Void *data, struct wl_registry *registry, U32 name);
+internal Void wayland_registry_global(Void *data, struct wl_registry *registry, U32 name, const char *interface, U32 version);
+internal Void wayland_registry_global_remove(Void *data, struct wl_registry *registry, U32 name);
 
 global const struct wl_registry_listener wayland_registry_listener = {
 #undef global
-    .global = wayland_register_global,
+    .global = wayland_registry_global,
 #define global static
-    .global_remove = wayland_register_global_remove,
+    .global_remove = wayland_registry_global_remove,
 };
 
 internal Void wayland_xdg_surface_configure(Void *data, struct xdg_surface *xdg_surface, U32 serial);
@@ -298,12 +298,16 @@ global const struct wl_output_listener wayland_output_listener = {
     .description = wayland_output_description,
 };
 
-internal Void wayland_surface_enter(Void *data, struct wl_surface *surface, struct wl_output *output);
-internal Void wayland_surface_leave(Void *data, struct wl_surface *surface, struct wl_output *output);
+internal Void wayland_surface_enter(Void *data, struct wl_surface *wl_surface, struct wl_output *output);
+internal Void wayland_surface_leave(Void *data, struct wl_surface *wl_surface, struct wl_output *output);
+internal Void wayland_surface_preferred_buffer_scale(Void *data, struct wl_surface *wl_surface, S32 factor);
+internal Void wayland_surface_preferred_buffer_transform(Void *data, struct wl_surface *wl_surface, U32 transform);
 
 global const struct wl_surface_listener wayland_surface_listener = {
     .enter = wayland_surface_enter,
     .leave = wayland_surface_leave,
+    .preferred_buffer_scale = wayland_surface_preferred_buffer_scale,
+    .preferred_buffer_transform = wayland_surface_preferred_buffer_transform,
 };
 
 internal Void wayland_fractional_scale_preferred_scale(Void *data, struct wp_fractional_scale_v1 *fractional_scale, U32 scale);
