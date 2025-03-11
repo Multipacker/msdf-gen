@@ -295,7 +295,7 @@ internal Void ui_begin(UI_EventList *events, F32 dt) {
         ui_width_next(ui_size_children_sum(1.0f));
         ui_height_next(ui_size_children_sum(1.0f));
         ui_layout_axis_next(Axis2_Y);
-        ui->tooltip_root = ui_create_box_from_string(UI_BoxFlag_FloatingPosition, str8_literal("tooltip"));
+        ui->tooltip_root = ui_create_box_from_string(UI_BoxFlag_FloatingPosition, str8_literal("##tooltip"));
     }
 
     // NOTE(simon): Build context menu root
@@ -306,7 +306,7 @@ internal Void ui_begin(UI_EventList *events, F32 dt) {
         ui_width_next(ui_size_children_sum(1.0f));
         ui_height_next(ui_size_children_sum(1.0f));
         ui_layout_axis_next(Axis2_Y);
-        ui->context_menu_root = ui_create_box_from_string(UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawBorder | UI_BoxFlag_Clickable | UI_BoxFlag_Scrollable | UI_BoxFlag_FloatingPosition, str8_literal("context_menu"));
+        ui->context_menu_root = ui_create_box_from_string(UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawBorder | UI_BoxFlag_Clickable | UI_BoxFlag_Scrollable | UI_BoxFlag_FloatingPosition, str8_literal("##context_menu"));
     }
 
     // NOTE(simon): Reset active key if the active box is disabled or pruned.
