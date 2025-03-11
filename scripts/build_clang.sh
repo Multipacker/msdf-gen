@@ -42,7 +42,7 @@ fi
 
 wayland_libraries=" -lwayland-client -lwayland-egl -lwayland-cursor -lEGL -lxkbcommon"
 x11_libraries="-lxcb -lxcb-cursor -lxcb-xkb -lxkbcommon-x11 -lEGL -lxkbcommon"
-common_libraries="-lm -lpthread"
+common_libraries="-lm -lpthread -lfontconfig"
 
 # Choose libraries
 if [ -v wayland ]; then

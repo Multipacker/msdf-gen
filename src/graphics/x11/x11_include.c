@@ -35,6 +35,8 @@
 global X11_State global_x11_state;
 
 internal Void gfx_create(Str8 title, U32 width, U32 height) {
+    gfx_linux_init();
+
     X11_State *state = &global_x11_state;
     Arena_Temporary scratch = arena_get_scratch(0, 0);
 

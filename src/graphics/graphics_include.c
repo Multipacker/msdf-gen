@@ -1,4 +1,5 @@
 #if OS_LINUX
+#  include "linux/linux_include.c"
 #  if LINUX_WAYLAND
 #    include "wayland/wayland_include.c"
 #  elif LINUX_X11
