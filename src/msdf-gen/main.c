@@ -6,6 +6,7 @@
 #include "src/draw/draw_include.h"
 #include "src/ui/ui_include.h"
 #include "src/msdf_cache/msdf_cache_include.h"
+#include "src/unicode/unicode_include.h"
 
 #include "src/base/base_include.c"
 #include "src/graphics/graphics_include.c"
@@ -15,6 +16,7 @@
 #include "src/draw/draw_include.c"
 #include "src/ui/ui_include.c"
 #include "src/msdf_cache/msdf_cache_include.c"
+#include "src/unicode/unicode_include.c"
 
 /*
  * TODO before next release:
@@ -40,6 +42,8 @@
 #include "views.c"
 
 internal S32 os_run(Str8List arguments) {
+    unicode_test();
+    return 0;
     Arena *arena = arena_create();
     State *state = arena_push_struct(arena, State);
     state->arena = arena;
