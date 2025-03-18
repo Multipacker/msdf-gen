@@ -42,7 +42,7 @@ internal UI_Input ui_checkbox_b32(B32 *is_checked, Str8 label);
 internal UI_Input ui_checkbox_b32_format(B32 *is_checked, CStr format, ...);
 
 #define ui_padding(size) defer_loop(ui_spacer_sized(size), ui_spacer_sized(size))
-#define ui_center()      ui_padding(ui_size_parent_percent(1.0f, 0.0f))
+#define ui_center()      ui_padding(ui_size_fill())
 
 // NOTE(simon): Line edit
 UI_BOX_DRAW_FUNCTION(ui_draw_line_edit);
