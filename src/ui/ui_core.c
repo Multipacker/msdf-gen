@@ -1063,6 +1063,12 @@ internal Void ui_context_menu_end(Void) {
     ui_parent_pop();
 }
 
+internal B32 ui_context_menu_is_open(UI_Key context_key) {
+    UI_Context *ui = global_ui_state;
+    B32 result = ui_keys_match(ui->context_menu_key, context_key);
+    return result;
+}
+
 internal UI_Key ui_drop_hot_key(Void) {
     UI_Context *ui = global_ui_state;
     return ui->drop_hot_key;
