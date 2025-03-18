@@ -762,7 +762,7 @@ PANEL_BUILD_FUNCTION(view_theme) {
 
     ViewState *state = (ViewState *) tab_get_state(tab, sizeof(ViewState));
 
-    UI_Key context_key = ui_key_from_string(ui_active_seed_key(), str8_literal("picker"));
+    UI_Key context_key = ui_key_from_string(ui_active_seed_key(), str8_literal("##picker"));
     ui_context_menu(context_key) {
         ui_extra_box_flags_next(UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawBorder | UI_BoxFlag_DrawDropShadow);
         ui_width(ui_size_children_sum(1.0f))
@@ -781,7 +781,7 @@ PANEL_BUILD_FUNCTION(view_theme) {
                 ui_draw_function_next(draw_saturation_value);
                 ui_draw_data_next(color_data);
                 ui_hover_cursor_next(Gfx_Cursor_Hand);
-                UI_Box *saturation_value_box = ui_create_box_from_string(UI_BoxFlag_DrawBorder | UI_BoxFlag_Clickable, str8_literal("saturation_value"));
+                UI_Box *saturation_value_box = ui_create_box_from_string(UI_BoxFlag_DrawBorder | UI_BoxFlag_Clickable, str8_literal("##saturation_value"));
                 UI_Input saturation_value_input = ui_input_from_box(saturation_value_box);
                 if (saturation_value_input.input_flags & UI_InputFlag_LeftDragging) {
                     if (saturation_value_input.input_flags & UI_InputFlag_LeftPressed) {
@@ -815,7 +815,7 @@ PANEL_BUILD_FUNCTION(view_theme) {
                 ui_height_next(ui_size_ems(12.0f, 1.0f));
                 ui_draw_function_next(draw_hue);
                 ui_hover_cursor_next(Gfx_Cursor_Hand);
-                UI_Box *hue_box = ui_create_box_from_string(UI_BoxFlag_DrawBorder | UI_BoxFlag_Clickable, str8_literal("hue"));
+                UI_Box *hue_box = ui_create_box_from_string(UI_BoxFlag_DrawBorder | UI_BoxFlag_Clickable, str8_literal("##hue"));
                 UI_Input hue_input = ui_input_from_box(hue_box);
                 if (hue_input.input_flags & UI_InputFlag_LeftDragging) {
                     if (hue_input.input_flags & UI_InputFlag_LeftPressed) {
@@ -847,7 +847,7 @@ PANEL_BUILD_FUNCTION(view_theme) {
                 ui_height_next(ui_size_ems(12.0f, 1.0f));
                 ui_draw_function_next(draw_alpha);
                 ui_hover_cursor_next(Gfx_Cursor_Hand);
-                UI_Box *alpha_box = ui_create_box_from_string(UI_BoxFlag_DrawBorder | UI_BoxFlag_Clickable, str8_literal("alpha"));
+                UI_Box *alpha_box = ui_create_box_from_string(UI_BoxFlag_DrawBorder | UI_BoxFlag_Clickable, str8_literal("##alpha"));
                 UI_Input alpha_input = ui_input_from_box(alpha_box);
                 if (alpha_input.input_flags & UI_InputFlag_LeftDragging) {
                     if (alpha_input.input_flags & UI_InputFlag_LeftPressed) {

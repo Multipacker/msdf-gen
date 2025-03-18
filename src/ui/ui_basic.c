@@ -217,7 +217,7 @@ internal UI_Input ui_line_edit(U8 *buffer, U64 *buffer_size, U64 buffer_capacity
     Arena_Temporary scratch = arena_get_scratch(0, 0);
     ui_hover_cursor_next(Gfx_Cursor_Beam);
     UI_Box *text_container_box = ui_create_box_from_key(
-        UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawHot | UI_BoxFlag_DrawActive |
+        UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawBorder | UI_BoxFlag_DrawHot | UI_BoxFlag_DrawActive |
         UI_BoxFlag_OverflowX | UI_BoxFlag_Clip |
         UI_BoxFlag_Clickable,
         key
