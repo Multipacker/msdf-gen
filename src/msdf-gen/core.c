@@ -1225,7 +1225,7 @@ internal Void update(Void) {
             ui_parent(command_box)
             ui_width(ui_size_fill())
             ui_height(ui_size_ems(1.5f, 1.0f))
-            ui_text_padding(ui_size_ems(0.5f, 1.0f).value) {
+            ui_text_x_padding(ui_size_ems(0.5f, 1.0f).value) {
                 UI_Key key = ui_key_from_string(ui_active_seed_key(), str8_literal("##query"));
                 ui_palette(palette_from_code(PaletteCode_Button))
                 ui_focus(UI_Focus_Active) {

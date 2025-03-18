@@ -241,7 +241,8 @@ internal Void ui_begin(UI_EventList *events, F32 dt) {
     memory_zero_struct(&ui->font_stack);
     memory_zero_struct(&ui->font_size_stack);
     memory_zero_struct(&ui->text_align_stack);
-    memory_zero_struct(&ui->text_padding_stack);
+    memory_zero_struct(&ui->text_x_padding_stack);
+    memory_zero_struct(&ui->text_y_padding_stack);
     memory_zero_struct(&ui->hover_cursor_stack);
     memory_zero_struct(&ui->draw_function_stack);
     memory_zero_struct(&ui->draw_data_stack);
@@ -269,7 +270,7 @@ internal Void ui_begin(UI_EventList *events, F32 dt) {
     ui_font_push(gfx_font_path(ui_frame_arena(), Gfx_Font_Default));
     ui_font_size_push(14);
     ui_text_align_push(UI_TextAlign_Left);
-    ui_text_padding_push(0.0f);
+    ui_text_padding_push(v2f32(0.0f, 0.0f));
     ui_hover_cursor_push(Gfx_Cursor_Pointer);
     ui_draw_function_push(0);
     ui_draw_data_push(0);
@@ -340,7 +341,7 @@ internal Void ui_layout_independent_sizes(UI_Box *box, Axis2 axis) {
     if (box->size[axis].kind == UI_Size_Pixels) {
         box->calculated_size.values[axis] = box->size[axis].value;
     } else if (box->size[axis].kind == UI_Size_TextContent) {
-        box->calculated_size.values[axis] = box->text.size.values[axis] + 2.0f * box->size[axis].value;
+        box->calculated_size.values[axis] = box->text.size.values[axis] + 2.0f * box->size[axis].value + 2.0f * box->text_padding.values[axis];
     }
 
     for (UI_Box *child = box->first; child != &global_ui_null_box; child = child->next) {
@@ -801,7 +802,8 @@ internal UI_Box *ui_create_box_from_key(UI_BoxFlags flags, UI_Key key) {
     ui_font_auto_pop();
     ui_font_size_auto_pop();
     ui_text_align_auto_pop();
-    ui_text_padding_auto_pop();
+    ui_text_x_padding_auto_pop();
+    ui_text_y_padding_auto_pop();
     ui_hover_cursor_auto_pop();
     ui_draw_function_auto_pop();
     ui_draw_data_auto_pop();
@@ -871,7 +873,7 @@ internal V2F32 ui_box_text_location(UI_Box *box) {
 
     switch (box->text_align) {
         case UI_TextAlign_Left: {
-            result.x = box->calculated_rectangle.min.x + offset.x + box->text_padding;
+            result.x = box->calculated_rectangle.min.x + offset.x + box->text_padding.x;
         } break;
         case UI_TextAlign_Center: {
             result.x = (box->calculated_rectangle.max.x + box->calculated_rectangle.min.x) * 0.5f - box->text.size.x * 0.5f;
@@ -879,7 +881,7 @@ internal V2F32 ui_box_text_location(UI_Box *box) {
             result.x = f32_floor(result.x + offset.x);
         } break;
         case UI_TextAlign_Right: {
-            result.x = box->calculated_rectangle.max.x - box->text.size.x - offset.x - box->text_padding;
+            result.x = box->calculated_rectangle.max.x - box->text.size.x - offset.x - box->text_padding.x;
             result.x = f32_max(box->calculated_rectangle.min.x, result.x);
             result.x = f32_floor(result.x + offset.x);
         } break;
