@@ -412,7 +412,7 @@ internal Void update(Void) {
         state->context_stack = &state->base_context;
     }
 
-    arena_pop_to(frame_arena(), 0);
+    arena_reset(frame_arena());
 
     // NOTE(simon): Trigger an auto save once every 5 seconds.
     if (os_now_nanoseconds() - state->previous_auto_save > (U64) (5 * 1e9)) {
@@ -2165,12 +2165,12 @@ internal Void update(Void) {
                     Render_Shape *shape = draw_rectangle(r2f32_pad(parent->calculated_rectangle, 1.0f), parent->palette.border, 0.0f, 1.0f, 1.0f);
                     memory_copy(shape->radies, parent->corner_radies, sizeof(shape->radies));
 
-                    if (box->flags & UI_BoxFlag_DrawHot && box->hot_t > 0.0f) {
+                    if (parent->flags & UI_BoxFlag_DrawHot && parent->hot_t > 0.0f) {
                         V4F32 color = color_from_theme(ThemeColor_Hover);
-                        color.a *= box->hot_t;
+                        color.a *= parent->hot_t;
 
-                        Render_Shape *rect = draw_rectangle(r2f32_pad(box->calculated_rectangle, 1.0f), color, 0.0f, 1.0f, 1.0f);
-                        memory_copy(rect->radies, box->corner_radies, sizeof(rect->radies));
+                        Render_Shape *rect = draw_rectangle(r2f32_pad(parent->calculated_rectangle, 1.0f), color, 0.0f, 1.0f, 1.0f);
+                        memory_copy(rect->radies, parent->corner_radies, sizeof(rect->radies));
                     }
                 }
 
