@@ -6,6 +6,7 @@ typedef enum {
     UI_Size_ChildrenSum,
     UI_Size_ParentPercent,
     UI_Size_TextContent,
+    UI_Size_AspectRatio,
 } UI_SizeKind;
 
 typedef struct UI_Size UI_Size;
@@ -407,6 +408,7 @@ internal UI_Size ui_size_ems(F32 ems, F32 strictness);
 internal UI_Size ui_size_parent_percent(F32 percent, F32 strictness);
 internal UI_Size ui_size_children_sum(F32 strictness);
 internal UI_Size ui_size_text_content(F32 padding, F32 strictness);
+internal UI_Size ui_size_aspect_ratio(F32 ratio, F32 strictness);
 
 internal UI_Context *ui_create(Void);
 

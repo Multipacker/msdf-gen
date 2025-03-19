@@ -205,6 +205,14 @@ internal UI_Size ui_size_text_content(F32 padding, F32 strictness) {
     return result;
 }
 
+internal UI_Size ui_size_aspect_ratio(F32 ratio, F32 strictness) {
+    UI_Size result = { 0 };
+    result.kind = UI_Size_AspectRatio;
+    result.value = ratio;
+    result.strictness = strictness;
+    return result;
+}
+
 
 
 internal UI_Context *ui_create(Void) {
@@ -368,6 +376,16 @@ internal Void ui_layout_upwards_dependent_sizes(UI_Box *box, Axis2 axis) {
     }
 }
 
+internal Void ui_layout_self_dependent_sizes(UI_Box *box, Axis2 axis) {
+    if (box->size[axis].kind == UI_Size_AspectRatio) {
+        box->calculated_size.values[axis] = box->calculated_size.values[axis2_flip(axis)] * box->size[axis].value;
+    }
+
+    for (UI_Box *child = box->first; child != &global_ui_null_box; child = child->next) {
+        ui_layout_self_dependent_sizes(child, axis);
+    }
+}
+
 internal Void ui_layout_downwards_dependent_sizes(UI_Box *box, Axis2 axis) {
     for (UI_Box *child = box->first; child != &global_ui_null_box; child = child->next) {
         ui_layout_downwards_dependent_sizes(child, axis);
@@ -511,6 +529,9 @@ internal Void ui_end(Void) {
         for (Axis2 axis = 0; axis < Axis2_COUNT; ++axis) {
             ui_layout_independent_sizes(ui->root, axis);
             ui_layout_upwards_dependent_sizes(ui->root, axis);
+        }
+        for (Axis2 axis = 0; axis < Axis2_COUNT; ++axis) {
+            ui_layout_self_dependent_sizes(ui->root, axis);
             ui_layout_downwards_dependent_sizes(ui->root, axis);
             ui_layout_resolve_violations(ui->root, axis);
             ui_layout_position(ui->root, axis);
@@ -559,6 +580,11 @@ internal Void ui_end(Void) {
                 // NOTE(simon): Redo layout.
                 ui_layout_independent_sizes(root, axis);
                 ui_layout_upwards_dependent_sizes(root, axis);
+            }
+
+            // NOTE(simon): Redo layout.
+            for (Axis2 axis = 0; axis < Axis2_COUNT; ++axis) {
+                ui_layout_self_dependent_sizes(root, axis);
                 ui_layout_downwards_dependent_sizes(root, axis);
                 ui_layout_resolve_violations(root, axis);
                 ui_layout_position(root, axis);
