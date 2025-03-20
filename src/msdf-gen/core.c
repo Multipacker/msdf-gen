@@ -2146,7 +2146,7 @@ internal Void update(Void) {
                 box->draw_function(box, box->draw_data);
             }
 
-            UI_BoxIterator iterator = ui_box_iterator_depth_first_post_order(box);
+            UI_BoxIterator iterator = ui_box_iterator_depth_first_pre_order(box);
 
             // NOTE(simon): We use `<=` because we need to pop our state when
             // moving to our siblings. Traversing siblings sets both `push_count`

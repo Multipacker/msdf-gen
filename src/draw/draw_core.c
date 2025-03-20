@@ -4,7 +4,7 @@ internal Void draw_begin_frame(Void) {
         draw->arena = arena_create();
     }
 
-    arena_pop_to(draw->arena, 0);
+    arena_reset(draw->arena);
 
     draw->list_stack = 0;
 }

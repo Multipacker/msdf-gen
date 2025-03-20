@@ -713,7 +713,7 @@ internal UI_Box *ui_box_from_key(UI_Key key) {
     return result;
 }
 
-internal UI_BoxIterator ui_box_iterator_depth_first_post_order(UI_Box *box) {
+internal UI_BoxIterator ui_box_iterator_depth_first_pre_order(UI_Box *box) {
     UI_BoxIterator iterator = { 0 };
     iterator.next = &global_ui_null_box;
 
