@@ -577,16 +577,7 @@ internal Void ui_end(Void) {
                     }
                 }
 
-                // NOTE(simon): Redo layout.
-                ui_layout_independent_sizes(root, axis);
-                ui_layout_upwards_dependent_sizes(root, axis);
-            }
-
-            // NOTE(simon): Redo layout.
-            for (Axis2 axis = 0; axis < Axis2_COUNT; ++axis) {
-                ui_layout_self_dependent_sizes(root, axis);
-                ui_layout_downwards_dependent_sizes(root, axis);
-                ui_layout_resolve_violations(root, axis);
+                // NOTE(simon): Recalculate child positions.
                 ui_layout_position(root, axis);
             }
         }
