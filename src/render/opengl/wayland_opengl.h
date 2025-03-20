@@ -13,6 +13,7 @@ struct Wayland_OpenGLState {
 
     struct wl_egl_window *window;
     EGLSurface *surface;
+    V2U32 resolution;
 };
 
 internal Void wayland_opengl_swap_buffers(Void);

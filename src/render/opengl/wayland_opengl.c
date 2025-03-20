@@ -97,7 +97,10 @@ internal Void wayland_opengl_swap_buffers(Void) {
 
 internal Void opengl_resize(V2U32 resolution) {
     Wayland_OpenGLState *opengl_state = &global_wayland_opengl_state;
-    wl_egl_window_resize(opengl_state->window, (S32) resolution.width, (S32) resolution.height, 0, 0);
+    if (opengl_state->resolution.width != resolution.width || opengl_state->resolution.height != resolution.height) {
+        opengl_state->resolution = resolution;
+        wl_egl_window_resize(opengl_state->window, (S32) resolution.width, (S32) resolution.height, 0, 0);
+    }
 }
 
 internal Void opengl_backend_init(Void) {
