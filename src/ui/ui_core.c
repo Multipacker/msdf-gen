@@ -596,58 +596,53 @@ internal Void ui_end(Void) {
                 B32 is_focus_active   = !!(box->flags & UI_BoxFlag_FocusActive);
                 B32 is_focus_disabled = !!(box->flags & UI_BoxFlag_FocusDisabled);
 
-                box->animated_position.x += (box->calculated_position.x - box->animated_position.x) * ui->fast_rate;
-                box->animated_position.y += (box->calculated_position.y - box->animated_position.y) * ui->fast_rate;
-                if (f32_abs(box->calculated_position.x - box->animated_position.x) < 1.0f) {
+                F32 position_x_delta       = (box->calculated_position.x - box->animated_position.x) * ui->fast_rate;
+                F32 position_y_delta       = (box->calculated_position.y - box->animated_position.y) * ui->fast_rate;
+                F32 hot_t_delta            = ((F32) is_hot               - box->hot_t)               * ui->fast_rate;
+                F32 active_t_delta         = ((F32) is_active            - box->active_t)            * ui->fast_rate;
+                F32 disabled_t_delta       = ((F32) is_disabled          - box->disabled_t)          * ui->slow_rate;
+                F32 focus_active_t_delta   = ((F32) is_focus_active      - box->focus_active_t)      * ui->fast_rate;
+                F32 focus_disabled_t_delta = ((F32) is_focus_disabled    - box->focus_disabled_t)    * ui->fast_rate;
+
+                B32 is_animating = false;
+                is_animating |= f32_abs(position_x_delta)       >= 1.0f;
+                is_animating |= f32_abs(position_y_delta)       >= 1.0f;
+                is_animating |= f32_abs(hot_t_delta)            >= 0.001f;
+                is_animating |= f32_abs(active_t_delta)         >= 0.001f;
+                is_animating |= f32_abs(disabled_t_delta)       >= 0.001f;
+                is_animating |= f32_abs(focus_active_t_delta)   >= 0.001f;
+                is_animating |= f32_abs(focus_disabled_t_delta) >= 0.001f;
+
+                if (is_animating) {
+                    box->animated_position.x += position_x_delta;
+                    box->animated_position.y += position_y_delta;
+                    box->hot_t               += hot_t_delta;
+                    box->active_t            += active_t_delta;
+                    box->disabled_t          += disabled_t_delta;
+                    box->focus_active_t      += focus_active_t_delta;
+                    box->focus_disabled_t    += focus_disabled_t_delta;
+                } else {
                     box->animated_position.x = box->calculated_position.x;
-                } else {
-                    ui->is_animating = true;
-                }
-                if (f32_abs(box->calculated_position.y - box->animated_position.y) < 1.0f) {
                     box->animated_position.y = box->calculated_position.y;
-                } else {
-                    ui->is_animating = true;
+                    box->hot_t               = (F32) is_hot;
+                    box->active_t            = (F32) is_active;
+                    box->disabled_t          = (F32) is_disabled;
+                    box->focus_active_t      = (F32) is_focus_active;
+                    box->focus_disabled_t    = (F32) is_focus_disabled;
                 }
 
-                box->hot_t += ((F32) is_hot - box->hot_t) * ui->fast_rate;
-                if (f32_abs((F32) is_hot - box->hot_t) < 0.001f) {
-                    box->hot_t = (F32) is_hot;
-                } else {
-                    ui->is_animating = true;
-                }
-                box->active_t += ((F32) is_active - box->active_t) * ui->fast_rate;
-                if (f32_abs((F32) is_active - box->active_t) < 0.001f) {
-                    box->active_t = (F32) is_active;
-                } else {
-                    ui->is_animating = true;
-                }
-                box->disabled_t += ((F32) is_disabled - box->disabled_t) * ui->slow_rate;
-                if (f32_abs((F32) is_disabled - box->disabled_t) < 0.001f) {
-                    box->disabled_t = (F32) is_disabled;
-                } else {
-                    ui->is_animating = true;
-                }
-
-                box->focus_active_t += ((F32) is_focus_active - box->focus_active_t) * ui->fast_rate;
-                if (f32_abs((F32) is_focus_active - box->focus_active_t) < 0.001f) {
-                    box->focus_active_t = (F32) is_focus_active;
-                } else {
-                    ui->is_animating = true;
-                }
-                box->focus_disabled_t += ((F32) is_focus_disabled - box->focus_disabled_t) * ui->fast_rate;
-                if (f32_abs((F32) is_focus_disabled - box->focus_disabled_t) < 0.001f) {
-                    box->focus_disabled_t = (F32) is_focus_disabled;
-                } else {
-                    ui->is_animating = true;
-                }
+                ui->is_animating |= is_animating;
             }
         }
-        ui->tooltip_t += ((F32) ui->is_tooltip_active - ui->tooltip_t) * ui->fast_rate;
-        if (f32_abs((F32) ui->is_tooltip_active - ui->tooltip_t) < 0.001f) {
-            ui->tooltip_t = (F32) ui->is_tooltip_active;
-        } else {
+
+        F32 tooltip_t_delta = ((F32) ui->is_tooltip_active - ui->tooltip_t) * ui->fast_rate;
+        if (f32_abs(tooltip_t_delta) >= 0.001f) {
+            ui->tooltip_t += tooltip_t_delta;
             ui->is_animating = true;
+        } else {
+            ui->tooltip_t = (F32) ui->is_tooltip_active;
         }
+
         prof_zone_end(prof_animate);
     }
 
