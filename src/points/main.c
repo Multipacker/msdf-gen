@@ -338,21 +338,7 @@ internal Void update(Void) {
                             ui_padding(ui_size_ems(0.5f, 1.0f)) {
                                 ui_row()
                                 ui_padding(ui_size_ems(0.5f, 1.0f)) {
-                                    ui_width_next(ui_size_parent_percent(0.8f, 0.0f));
-                                    ui_height_next(ui_size_aspect_ratio(1.0f, 0.0f));
-                                    UI_Box *saturation_value_box = ui_create_box_from_string(UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawBorder | UI_BoxFlag_Clickable, str8_literal("##saturation_value"));
-
-                                    ui_spacer_sized(ui_size_ems(0.5f, 1.0f));
-
-                                    ui_width_next(ui_size_parent_percent(0.1f, 0.0f));
-                                    ui_height_next(ui_size_pixels(saturation_value_box->calculated_size.height, 1.0f));
-                                    UI_Box *hue_box = ui_create_box_from_string(UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawBorder | UI_BoxFlag_Clickable, str8_literal("##hue"));
-
-                                    ui_spacer_sized(ui_size_ems(0.5f, 1.0f));
-
-                                    ui_width_next(ui_size_parent_percent(0.1f, 0.0f));
-                                    ui_height_next(ui_size_pixels(saturation_value_box->calculated_size.height, 1.0f));
-                                    UI_Box *alpha_box = ui_create_box_from_string(UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawBorder | UI_BoxFlag_Clickable, str8_literal("##alpha"));
+                                    ui_color_picker(&state->point_color, ui_size_ems(6.0f, 1.0f), ui_size_ems(1.0f, 1.0f), ui_size_ems(0.5f, 1.0f));
                                 }
                             }
                         }
@@ -426,7 +412,7 @@ internal Void update(Void) {
         }
         for (U64 i = 0; i < state->point_count; ++i) {
             V4F32 hsva[Coloring_COUNT] = {
-                v4f32(0.0f, 0.0f, 0.9f, 1.0f),
+                hsva_from_srgba(state->point_color),
                 v4f32((F32) i / (F32) state->point_count * 360.0f, 0.4f, 0.8f, 1.0f),
                 v4f32((state->points[i].x * 0.5f + 0.5f) * 360.0f, state->points[i].y * 0.5f + 0.5f, 1.0f, 1.0f),
             };

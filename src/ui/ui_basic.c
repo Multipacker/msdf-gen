@@ -462,6 +462,9 @@ internal UI_Input ui_slider(F32 min, F32 *value, F32 max, UI_Key key) {
     return input;
 }
 
+
+
+// NOTE(simon): Scrolling
 internal UI_ScrollPosition ui_scroll_bar(UI_ScrollPosition position, S64 first_row, S64 last_row, S64 visible_rows) {
     UI_Box *scroll = &global_ui_null_box;
 
@@ -554,4 +557,245 @@ internal UI_ScrollPosition ui_scroll_bar(UI_ScrollPosition position, S64 first_r
     }
 
     return result;
+}
+
+
+
+// NOTE(simon): Color picking
+UI_BOX_DRAW_FUNCTION(ui_draw_saturation_value) {
+    V4F32 *color = (V4F32 *) data;
+    V4F32 hsva = hsva_from_srgba(srgba_from_color(*color));
+    V4F32 full_color = color_from_srgba(srgba_from_hsva(v4f32(hsva.x, 1.0f, 1.0f, 1.0f)));
+    Render_Shape *shape = draw_rectangle(
+        box->calculated_rectangle,
+        v4f32(0.0f, 0.0f, 0.0f, 1.0f),
+        0.0f, 0.0f, 0.0f
+    );
+    shape->colors[Corner_00] = v4f32(1.0f, 1.0f, 1.0f, 1.0f);
+    shape->colors[Corner_01] = full_color;
+    memory_copy(shape->radies, box->corner_radies, sizeof(shape->radies));
+
+    F32 min_x = box->calculated_rectangle.min.x;
+    F32 max_y = box->calculated_rectangle.max.y;
+    F32 saturation_pixels = hsva.y * r2f32_size(box->calculated_rectangle).width;
+    F32 value_pixels = hsva.z * r2f32_size(box->calculated_rectangle).height;
+    draw_rectangle(
+        r2f32(
+            min_x + saturation_pixels - 3.0f, max_y - value_pixels - 3.0f,
+            min_x + saturation_pixels + 3.0f, max_y - value_pixels + 3.0f
+        ),
+        box->palette.cursor,
+        0.0f, 1.0f, 0.0f
+    );
+}
+
+UI_BOX_DRAW_FUNCTION(ui_draw_hue) {
+    V4F32 *color = (V4F32 *) data;
+    V4F32 hsva = hsva_from_srgba(srgba_from_color(*color));
+
+    F32 min_x = box->calculated_rectangle.min.x;
+    F32 max_x = box->calculated_rectangle.max.x;
+    F32 min_y = box->calculated_rectangle.min.y;
+    F32 segment_height = r2f32_size(box->calculated_rectangle).height / 6.0f;
+
+    V4F32 colors[] = {
+        v4f32(1.0f, 0.0f, 0.0f, 1.0f),
+        v4f32(1.0f, 1.0f, 0.0f, 1.0f),
+        v4f32(0.0f, 1.0f, 0.0f, 1.0f),
+        v4f32(0.0f, 1.0f, 1.0f, 1.0f),
+        v4f32(0.0f, 0.0f, 1.0f, 1.0f),
+        v4f32(1.0f, 0.0f, 1.0f, 1.0f),
+        v4f32(1.0f, 0.0f, 0.0f, 1.0f),
+    };
+
+    for (U64 i = 0; i < 6; ++i) {
+        Render_Shape *shape = draw_rectangle(
+            r2f32(
+                min_x, min_y + (F32) (i + 0) * segment_height,
+                max_x, min_y + (F32) (i + 1) * segment_height
+            ),
+            v4f32(0.0f, 0.0f, 0.0f, 0.0f),
+            0.0f, 0.0f, 0.0f
+        );
+        shape->colors[Corner_00] = shape->colors[Corner_01] = colors[i + 0];
+        shape->colors[Corner_10] = shape->colors[Corner_11] = colors[i + 1];
+
+        if (i == 0) {
+            shape->radies[Corner_00] = box->corner_radies[Corner_00];
+            shape->radies[Corner_01] = box->corner_radies[Corner_01];
+        } else if (i == 5) {
+            shape->radies[Corner_10] = box->corner_radies[Corner_10];
+            shape->radies[Corner_11] = box->corner_radies[Corner_11];
+        }
+    }
+
+    F32 hue_percentage = hsva.x / 360.0f;
+    F32 hue_pixels = hue_percentage * r2f32_size(box->calculated_rectangle).height;
+    draw_rectangle(
+        r2f32(
+            min_x + 1.0f, min_y + hue_pixels - 3.0f,
+            max_x - 1.0f, min_y + hue_pixels + 3.0f
+        ),
+        box->palette.cursor,
+        0.0f, 1.0f, 0.0f
+    );
+}
+
+UI_BOX_DRAW_FUNCTION(ui_draw_alpha) {
+    V4F32 *color = (V4F32 *) data;
+    Render_Shape *shape = draw_rectangle(
+        box->calculated_rectangle,
+        v4f32(0.0f, 0.0f, 0.0f, 0.0f),
+        0.0f, 0.0f, 0.0f
+    );
+    shape->colors[Corner_00] = shape->colors[Corner_01] = v4f32(color->r, color->g, color->b, 0.0f);
+    shape->colors[Corner_10] = shape->colors[Corner_11] = v4f32(color->r, color->g, color->b, 1.0f);
+    memory_copy(shape->radies, box->corner_radies, sizeof(shape->radies));
+
+    F32 min_x = box->calculated_rectangle.min.x;
+    F32 max_x = box->calculated_rectangle.max.x;
+    F32 min_y = box->calculated_rectangle.min.y;
+    F32 alpha_pixels = color->a * r2f32_size(box->calculated_rectangle).height;
+    draw_rectangle(
+        r2f32(
+            min_x + 1.0f, min_y + alpha_pixels - 3.0f,
+            max_x - 1.0f, min_y + alpha_pixels + 3.0f
+        ),
+        box->palette.cursor,
+        0.0f, 1.0f, 0.0f
+    );
+    draw_rectangle(
+        r2f32(
+            min_x + 1.0f, min_y + alpha_pixels - 3.0f,
+            max_x - 1.0f, min_y + alpha_pixels + 3.0f
+        ),
+        box->palette.cursor,
+        0.0f, 1.0f, 0.0f
+    );
+}
+
+internal UI_Input ui_saturation_value_picker(V4F32 *color) {
+    V4F32 *color_data = arena_push_struct_zero(ui_frame_arena(), V4F32);
+    *color_data = *color;
+    ui_draw_data_next(color_data);
+    ui_draw_function_next(ui_draw_saturation_value);
+    ui_draw_data_next(color_data);
+    ui_hover_cursor_next(Gfx_Cursor_Hand);
+    UI_Box *box = ui_create_box_from_string(UI_BoxFlag_DrawBorder | UI_BoxFlag_Clickable, str8_literal("##saturation_value_picker"));
+
+    UI_Input input = ui_input_from_box(box);
+    if (input.input_flags & UI_InputFlag_LeftDragging) {
+        if (input.input_flags & UI_InputFlag_LeftPressed) {
+            V4F32 hsva = hsva_from_srgba(srgba_from_color(*color));
+            ui_set_drag_data(&hsva);
+        }
+
+        V2F32 size                       = r2f32_size(box->calculated_rectangle);
+        V4F32 hsva_pre_drag              = *ui_get_drag_data(V4F32);
+        F32 saturation_pixels_pre_drag   = hsva_pre_drag.y * size.width;
+        F32 value_pixels_pre_drag        = (1.0f - hsva_pre_drag.z) * size.height;
+        V2F32 drag_delta                 = ui_drag_delta();
+        F32 saturation_pixels_post_drag  = saturation_pixels_pre_drag + drag_delta.x;
+        F32 value_pixels_post_drag       = value_pixels_pre_drag + drag_delta.y;
+        F32 saturation_post_drag         = saturation_pixels_post_drag / size.width;
+        F32 value_post_drag              = 1.0f - value_pixels_post_drag / size.height;
+        F32 clamped_saturation_post_drag = f32_min(f32_max(0.0f, saturation_post_drag), 1.0f);
+        F32 clamped_value_post_drag      = f32_min(f32_max(0.0f, value_post_drag), 1.0f);
+        V4F32 hsva_post_drag             = v4f32(hsva_pre_drag.x, clamped_saturation_post_drag, clamped_value_post_drag, hsva_pre_drag.a);
+        V4F32 srgba_post_drag            = srgba_from_hsva(hsva_post_drag);
+        V4F32 color_post_drag            = color_from_srgba(srgba_post_drag);
+
+        *color = color_post_drag;
+    }
+
+    return input;
+}
+
+internal UI_Input ui_hue_picker(V4F32 *color) {
+    V4F32 *color_data = arena_push_struct_zero(ui_frame_arena(), V4F32);
+    *color_data = *color;
+    ui_draw_data_next(color_data);
+    ui_draw_function_next(ui_draw_hue);
+    ui_hover_cursor_next(Gfx_Cursor_Hand);
+    UI_Box *box = ui_create_box_from_string(UI_BoxFlag_DrawBorder | UI_BoxFlag_Clickable, str8_literal("##hue_picker"));
+
+    UI_Input input = ui_input_from_box(box);
+    if (input.input_flags & UI_InputFlag_LeftDragging) {
+        if (input.input_flags & UI_InputFlag_LeftPressed) {
+            V4F32 hsva = hsva_from_srgba(srgba_from_color(*color));
+            ui_set_drag_data(&hsva);
+        }
+
+        V2F32 size                       = r2f32_size(box->calculated_rectangle);
+        V4F32 hsva_pre_drag              = *ui_get_drag_data(V4F32);
+        F32 hue_percentage_pre_drag      = hsva_pre_drag.x / 360.0f;
+        F32 hue_pixels_pre_drag          = hue_percentage_pre_drag * size.height;
+        F32 drag_delta                   = ui_drag_delta().y;
+        F32 hue_pixels_post_drag         = hue_pixels_pre_drag + drag_delta;
+        F32 hue_percentage_post_drag     = hue_pixels_post_drag / size.height;
+        F32 hue_post_drag                = hue_percentage_post_drag * 360.0f;
+        F32 clamped_hue_post_drag        = f32_min(f32_max(0.0f, hue_post_drag), 360.0f);
+        V4F32 hsva_post_drag             = v4f32(clamped_hue_post_drag, hsva_pre_drag.y, hsva_pre_drag.z, hsva_pre_drag.a);
+        V4F32 srgba_post_drag            = srgba_from_hsva(hsva_post_drag);
+        V4F32 color_post_drag            = color_from_srgba(srgba_post_drag);
+
+        *color = color_post_drag;
+    }
+
+    return input;
+}
+
+internal UI_Input ui_alpha_picker(V4F32 *color) {
+    V4F32 *color_data = arena_push_struct_zero(ui_frame_arena(), V4F32);
+    *color_data = *color;
+    ui_draw_data_next(color_data);
+    ui_draw_function_next(ui_draw_alpha);
+    ui_hover_cursor_next(Gfx_Cursor_Hand);
+    UI_Box *box = ui_create_box_from_string(UI_BoxFlag_DrawBorder | UI_BoxFlag_Clickable, str8_literal("##alpha_picker"));
+
+    UI_Input input = ui_input_from_box(box);
+    if (input.input_flags & UI_InputFlag_LeftDragging) {
+        if (input.input_flags & UI_InputFlag_LeftPressed) {
+            ui_set_drag_data(color);
+        }
+
+        V2F32 size                  = r2f32_size(box->calculated_rectangle);
+        V4F32 color_pre_drag        = *ui_get_drag_data(V4F32);
+        F32 alpha_pixels_pre_drag   = color_pre_drag.a * size.height;
+        F32 drag_delta              = ui_drag_delta().y;
+        F32 alpha_pixels_post_drag  = alpha_pixels_pre_drag + drag_delta;
+        F32 alpha_post_drag         = alpha_pixels_post_drag / size.height;
+        F32 clamped_alpha_post_drag = f32_min(f32_max(0.0f, alpha_post_drag), 1.0f);
+        V4F32 color_post_drag       = v4f32(color_pre_drag.r, color_pre_drag.g, color_pre_drag.b, clamped_alpha_post_drag);
+
+        *color = color_post_drag;
+    }
+
+    return input;
+}
+
+internal B32 ui_color_picker(V4F32 *color, UI_Size size, UI_Size bar_width, UI_Size spacing) {
+    B32 changed = false;
+
+    ui_row()
+    ui_height(size) {
+        ui_width_next(size);
+        UI_Input saturation_value_input = ui_saturation_value_picker(color);
+
+        ui_spacer_sized(spacing);
+
+        ui_width_next(bar_width);
+        UI_Input hue_input = ui_hue_picker(color);
+
+        ui_spacer_sized(spacing);
+
+        ui_width_next(bar_width);
+        UI_Input alpha_input = ui_alpha_picker(color);
+
+        changed |= saturation_value_input.input_flags & UI_InputFlag_LeftDragging;
+        changed |= hue_input.input_flags & UI_InputFlag_LeftDragging;
+        changed |= alpha_input.input_flags & UI_InputFlag_LeftDragging;
+    }
+
+    return changed;
 }

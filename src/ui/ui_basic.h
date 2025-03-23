@@ -54,4 +54,10 @@ internal UI_Input ui_slider(F32 min, F32 *value, F32 max, UI_Key key);
 // NOTE(simon): Scrolling
 internal UI_ScrollPosition ui_scroll_bar(UI_ScrollPosition position, S64 first_row, S64 last_row, S64 visible_rows);
 
+// NOTE(simon): Color picking
+internal UI_Input ui_saturation_value_picker(V4F32 *color);
+internal UI_Input ui_hue_picker(V4F32 *color);
+internal UI_Input ui_alpha_picker(V4F32 *color);
+internal B32 ui_color_picker(V4F32 *color, UI_Size size, UI_Size bar_width, UI_Size spacing);
+
 #endif //UI_BASIC_H
