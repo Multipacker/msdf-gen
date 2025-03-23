@@ -1,4 +1,5 @@
 internal Void draw_begin_frame(Void) {
+    prof_function_begin();
     Draw_Context *draw = &global_draw_context;
     if (!draw->arena) {
         draw->arena = arena_create();
@@ -7,6 +8,7 @@ internal Void draw_begin_frame(Void) {
     arena_reset(draw->arena);
 
     draw->list_stack = 0;
+    prof_function_end();
 }
 
 internal Void draw_submit_list(Draw_List *list) {
