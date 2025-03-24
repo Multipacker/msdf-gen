@@ -92,11 +92,11 @@ internal S32 os_run(Str8List arguments) {
 
             theme->text  = text;
             theme->weak_text = subtext0;
-            theme->hover = overlay2;
+            theme->hover = overlay1;
             theme->cursor = rosewater;
             theme->selection = overlay2;
             theme->selection.a = 0.3f;
-            theme->focus = rosewater;
+            theme->focus = lavender;
 
             theme->disabled_overlay         = overlay0;
             theme->disabled_overlay.a       = 0.5f;
@@ -115,7 +115,7 @@ internal S32 os_run(Str8List arguments) {
             theme->button_background       = surface0;
             theme->button_border           = surface0;
 
-            theme->outline   = overlay0;
+            theme->outline   = surface2;
             theme->on_curve  = green;
             theme->off_curve = red;
         }
@@ -153,11 +153,11 @@ internal S32 os_run(Str8List arguments) {
 
             theme->text  = text;
             theme->weak_text = subtext0;
-            theme->hover = overlay2;
+            theme->hover = overlay1;
             theme->cursor = rosewater;
             theme->selection = overlay2;
             theme->selection.a = 0.3f;
-            theme->focus = rosewater;
+            theme->focus = lavender;
 
             theme->disabled_overlay         = overlay0;
             theme->disabled_overlay.a       = 0.5f;
@@ -176,7 +176,7 @@ internal S32 os_run(Str8List arguments) {
             theme->button_background       = surface0;
             theme->button_border           = surface0;
 
-            theme->outline   = overlay0;
+            theme->outline   = surface2;
             theme->on_curve  = green;
             theme->off_curve = red;
         }
@@ -214,11 +214,11 @@ internal S32 os_run(Str8List arguments) {
 
             theme->text  = text;
             theme->weak_text = subtext0;
-            theme->hover = overlay2;
+            theme->hover = overlay1;
             theme->cursor = rosewater;
             theme->selection = overlay2;
             theme->selection.a = 0.3f;
-            theme->focus = rosewater;
+            theme->focus = lavender;
 
             theme->disabled_overlay         = overlay0;
             theme->disabled_overlay.a       = 0.5f;
@@ -237,7 +237,7 @@ internal S32 os_run(Str8List arguments) {
             theme->button_background       = surface0;
             theme->button_border           = surface0;
 
-            theme->outline   = overlay0;
+            theme->outline   = surface2;
             theme->on_curve  = green;
             theme->off_curve = red;
         }
@@ -275,11 +275,11 @@ internal S32 os_run(Str8List arguments) {
 
             theme->text  = text;
             theme->weak_text = subtext0;
-            theme->hover = overlay2;
+            theme->hover = overlay1;
             theme->cursor = rosewater;
             theme->selection = overlay2;
             theme->selection.a = 0.3f;
-            theme->focus = rosewater;
+            theme->focus = lavender;
 
             theme->disabled_overlay         = overlay0;
             theme->disabled_overlay.a       = 0.5f;
@@ -298,7 +298,7 @@ internal S32 os_run(Str8List arguments) {
             theme->button_background       = surface0;
             theme->button_border           = surface0;
 
-            theme->outline   = overlay0;
+            theme->outline   = surface2;
             theme->on_curve  = green;
             theme->off_curve = red;
         }
