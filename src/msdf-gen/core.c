@@ -1834,7 +1834,9 @@ internal Void update(Void) {
                                 );
                             }
                         }
+                    }
 
+                    for (U32 i = 0; i < array_count(targets); ++i) {
                         if (ui_keys_match(targets[i].key, ui_drop_hot_key())) {
                             Axis2 split_axis = axis2_from_direction2(targets[i].direction);
                             Side split_side = side_from_direction2(targets[i].direction);
