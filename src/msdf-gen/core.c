@@ -1498,7 +1498,7 @@ internal Void update(Void) {
                         ui_parent(drop_site)
                         ui_width(ui_size_fill())
                         ui_height(ui_size_fill())
-                        ui_palette(palette_from_code(PaletteCode_DropSiteOverlay))
+                        ui_palette(palette_from_code(PaletteCode_Base))
                         ui_padding(ui_size_pixels(padding, 1.0f))
                         ui_row()
                         ui_padding(ui_size_pixels(padding, 1.0f)) {
@@ -1512,7 +1512,7 @@ internal Void update(Void) {
                             UI_Box *visualization = ui_create_box(UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawBorder | UI_BoxFlag_DrawDropShadow);
                             ui_parent(visualization)
                             ui_padding(ui_size_pixels(padding, 1.0f))
-                            {
+                            ui_palette(palette_from_code(PaletteCode_Button)) {
                                 ui_layout_axis_next(axis2_flip(split_axis));
                                 UI_Box *row_or_column = ui_create_box(0);
                                 ui_parent(row_or_column)
@@ -1579,7 +1579,7 @@ internal Void update(Void) {
                     ui_parent(drop_site)
                     ui_width(ui_size_fill())
                     ui_height(ui_size_fill())
-                    ui_palette(palette_from_code(PaletteCode_DropSiteOverlay))
+                    ui_palette(palette_from_code(PaletteCode_Base))
                     ui_padding(ui_size_pixels(padding, 1.0f))
                     ui_row()
                     ui_padding(ui_size_pixels(padding, 1.0f)) {
@@ -1592,7 +1592,7 @@ internal Void update(Void) {
                         UI_Box *visualization = ui_create_box(UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawBorder | UI_BoxFlag_DrawDropShadow);
                         ui_parent(visualization)
                         ui_padding(ui_size_pixels(padding, 1.0f))
-                        {
+                        ui_palette(palette_from_code(PaletteCode_Button)) {
                             ui_layout_axis_next(split_axis);
                             UI_Box *row_or_column = ui_create_box(0);
                             ui_parent(row_or_column)
@@ -1762,6 +1762,7 @@ internal Void update(Void) {
                     ui_corner_radius(corner_radius)
                     for (U32 i = 0; i < array_count(targets); ++i) {
                         Axis2 axis = axis2_from_direction2(targets[i].direction);
+                        Side side = side_from_direction2(targets[i].direction);
                         if (targets[i].direction != Direction2_Invalid && panel->parent && axis == panel->parent->split_axis) {
                             continue;
                         }
@@ -1776,7 +1777,7 @@ internal Void update(Void) {
                         ui_parent(drop_site)
                         ui_width(ui_size_fill())
                         ui_height(ui_size_fill())
-                        ui_palette(palette_from_code(PaletteCode_DropSiteOverlay))
+                        ui_palette(palette_from_code(PaletteCode_Base))
                         ui_padding(ui_size_pixels(padding, 1.0f))
                         ui_row()
                         ui_padding(ui_size_pixels(padding, 1.0f)) {
@@ -1790,22 +1791,23 @@ internal Void update(Void) {
                             ui_parent(visualization)
                             ui_width(ui_size_fill())
                             ui_height(ui_size_fill())
-                            ui_padding(ui_size_pixels(padding, 1.0f)) {
+                            ui_padding(ui_size_pixels(padding, 1.0f))
+                            ui_palette(palette_from_code(PaletteCode_Button)) {
                                 if (targets[i].direction != Direction2_Invalid) {
                                     ui_layout_axis_next(axis);
                                     UI_Box *row_or_column = ui_create_box(0);
                                     ui_parent(row_or_column)
                                     ui_padding(ui_size_pixels(padding, 1.0f)) {
-                                        ui_create_box(UI_BoxFlag_DrawBorder);
+                                        ui_create_box(side == Side_Min ? UI_BoxFlag_DrawBackground : UI_BoxFlag_DrawBorder);
                                         ui_spacer_sized(ui_size_pixels(padding, 1.0f));
-                                        ui_create_box(UI_BoxFlag_DrawBorder);
+                                        ui_create_box(side == Side_Max ? UI_BoxFlag_DrawBackground : UI_BoxFlag_DrawBorder);
                                     }
                                 } else {
                                     ui_layout_axis_next(axis);
                                     UI_Box *row_or_column = ui_create_box(0);
                                     ui_parent(row_or_column)
                                     ui_padding(ui_size_pixels(padding, 1.0f)) {
-                                        ui_create_box(UI_BoxFlag_DrawBorder);
+                                        ui_create_box(UI_BoxFlag_DrawBackground);
                                     }
                                 }
                             }
