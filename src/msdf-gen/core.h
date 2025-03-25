@@ -274,7 +274,7 @@ struct State {
     // NOTE(simon): Drag and drop state
     DragState drag_state;
 
-    B32 only_mapped;
+    B32 all_of_unicode;
     Arena *ttf_arena;
     TTF_Font *ttf_font;
     U32 selected_codepoint;

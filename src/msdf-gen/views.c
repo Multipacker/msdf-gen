@@ -93,15 +93,15 @@ PANEL_BUILD_FUNCTION(view_glyph_list) {
 
     // NOTE(simon): Get codepoint ranges.
     TTF_CodepointMap codepoint_map = { 0 };
-    if (global_state->only_mapped) {
-        codepoint_map = global_state->ttf_font->codepoint_map;
-    } else {
+    if (global_state->all_of_unicode) {
         TTF_CodepointRange *codepoint_range = arena_push_struct_zero(ui_frame_arena(), TTF_CodepointRange);
         codepoint_range->size = 0x110000;
 
         codepoint_map.ranges = codepoint_range;
         codepoint_map.range_count = 1;
         codepoint_map.codepoint_count = codepoint_range->size;
+    } else {
+        codepoint_map = global_state->ttf_font->codepoint_map;
     }
 
     // NOTE(simon): Build

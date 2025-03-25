@@ -1054,7 +1054,7 @@ internal Void update(Void) {
                     ui_event->flags = UI_EventFlag_Copy | UI_EventFlag_Delete;
                 } break;
                 case Command_ToggleListView: {
-                    state->only_mapped = !state->only_mapped;
+                    state->all_of_unicode = !state->all_of_unicode;
                 } break;
                 case Command_OpenCommandLister: {
                     state->show_command_lister = true;
