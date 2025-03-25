@@ -697,12 +697,12 @@ internal Void update(Void) {
                         }
 
                         if (new_panel->previous) {
-                            new_panel->animated_rectangle = new_panel->previous->animated_rectangle;
-                            new_panel->animated_rectangle.min.values[axis] = new_panel->animated_rectangle.max.values[axis];
+                            new_panel->animated_rectangle_percentage = new_panel->previous->animated_rectangle_percentage;
+                            new_panel->animated_rectangle_percentage.min.values[axis] = new_panel->animated_rectangle_percentage.max.values[axis];
                         }
                         if (new_panel->next) {
-                            new_panel->animated_rectangle = new_panel->next->animated_rectangle;
-                            new_panel->animated_rectangle.max.values[axis] = new_panel->animated_rectangle.min.values[axis];
+                            new_panel->animated_rectangle_percentage = new_panel->next->animated_rectangle_percentage;
+                            new_panel->animated_rectangle_percentage.max.values[axis] = new_panel->animated_rectangle_percentage.min.values[axis];
                         }
 
                         Panel *move_panel = panel_from_handle(command_context->panel);
@@ -1702,24 +1702,29 @@ internal Void update(Void) {
         prof_zone_end(prof_bulid_non_leaf_ui);
 
         // NOTE(simon): Animate panels.
-        // TODO(simon): This should be switched to a percentage of the window size.
         for (Panel *panel = state->panel_root; panel; panel = panel_iterator_depth_first_pre_order(panel).next) {
             R2F32 target = rectangle_from_panel(panel, root_rectangle);
+            R2F32 target_percentage = r2f32(
+                target.min.x / (F32) client_area.x,
+                target.min.y / (F32) client_area.y,
+                target.max.x / (F32) client_area.x,
+                target.max.y / (F32) client_area.y
+            );
 
             B32 is_animating = false;
-            is_animating |= f32_abs(target.min.x - panel->animated_rectangle.min.x) > 0.5f;
-            is_animating |= f32_abs(target.min.y - panel->animated_rectangle.min.y) > 0.5f;
-            is_animating |= f32_abs(target.max.x - panel->animated_rectangle.max.x) > 0.5f;
-            is_animating |= f32_abs(target.max.y - panel->animated_rectangle.max.y) > 0.5f;
+            is_animating |= f32_abs(target.min.x - panel->animated_rectangle_percentage.min.x * (F32) client_area.x) > 0.5f;
+            is_animating |= f32_abs(target.min.y - panel->animated_rectangle_percentage.min.y * (F32) client_area.y) > 0.5f;
+            is_animating |= f32_abs(target.max.x - panel->animated_rectangle_percentage.max.x * (F32) client_area.x) > 0.5f;
+            is_animating |= f32_abs(target.max.y - panel->animated_rectangle_percentage.max.y * (F32) client_area.y) > 0.5f;
 
             if (is_animating) {
-                panel->animated_rectangle.min.x += (target.min.x - panel->animated_rectangle.min.x) * ui_animation_fast_rate();
-                panel->animated_rectangle.min.y += (target.min.y - panel->animated_rectangle.min.y) * ui_animation_fast_rate();
-                panel->animated_rectangle.max.x += (target.max.x - panel->animated_rectangle.max.x) * ui_animation_fast_rate();
-                panel->animated_rectangle.max.y += (target.max.y - panel->animated_rectangle.max.y) * ui_animation_fast_rate();
+                panel->animated_rectangle_percentage.min.x += (target_percentage.min.x - panel->animated_rectangle_percentage.min.x) * ui_animation_fast_rate();
+                panel->animated_rectangle_percentage.min.y += (target_percentage.min.y - panel->animated_rectangle_percentage.min.y) * ui_animation_fast_rate();
+                panel->animated_rectangle_percentage.max.x += (target_percentage.max.x - panel->animated_rectangle_percentage.max.x) * ui_animation_fast_rate();
+                panel->animated_rectangle_percentage.max.y += (target_percentage.max.y - panel->animated_rectangle_percentage.max.y) * ui_animation_fast_rate();
                 request_frame();
             } else {
-                panel->animated_rectangle = target;
+                panel->animated_rectangle_percentage = target_percentage;
             }
         }
 
@@ -1734,7 +1739,15 @@ internal Void update(Void) {
             push_context(.panel = handle_from_panel(panel), .tab = panel->active_tab);
 
             ui_focus(panel == panel_from_handle(state->active_panel) && !state->show_command_lister ? UI_Focus_None : UI_Focus_Inactive) {
-                R2F32 panel_rectangle = r2f32_pad(panel->animated_rectangle, -panel_pad);
+                R2F32 panel_rectangle = r2f32_pad(
+                    r2f32(
+                        panel->animated_rectangle_percentage.min.x * (F32) client_area.x,
+                        panel->animated_rectangle_percentage.min.y * (F32) client_area.y,
+                        panel->animated_rectangle_percentage.max.x * (F32) client_area.x,
+                        panel->animated_rectangle_percentage.max.y * (F32) client_area.y
+                    ),
+                    -panel_pad
+                );
 
                 if (drag_is_active() && r2f32_contains_v2f32(panel_rectangle, ui_mouse())) {
                     V2F32 center = r2f32_center(panel_rectangle);
