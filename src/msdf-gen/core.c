@@ -1158,7 +1158,17 @@ internal Void update(Void) {
             Handle tab;
         };
 
-        // NOTE(simon): Build command lister
+        // NOTE(simon): Animate command lister.
+        {
+            if (f32_abs((F32) state->show_command_lister - state->command_lister_t) > 0.001f) {
+                state->command_lister_t += ((F32) state->show_command_lister - state->command_lister_t) * ui_animation_fast_rate();
+                request_frame();
+            } else {
+                state->command_lister_t = (F32) state->show_command_lister;
+            }
+        }
+
+        // NOTE(simon): Build command lister.
         if (state->show_command_lister) {
             Arena_Temporary scratch = arena_get_scratch(0, 0);
 
@@ -1216,8 +1226,8 @@ internal Void update(Void) {
                 quicksort(commands, command_count);
             }
 
-            F32 command_rectangle_width  = (F32) client_area.width * 0.6f;
-            F32 command_rectangle_height = (F32) client_area.height * 0.8f;
+            F32 command_rectangle_width  = (F32) client_area.width * 0.6f * state->command_lister_t;
+            F32 command_rectangle_height = (F32) client_area.height * 0.8f * state->command_lister_t;
 
             ui_fixed_x_next(((F32) client_area.width  - command_rectangle_width)  / 2.0f);
             ui_fixed_y_next(((F32) client_area.height - command_rectangle_height) / 2.0f);

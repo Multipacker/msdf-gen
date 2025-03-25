@@ -298,6 +298,7 @@ struct State {
     U64 previous_auto_save;
 
     B32 show_command_lister;
+    F32 command_lister_t;
 };
 
 global State *global_state;
