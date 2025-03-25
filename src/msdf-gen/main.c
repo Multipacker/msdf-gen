@@ -20,7 +20,6 @@
 
 /*
  * TODO before next release:
- * * Bake the UI font into the executable
  * * Improve the look of the preview when dragging tabs
  * * More carefully think about how filtering in the command lister works
  *

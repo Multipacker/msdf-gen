@@ -237,6 +237,8 @@ struct Panel {
 
     Handle active_tab;
 
+    R2F32 animated_rectangle;
+
     U64 generation;
 };
 
