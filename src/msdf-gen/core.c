@@ -1182,6 +1182,7 @@ internal Void update(Void) {
             CommandItem commands[Command_COUNT] = { 0 };
             U64 command_count = 0;
 
+            // NOTE(simon): Gather commands.
             {
                 // NOTE(simon): Fill commands
                 for (CommandKind command = 0; command < array_count(commands); ++command) {
@@ -1203,16 +1204,9 @@ internal Void update(Void) {
                     // NOTE(simon): If there are search terms and no matches, remove the item.
                     remove |= matches.needle_parts && !matches.count;
 
-                    // NOTE(simon): If the number of mathes and number of
-                    // search terms differ by more than 1, remove the item.
-                    // TODO(simon): This rule can include more items when you
-                    // specify more terms, meaning a more specific search could
-                    // introduce more items. This is generally undesireable,
-                    // but means you get a bit more out of the fuzzy matcher
-                    // which could help you find what you want. Sorting bases
-                    // on number of matches partially solves this issue, but
-                    // I'd like to find an even better filter.
-                    remove |= matches.needle_parts - matches.count > 1;
+                    // NOTE(simon): If the number of mathes doesn't match the
+                    // number of search terms, remove the item.
+                    remove |= matches.needle_parts != matches.count;
 
                     if (remove) {
                         swap(commands[i], commands[command_count - 1], CommandItem);
@@ -1287,11 +1281,11 @@ internal Void update(Void) {
                 container->view_offset.y = height * (f32_mod(position.offset, 1.0f) + (position.offset < 0.0f));
 
                 ui_parent(container)
-                ui_palette(palette_from_code(PaletteCode_Button))
                 ui_width(ui_size_fill())
                 ui_height(ui_size_pixels(height, 1.0f)) {
                     for (S64 i = top_row; i < bottom_row; ++i) {
                         ui_focus_push(i == active_index ? UI_Focus_Active : UI_Focus_Inactive);
+                        ui_palette_push(palette_from_code(i % 2 == 0 ? PaletteCode_Button : PaletteCode_Base));
 
                         ui_hover_cursor_next(Gfx_Cursor_Hand);
                         ui_layout_axis_next(Axis2_Y);
@@ -1325,6 +1319,7 @@ internal Void update(Void) {
                             memory_zero_struct(&position);
                         }
 
+                        ui_palette_pop();
                         ui_focus_pop();
                     }
 
