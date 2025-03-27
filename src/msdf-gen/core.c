@@ -599,6 +599,10 @@ internal Void update(Void) {
                     V2F32 panel_center = { 0 };
                     Panel *sibling = 0;
 
+                    // TODO(simon): This should not be based on animation state
+                    // as that is less predictable and not consistent unless
+                    // you wait out the animations.
+
                     // NOTE(simon): Find closest sibling along our movement axis.
                     if (panel) {
                         panel_center = r2f32_center(panel->animated_rectangle_percentage);

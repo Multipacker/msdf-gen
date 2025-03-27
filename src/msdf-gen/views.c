@@ -23,7 +23,7 @@ internal UI_BOX_DRAW_FUNCTION(draw_ui_msdf) {
 
     V2F32 box_size = v2f32_subtract(box->calculated_rectangle.max, box->calculated_rectangle.min);
     V2F32 glyph_size = r2f32_size(glyph->rectangle_pt);
-    F32 scale_to_fit = f32_min(box_size.x / glyph_size.x, box_size.y / glyph_size.y);
+    F32 scale_to_fit = 0.8f * f32_min(box_size.x / glyph_size.x, box_size.y / glyph_size.y);
 
     M3F32 center_glyph = m3f32_translation(v2f32_negate(r2f32_center(glyph->rectangle_pt)));
     M3F32 scale        = m3f32_scale(v2f32(scale_to_fit, scale_to_fit));
