@@ -390,9 +390,9 @@ internal Void quicksort(CommandItem *commands, U64 command_count) {
     U64 first_index  = 0;
     U64 middle_index = command_count / 2;
     U64 last_index   = command_count - 1;
-    if (command_item_compare(commands[first_index], commands[middle_index]) > 0 ^ command_item_compare(commands[first_index], commands[last_index]) > 0) {
+    if ((command_item_compare(commands[first_index], commands[middle_index]) > 0) ^ (command_item_compare(commands[first_index], commands[last_index]) > 0)) {
         pivot_index = first_index;
-    } else if (command_item_compare(commands[middle_index], commands[first_index]) < 0 ^ command_item_compare(commands[middle_index], commands[last_index]) < 0) {
+    } else if ((command_item_compare(commands[middle_index], commands[first_index]) < 0) ^ (command_item_compare(commands[middle_index], commands[last_index]) < 0)) {
         pivot_index = middle_index;
     } else {
         pivot_index = last_index;
