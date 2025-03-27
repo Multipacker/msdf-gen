@@ -2089,6 +2089,11 @@ internal Void update(Void) {
                     }
                 }
 
+                if (panel == panel_from_handle(state->active_panel)) {
+                    UI_Palette overlay = ui_palette_top();
+                    overlay.border = color_from_theme(ThemeColor_Focus);
+                    ui_palette_next(overlay);
+                }
                 ui_fixed_position_next(content_rectangle.min);
                 ui_width_next(ui_size_pixels(r2f32_size(content_rectangle).width, 1.0f));
                 ui_height_next(ui_size_pixels(r2f32_size(content_rectangle).height, 1.0f));
