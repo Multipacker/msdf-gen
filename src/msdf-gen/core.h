@@ -113,6 +113,10 @@ struct Context {
 // NOTE(simon): Enum name, show in command lister, display name, description
 #define COMMANDS                                                                                                                                  \
     X(FocusPanel,           false, "Focus panel",                 "Focuses a panel")                                                              \
+    X(FocusPanelLeft,       true,  "Focus panel left",            "Focuses a panel to the left")                                                  \
+    X(FocusPanelUp,         true,  "Focus panel up",              "Focuses a panel to up")                                                        \
+    X(FocusPanelRight,      true,  "Focus panel right",           "Focuses a panel to the right")                                                 \
+    X(FocusPanelDown,       true,  "Focus panel down",            "Focuses a panel to down")                                                      \
     X(ClosePanel,           true,  "Close panel",                 "Closes the current panel")                                                     \
     X(SplitPanel,           true,  "Split panel",                 "Splits a panel")                                                               \
     X(OpenTab,              false, "Open tab",                    "Opens a new tab")                                                              \

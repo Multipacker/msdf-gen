@@ -484,6 +484,10 @@ internal Void update(Void) {
             { Gfx_Key_F1,        0                      ,                         Command_OpenCommandLister,    },
             { Gfx_Key_Return,    0                      ,                         Command_Accept,               },
             { Gfx_Key_Escape,    0                      ,                         Command_Cancel,               },
+            { Gfx_Key_H,         Gfx_KeyModifier_Control,                         Command_FocusPanelLeft,       },
+            { Gfx_Key_J,         Gfx_KeyModifier_Control,                         Command_FocusPanelDown,       },
+            { Gfx_Key_K,         Gfx_KeyModifier_Control,                         Command_FocusPanelUp,         },
+            { Gfx_Key_L,         Gfx_KeyModifier_Control,                         Command_FocusPanelRight,      },
     };
 
     // NOTE(simon): Process key bindings.
@@ -570,6 +574,79 @@ internal Void update(Void) {
             switch (node->command.kind) {
                 case Command_FocusPanel: {
                     state->active_panel = command_context->panel;
+                } break;
+                case Command_FocusPanelLeft:
+                case Command_FocusPanelUp:
+                case Command_FocusPanelRight:
+                case Command_FocusPanelDown: {
+                    // NOTE(simon): Extract direction and side from direction.
+                    Axis2 movement_axis = Axis2_Invalid;
+                    Side  movement_side = Side_Invalid;
+                    if (node->command.kind == Command_FocusPanelLeft || node->command.kind == Command_FocusPanelRight) {
+                        movement_axis = Axis2_X;
+                    }
+                    if (node->command.kind == Command_FocusPanelUp || node->command.kind == Command_FocusPanelDown) {
+                        movement_axis = Axis2_Y;
+                    }
+                    if (node->command.kind == Command_FocusPanelLeft || node->command.kind == Command_FocusPanelUp) {
+                        movement_side = Side_Min;
+                    }
+                    if (node->command.kind == Command_FocusPanelRight || node->command.kind == Command_FocusPanelDown) {
+                        movement_side = Side_Max;
+                    }
+
+                    Panel *panel = panel_from_handle(command_context->panel);
+                    V2F32 panel_center = { 0 };
+                    Panel *sibling = 0;
+
+                    // NOTE(simon): Find closest sibling along our movement axis.
+                    if (panel) {
+                        panel_center = r2f32_center(panel->animated_rectangle_percentage);
+                        sibling = panel;
+
+                        if (movement_side == Side_Min) {
+                            while (sibling->parent && !(sibling->parent->split_axis == movement_axis && sibling->previous)) {
+                                sibling = sibling->parent;
+                            }
+
+                            if (sibling && sibling->previous) {
+                                sibling = sibling->previous;
+                            }
+                        } else if (movement_side == Side_Max) {
+                            while (sibling->parent && !(sibling->parent->split_axis == movement_axis && sibling->next)) {
+                                sibling = sibling->parent;
+                            }
+
+                            if (sibling && sibling->next) {
+                                sibling = sibling->next;
+                            }
+                        }
+                    }
+
+                    // NOTE(simon): Find the closest child in the selected sibling.
+                    Panel *best_child = 0;
+                    F32 best_distance = f32_infinity();
+                    if (sibling->first) {
+                        for (Panel *child = sibling; child; child = panel_iterator_depth_first_pre_order(child, sibling).next) {
+                            if (child->first) {
+                                continue;
+                            }
+
+                            V2F32 child_center = r2f32_center(child->animated_rectangle_percentage);
+                            F32 distance = f32_abs(panel_center.x - child_center.x) + f32_abs(panel_center.y - child_center.y);
+
+                            if (distance < best_distance) {
+                                best_distance = distance;
+                                best_child = child;
+                            }
+                        }
+                    } else {
+                        best_child = sibling;
+                    }
+
+                    if (best_child) {
+                        state->active_panel = handle_from_panel(best_child);
+                    }
                 } break;
                 case Command_ClosePanel: {
                     Panel *panel = panel_from_handle(command_context->panel);
