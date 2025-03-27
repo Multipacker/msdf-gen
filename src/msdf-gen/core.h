@@ -2,27 +2,29 @@
 #define CORE_H
 
 #define THEME_COLORS \
-    X(Text,                  text,                    "Text")                    \
-    X(WeakText,              weak_text,               "Weak text")               \
-    X(Hover,                 hover,                   "Hover")                   \
-    X(Cursor,                cursor,                  "Cursor")                  \
-    X(Selection,             selection,               "Selection")               \
-    X(Focus,                 focus,                   "Focus")                   \
-    X(DropShadow,            drop_shadow,             "Drop shadow")             \
-    X(DisabledOverlay,       disabled_overlay,        "Disabled overlay")        \
-    X(DropSiteOverlay,       drop_site_overlay,       "Drop site overlay")       \
-    X(InactivePanelOverlay,  inactive_panel_overlay,  "Inactive panel overlay")  \
-    X(BaseBackground,        base_background,         "Base background")         \
-    X(BaseBorder,            base_border,             "Base border")             \
-    X(TabBackground,         tab_background,          "Tab background")          \
-    X(TabBorder,             tab_border,              "Tab border")              \
-    X(InactiveTabBackground, inactive_tab_background, "Inactive tab background") \
-    X(InactiveTabBorder,     inactive_tab_border,     "Inactive tab border")     \
-    X(ButtonBackground,      button_background,       "Button background")       \
-    X(ButtonBorder,          button_border,           "Button border")           \
-    X(Outline,               outline,                 "Outline")                 \
-    X(OnCurve,               on_curve,                "On curve")                \
-    X(OffCurve,              off_curve,               "Off curve")
+    X(Text,                      text,                        "Text")                        \
+    X(WeakText,                  weak_text,                   "Weak text")                   \
+    X(Hover,                     hover,                       "Hover")                       \
+    X(Cursor,                    cursor,                      "Cursor")                      \
+    X(Selection,                 selection,                   "Selection")                   \
+    X(Focus,                     focus,                       "Focus")                       \
+    X(DropShadow,                drop_shadow,                 "Drop shadow")                 \
+    X(DisabledOverlay,           disabled_overlay,            "Disabled overlay")            \
+    X(DropSiteOverlay,           drop_site_overlay,           "Drop site overlay")           \
+    X(InactivePanelOverlay,      inactive_panel_overlay,      "Inactive panel overlay")      \
+    X(BaseBackground,            base_background,             "Base background")             \
+    X(BaseBorder,                base_border,                 "Base border")                 \
+    X(TabBackground,             tab_background,              "Tab background")              \
+    X(TabBorder,                 tab_border,                  "Tab border")                  \
+    X(InactiveTabBackground,     inactive_tab_background,     "Inactive tab background")     \
+    X(InactiveTabBorder,         inactive_tab_border,         "Inactive tab border")         \
+    X(ButtonBackground,          button_background,           "Button background")           \
+    X(ButtonBorder,              button_border,               "Button border")               \
+    X(SecondaryButtonBackground, secondary_button_background, "Secondary button background") \
+    X(SecondaryButtonBorder,     secondary_button_border,     "Secondary button border")     \
+    X(Outline,                   outline,                     "Outline")                     \
+    X(OnCurve,                   on_curve,                    "On curve")                    \
+    X(OffCurve,                  off_curve,                   "Off curve")
 
 #define X(name, snake_name, display_name) ThemeColor_##name,
 typedef enum {
@@ -55,6 +57,7 @@ global Theme global_themes[4];
 typedef enum {
     PaletteCode_Base,
     PaletteCode_Button,
+    PaletteCode_SecondaryButton,
     PaletteCode_Tab,
     PaletteCode_InactiveTab,
     PaletteCode_DropSiteOverlay,

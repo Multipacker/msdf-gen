@@ -1123,6 +1123,9 @@ internal Void update(Void) {
     state->palettes[PaletteCode_Button].background = state->theme.button_background;
     state->palettes[PaletteCode_Button].border     = state->theme.button_border;
     state->palettes[PaletteCode_Button].text       = state->theme.text;
+    state->palettes[PaletteCode_SecondaryButton].background = state->theme.secondary_button_background;
+    state->palettes[PaletteCode_SecondaryButton].border     = state->theme.secondary_button_border;
+    state->palettes[PaletteCode_SecondaryButton].text       = state->theme.text;
     state->palettes[PaletteCode_Tab].background = state->theme.tab_background;
     state->palettes[PaletteCode_Tab].border     = state->theme.tab_border;
     state->palettes[PaletteCode_Tab].text       = state->theme.text;
@@ -1285,7 +1288,7 @@ internal Void update(Void) {
                 ui_height(ui_size_pixels(height, 1.0f)) {
                     for (S64 i = top_row; i < bottom_row; ++i) {
                         ui_focus_push(i == active_index ? UI_Focus_Active : UI_Focus_Inactive);
-                        ui_palette_push(palette_from_code(i % 2 == 0 ? PaletteCode_Button : PaletteCode_Base));
+                        ui_palette_push(palette_from_code(i % 2 == 0 ? PaletteCode_Button : PaletteCode_SecondaryButton));
 
                         ui_hover_cursor_next(Gfx_Cursor_Hand);
                         ui_layout_axis_next(Axis2_Y);
