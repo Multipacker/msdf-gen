@@ -87,14 +87,14 @@ internal Void panel_free(State *state, Panel *panel) {
     sll_stack_push(state->panel_freelist, panel);
 }
 
-internal PanelIterator panel_iterator_depth_first_pre_order(Panel *panel) {
+internal PanelIterator panel_iterator_depth_first_pre_order(Panel *panel, Panel *root) {
     PanelIterator iterator = { 0 };
 
     if (panel->first) {
         iterator.next = panel->first;
         iterator.push_count = 1;
     } else {
-        for (Panel *parent = panel; parent; parent = parent->parent) {
+        for (Panel *parent = panel; parent && parent != root; parent = parent->parent) {
             if (parent->next) {
                 iterator.next = parent->next;
                 break;
@@ -1477,7 +1477,7 @@ internal Void update(Void) {
 
         // NOTE(simon): Build non-leaf panel UI.
         prof_zone_begin(prof_bulid_non_leaf_ui, "non-leaf ui");
-        for (Panel *panel = state->panel_root; panel; panel = panel_iterator_depth_first_pre_order(panel).next) {
+        for (Panel *panel = state->panel_root; panel; panel = panel_iterator_depth_first_pre_order(panel, 0).next) {
             if (!panel->first) {
                 continue;
             }
@@ -1710,7 +1710,7 @@ internal Void update(Void) {
         prof_zone_end(prof_bulid_non_leaf_ui);
 
         // NOTE(simon): Animate panels.
-        for (Panel *panel = state->panel_root; panel; panel = panel_iterator_depth_first_pre_order(panel).next) {
+        for (Panel *panel = state->panel_root; panel; panel = panel_iterator_depth_first_pre_order(panel, 0).next) {
             R2F32 target = rectangle_from_panel(panel, root_rectangle);
             R2F32 target_percentage = r2f32(
                 target.min.x / (F32) client_area.x,
@@ -1739,7 +1739,7 @@ internal Void update(Void) {
         // NOTE(simon): Build leaf panel UI.
         prof_zone_begin(prof_bulid_leaf_ui, "leaf ui");
         ui_layout_axis(Axis2_Y)
-        for (Panel *panel = state->panel_root; panel; panel = panel_iterator_depth_first_pre_order(panel).next) {
+        for (Panel *panel = state->panel_root; panel; panel = panel_iterator_depth_first_pre_order(panel, 0).next) {
             if (panel->first) {
                 continue;
             }

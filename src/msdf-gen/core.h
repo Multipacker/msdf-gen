@@ -316,7 +316,7 @@ internal Handle handle_from_tab(Tab *tab);
 // NOTE(simon): Panels
 internal Panel        *panel_create(State *state);
 internal Void          panel_free(State *state, Panel *panel);
-internal PanelIterator panel_iterator_depth_first_pre_order(Panel *panel);
+internal PanelIterator panel_iterator_depth_first_pre_order(Panel *panel, Panel *root);
 internal R2F32         rectangle_from_child_panel_parent_rectangle(Panel *parent, Panel *child, R2F32 parent_rectangle);
 internal R2F32         rectangle_from_panel(Panel *panel, R2F32 root_rectangle);
 internal Void          panel_insert(Panel *parent, Panel *previous, Panel *child);
