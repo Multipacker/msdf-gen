@@ -2318,23 +2318,23 @@ internal Void update(Void) {
 
                 if (parent->flags & UI_BoxFlag_Clickable && parent->flags & UI_BoxFlag_FocusActive) {
                     V4F32 color = color_from_theme(ThemeColor_Focus);
-                    color.a *= 0.2f * box->focus_active_t;
+                    color.a *= 0.2f * parent->focus_active_t;
                     Render_Shape *shape = draw_rectangle(parent->calculated_rectangle, color, 0.0f, 0.0f, 0.0f);
                     memory_copy(shape->radies, parent->corner_radies, sizeof(shape->radies));
                 }
 
                 if (parent->flags & UI_BoxFlag_Clickable && parent->flags & UI_BoxFlag_FocusActive) {
                     V4F32 color = color_from_theme(ThemeColor_Focus);
-                    color.a *= box->focus_active_t;
+                    color.a *= parent->focus_active_t;
                     Render_Shape *shape = draw_rectangle(r2f32_pad(parent->calculated_rectangle, 1.0f), color, 0.0f, 1.0f, 1.0f);
                     memory_copy(shape->radies, parent->corner_radies, sizeof(shape->radies));
                 }
 
                 if (parent->flags & UI_BoxFlag_Disabled) {
                     V4F32 color = color_from_theme(ThemeColor_DisabledOverlay);
-                    color.a *= box->disabled_t;
+                    color.a *= parent->disabled_t;
                     Render_Shape *shape = draw_rectangle(parent->calculated_rectangle, color, 0.0f, 0.0f, 1.0f);
-                    memory_copy(shape->radies, box->corner_radies, sizeof(shape->radies));
+                    memory_copy(shape->radies, parent->corner_radies, sizeof(shape->radies));
                 }
             }
 
