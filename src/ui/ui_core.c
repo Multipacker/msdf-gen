@@ -238,6 +238,8 @@ internal Void ui_begin(UI_EventList *events, F32 dt) {
 
     UI_Context *ui = global_ui_state;
 
+    ui->box_count = 0;
+
     // NOTE(simon): Reset stacks
     memory_zero_struct(&ui->parent_stack);
     memory_zero_struct(&ui->palette_stack);
@@ -345,15 +347,15 @@ internal Void ui_begin(UI_EventList *events, F32 dt) {
     prof_function_end();
 }
 
-internal Void ui_layout_independent_sizes(UI_Box *box, Axis2 axis) {
-    if (box->size[axis].kind == UI_Size_Pixels) {
-        box->calculated_size.values[axis] = box->size[axis].value;
-    } else if (box->size[axis].kind == UI_Size_TextContent) {
-        box->calculated_size.values[axis] = box->text.size.values[axis] + 2.0f * box->size[axis].value + 2.0f * box->text_padding.values[axis];
-    }
-
-    for (UI_Box *child = box->first; child != &global_ui_null_box; child = child->next) {
-        ui_layout_independent_sizes(child, axis);
+internal Void ui_layout_independent_sizes(UI_Box **boxes, Axis2 axis) {
+    UI_Context *ui = global_ui_state;
+    for (U64 i = 0; i < ui->box_count; ++i) {
+        UI_Box *box = boxes[i];
+        if (box->size[axis].kind == UI_Size_Pixels) {
+            box->calculated_size.values[axis] = box->size[axis].value;
+        } else if (box->size[axis].kind == UI_Size_TextContent) {
+            box->calculated_size.values[axis] = box->text.size.values[axis] + 2.0f * box->size[axis].value + 2.0f * box->text_padding.values[axis];
+        }
     }
 }
 
@@ -368,46 +370,47 @@ internal Void ui_layout_upwards_dependent_sizes_no_recurse(UI_Box *box, Axis2 ax
     }
 }
 
-internal Void ui_layout_upwards_dependent_sizes(UI_Box *box, Axis2 axis) {
-    ui_layout_upwards_dependent_sizes_no_recurse(box, axis);
-
-    for (UI_Box *child = box->first; child != &global_ui_null_box; child = child->next) {
-        ui_layout_upwards_dependent_sizes(child, axis);
+internal Void ui_layout_upwards_dependent_sizes(UI_Box **boxes, Axis2 axis) {
+    UI_Context *ui = global_ui_state;
+    for (U64 i = 0; i < ui->box_count; ++i) {
+        UI_Box *box = boxes[i];
+        ui_layout_upwards_dependent_sizes_no_recurse(box, axis);
     }
 }
 
-internal Void ui_layout_self_dependent_sizes(UI_Box *box, Axis2 axis) {
-    if (box->size[axis].kind == UI_Size_AspectRatio) {
-        box->calculated_size.values[axis] = box->calculated_size.values[axis2_flip(axis)] * box->size[axis].value;
-    }
-
-    for (UI_Box *child = box->first; child != &global_ui_null_box; child = child->next) {
-        ui_layout_self_dependent_sizes(child, axis);
-    }
-}
-
-internal Void ui_layout_downwards_dependent_sizes(UI_Box *box, Axis2 axis) {
-    for (UI_Box *child = box->first; child != &global_ui_null_box; child = child->next) {
-        ui_layout_downwards_dependent_sizes(child, axis);
-    }
-
-    if (box->size[axis].kind == UI_Size_ChildrenSum) {
-        F32 sum = 0.0f;
-        if (axis == box->layout_axis) {
-            for (UI_Box *child = box->first; child != &global_ui_null_box; child = child->next) {
-                if (!(child->flags & (UI_BoxFlags) (UI_BoxFlag_FloatingX << axis))) {
-                    sum += child->calculated_size.values[axis];
-                }
-            }
-        } else {
-            for (UI_Box *child = box->first; child != &global_ui_null_box; child = child->next) {
-                if (!(child->flags & (UI_BoxFlags) (UI_BoxFlag_FloatingX << axis))) {
-                    sum = f32_max(sum, child->calculated_size.values[axis]);
-                }
-            }
+internal Void ui_layout_self_dependent_sizes(UI_Box **boxes, Axis2 axis) {
+    UI_Context *ui = global_ui_state;
+    for (U64 i = 0; i < ui->box_count; ++i) {
+        UI_Box *box = boxes[i];
+        if (box->size[axis].kind == UI_Size_AspectRatio) {
+            box->calculated_size.values[axis] = box->calculated_size.values[axis2_flip(axis)] * box->size[axis].value;
         }
+    }
+}
 
-        box->calculated_size.values[axis] = sum;
+internal Void ui_layout_downwards_dependent_sizes(UI_Box **boxes, Axis2 axis) {
+    UI_Context *ui = global_ui_state;
+    for (S64 i = (S64) ui->box_count - 1; i >= 0; --i) {
+        UI_Box *box = boxes[i];
+
+        if (box->size[axis].kind == UI_Size_ChildrenSum) {
+            F32 sum = 0.0f;
+            if (axis == box->layout_axis) {
+                for (UI_Box *child = box->first; child != &global_ui_null_box; child = child->next) {
+                    if (!(child->flags & (UI_BoxFlags) (UI_BoxFlag_FloatingX << axis))) {
+                        sum += child->calculated_size.values[axis];
+                    }
+                }
+            } else {
+                for (UI_Box *child = box->first; child != &global_ui_null_box; child = child->next) {
+                    if (!(child->flags & (UI_BoxFlags) (UI_BoxFlag_FloatingX << axis))) {
+                        sum = f32_max(sum, child->calculated_size.values[axis]);
+                    }
+                }
+            }
+
+            box->calculated_size.values[axis] = sum;
+        }
     }
 }
 
@@ -450,48 +453,48 @@ internal Void ui_layout_position(UI_Box *box, Axis2 axis) {
     box->calculated_rectangle.max.values[axis] = f32_floor(box->calculated_rectangle.max.values[axis]);
 }
 
-internal Void ui_layout_resolve_violations(UI_Box *box, Axis2 axis) {
-    if (box->flags & (UI_BoxFlags) (UI_BoxFlag_OverflowX << axis)) {
-        for (UI_Box *child = box->first; child != &global_ui_null_box; child = child->next) {
-            ui_layout_upwards_dependent_sizes_no_recurse(child, axis);
-        }
-    } else {
-        if (axis == box->layout_axis) {
-            F32 total_size = 0.0f;
-            F32 total_adjustable_size = 0.0f;
-            for (UI_Box *child = box->first; child != &global_ui_null_box; child = child->next) {
-                if (!(child->flags & (UI_BoxFlags) (UI_BoxFlag_FloatingX << axis))) {
-                    total_size += child->calculated_size.values[axis];
-                    total_adjustable_size += child->calculated_size.values[axis] * (1.0f - child->size[axis].strictness);
-                }
-            }
+internal Void ui_layout_resolve_violations(UI_Box **boxes, Axis2 axis) {
+    UI_Context *ui = global_ui_state;
+    for (U64 i = 0; i < ui->box_count; ++i) {
+        UI_Box *box = boxes[i];
 
-            F32 violation = total_size - box->calculated_size.values[axis];
-            if (violation > 0.0f && total_adjustable_size > 0.0f) {
-                // NOTE(simon): Adjust children
-                F32 adjust_percent = violation / total_adjustable_size;
+        if (box->flags & (UI_BoxFlags) (UI_BoxFlag_OverflowX << axis)) {
+            for (UI_Box *child = box->first; child != &global_ui_null_box; child = child->next) {
+                ui_layout_upwards_dependent_sizes_no_recurse(child, axis);
+            }
+        } else {
+            if (axis == box->layout_axis) {
+                F32 total_size = 0.0f;
+                F32 total_adjustable_size = 0.0f;
                 for (UI_Box *child = box->first; child != &global_ui_null_box; child = child->next) {
                     if (!(child->flags & (UI_BoxFlags) (UI_BoxFlag_FloatingX << axis))) {
-                        F32 child_size = child->calculated_size.values[axis];
-                        F32 adjustable_size = child_size * (1.0f - child->size[axis].strictness);
+                        total_size += child->calculated_size.values[axis];
+                        total_adjustable_size += child->calculated_size.values[axis] * (1.0f - child->size[axis].strictness);
+                    }
+                }
 
-                        child->calculated_size.values[axis] -= f32_min(adjustable_size * adjust_percent, child_size);
+                F32 violation = total_size - box->calculated_size.values[axis];
+                if (violation > 0.0f && total_adjustable_size > 0.0f) {
+                    // NOTE(simon): Adjust children
+                    F32 adjust_percent = violation / total_adjustable_size;
+                    for (UI_Box *child = box->first; child != &global_ui_null_box; child = child->next) {
+                        if (!(child->flags & (UI_BoxFlags) (UI_BoxFlag_FloatingX << axis))) {
+                            F32 child_size = child->calculated_size.values[axis];
+                            F32 adjustable_size = child_size * (1.0f - child->size[axis].strictness);
+
+                            child->calculated_size.values[axis] -= f32_min(adjustable_size * adjust_percent, child_size);
+                        }
+                    }
+                }
+            } else {
+                for (UI_Box *child = box->first; child != &global_ui_null_box; child = child->next) {
+                    if (!(child->flags & (UI_BoxFlags) (UI_BoxFlag_FloatingX << axis))) {
+                        F32 violation = f32_max(0.0f, child->calculated_size.values[axis] - box->calculated_size.values[axis]);
+                        child->calculated_size.values[axis] -= violation;
                     }
                 }
             }
-        } else {
-            for (UI_Box *child = box->first; child != &global_ui_null_box; child = child->next) {
-                if (!(child->flags & (UI_BoxFlags) (UI_BoxFlag_FloatingX << axis))) {
-                    F32 violation = f32_max(0.0f, child->calculated_size.values[axis] - box->calculated_size.values[axis]);
-                    child->calculated_size.values[axis] -= violation;
-                }
-            }
         }
-    }
-
-    // NOTE(simon): Recurse
-    for (UI_Box *child = box->first; child != &global_ui_null_box; child = child->next) {
-        ui_layout_resolve_violations(child, axis);
     }
 }
 
@@ -523,17 +526,24 @@ internal Void ui_end(Void) {
         ui_context_menu_close();
     }
 
+    prof_zone_begin(prof_collect, "collect");
+    UI_Box **box_array = arena_push_array(ui_frame_arena(), UI_Box *, ui->box_count);
+    for (UI_Box *box = ui->root, **ptr = box_array; box != &global_ui_null_box; box = ui_box_iterator_depth_first_pre_order(box).next) {
+        *ptr++ = box;
+    }
+    prof_zone_end(prof_collect);
+
     // NOTE(simon): Layout
     {
         prof_zone_begin(prof_layout, "layout");
         for (Axis2 axis = 0; axis < Axis2_COUNT; ++axis) {
-            ui_layout_independent_sizes(ui->root, axis);
-            ui_layout_upwards_dependent_sizes(ui->root, axis);
+            ui_layout_independent_sizes(box_array, axis);
+            ui_layout_upwards_dependent_sizes(box_array, axis);
         }
         for (Axis2 axis = 0; axis < Axis2_COUNT; ++axis) {
-            ui_layout_self_dependent_sizes(ui->root, axis);
-            ui_layout_downwards_dependent_sizes(ui->root, axis);
-            ui_layout_resolve_violations(ui->root, axis);
+            ui_layout_self_dependent_sizes(box_array, axis);
+            ui_layout_downwards_dependent_sizes(box_array, axis);
+            ui_layout_resolve_violations(box_array, axis);
             ui_layout_position(ui->root, axis);
         }
         prof_zone_end(prof_layout);
@@ -587,52 +597,51 @@ internal Void ui_end(Void) {
     {
         prof_zone_begin(prof_animate, "animate");
 
-        for (U32 i = 0; i < UI_BOX_TABLE_SIZE; ++i) {
-            UI_BoxList boxes = ui->box_table[i];
-            for (UI_Box *box = boxes.first; box; box = box->hash_next) {
-                B32 is_hot            = ui_keys_match(ui->hot_key, box->key);
-                B32 is_active         = ui_keys_match(ui->active_key[UI_MouseButton_Left], box->key);
-                B32 is_disabled       = !!(box->flags & UI_BoxFlag_Disabled);
-                B32 is_focus_active   = !!(box->flags & UI_BoxFlag_FocusActive);
-                B32 is_focus_disabled = !!(box->flags & UI_BoxFlag_FocusDisabled);
+        for (U64 i = 0; i < ui->box_count; ++i) {
+            UI_Box *box = box_array[i];
 
-                F32 position_x_delta       = (box->calculated_position.x - box->animated_position.x) * ui->fast_rate;
-                F32 position_y_delta       = (box->calculated_position.y - box->animated_position.y) * ui->fast_rate;
-                F32 hot_t_delta            = ((F32) is_hot               - box->hot_t)               * ui->fast_rate;
-                F32 active_t_delta         = ((F32) is_active            - box->active_t)            * ui->fast_rate;
-                F32 disabled_t_delta       = ((F32) is_disabled          - box->disabled_t)          * ui->slow_rate;
-                F32 focus_active_t_delta   = ((F32) is_focus_active      - box->focus_active_t)      * ui->fast_rate;
-                F32 focus_disabled_t_delta = ((F32) is_focus_disabled    - box->focus_disabled_t)    * ui->fast_rate;
+            B32 is_hot            = ui_keys_match(ui->hot_key, box->key);
+            B32 is_active         = ui_keys_match(ui->active_key[UI_MouseButton_Left], box->key);
+            B32 is_disabled       = !!(box->flags & UI_BoxFlag_Disabled);
+            B32 is_focus_active   = !!(box->flags & UI_BoxFlag_FocusActive);
+            B32 is_focus_disabled = !!(box->flags & UI_BoxFlag_FocusDisabled);
 
-                B32 is_animating = false;
-                is_animating |= f32_abs(position_x_delta)       >= 1.0f;
-                is_animating |= f32_abs(position_y_delta)       >= 1.0f;
-                is_animating |= f32_abs(hot_t_delta)            >= 0.001f;
-                is_animating |= f32_abs(active_t_delta)         >= 0.001f;
-                is_animating |= f32_abs(disabled_t_delta)       >= 0.001f;
-                is_animating |= f32_abs(focus_active_t_delta)   >= 0.001f;
-                is_animating |= f32_abs(focus_disabled_t_delta) >= 0.001f;
+            F32 position_x_delta       = (box->calculated_position.x - box->animated_position.x) * ui->fast_rate;
+            F32 position_y_delta       = (box->calculated_position.y - box->animated_position.y) * ui->fast_rate;
+            F32 hot_t_delta            = ((F32) is_hot               - box->hot_t)               * ui->fast_rate;
+            F32 active_t_delta         = ((F32) is_active            - box->active_t)            * ui->fast_rate;
+            F32 disabled_t_delta       = ((F32) is_disabled          - box->disabled_t)          * ui->slow_rate;
+            F32 focus_active_t_delta   = ((F32) is_focus_active      - box->focus_active_t)      * ui->fast_rate;
+            F32 focus_disabled_t_delta = ((F32) is_focus_disabled    - box->focus_disabled_t)    * ui->fast_rate;
 
-                if (is_animating) {
-                    box->animated_position.x += position_x_delta;
-                    box->animated_position.y += position_y_delta;
-                    box->hot_t               += hot_t_delta;
-                    box->active_t            += active_t_delta;
-                    box->disabled_t          += disabled_t_delta;
-                    box->focus_active_t      += focus_active_t_delta;
-                    box->focus_disabled_t    += focus_disabled_t_delta;
-                } else {
-                    box->animated_position.x = box->calculated_position.x;
-                    box->animated_position.y = box->calculated_position.y;
-                    box->hot_t               = (F32) is_hot;
-                    box->active_t            = (F32) is_active;
-                    box->disabled_t          = (F32) is_disabled;
-                    box->focus_active_t      = (F32) is_focus_active;
-                    box->focus_disabled_t    = (F32) is_focus_disabled;
-                }
+            B32 is_animating = false;
+            is_animating |= f32_abs(position_x_delta)       >= 1.0f;
+            is_animating |= f32_abs(position_y_delta)       >= 1.0f;
+            is_animating |= f32_abs(hot_t_delta)            >= 0.001f;
+            is_animating |= f32_abs(active_t_delta)         >= 0.001f;
+            is_animating |= f32_abs(disabled_t_delta)       >= 0.001f;
+            is_animating |= f32_abs(focus_active_t_delta)   >= 0.001f;
+            is_animating |= f32_abs(focus_disabled_t_delta) >= 0.001f;
 
-                ui->is_animating |= is_animating;
+            if (is_animating) {
+                box->animated_position.x += position_x_delta;
+                box->animated_position.y += position_y_delta;
+                box->hot_t               += hot_t_delta;
+                box->active_t            += active_t_delta;
+                box->disabled_t          += disabled_t_delta;
+                box->focus_active_t      += focus_active_t_delta;
+                box->focus_disabled_t    += focus_disabled_t_delta;
+            } else {
+                box->animated_position.x = box->calculated_position.x;
+                box->animated_position.y = box->calculated_position.y;
+                box->hot_t               = (F32) is_hot;
+                box->active_t            = (F32) is_active;
+                box->disabled_t          = (F32) is_disabled;
+                box->focus_active_t      = (F32) is_focus_active;
+                box->focus_disabled_t    = (F32) is_focus_disabled;
             }
+
+            ui->is_animating |= is_animating;
         }
 
         F32 tooltip_t_delta = ((F32) ui->is_tooltip_active - ui->tooltip_t) * ui->fast_rate;
@@ -722,6 +731,7 @@ internal UI_BoxIterator ui_box_iterator_depth_first_pre_order(UI_Box *box) {
 internal UI_Box *ui_create_box_from_key(UI_BoxFlags flags, UI_Key key) {
     prof_function_begin();
     UI_Context *ui = global_ui_state;
+    ++ui->box_count;
     UI_Box *box = ui_box_from_key(key);
 
     // NOTE(simon): Zero the box if it was already used this frame.

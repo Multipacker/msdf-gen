@@ -322,6 +322,7 @@ struct UI_Context {
     Arena *permanent_arena;
     UI_BoxList *box_table;
     UI_Box *box_freelist;
+    U64 box_count;
 
     Arena *frame_arenas[2];
     U64    frame_index;
