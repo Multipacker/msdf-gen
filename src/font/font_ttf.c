@@ -1104,10 +1104,6 @@ internal TTF_Font *ttf_load(Arena *arena, Str8 font_path) {
 
         if (result->tables[TTF_Table_Cmap].data) {
             ttf_choose_character_map(arena, result);
-        }
-
-        if (result->tables[TTF_Table_Cmap].data) {
-            ttf_choose_character_map(arena, result);
             result->codepoint_map = ttf_get_codepoint_map(arena, result);
         }
     } else {
