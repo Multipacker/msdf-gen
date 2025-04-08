@@ -1174,11 +1174,17 @@ internal Void update(Void) {
                     arena_reset(state->ttf_arena);
                     state->ttf_font = &ttf_font_nil;
 
+                    Arena_Temporary scratch = arena_get_scratch(0, 0);
+                    log_scope_begin();
+
                     state->ttf_font = ttf_load(state->ttf_arena, command_context->path);
 
-                    for (Str8Node *error = state->ttf_font->errors.first; error; error = error->next) {
-                        os_console_print(error->string);
+                    LogScopeResult log_result = log_scope_end(scratch.arena);
+
+                    for (LogMessageKind kind = 0; kind < Log_MessageKind_COUNT; ++kind) {
+                        os_console_print(log_result.strings[kind]);
                     }
+                    arena_end_temporary(scratch);
                 } break;
                 case Command_COUNT: {
                 } break;

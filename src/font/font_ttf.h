@@ -299,8 +299,6 @@ typedef struct {
     Str8 character_map;
     U32  character_map_format;
     TTF_CodepointMap codepoint_map;
-
-    Str8List errors;
 } TTF_Font;
 
 global TTF_Font ttf_font_nil = { 0 };

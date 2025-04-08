@@ -25,10 +25,10 @@ internal Void ttf_parse_font_tables(Arena *arena, Str8 data, TTF_Font *font) {
         if (scaler_type == TTF_SCALER_TYPE_TRUE || scaler_type == TTF_SCALER_TYPE_1) {
             table_count = u16_big_to_local_endian(offset_subtable->num_tables);
         } else {
-            str8_list_push(arena, &font->errors, str8_literal("Unknown scaler type.\n"));
+            log_error(str8_literal("Unknown scaler type.\n"));
         }
     } else {
-        str8_list_push(arena, &font->errors, str8_literal("Not enough data for offset subtable.\n"));
+        log_error(str8_literal("Not enough data for offset subtable.\n"));
     }
 
     TTF_TableDirectoryEntry *table_directory_entries = 0;
@@ -36,7 +36,7 @@ internal Void ttf_parse_font_tables(Arena *arena, Str8 data, TTF_Font *font) {
     if (table_directory_data.size >= table_count * sizeof(TTF_TableDirectoryEntry)) {
         table_directory_entries = (TTF_TableDirectoryEntry *) table_directory_data.data;
     } else {
-        str8_list_push(arena, &font->errors, str8_literal("Not enough data for offset subtable.\n"));
+        log_error(str8_literal("Not enough data for offset subtable.\n"));
     }
 
     for (U32 i = 0; i < table_count; ++i) {
@@ -56,12 +56,12 @@ internal Void ttf_parse_font_tables(Arena *arena, Str8 data, TTF_Font *font) {
                     if (!font->tables[j].data) {
                         font->tables[j] = table_data;
                     } else {
-                        str8_list_push(arena, &font->errors, str8_literal("Duplicated entry in the table directory.\n"));
+                        log_error(str8_literal("Duplicated entry in the table directory.\n"));
                     }
                 }
             }
         } else {
-            str8_list_push(arena, &font->errors, str8_literal("Table is referencing data outside of the file.\n"));
+            log_error(str8_literal("Table is referencing data outside of the file.\n"));
         }
     }
 
@@ -71,7 +71,7 @@ internal Void ttf_parse_font_tables(Arena *arena, Str8 data, TTF_Font *font) {
     }
 
     if (!all_present) {
-        str8_list_push(arena, &font->errors, str8_literal("Not all required tables are present.\n"));
+        log_error(str8_literal("Not all required tables are present.\n"));
     }
 }
 
@@ -92,35 +92,35 @@ internal Void ttf_parse_head_table(Arena *arena, TTF_Font *font) {
         S16       glyph_data_format   = s16_big_to_local_endian(head->glyph_data_format);
 
         if (version != TTF_MAKE_VERSION(1, 0)) {
-            str8_list_push(arena, &font->errors, str8_literal("ERROR(font/ttf): Unsupported version of head table.\n"));
+            log_error(str8_literal("ERROR(font/ttf): Unsupported version of head table.\n"));
         }
 
         // TODO: Validate check_sum_adjustment
 
         if (magic_number != TTF_MAGIC_NUMBER) {
-            str8_list_push(arena, &font->errors, str8_literal("Wrong magic number.\n"));
+            log_error(str8_literal("Wrong magic number.\n"));
         }
 
         if ((flags & 0x0020) != 0) {
-            str8_list_push(arena, &font->errors, str8_literal("Flags required to be unset are set.\n"));
+            log_error(str8_literal("Flags required to be unset are set.\n"));
         }
 
         if (!(64 <= units_per_em && units_per_em <= 16384)) {
-            str8_list_push(arena, &font->errors, str8_literal("Invalid number of units per em.\n"));
+            log_error(str8_literal("Invalid number of units per em.\n"));
         }
 
         if (!(-2 <= font_direction_hint && font_direction_hint <= 2)) {
-            str8_list_push(arena, &font->errors, str8_literal("Invalid font direction hint.\n"));
+            log_error(str8_literal("Invalid font direction hint.\n"));
         }
 
         if (glyph_data_format != 0) {
-            str8_list_push(arena, &font->errors, str8_literal("Unknown glyph data format.\n"));
+            log_error(str8_literal("Unknown glyph data format.\n"));
         }
 
         font->funits_per_em       = units_per_em;
         font->lowest_rec_ppem     = lowest_rec_ppem;
     } else {
-        str8_list_push(arena, &font->errors, str8_literal("Not enough data in head table.\n"));
+        log_error(str8_literal("Not enough data in head table.\n"));
     }
 }
 
@@ -138,22 +138,22 @@ internal Void ttf_parse_maxp_table(Arena *arena, TTF_Font *font) {
         U16       max_component_points   = u16_big_to_local_endian(maxp->max_component_points);
 
         if (version != TTF_MAKE_VERSION(1, 0)) {
-            str8_list_push(arena, &font->errors, str8_literal("Unsupported version of maxp table.\n"));
+            log_error(str8_literal("Unsupported version of maxp table.\n"));
         }
 
         if (!(1 <= max_zones && max_zones <= 2)) {
-            str8_list_push(arena, &font->errors, str8_literal("Max zones must between 1 and 2 inclusive.\n"));
+            log_error(str8_literal("Max zones must between 1 and 2 inclusive.\n"));
         }
 
         if (max_component_depth > 16) {
-            str8_list_push(arena, &font->errors, str8_literal("Max component depth is outside of the legal range.\n"));
+            log_error(str8_literal("Max component depth is outside of the legal range.\n"));
         }
 
         font->glyph_count = num_glyphs;
         font->contour_capacity = u16_max(max_contours, max_component_contours);
         font->point_capacity   = u16_max(max_points,   max_component_points);
     } else {
-        str8_list_push(arena, &font->errors, str8_literal("Not enough data in maxp table.\n"));
+        log_error(str8_literal("Not enough data in maxp table.\n"));
     }
 }
 
@@ -171,30 +171,30 @@ internal Void ttf_validate_metrics(Arena *arena, TTF_Font *font) {
         U32 left_side_bearing_count = font->glyph_count - advance_width_count;
 
         if (version != TTF_MAKE_VERSION(1, 0)) {
-            str8_list_push(arena, &font->errors, str8_literal("Unsupported version of hhea table.\n"));
+            log_error(str8_literal("Unsupported version of hhea table.\n"));
         }
 
         if (caret_slope_rise == 0 && caret_slope_run == 0) {
-            str8_list_push(arena, &font->errors, str8_literal("Both the caret slopes rise and run are 0.\n"));
+            log_error(str8_literal("Both the caret slopes rise and run are 0.\n"));
         }
 
         if (!(hhea->reserved0 == 0 && hhea->reserved1 == 0 && hhea->reserved2 == 0 && hhea->reserved3 == 0)) {
-            str8_list_push(arena, &font->errors, str8_literal("Reserved fields in hhea are not set to 0.\n"));
+            log_error(str8_literal("Reserved fields in hhea are not set to 0.\n"));
         }
 
         if (metric_data_format != 0) {
-            str8_list_push(arena, &font->errors, str8_literal("Unknown metric data format.\n"));
+            log_error(str8_literal("Unknown metric data format.\n"));
         }
 
         if (advance_width_count == 0) {
-            str8_list_push(arena, &font->errors, str8_literal("There must be at least one long-form entry in the hmtx table.\n"));
+            log_error(str8_literal("There must be at least one long-form entry in the hmtx table.\n"));
         }
 
         if (hmtx_data.size < advance_width_count * sizeof(TTF_HmtxMetrics) + left_side_bearing_count * sizeof(TTF_FWord)) {
-            str8_list_push(arena, &font->errors, str8_literal("Not enough data in hmtx table.\n"));
+            log_error(str8_literal("Not enough data in hmtx table.\n"));
         }
     } else {
-        str8_list_push(arena, &font->errors, str8_literal("Not enough data in hhea table.\n"));
+        log_error(str8_literal("Not enough data in hhea table.\n"));
     }
 }
 
@@ -321,17 +321,17 @@ internal TTF_CodepointMap ttf_get_codepoint_map(Arena *arena, TTF_Font *font) {
         subtable_count = u16_big_to_local_endian(cmap->number_subtables);
 
         if (version != 0) {
-            str8_list_push(arena, &font->errors, str8_literal("Unsupported version of cmap table.\n"));
+            log_error(str8_literal("Unsupported version of cmap table.\n"));
         }
     } else {
-        str8_list_push(arena, &font->errors, str8_literal("Not enough data for cmap table.\n"));
+        log_error(str8_literal("Not enough data for cmap table.\n"));
     }
 
     Str8 table_data = str8_skip(cmap_data, sizeof(TTF_CmapTable));
     if (table_data.size >= subtable_count * sizeof(TTF_CmapSubtable)) {
         subtables = (TTF_CmapSubtable *) table_data.data;
     } else {
-        str8_list_push(arena, &font->errors, str8_literal("Not enough data for cmap subtables.\n"));
+        log_error(str8_literal("Not enough data for cmap subtables.\n"));
         subtable_count = 0;
     }
 
@@ -354,11 +354,11 @@ internal TTF_CodepointMap ttf_get_codepoint_map(Arena *arena, TTF_Font *font) {
             font->character_map        = subtable_data;
             font->character_map_format = u16_big_to_local_endian(*(U16 *) subtable_data.data);
         } else {
-            str8_list_push(arena, &font->errors, str8_literal("Subtable is outside of cmap table.\n"));
+            log_error(str8_literal("Subtable is outside of cmap table.\n"));
             font->character_map_format = U32_MAX; // NOTE(simon): Intentionally invalid format.
         }
     } else {
-        str8_list_push(arena, &font->errors, str8_literal("Could not find a suitable cmap subtable.\n"));
+        log_error(str8_literal("Could not find a suitable cmap subtable.\n"));
         font->character_map_format = U32_MAX; // NOTE(simon): Intentionally invalid format.
     }
 
@@ -367,7 +367,7 @@ internal TTF_CodepointMap ttf_get_codepoint_map(Arena *arena, TTF_Font *font) {
         case 0: {
             // TODO: Should we allow subtables that are larger here? Technically we can load them, but they might be wrong.
             if (subtable_data.size != sizeof(TTF_CmapFormat0)) {
-                str8_list_push(arena, &font->errors, str8_literal("Not enough data for cmap format 0.\n"));
+                log_error(str8_literal("Not enough data for cmap format 0.\n"));
             } else {
                 TTF_CmapFormat0 *format = (TTF_CmapFormat0 *) subtable_data.data;
 
@@ -391,7 +391,7 @@ internal TTF_CodepointMap ttf_get_codepoint_map(Arena *arena, TTF_Font *font) {
             }
         } break;
         case 2: {
-            str8_list_push(arena, &font->errors, str8_literal("Cmap format 2 is not supported.\n"));
+            log_error(str8_literal("Cmap format 2 is not supported.\n"));
         } break;
         case 4: {
             if (subtable_data.size >= sizeof(TTF_CmapFormat4)) {
@@ -483,10 +483,10 @@ internal TTF_CodepointMap ttf_get_codepoint_map(Arena *arena, TTF_Font *font) {
                         }
                     }
                 } else {
-                    str8_list_push(arena, &font->errors, str8_literal("Not enough data for cmap format 4.\n"));
+                    log_error(str8_literal("Not enough data for cmap format 4.\n"));
                 }
             } else {
-                str8_list_push(arena, &font->errors, str8_literal("Not enough data for cmap format 4.\n"));
+                log_error(str8_literal("Not enough data for cmap format 4.\n"));
             }
         } break;
         case 6: {
@@ -497,7 +497,7 @@ internal TTF_CodepointMap ttf_get_codepoint_map(Arena *arena, TTF_Font *font) {
                 U32 entry_count = u16_big_to_local_endian(format->entry_count);
 
                 if (subtable_data.size < sizeof(TTF_CmapFormat6) + entry_count * sizeof(U16)) {
-                    str8_list_push(arena, &font->errors, str8_literal("Not enough data for cmap format 6.\n"));
+                    log_error(str8_literal("Not enough data for cmap format 6.\n"));
                 } else {
                     U16 *glyph_index_array = (U16 *) &subtable_data.data[sizeof(*format)];
 
@@ -521,14 +521,14 @@ internal TTF_CodepointMap ttf_get_codepoint_map(Arena *arena, TTF_Font *font) {
                     ttf_codepoint_range_list_push(scratch.arena, &ranges, range);
                 }
             } else {
-                str8_list_push(arena, &font->errors, str8_literal("Not enough data for cmap format 6.\n"));
+                log_error(str8_literal("Not enough data for cmap format 6.\n"));
             }
         } break;
         case 8: {
-            str8_list_push(arena, &font->errors, str8_literal("Cmap format 8 is not supported.\n"));
+            log_error(str8_literal("Cmap format 8 is not supported.\n"));
         } break;
         case 10: {
-            str8_list_push(arena, &font->errors, str8_literal("Cmap format 10 is not supported.\n"));
+            log_error(str8_literal("Cmap format 10 is not supported.\n"));
         } break;
         case 12: {
             if (subtable_data.size >= sizeof(TTF_CmapFormat12)) {
@@ -538,9 +538,9 @@ internal TTF_CodepointMap ttf_get_codepoint_map(Arena *arena, TTF_Font *font) {
                 U32 group_count = u32_big_to_local_endian(format->n_groups);
 
                 if (length > subtable_data.size) {
-                    str8_list_push(arena, &font->errors, str8_literal("Not enough data for cmap format 12.\n"));
+                    log_error(str8_literal("Not enough data for cmap format 12.\n"));
                 } else if (sizeof(TTF_CmapFormat12) + group_count * sizeof(TTF_CmapFormat12Group) > subtable_data.size) {
-                    str8_list_push(arena, &font->errors, str8_literal("Not enough data for cmap format 12 groups.\n"));
+                    log_error(str8_literal("Not enough data for cmap format 12 groups.\n"));
                 } else {
                     TTF_CmapFormat12Group *groups      = (TTF_CmapFormat12Group *) &subtable_data.data[sizeof(*format)];
 
@@ -559,21 +559,21 @@ internal TTF_CodepointMap ttf_get_codepoint_map(Arena *arena, TTF_Font *font) {
                     }
                 }
             } else {
-                str8_list_push(arena, &font->errors, str8_literal("Not enough data for cmap format 12.\n"));
+                log_error(str8_literal("Not enough data for cmap format 12.\n"));
             }
         } break;
         case 13: {
-            str8_list_push(arena, &font->errors, str8_literal("Cmap format 13 is not supported.\n"));
+            log_error(str8_literal("Cmap format 13 is not supported.\n"));
         } break;
         case 14: {
-            str8_list_push(arena, &font->errors, str8_literal("Cmap format 14 is not supported.\n"));
+            log_error(str8_literal("Cmap format 14 is not supported.\n"));
         } break;
         // TODO(simon): Switch U32_MAX and similar to be macros to allow use in switch cases.
         case 0xFFFFFFFF: {
             // NOTE(simon): Invalid cmap or we couldn't find a suitable one.
         } break;
         default: {
-            str8_list_push(arena, &font->errors, str8_literal("Unknown cmap format.\n"));
+            log_error(str8_literal("Unknown cmap format.\n"));
         } break;
     }
 
@@ -981,7 +981,7 @@ internal Void ttf_get_glyph_data_ranges(Arena *arena, TTF_Font *font) {
         U64 location_count = u64_min(loca_data.size / sizeof(U16), font->glyph_count + 1);
 
         if (location_count != font->glyph_count + 1) {
-            str8_list_push(arena, &font->errors, str8_literal("Not enough data for short loca table.\n"));
+            log_error(str8_literal("Not enough data for short loca table.\n"));
         }
 
         U16 *offsets = (U16 *) loca_data.data;
@@ -991,12 +991,12 @@ internal Void ttf_get_glyph_data_ranges(Arena *arena, TTF_Font *font) {
             Str8 data = str8_substring(glyf_data, start, end - start);
 
             if (start > end) {
-                str8_list_push(arena, &font->errors, str8_literal("Invalid short loca range (start must be less than end).\n"));
+                log_error(str8_literal("Invalid short loca range (start must be less than end).\n"));
                 data.size = 0;
             }
 
             if (end > glyf_data.size) {
-                str8_list_push(arena, &font->errors, str8_literal("Not enough data for glyf table.\n"));
+                log_error(str8_literal("Not enough data for glyf table.\n"));
                 data.size = 0;
             }
 
@@ -1008,7 +1008,7 @@ internal Void ttf_get_glyph_data_ranges(Arena *arena, TTF_Font *font) {
         U64 location_count = u64_min(loca_data.size / sizeof(U32), font->glyph_count + 1);
 
         if (location_count != font->glyph_count + 1) {
-            str8_list_push(arena, &font->errors, str8_literal("Not enough data for long loca table.\n"));
+            log_error(str8_literal("Not enough data for long loca table.\n"));
         }
 
         U32 *offsets = (U32 *) loca_data.data;
@@ -1018,21 +1018,21 @@ internal Void ttf_get_glyph_data_ranges(Arena *arena, TTF_Font *font) {
             Str8 data = str8_substring(glyf_data, start, end - start);
 
             if (start > end) {
-                str8_list_push(arena, &font->errors, str8_literal("Invalid long loca range (start must be less than end).\n"));
+                log_error(str8_literal("Invalid long loca range (start must be less than end).\n"));
                 data.size = 0;
             }
 
             if (end > glyf_data.size) {
-                str8_list_push(arena, &font->errors, str8_literal("Not enough data for glyf table.\n"));
+                log_error(str8_literal("Not enough data for glyf table.\n"));
                 data.size = 0;
             }
 
             font->raw_glyph_data[i] = data;
         }
     } else if (loca_format == S32_MAX) {
-        str8_list_push(arena, &font->errors, str8_literal("Not enough data in head table to read loca format.\n"));
+        log_error(str8_literal("Not enough data in head table to read loca format.\n"));
     } else {
-        str8_list_push(arena, &font->errors, str8_literal("Unknown index to location format.\n"));
+        log_error(str8_literal("Unknown index to location format.\n"));
     }
 }
 
@@ -1041,12 +1041,10 @@ internal TTF_Font *ttf_load(Arena *arena, Str8 font_path) {
     Str8 font_data = { 0 };
 
     if (!os_file_read(arena, font_path, &font_data)) {
-        str8_list_push(arena, &result->errors, str8_literal("Could not read file.\n"));
+        log_error(str8_literal("Could not read file.\n"));
     }
 
-    if (!result->errors.node_count) {
-        ttf_parse_font_tables(arena, font_data, result);
-    }
+    ttf_parse_font_tables(arena, font_data, result);
 
     if (result->tables[TTF_Table_Head].data) {
         ttf_parse_head_table(arena, result);
