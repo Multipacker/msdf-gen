@@ -10,6 +10,7 @@
 #include "base_hash.h"
 #include "base_color.h"
 #include "base_profile.h"
+#include "base_log.h"
 #include "os_include.h"
 
 #endif // BASE_INCLUDE_H

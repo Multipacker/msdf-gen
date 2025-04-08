@@ -5,4 +5,5 @@
 #include "base_context.c"
 #include "base_hash.c"
 #include "base_color.c"
+#include "base_log.c"
 #include "os_include.c"
