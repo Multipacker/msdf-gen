@@ -89,7 +89,6 @@ internal Void ttf_parse_head_table(Arena *arena, TTF_Font *font) {
         TTF_FWord y_max               = (S16) u16_big_to_local_endian((U16) head->y_max);
         U16       lowest_rec_ppem     = u16_big_to_local_endian(head->lowest_rec_ppem);
         S16       font_direction_hint = s16_big_to_local_endian(head->font_direction_hint);
-        S16       index_to_loc_format = s16_big_to_local_endian(head->index_to_loc_format);
         S16       glyph_data_format   = s16_big_to_local_endian(head->glyph_data_format);
 
         if (version != TTF_MAKE_VERSION(1, 0)) {
@@ -114,15 +113,10 @@ internal Void ttf_parse_head_table(Arena *arena, TTF_Font *font) {
             str8_list_push(arena, &font->errors, str8_literal("Invalid font direction hint.\n"));
         }
 
-        if (!(index_to_loc_format == 0 || index_to_loc_format == 1)) {
-            str8_list_push(arena, &font->errors, str8_literal("Unknown index to location format.\n"));
-        }
-
         if (glyph_data_format != 0) {
             str8_list_push(arena, &font->errors, str8_literal("Unknown glyph data format.\n"));
         }
 
-        font->is_long_loca_format = (index_to_loc_format == 1);
         font->funits_per_em       = units_per_em;
         font->lowest_rec_ppem     = lowest_rec_ppem;
     } else {
@@ -965,48 +959,80 @@ internal MSDF_Glyph ttf_expand_contours_to_msdf(Arena *arena, TTF_Font *font, U3
     return result;
 }
 
-internal Void ttf_parse_loca_table(Arena *arena, TTF_Font *font) {
+internal Void ttf_get_glyph_data_ranges(Arena *arena, TTF_Font *font) {
     font->raw_glyph_data = arena_push_array_zero(arena, Str8, font->glyph_count);
 
+    Str8 head_data = font->tables[TTF_Table_Head];
     Str8 loca_data = font->tables[TTF_Table_Loca];
     Str8 glyf_data = font->tables[TTF_Table_Glyf];
-    if (font->is_long_loca_format) {
-        if (loca_data.size >= (font->glyph_count + 1) * sizeof(U32)) {
-            U32 *offsets = (U32 *) loca_data.data;
 
-            for (U32 i = 0; i < font->glyph_count; ++i) {
-                U32 start = u32_big_to_local_endian(offsets[i + 0]);
-                U32 end   = u32_big_to_local_endian(offsets[i + 1]);
+    S32 loca_format = S32_MAX;
 
-                if (start <= end && end <= glyf_data.size) {
-                    font->raw_glyph_data[i] = str8_substring(glyf_data, start, end - start);
-                } else {
-                    str8_list_push(arena, &font->errors, str8_literal("Not enough data for glyf table.\n"));
-                    break;
-                }
+    // NOTE(simon): Extract index to location encoding format.
+    if (head_data.size >= sizeof(TTF_HeadTable)) {
+        TTF_HeadTable *head = (TTF_HeadTable *) head_data.data;
+        loca_format = s16_big_to_local_endian(head->index_to_loc_format);
+    }
+
+    // NOTE(simon): Extract glyph locations.
+    if (loca_format == 0) {
+        // NOTE(simon): There is one extra location at the end to indicate the
+        // end of the last glyph.
+        U64 location_count = u64_min(loca_data.size / sizeof(U16), font->glyph_count + 1);
+
+        if (location_count != font->glyph_count + 1) {
+            str8_list_push(arena, &font->errors, str8_literal("Not enough data for short loca table.\n"));
+        }
+
+        U16 *offsets = (U16 *) loca_data.data;
+        for (U32 i = 0; i < location_count - 1; ++i) {
+            U32 start = 2 * (U32) u16_big_to_local_endian(offsets[i + 0]);
+            U32 end   = 2 * (U32) u16_big_to_local_endian(offsets[i + 1]);
+            Str8 data = str8_substring(glyf_data, start, end - start);
+
+            if (start > end) {
+                str8_list_push(arena, &font->errors, str8_literal("Invalid short loca range (start must be less than end).\n"));
+                data.size = 0;
             }
-        } else {
+
+            if (end > glyf_data.size) {
+                str8_list_push(arena, &font->errors, str8_literal("Not enough data for glyf table.\n"));
+                data.size = 0;
+            }
+
+            font->raw_glyph_data[i] = data;
+        }
+    } else if (loca_format == 1) {
+        // NOTE(simon): There is one extra location at the end to indicate the
+        // end of the last glyph.
+        U64 location_count = u64_min(loca_data.size / sizeof(U32), font->glyph_count + 1);
+
+        if (location_count != font->glyph_count + 1) {
             str8_list_push(arena, &font->errors, str8_literal("Not enough data for long loca table.\n"));
         }
 
+        U32 *offsets = (U32 *) loca_data.data;
+        for (U32 i = 0; i < location_count - 1; ++i) {
+            U32 start = u32_big_to_local_endian(offsets[i + 0]);
+            U32 end   = u32_big_to_local_endian(offsets[i + 1]);
+            Str8 data = str8_substring(glyf_data, start, end - start);
+
+            if (start > end) {
+                str8_list_push(arena, &font->errors, str8_literal("Invalid long loca range (start must be less than end).\n"));
+                data.size = 0;
+            }
+
+            if (end > glyf_data.size) {
+                str8_list_push(arena, &font->errors, str8_literal("Not enough data for glyf table.\n"));
+                data.size = 0;
+            }
+
+            font->raw_glyph_data[i] = data;
+        }
+    } else if (loca_format == S32_MAX) {
+        str8_list_push(arena, &font->errors, str8_literal("Not enough data in head table to read loca format.\n"));
     } else {
-        if (loca_data.size >= (font->glyph_count + 1) * sizeof(U16)) {
-            U16 *offsets = (U16 *) loca_data.data;
-
-            for (U32 i = 0; i < font->glyph_count; ++i) {
-                U32 start = 2 * (U32) u16_big_to_local_endian(offsets[i + 0]);
-                U32 end   = 2 * (U32) u16_big_to_local_endian(offsets[i + 1]);
-
-                if (start <= end && end <= glyf_data.size) {
-                    font->raw_glyph_data[i] = str8_substring(glyf_data, start, end - start);
-                } else {
-                    str8_list_push(arena, &font->errors, str8_literal("Not enough data for glyf table.\n"));
-                    break;
-                }
-            }
-        } else {
-            str8_list_push(arena, &font->errors, str8_literal("Not enough data for long loca table.\n"));
-        }
+        str8_list_push(arena, &font->errors, str8_literal("Unknown index to location format.\n"));
     }
 }
 
@@ -1030,9 +1056,7 @@ internal TTF_Font *ttf_load(Arena *arena, Str8 font_path) {
         ttf_parse_maxp_table(arena, result);
     }
 
-    if (result->tables[TTF_Table_Loca].data && result->tables[TTF_Table_Glyf].data) {
-        ttf_parse_loca_table(arena, result);
-    }
+    ttf_get_glyph_data_ranges(arena, result);
 
     if (result->tables[TTF_Table_Hhea].data && result->tables[TTF_Table_Hmtx].data) {
         ttf_validate_metrics(arena, result);

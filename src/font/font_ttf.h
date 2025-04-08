@@ -278,7 +278,6 @@ struct TTF_CodepointRangeList {
 typedef struct {
     Str8 tables[TTF_Table_COUNT];
 
-    B32 is_long_loca_format;
     Str8 *raw_glyph_data;
 
     U16 glyph_count;
