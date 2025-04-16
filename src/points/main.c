@@ -265,7 +265,7 @@ internal Void update(Void) {
                     ui_label(str8_literal("Static color"));
                     ui_spacer_sized(ui_size_ems(0.5f, 1.0f));
                     UI_Input generate_input = ui_button(str8_literal("Generate"));
-                    if (generate_input.input_flags & UI_InputFlag_Clicked) {
+                    if (generate_input.flags & UI_InputFlag_Clicked) {
                         state->generate = true;
                     }
                 }
@@ -300,7 +300,7 @@ internal Void update(Void) {
                                     coloring_names[i]
                                 );
                                 UI_Input color_input = ui_input_from_box(color_box);
-                                if (color_input.input_flags & UI_InputFlag_Clicked) {
+                                if (color_input.flags & UI_InputFlag_Clicked) {
                                     state->coloring = i;
                                     ui_context_menu_close();
                                 }
@@ -323,7 +323,7 @@ internal Void update(Void) {
                         }
 
                         UI_Input combo_input = ui_input_from_box(combo_box);
-                        if (combo_input.input_flags & UI_InputFlag_Clicked) {
+                        if (combo_input.flags & UI_InputFlag_Clicked) {
                             ui_context_menu_open(dropdown_key, combo_box->key, v2f32(0.0f, 0.0f));
                         }
                     }
@@ -355,7 +355,7 @@ internal Void update(Void) {
                         );
 
                         UI_Input color_input = ui_input_from_box(color_box);
-                        if (color_input.input_flags & UI_InputFlag_Clicked) {
+                        if (color_input.flags & UI_InputFlag_Clicked) {
                             ui_context_menu_open(color_picker_key, color_box->key, v2f32(0.0f, 0.0f));
                         }
                     }
@@ -364,8 +364,8 @@ internal Void update(Void) {
         }
 
         UI_Input panel_input = ui_input_from_box(panel);
-        if (panel_input.input_flags & UI_InputFlag_LeftDragging) {
-            if (panel_input.input_flags & UI_InputFlag_LeftPressed) {
+        if (panel_input.flags & UI_InputFlag_LeftDragging) {
+            if (panel_input.flags & UI_InputFlag_LeftPressed) {
                 ui_set_drag_data(&state->ui_position);
             }
 

@@ -141,7 +141,7 @@ internal UI_Input ui_checkbox_format(B32 is_checked, CStr format, ...) {
 
 internal UI_Input ui_checkbox_b32(B32 *is_checked, Str8 label) {
     UI_Input input = ui_checkbox(*is_checked, label);
-    if (input.input_flags & UI_InputFlag_Clicked) {
+    if (input.flags & UI_InputFlag_Clicked) {
         *is_checked = !(*is_checked);
     }
     return input;
@@ -386,8 +386,8 @@ internal UI_Input ui_line_edit(U8 *buffer, U64 *buffer_size, U64 buffer_capacity
     ui_parent_pop();
 
     UI_Input input = ui_input_from_box(text_container_box);
-    if (input.input_flags & UI_InputFlag_LeftDragging) {
-        if (input.input_flags & UI_InputFlag_LeftPressed) {
+    if (input.flags & UI_InputFlag_LeftDragging) {
+        if (input.flags & UI_InputFlag_LeftPressed) {
             *mark = mouse_position;
         }
         *cursor = mouse_position;
@@ -440,8 +440,8 @@ internal UI_Input ui_slider(F32 min, F32 *value, F32 max, UI_Key key) {
     ui_box_set_string(box, str8_format(ui_frame_arena(), "%.2f", *value));
 
     UI_Input input = ui_input_from_box(box);
-    if (input.input_flags & UI_InputFlag_LeftDragging) {
-        if (input.input_flags & UI_InputFlag_LeftPressed) {
+    if (input.flags & UI_InputFlag_LeftDragging) {
+        if (input.flags & UI_InputFlag_LeftPressed) {
             F32 drag_data = *value;
             ui_set_drag_data(&drag_data);
         }
@@ -513,18 +513,18 @@ internal UI_ScrollPosition ui_scroll_bar(UI_ScrollPosition position, S64 first_r
     // NOTE(simon): Input
     UI_ScrollPosition result = position;
 
-    if (up_input.input_flags & UI_InputFlag_LeftClicked) {
+    if (up_input.flags & UI_InputFlag_LeftClicked) {
         result.index  -= visible_rows;
         result.offset += (F32) visible_rows;
     }
 
-    if (before_input.input_flags & UI_InputFlag_LeftDragging) {
+    if (before_input.flags & UI_InputFlag_LeftDragging) {
         result.index  -= 1;
         result.offset += 1;
     }
 
-    if (scroll_input.input_flags & UI_InputFlag_LeftDragging) {
-        if (scroll_input.input_flags & UI_InputFlag_LeftPressed) {
+    if (scroll_input.flags & UI_InputFlag_LeftDragging) {
+        if (scroll_input.flags & UI_InputFlag_LeftPressed) {
             ui_set_drag_data(&position.index);
         }
 
@@ -537,12 +537,12 @@ internal UI_ScrollPosition ui_scroll_bar(UI_ScrollPosition position, S64 first_r
         result.offset = 0.0f;
     }
 
-    if (after_input.input_flags & UI_InputFlag_LeftDragging) {
+    if (after_input.flags & UI_InputFlag_LeftDragging) {
         result.index  += 1;
         result.offset -= 1;
     }
 
-    if (down_input.input_flags & UI_InputFlag_LeftClicked) {
+    if (down_input.flags & UI_InputFlag_LeftClicked) {
         result.index  += visible_rows;
         result.offset -= (F32) visible_rows;
     }
@@ -684,8 +684,8 @@ internal UI_Input ui_saturation_value_picker(V4F32 *color) {
     UI_Box *box = ui_create_box_from_string(UI_BoxFlag_DrawBorder | UI_BoxFlag_Clickable, str8_literal("##saturation_value_picker"));
 
     UI_Input input = ui_input_from_box(box);
-    if (input.input_flags & UI_InputFlag_LeftDragging) {
-        if (input.input_flags & UI_InputFlag_LeftPressed) {
+    if (input.flags & UI_InputFlag_LeftDragging) {
+        if (input.flags & UI_InputFlag_LeftPressed) {
             V4F32 hsva = hsva_from_srgba(srgba_from_color(*color));
             ui_set_drag_data(&hsva);
         }
@@ -720,8 +720,8 @@ internal UI_Input ui_hue_picker(V4F32 *color) {
     UI_Box *box = ui_create_box_from_string(UI_BoxFlag_DrawBorder | UI_BoxFlag_Clickable, str8_literal("##hue_picker"));
 
     UI_Input input = ui_input_from_box(box);
-    if (input.input_flags & UI_InputFlag_LeftDragging) {
-        if (input.input_flags & UI_InputFlag_LeftPressed) {
+    if (input.flags & UI_InputFlag_LeftDragging) {
+        if (input.flags & UI_InputFlag_LeftPressed) {
             V4F32 hsva = hsva_from_srgba(srgba_from_color(*color));
             ui_set_drag_data(&hsva);
         }
@@ -754,8 +754,8 @@ internal UI_Input ui_alpha_picker(V4F32 *color) {
     UI_Box *box = ui_create_box_from_string(UI_BoxFlag_DrawBorder | UI_BoxFlag_Clickable, str8_literal("##alpha_picker"));
 
     UI_Input input = ui_input_from_box(box);
-    if (input.input_flags & UI_InputFlag_LeftDragging) {
-        if (input.input_flags & UI_InputFlag_LeftPressed) {
+    if (input.flags & UI_InputFlag_LeftDragging) {
+        if (input.flags & UI_InputFlag_LeftPressed) {
             ui_set_drag_data(color);
         }
 
@@ -792,9 +792,9 @@ internal B32 ui_color_picker(V4F32 *color, UI_Size size, UI_Size bar_width, UI_S
         ui_width_next(bar_width);
         UI_Input alpha_input = ui_alpha_picker(color);
 
-        changed |= saturation_value_input.input_flags & UI_InputFlag_LeftDragging;
-        changed |= hue_input.input_flags & UI_InputFlag_LeftDragging;
-        changed |= alpha_input.input_flags & UI_InputFlag_LeftDragging;
+        changed |= saturation_value_input.flags & UI_InputFlag_LeftDragging;
+        changed |= hue_input.flags & UI_InputFlag_LeftDragging;
+        changed |= alpha_input.flags & UI_InputFlag_LeftDragging;
     }
 
     return changed;

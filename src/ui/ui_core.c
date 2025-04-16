@@ -987,7 +987,7 @@ internal UI_Input ui_input_from_box(UI_Box *box) {
 
         // NOTE(simon): Clicked in bounds.
         if (box->flags & UI_BoxFlag_Clickable && is_mouse_key && event->kind == UI_EventKind_KeyPress && is_in_bounds) {
-            result.input_flags |= (UI_InputFlag) (UI_InputFlag_LeftPressed << mouse_key);
+            result.flags |= (UI_InputFlag) (UI_InputFlag_LeftPressed << mouse_key);
             ui->active_key[mouse_key] = box->key;
             ui->hot_key = box->key;
             ui->drag_start = event->position;
@@ -1002,8 +1002,8 @@ internal UI_Input ui_input_from_box(UI_Box *box) {
             is_in_bounds &&
             ui_keys_match(ui->active_key[mouse_key], box->key)
         ) {
-            result.input_flags |= (UI_InputFlag) (UI_InputFlag_LeftReleased << mouse_key);
-            result.input_flags |= (UI_InputFlag) (UI_InputFlag_LeftClicked << mouse_key);
+            result.flags |= (UI_InputFlag) (UI_InputFlag_LeftReleased << mouse_key);
+            result.flags |= (UI_InputFlag) (UI_InputFlag_LeftClicked << mouse_key);
             ui->active_key[mouse_key] = global_ui_null_key;
             consumed = true;
         }
@@ -1016,14 +1016,14 @@ internal UI_Input ui_input_from_box(UI_Box *box) {
             !is_in_bounds &&
             ui_keys_match(ui->active_key[mouse_key], box->key)
         ) {
-            result.input_flags |= (UI_InputFlag) (UI_InputFlag_LeftReleased << mouse_key);
+            result.flags |= (UI_InputFlag) (UI_InputFlag_LeftReleased << mouse_key);
             ui->active_key[mouse_key] = global_ui_null_key;
             ui->hot_key = global_ui_null_key;
             consumed = true;
         }
 
         if ((box->flags & UI_BoxFlag_KeyboardClickable) && is_focused && event->kind == UI_EventKind_Accept) {
-            result.input_flags |= UI_InputFlag_KeyboardPressed;
+            result.flags |= UI_InputFlag_KeyboardPressed;
             consumed = true;
         }
 
@@ -1050,8 +1050,8 @@ internal UI_Input ui_input_from_box(UI_Box *box) {
 
     if (box->flags & UI_BoxFlag_Clickable) {
         for (UI_MouseButton button = 0; button < UI_MouseButton_COUNT; ++button) {
-            if (result.input_flags & (UI_InputFlag) (UI_InputFlag_LeftPressed << button) || ui_keys_match(ui->active_key[button], box->key)) {
-                result.input_flags |= (UI_InputFlag) (UI_InputFlag_LeftDragging << button);
+            if (result.flags & (UI_InputFlag) (UI_InputFlag_LeftPressed << button) || ui_keys_match(ui->active_key[button], box->key)) {
+                result.flags |= (UI_InputFlag) (UI_InputFlag_LeftDragging << button);
             }
         }
     }
@@ -1066,11 +1066,11 @@ internal UI_Input ui_input_from_box(UI_Box *box) {
         (ui_keys_match(ui->active_key[UI_MouseButton_Right],  global_ui_null_key) || ui_keys_match(ui->active_key[UI_MouseButton_Right],  box->key))
     ) {
         ui->hot_key = box->key;
-        result.input_flags |= UI_InputFlag_Hovering;
+        result.flags |= UI_InputFlag_Hovering;
     }
 
     // NOTE(simon): Pressing on something that isn't the context menu closes it.
-    if (!is_context_menu && result.input_flags & UI_InputFlag_Pressed) {
+    if (!is_context_menu && result.flags & UI_InputFlag_Pressed) {
         ui_context_menu_close();
     }
 

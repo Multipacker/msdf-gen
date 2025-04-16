@@ -258,7 +258,7 @@ typedef enum {
 typedef struct UI_Input UI_Input;
 struct UI_Input {
     UI_Box *box;
-    UI_InputFlag input_flags;
+    UI_InputFlag flags;
     V2F32 scroll;
 };
 

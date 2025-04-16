@@ -164,7 +164,7 @@ PANEL_BUILD_FUNCTION(view_glyph_list) {
                         );
 
                         UI_Input input = ui_input_from_box(box);
-                        if (input.input_flags & UI_InputFlag_Clicked) {
+                        if (input.flags & UI_InputFlag_Clicked) {
                             push_command(Command_SelectCodepoint, .codepoint = *codepoint);
                         }
                     }
@@ -316,13 +316,13 @@ PANEL_BUILD_FUNCTION(view_glyph) {
             UI_Box *box = ui_create_box_from_string(UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawBorder | UI_BoxFlag_Clip | UI_BoxFlag_Scrollable | UI_BoxFlag_Clickable, str8_literal("glyph_viewer"));
             UI_Input input = ui_input_from_box(box);
 
-            if (input.input_flags & UI_InputFlag_LeftDragging) {
+            if (input.flags & UI_InputFlag_LeftDragging) {
                 typedef struct PanState PanState;
                 struct PanState {
                     V2F32 mouse;
                     V2F32 offset;
                 };
-                if (input.input_flags & UI_InputFlag_LeftPressed) {
+                if (input.flags & UI_InputFlag_LeftPressed) {
                     PanState pan_state = { 0 };
                     pan_state.mouse = ui_mouse();
                     pan_state.offset = state->offset;
@@ -554,10 +554,10 @@ PANEL_BUILD_FUNCTION(view_glyph) {
                                 UI_Input next_input = ui_button(str8_literal("Next"));
                                 ui_spacer_sized(ui_size_ems(0.5f, 1.0f));
                                 ui_label_format("%lu: %.*s", state->log_index, str8_expand(log_entry->description));
-                                if (next_input.input_flags & UI_InputFlag_LeftClicked) {
+                                if (next_input.flags & UI_InputFlag_LeftClicked) {
                                     next_log_index = (state->log_index + 1) % msdf_glyph->log.count;
                                 }
-                                if (previous_input.input_flags & UI_InputFlag_LeftClicked) {
+                                if (previous_input.flags & UI_InputFlag_LeftClicked) {
                                     next_log_index = (state->log_index + msdf_glyph->log.count - 1) % msdf_glyph->log.count;
                                 }
                             }
@@ -578,7 +578,7 @@ PANEL_BUILD_FUNCTION(view_glyph) {
                                     }
                                     ui_spacer_sized(ui_size_ems(0.5f, 1.0f));
                                     UI_Input check_input = ui_checkbox_b32_format(&state->is_group_visible[group_index], "%lu", group_index);
-                                    if (check_input.input_flags & UI_InputFlag_Hovering) {
+                                    if (check_input.flags & UI_InputFlag_Hovering) {
                                         next_hovered_group = 1 + group_index;
                                     }
                                 }
@@ -689,7 +689,7 @@ PANEL_BUILD_FUNCTION(view_theme) {
                         ui_hover_cursor_next(Gfx_Cursor_Hand);
                         UI_Box *box = ui_create_box_from_string_format(UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawBorder | UI_BoxFlag_DrawHot | UI_BoxFlag_DrawActive | UI_BoxFlag_Clickable, "###color_%u", color);
                         UI_Input input = ui_input_from_box(box);
-                        if (input.input_flags & UI_InputFlag_LeftClicked) {
+                        if (input.flags & UI_InputFlag_LeftClicked) {
                             state->context_color = color;
                             ui_context_menu_open(context_key, box->key, v2f32(0, 0));
                         }

@@ -1399,7 +1399,7 @@ internal Void update(Void) {
                         }
                         UI_Input command_button_input = ui_input_from_box(command_button_box);
 
-                        if (command_button_input.input_flags & UI_InputFlag_Clicked) {
+                        if (command_button_input.flags & UI_InputFlag_Clicked) {
                             push_command(commands[i].command);
                             state->show_command_lister = 0;
                             buffer_size = 0;
@@ -1760,11 +1760,11 @@ internal Void update(Void) {
                 UI_Box *boundary_box = ui_create_box_from_string_format(UI_BoxFlag_Clickable | UI_BoxFlag_FloatingPosition, "###panel_boundary_%p", child);
                 UI_Input input = ui_input_from_box(boundary_box);
 
-                if (input.input_flags & UI_InputFlag_LeftDragging) {
+                if (input.flags & UI_InputFlag_LeftDragging) {
                     Panel *min_child = child;
                     Panel *max_child = child->next;
 
-                    if (input.input_flags & UI_InputFlag_LeftPressed) {
+                    if (input.flags & UI_InputFlag_LeftPressed) {
                         V2F32 drag_data = v2f32(min_child->percentage_of_parent, max_child->percentage_of_parent);
                         ui_set_drag_data(&drag_data);
                     }
@@ -2067,14 +2067,14 @@ internal Void update(Void) {
                                 "X##_tab_%p", tab
                             );
                             UI_Input close_input = ui_input_from_box(close_box);
-                            if (close_input.input_flags & UI_InputFlag_LeftClicked) {
+                            if (close_input.flags & UI_InputFlag_LeftClicked) {
                                 push_command(Command_CloseTab, .tab = handle_from_tab(tab));
                             }
                         }
 
                         UI_Input input = ui_input_from_box(tab_box);
 
-                        if (input.input_flags & UI_InputFlag_LeftPressed) {
+                        if (input.flags & UI_InputFlag_LeftPressed) {
                             next_active_tab = tab;
                         }
 
@@ -2082,7 +2082,7 @@ internal Void update(Void) {
                             ui_spacer_sized(ui_size_ems(0.3f, 1.0f));
                         }
 
-                        if (input.input_flags & UI_InputFlag_LeftDragging && !drag_is_active() && v2f32_length(ui_drag_delta()) > 10.0f) {
+                        if (input.flags & UI_InputFlag_LeftDragging && !drag_is_active() && v2f32_length(ui_drag_delta()) > 10.0f) {
                             DragTabData data = {
                                 .panel = handle_from_panel(panel),
                                 .tab = handle_from_tab(tab),
@@ -2129,7 +2129,7 @@ internal Void update(Void) {
                                 ui_palette_next(palette_from_code(PaletteCode_Button));
                                 ui_corner_radius_next(5.0f);
                                 UI_Input close_input = ui_button_format("Close panel###%p", panel);
-                                if (close_input.input_flags & UI_InputFlag_LeftClicked) {
+                                if (close_input.flags & UI_InputFlag_LeftClicked) {
                                     push_command(Command_ClosePanel);
                                 }
 
