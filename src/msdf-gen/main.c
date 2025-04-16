@@ -360,7 +360,7 @@ internal S32 os_run(Str8List arguments) {
     }
 
     state->ui = ui_create();
-    state->panel_root = arena_push_struct_zero(state->arena, Panel);
+    state->panel_root = panel_create(state);
     state->panel_root->percentage_of_parent = 1.0f;
     state->panel_root->split_axis = Axis2_X;
     {

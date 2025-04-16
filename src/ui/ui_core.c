@@ -239,7 +239,7 @@ internal UI_Size ui_size_aspect_ratio(F32 ratio, F32 strictness) {
 
 internal UI_Context *ui_create(Void) {
     Arena *arena = arena_create();
-    UI_Context *ui = arena_push_struct_zero(arena, UI_Context);
+    UI_Context *ui = arena_push_struct(arena, UI_Context);
     ui->drag_arena = arena_create();
 
     ui->permanent_arena = arena;
@@ -248,7 +248,7 @@ internal UI_Context *ui_create(Void) {
     }
     ui->root = &global_ui_null_box;
 
-    ui->box_table = arena_push_array_zero(ui->permanent_arena, UI_BoxList, UI_BOX_TABLE_SIZE);
+    ui->box_table = arena_push_array(ui->permanent_arena, UI_BoxList, UI_BOX_TABLE_SIZE);
 
     return ui;
 }
@@ -549,7 +549,7 @@ internal Void ui_end(Void) {
     }
 
     prof_zone_begin(prof_collect, "collect");
-    UI_Box **box_array = arena_push_array(ui_frame_arena(), UI_Box *, ui->box_count);
+    UI_Box **box_array = arena_push_array_no_zero(ui_frame_arena(), UI_Box *, ui->box_count);
     for (UI_Box *box = ui->root, **ptr = box_array; !ui_box_is_null(box); box = ui_box_iterator_depth_first_pre_order(box).next) {
         *ptr++ = box;
     }
@@ -774,14 +774,14 @@ internal UI_Box *ui_create_box_from_key(UI_BoxFlags flags, UI_Key key) {
 
     if (ui_box_is_null(box)) {
         if (is_transient) {
-            box = arena_push_struct_zero(ui_frame_arena(), UI_Box);
+            box = arena_push_struct(ui_frame_arena(), UI_Box);
         } else {
             box = ui->box_freelist;
             if (box) {
                 sll_stack_pop(ui->box_freelist);
                 memory_zero_struct(box);
             } else {
-                box = arena_push_struct_zero(ui->permanent_arena, UI_Box);
+                box = arena_push_struct(ui->permanent_arena, UI_Box);
             }
 
             UI_BoxList *boxes = &ui->box_table[key & (UI_BOX_TABLE_SIZE - 1)];
@@ -1147,7 +1147,7 @@ internal Str8 ui_get_drag_data_str8(U64 min_size) {
     if (ui->drag_data.size < min_size) {
         Arena_Temporary scratch = arena_get_scratch(0, 0);
         Str8 data = {
-            .data = arena_push_array(scratch.arena, U8, min_size),
+            .data = arena_push_array_no_zero(scratch.arena, U8, min_size),
             .size = min_size,
         };
         ui_set_drag_data_str8(data);

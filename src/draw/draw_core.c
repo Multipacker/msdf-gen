@@ -19,17 +19,17 @@ internal Void draw_submit_list(Draw_List *list) {
 
 internal Draw_List *draw_list_create(Void) {
     Draw_Context *draw = &global_draw_context;
-    Draw_List *result = arena_push_struct_zero(draw->arena, Draw_List);
+    Draw_List *result = arena_push_struct(draw->arena, Draw_List);
 
-    Draw_M3F32StackNode *transform_node = arena_push_struct_zero(draw->arena, Draw_M3F32StackNode);
+    Draw_M3F32StackNode *transform_node = arena_push_struct(draw->arena, Draw_M3F32StackNode);
     transform_node->item = m3f32_identity();
     sll_stack_push(result->transform_stack.top, transform_node);
 
-    Draw_R2F32StackNode *clip_node = arena_push_struct_zero(draw->arena, Draw_R2F32StackNode);
+    Draw_R2F32StackNode *clip_node = arena_push_struct(draw->arena, Draw_R2F32StackNode);
     clip_node->item = r2f32(-10000.0f, -10000.0f, 10000.0f, 10000.0f);
     sll_stack_push(result->clip_stack.top, clip_node);
 
-    Draw_FilteringStackNode *filtering_node = arena_push_struct_zero(draw->arena, Draw_FilteringStackNode);
+    Draw_FilteringStackNode *filtering_node = arena_push_struct(draw->arena, Draw_FilteringStackNode);
     filtering_node->item = Render_Filtering_Linear;
     sll_stack_push(result->filtering_stack.top, filtering_node);
 
@@ -60,7 +60,7 @@ internal Render_Shape *draw_rectangle(R2F32 rectangle, V4F32 color, F32 radius, 
 
     Render_Batch *batch = list->batches.last;
     if (!batch || list->batch_generation != list->stack_generation) {
-        batch = arena_push_struct_zero(arena,  Render_Batch);
+        batch = arena_push_struct(arena,  Render_Batch);
         batch->texture   = render_texture_null();
         batch->clip      = draw_clip_top();
         batch->transform = draw_transform_top();
@@ -95,7 +95,7 @@ internal Render_Shape *draw_circle(V2F32 center, F32 radius, V4F32 color, F32 th
 
     Render_Batch *batch = list->batches.last;
     if (!batch || list->batch_generation != list->stack_generation) {
-        batch = arena_push_struct_zero(arena,  Render_Batch);
+        batch = arena_push_struct(arena,  Render_Batch);
         batch->texture   = render_texture_null();
         batch->clip      = draw_clip_top();
         batch->transform = draw_transform_top();
@@ -135,7 +135,7 @@ internal Render_Shape *draw_texture(R2F32 rectangle, R2F32 source, Render_Textur
     if (batch && render_texture_equal(batch->texture, render_texture_null()) && list->batch_generation == list->stack_generation) {
         batch->texture = texture;
     } else if (!batch || (!render_texture_equal(batch->texture, render_texture_null()) && !render_texture_equal(batch->texture, texture)) || list->batch_generation != list->stack_generation) {
-        batch = arena_push_struct_zero(arena,  Render_Batch);
+        batch = arena_push_struct(arena,  Render_Batch);
         batch->texture   = texture;
         batch->clip      = draw_clip_top();
         batch->transform = draw_transform_top();
@@ -186,7 +186,7 @@ internal Render_Shape *draw_line(V2F32 p0, V2F32 p1, V4F32 color, F32 radius, F3
 
     Render_Batch *batch = list->batches.last;
     if (!batch || list->batch_generation != list->stack_generation) {
-        batch = arena_push_struct_zero(arena,  Render_Batch);
+        batch = arena_push_struct(arena,  Render_Batch);
         batch->texture   = render_texture_null();
         batch->clip      = draw_clip_top();
         batch->transform = draw_transform_top();
@@ -241,7 +241,7 @@ internal Void draw_sub_list(Draw_List *sub_list) {
     Draw_List *list = draw_list_top();
 
     for (Render_Batch *src_batch = sub_list->batches.first; src_batch; src_batch = src_batch->next) {
-        Render_Batch *batch = arena_push_struct_zero(arena, Render_Batch);
+        Render_Batch *batch = arena_push_struct(arena, Render_Batch);
         batch->shapes    = src_batch->shapes;
         batch->texture   = src_batch->texture;
         batch->filtering = src_batch->filtering;

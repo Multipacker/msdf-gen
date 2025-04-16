@@ -88,7 +88,7 @@ internal OpenGL_Result opengl_create_shader(Arena *arena, Str8 path, GLenum shad
             GLint log_length = 0;
             glGetShaderiv(result.handle, GL_INFO_LOG_LENGTH, &log_length);
 
-            GLchar *raw_log = arena_push_array(scratch.arena, GLchar, (U64) log_length);
+            GLchar *raw_log = arena_push_array_no_zero(scratch.arena, GLchar, (U64) log_length);
             glGetShaderInfoLog(result.handle, log_length, 0, raw_log);
 
             Str8 log = str8((U8 *) raw_log, (U64) log_length);
@@ -113,7 +113,7 @@ internal OpenGL_Result opengl_create_program(Arena *arena, OpenGL_ShaderSpecific
     Arena_Temporary scratch = arena_get_scratch(&arena, 1);
 
     result.handle = glCreateProgram();
-    GLuint *shader_handles = arena_push_array_zero(scratch.arena, GLuint, shader_count);
+    GLuint *shader_handles = arena_push_array(scratch.arena, GLuint, shader_count);
 
     for (U32 i = 0; i < shader_count; ++i) {
         OpenGL_Result compiled_shader = opengl_create_shader(arena, shaders[i].source, shaders[i].kind);
@@ -140,7 +140,7 @@ internal OpenGL_Result opengl_create_program(Arena *arena, OpenGL_ShaderSpecific
             GLint log_length = 0;
             glGetProgramiv(result.handle, GL_INFO_LOG_LENGTH, &log_length);
 
-            GLchar *raw_log = arena_push_array(scratch.arena, GLchar, (U64) log_length);
+            GLchar *raw_log = arena_push_array_no_zero(scratch.arena, GLchar, (U64) log_length);
             glGetProgramInfoLog(result.handle, log_length, 0, raw_log);
 
             Str8 log = str8((U8 *) raw_log, (U64) log_length);

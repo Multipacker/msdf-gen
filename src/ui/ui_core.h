@@ -176,7 +176,7 @@ struct UI_BoxIterator {
             node = stack->freelist;                                                                         \
             sll_stack_pop(stack->freelist);                                                                 \
         } else {                                                                                            \
-            node = arena_push_struct_zero(ui_frame_arena(), UI_##type_name##StackNode);                     \
+            node = arena_push_struct(ui_frame_arena(), UI_##type_name##StackNode);                          \
         }                                                                                                   \
         node->item = value;                                                                                 \
         sll_stack_push(stack->top, node);                                                                   \

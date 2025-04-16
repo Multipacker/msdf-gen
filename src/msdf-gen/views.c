@@ -94,7 +94,7 @@ PANEL_BUILD_FUNCTION(view_glyph_list) {
     // NOTE(simon): Get codepoint ranges.
     TTF_CodepointMap codepoint_map = { 0 };
     if (global_state->all_of_unicode) {
-        TTF_CodepointRange *codepoint_range = arena_push_struct_zero(ui_frame_arena(), TTF_CodepointRange);
+        TTF_CodepointRange *codepoint_range = arena_push_struct(ui_frame_arena(), TTF_CodepointRange);
         codepoint_range->size = 0x110000;
 
         codepoint_map.ranges = codepoint_range;
@@ -151,7 +151,7 @@ PANEL_BUILD_FUNCTION(view_glyph_list) {
                     ui_draw_function(draw_ui_msdf)
                     ui_hover_cursor(Gfx_Cursor_Hand)
                     for (S64 column = 0; column < codepoints_per_row && index < codepoint_map.codepoint_count; ++column, ++index) {
-                        U32 *codepoint = arena_push_struct(ui_frame_arena(), U32);
+                        U32 *codepoint = arena_push_struct_no_zero(ui_frame_arena(), U32);
                         *codepoint = codepoint_from_map_index(codepoint_map, index);
 
                         ui_draw_data_next(codepoint);
@@ -359,7 +359,7 @@ PANEL_BUILD_FUNCTION(view_glyph) {
             }
             // NOTE(simon): Group visibility state
             if (log_entry) {
-                B32 *is_group_visible = arena_push_array(frame_arena(), B32, log_entry->group_count);
+                B32 *is_group_visible = arena_push_array_no_zero(frame_arena(), B32, log_entry->group_count);
                 if (!state->is_group_visible) {
                     for (U64 i = 0; i < log_entry->group_count; ++i) {
                         is_group_visible[i] = true;

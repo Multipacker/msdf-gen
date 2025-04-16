@@ -39,14 +39,14 @@
 //    correction pass that we currently do?).
 
 internal Void msdf_log_push_entry(Arena *arena, MSDF_Log *log, Str8 description) {
-    MSDF_LogEntry *entry = arena_push_struct_zero(arena, MSDF_LogEntry);
+    MSDF_LogEntry *entry = arena_push_struct(arena, MSDF_LogEntry);
     entry->description = str8_copy(arena, description);
     dll_push_back(log->first, log->last, entry);
     ++log->count;
 }
 
 internal MSDF_LogGroup *msdf_log_push_group(Arena *arena, MSDF_Log *log) {
-    MSDF_LogGroup *group = arena_push_struct_zero(arena, MSDF_LogGroup);
+    MSDF_LogGroup *group = arena_push_struct(arena, MSDF_LogGroup);
     MSDF_LogEntry *entry = log->last;
     dll_push_back(entry->first_group, entry->last_group, group);
     ++entry->group_count;
@@ -54,7 +54,7 @@ internal MSDF_LogGroup *msdf_log_push_group(Arena *arena, MSDF_Log *log) {
 }
 
 internal MSDF_LogGeometry *msdf_log_push_geometry(Arena *arena, MSDF_Log *log) {
-    MSDF_LogGeometry *geometry = arena_push_struct_zero(arena, MSDF_LogGeometry);
+    MSDF_LogGeometry *geometry = arena_push_struct(arena, MSDF_LogGeometry);
     MSDF_LogEntry *entry = log->last;
     MSDF_LogGroup *group = entry->last_group;
     if (!group) {
@@ -624,8 +624,8 @@ internal Void msdf_resolve_contour_overlap(Arena *arena, MSDF_Glyph *glyph, Aren
                 if (min_at <= 1.0f) {
                     MSDF_Segment *b_segment = min_b;
 
-                    MSDF_Segment *a_new = arena_push_struct_zero(arena, MSDF_Segment);
-                    MSDF_Segment *b_new = arena_push_struct_zero(arena, MSDF_Segment);
+                    MSDF_Segment *a_new = arena_push_struct(arena, MSDF_Segment);
+                    MSDF_Segment *b_new = arena_push_struct(arena, MSDF_Segment);
                     dll_insert_after(a_contour->first_segment, a_contour->last_segment, a_segment, a_new);
                     dll_insert_after(b_contour->first_segment, b_contour->last_segment, b_segment, b_new);
                     msdf_segment_split(*a_segment, min_at, a_segment, a_new);
@@ -749,14 +749,14 @@ internal Void msdf_convert_to_simple_polygons(Arena *arena, MSDF_Glyph *glyph) {
                 }
 
                 if (min_at <= 1.0f) {
-                    MSDF_Contour *new_contour = arena_push_struct_zero(arena, MSDF_Contour);
+                    MSDF_Contour *new_contour = arena_push_struct(arena, MSDF_Contour);
                     dll_push_back(glyph->first_contour, glyph->last_contour, new_contour);
 
-                    MSDF_Segment *a_new = arena_push_struct_zero(arena, MSDF_Segment);
+                    MSDF_Segment *a_new = arena_push_struct(arena, MSDF_Segment);
                     msdf_segment_split(*a_segment, min_at, a_segment, a_new);
                     dll_insert_after(contour->first_segment, contour->last_segment, a_segment, a_new);
 
-                    MSDF_Segment *b_new = arena_push_struct_zero(arena, MSDF_Segment);
+                    MSDF_Segment *b_new = arena_push_struct(arena, MSDF_Segment);
                     msdf_segment_split(*b_segment, min_bt, b_new, b_segment);
                     dll_insert_before(contour->first_segment, contour->last_segment, b_segment, b_new);
 
@@ -1054,7 +1054,7 @@ internal MSDF_RasterResult msdf_generate_from_glyph_index(Arena *arena, TTF_Font
         prof_zone_begin(prof_generate, "generate");
         F32 distance_range = 2.0f / (F32) render_size;
         U32 pixel_index = 0;
-        result.data = arena_push_array(arena, U8, 4 * render_size * render_size);
+        result.data = arena_push_array_no_zero(arena, U8, 4 * render_size * render_size);
         for (U32 y = 0; y < render_size; ++y) {
             for (U32 x = 0; x < render_size; ++x) {
                 MSDF_Segment nil_segment     = { 0 };

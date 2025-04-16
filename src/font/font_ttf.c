@@ -263,7 +263,7 @@ internal U32 ttf_rank_subtable(TTF_CmapSubtable *subtable) {
 
 internal Void ttf_codepoint_range_list_push(Arena *arena, TTF_CodepointRangeList *list, TTF_CodepointRange range) {
     if (range.size) {
-        TTF_CodepointRangeNode *node = arena_push_struct(arena, TTF_CodepointRangeNode);
+        TTF_CodepointRangeNode *node = arena_push_struct_no_zero(arena, TTF_CodepointRangeNode);
         node->range = range;
         sll_queue_push(list->first, list->last, node);
         ++list->range_count;
@@ -575,7 +575,7 @@ internal TTF_CodepointMap ttf_get_codepoint_map(Arena *arena, TTF_Font *font) {
 
     // NOTE(simon): Copy to output.
     TTF_CodepointMap codepoint_map = { 0 };
-    codepoint_map.ranges = arena_push_array(arena, TTF_CodepointRange, ranges.range_count);
+    codepoint_map.ranges = arena_push_array_no_zero(arena, TTF_CodepointRange, ranges.range_count);
     for (TTF_CodepointRangeNode *node = ranges.first; node; node = node->next, ++codepoint_map.range_count) {
         codepoint_map.ranges[codepoint_map.range_count] = node->range;
         codepoint_map.codepoint_count += node->range.size;
@@ -612,7 +612,7 @@ internal TTF_Glyph ttf_get_glyph_outlines(Arena *arena, TTF_Font *font, U32 glyp
     if (contour_count > 0) {
         if ((U64) contour_count * sizeof(U16) <= glyph_data.size) {
             result.contour_count = (U32) contour_count;
-            result.contour_end_points = arena_push_array(arena, U16, result.contour_count);
+            result.contour_end_points = arena_push_array_no_zero(arena, U16, result.contour_count);
 
             for (S32 i = 0; i < contour_count; ++i) {
                 result.contour_end_points[i] = u16_big_to_local_endian(*(U16 *) glyph_data.data);
@@ -624,9 +624,9 @@ internal TTF_Glyph ttf_get_glyph_outlines(Arena *arena, TTF_Font *font, U32 glyp
             str8_list_push(arena, &result.errors, str8_literal("Not enough data for glyph contours.\n"));
         }
 
-        result.flags         = arena_push_array(arena, U8,        result.point_count);
-        result.x_coordinates = arena_push_array(arena, TTF_FWord, result.point_count);
-        result.y_coordinates = arena_push_array(arena, TTF_FWord, result.point_count);
+        result.flags         = arena_push_array_no_zero(arena, U8,        result.point_count);
+        result.x_coordinates = arena_push_array_no_zero(arena, TTF_FWord, result.point_count);
+        result.y_coordinates = arena_push_array_no_zero(arena, TTF_FWord, result.point_count);
 
         // NOTE: Skip over instructions.
         U16 instruction_length = 0;
@@ -731,10 +731,10 @@ internal TTF_Glyph ttf_get_glyph_outlines(Arena *arena, TTF_Font *font, U32 glyp
             result.y_coordinates[point_index] = previous_y;
         }
     } else if (contour_count < 0) {
-        result.contour_end_points = arena_push_array(arena, U16,       font->contour_capacity);
-        result.flags              = arena_push_array(arena, U8,        font->point_capacity);
-        result.x_coordinates      = arena_push_array(arena, TTF_FWord, font->point_capacity);
-        result.y_coordinates      = arena_push_array(arena, TTF_FWord, font->point_capacity);
+        result.contour_end_points = arena_push_array_no_zero(arena, U16,       font->contour_capacity);
+        result.flags              = arena_push_array_no_zero(arena, U8,        font->point_capacity);
+        result.x_coordinates      = arena_push_array_no_zero(arena, TTF_FWord, font->point_capacity);
+        result.y_coordinates      = arena_push_array_no_zero(arena, TTF_FWord, font->point_capacity);
 
         B32 has_more_components = true;
 
@@ -901,7 +901,7 @@ internal MSDF_Glyph ttf_expand_contours_to_msdf(Arena *arena, TTF_Font *font, U3
             continue;
         }
 
-        MSDF_Contour *contour = arena_push_struct_zero(arena, MSDF_Contour);
+        MSDF_Contour *contour = arena_push_struct(arena, MSDF_Contour);
 
         U32 prev_index    = glyph.contour_end_points[contour_index] - 1;
         U32 current_index = glyph.contour_end_points[contour_index];
@@ -920,7 +920,7 @@ internal MSDF_Glyph ttf_expand_contours_to_msdf(Arena *arena, TTF_Font *font, U3
 
             if (current_on_curve) {
                 if (next_on_curve) {
-                    MSDF_Segment *line = arena_push_struct_zero(arena, MSDF_Segment);
+                    MSDF_Segment *line = arena_push_struct(arena, MSDF_Segment);
                     line->kind  = MSDF_Segment_Line;
                     line->p0    = v2f32(current_x, current_y);
                     line->p1    = v2f32(next_x, next_y);
@@ -928,7 +928,7 @@ internal MSDF_Glyph ttf_expand_contours_to_msdf(Arena *arena, TTF_Font *font, U3
                     dll_push_back(contour->first_segment, contour->last_segment, line);
                 }
             } else {
-                MSDF_Segment *bezier = arena_push_struct_zero(arena, MSDF_Segment);
+                MSDF_Segment *bezier = arena_push_struct(arena, MSDF_Segment);
                 bezier->kind  = MSDF_Segment_QuadraticBezier;
                 bezier->p0    = (prev_on_curve ? v2f32(prev_x, prev_y) : v2f32(((F32) prev_x + (F32) current_x) * 0.5f, ((F32) prev_y + (F32) current_y) * 0.5f));
                 bezier->p1    = v2f32(current_x, current_y);
@@ -959,7 +959,7 @@ internal MSDF_Glyph ttf_expand_contours_to_msdf(Arena *arena, TTF_Font *font, U3
 }
 
 internal Void ttf_get_glyph_data_ranges(Arena *arena, TTF_Font *font) {
-    font->raw_glyph_data = arena_push_array_zero(arena, Str8, font->glyph_count);
+    font->raw_glyph_data = arena_push_array(arena, Str8, font->glyph_count);
 
     Str8 head_data = font->tables[TTF_Table_Head];
     Str8 loca_data = font->tables[TTF_Table_Loca];
@@ -1036,7 +1036,7 @@ internal Void ttf_get_glyph_data_ranges(Arena *arena, TTF_Font *font) {
 }
 
 internal TTF_Font *ttf_load(Arena *arena, Str8 font_path) {
-    TTF_Font *result = arena_push_struct_zero(arena, TTF_Font);
+    TTF_Font *result = arena_push_struct(arena, TTF_Font);
     Str8 font_data = { 0 };
 
     if (!os_file_read(arena, font_path, &font_data)) {

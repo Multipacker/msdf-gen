@@ -16,7 +16,7 @@ struct Font_Raster {
 };
 
 internal Font_Raster *raster_load(Arena *arena, Str8 path) {
-    Font_Raster *result = arena_push_struct_zero(arena, Font_Raster);
+    Font_Raster *result = arena_push_struct(arena, Font_Raster);
 
     Str8 buffer = { 0 };
     if (os_file_read(arena, path, &buffer)) {
@@ -59,7 +59,7 @@ internal MSDF_RasterResult raster_generate(Arena *arena, Font_Raster *font, U32 
 
         int width  = x_max - x_min;
         int height = y_max - y_min;
-        result.data = arena_push_array_zero(arena, U8, (U64) (width * height));
+        result.data = arena_push_array(arena, U8, (U64) (width * height));
         stbtt_MakeGlyphBitmap(&font->font_info, result.data, width, height, width, scale, scale, glyph_index);
 
         int advance_width     = 0;

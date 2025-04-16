@@ -28,7 +28,7 @@ internal Draw_List *draw_list_top(Void);
             node = stack->freelist;                                                                \
             sll_stack_pop(stack->freelist);                                                        \
         } else {                                                                                   \
-            node = arena_push_struct_zero(global_draw_context.arena, Draw_##type_name##StackNode); \
+            node = arena_push_struct(global_draw_context.arena, Draw_##type_name##StackNode);      \
         }                                                                                          \
         node->item = value;                                                                        \
         sll_stack_push(stack->top, node);                                                          \

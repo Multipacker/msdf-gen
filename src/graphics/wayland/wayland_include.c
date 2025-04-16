@@ -109,7 +109,7 @@ internal Void wayland_update_cursor(Void) {
     }
 
     if (!theme) {
-        theme = arena_push_struct_zero(state->arena, Wayland_CursorTheme);
+        theme = arena_push_struct(state->arena, Wayland_CursorTheme);
         theme->scale = state->pointer_surface->scale;
         theme->theme = wl_cursor_theme_load(state->cursor_theme_name, (S32) f64_ceil(state->pointer_surface->scale * (F64) state->cursor_theme_size), state->shm);
         dll_push_back(state->first_cursor_theme, state->last_cursor_theme, theme);
@@ -203,9 +203,9 @@ internal Void wayland_handle_key(U32 key, U32 key_state) {
         B32 is_c1_control = (0x80 <= codepoint && codepoint <= 0x9F);
 
         if (!is_c0_control && !is_c1_control) {
-            Gfx_Event *event = arena_push_struct_zero(state->event_arena, Gfx_Event);
+            Gfx_Event *event = arena_push_struct(state->event_arena, Gfx_Event);
             event->kind = Gfx_EventKind_Text;
-            event->text.data = arena_push_array(state->event_arena, U8, 4);
+            event->text.data = arena_push_array_no_zero(state->event_arena, U8, 4);
             event->text.size = string_encode_utf8(event->text.data, codepoint);
             dll_push_back(state->events.first, state->events.last, event);
         }
@@ -289,7 +289,7 @@ internal Void wayland_handle_key(U32 key, U32 key_state) {
         }
 
         if (event_key != Gfx_Key_Null) {
-            Gfx_Event *event = arena_push_struct_zero(state->event_arena, Gfx_Event);
+            Gfx_Event *event = arena_push_struct(state->event_arena, Gfx_Event);
             event->kind = (key_state == WL_KEYBOARD_KEY_STATE_PRESSED ? Gfx_EventKind_KeyPress : Gfx_EventKind_KeyRelease);
             event->key  = event_key;
             event->key_modifiers |= (xkb_state_mod_name_is_active(state->xkb_state, XKB_MOD_NAME_SHIFT, XKB_STATE_MODS_EFFECTIVE) > 0 ? Gfx_KeyModifier_Shift   : 0);
@@ -318,7 +318,7 @@ internal Wayland_Surface *wayland_surface_create(Void) {
         sll_stack_pop(state->surface_freelist);
         memory_zero_struct(surface);
     } else {
-        surface = arena_push_struct_zero(state->arena, Wayland_Surface);
+        surface = arena_push_struct(state->arena, Wayland_Surface);
     }
 
     surface->surface = wl_compositor_create_surface(state->compositor);
@@ -368,7 +368,7 @@ internal Str8 wayland_data_offer_receive(Arena *arena, Wayland_DataOffer *data_o
         size_t buffer_capacity = (size_t) s64_min(1 << 16, (S64) SSIZE_MAX);
 
         for (;;) {
-            U8 *buffer = arena_push_array_zero(scratch.arena, U8, buffer_capacity);
+            U8 *buffer = arena_push_array(scratch.arena, U8, buffer_capacity);
             U64 buffer_size = 0;
 
             for (;;) {
@@ -413,7 +413,7 @@ internal Void wayland_data_offer_destroy(Wayland_DataOffer *data_offer) {
 internal Void wayland_wakeup_callback_done(Void *data, struct wl_callback *wl_callback, U32 callback_data) {
     Wayland_State *state = &global_wayland_state;
 
-    Gfx_Event *event = arena_push_struct_zero(state->event_arena, Gfx_Event);
+    Gfx_Event *event = arena_push_struct(state->event_arena, Gfx_Event);
     event->kind = Gfx_EventKind_Wakeup;
     dll_push_back(state->events.first, state->events.last, event);
 }
@@ -454,7 +454,7 @@ internal Void wayland_pointer_motion(Void *data, struct wl_pointer *pointer, U32
         (F32) (wl_fixed_to_double(surface_y) * state->surface->scale)
     );
 
-    Gfx_Event *event = arena_push_struct_zero(state->event_arena, Gfx_Event);
+    Gfx_Event *event = arena_push_struct(state->event_arena, Gfx_Event);
     event->kind = Gfx_EventKind_MouseMove;
     event->position = state->pointer_position;
     dll_push_back(state->events.first, state->events.last, event);
@@ -478,7 +478,7 @@ internal Void wayland_pointer_button(Void *data, struct wl_pointer *pointer, U32
     }
 
     if (kind != Gfx_EventKind_Null && key != Gfx_Key_Null) {
-        Gfx_Event *event = arena_push_struct_zero(state->event_arena, Gfx_Event);
+        Gfx_Event *event = arena_push_struct(state->event_arena, Gfx_Event);
         event->kind     = kind;
         event->key      = key;
         event->position = state->pointer_position;
@@ -502,7 +502,7 @@ internal Void wayland_pointer_frame(Void *data, struct wl_pointer *pointer) {
     // We will get both kinds of events within one input frame, and we don't
     // want to output two events for the same action.
     if (state->pointer_axis_discrete.x != 0.0f || state->pointer_axis_discrete.y != 0.0f) {
-        Gfx_Event *event = arena_push_struct_zero(state->event_arena, Gfx_Event);
+        Gfx_Event *event = arena_push_struct(state->event_arena, Gfx_Event);
         event->kind     = Gfx_EventKind_Scroll;
         event->scroll   = state->pointer_axis_discrete;
         event->position = state->pointer_position;
@@ -513,7 +513,7 @@ internal Void wayland_pointer_frame(Void *data, struct wl_pointer *pointer) {
     }
 
     if (state->pointer_axis.x != 0.0f || state->pointer_axis.y != 0.0f) {
-        Gfx_Event *event = arena_push_struct_zero(state->event_arena, Gfx_Event);
+        Gfx_Event *event = arena_push_struct(state->event_arena, Gfx_Event);
         event->kind     = Gfx_EventKind_Scroll;
         event->scroll   = state->pointer_axis;
         event->position = state->pointer_position;
@@ -710,7 +710,7 @@ internal Void wayland_data_device_data_offer(Void *data, struct wl_data_device *
         sll_stack_pop(state->data_offer_freelist);
         memory_zero_struct(data_offer);
     } else {
-        data_offer = arena_push_struct_zero(state->arena, Wayland_DataOffer);
+        data_offer = arena_push_struct(state->arena, Wayland_DataOffer);
     }
 
     data_offer->data_offer = id;
@@ -789,7 +789,7 @@ internal Void wayland_data_device_drop(Void *data, struct wl_data_device *data_d
 
             // NOTE(simon): We only accept files from localhost.
             if (str8_equal(uri.scheme, str8_literal("file")) && uri.authority.size == 0) {
-                Gfx_Event *event = arena_push_struct_zero(state->event_arena, Gfx_Event);
+                Gfx_Event *event = arena_push_struct(state->event_arena, Gfx_Event);
                 event->kind     = Gfx_EventKind_FileDrop;
                 event->position = state->drag_and_drop_position;
                 event->path     = str8_copy(state->event_arena, uri.path);
@@ -905,7 +905,7 @@ internal Void wayland_xdg_toplevel_configure(Void *data, struct xdg_toplevel *xg
 
 internal Void wayland_xdg_toplevel_close(Void *data, struct xdg_toplevel *xdg_toplevel) {
     Wayland_State *state = &global_wayland_state;
-    Gfx_Event *event = arena_push_struct_zero(state->event_arena, Gfx_Event);
+    Gfx_Event *event = arena_push_struct(state->event_arena, Gfx_Event);
     event->kind = Gfx_EventKind_Quit;
     dll_push_back(state->events.first, state->events.last, event);
 }
@@ -968,7 +968,7 @@ internal Void wayland_surface_enter(Void *data, struct wl_surface *wl_surface, s
         if (node) {
             sll_stack_pop(state->output_node_freelist);
         } else {
-            node = arena_push_struct(state->arena, Wayland_OutputNode);
+            node = arena_push_struct_no_zero(state->arena, Wayland_OutputNode);
         }
 
         node->output = output;
@@ -1043,7 +1043,7 @@ internal Void wayland_registry_global(Void *data, struct wl_registry *registry, 
             sll_stack_pop(state->output_freelist);
             memory_zero_struct(output);
         } else {
-            output = arena_push_struct_zero(state->arena, Wayland_Output);
+            output = arena_push_struct(state->arena, Wayland_Output);
         }
 
         output->name = name;
@@ -1206,7 +1206,7 @@ internal Gfx_EventList gfx_get_events(Arena *arena, B32 wait) {
     // NOTE(simon): Copy events to the provided arena.
     Gfx_EventList events = { 0 };
     for (Gfx_Event *event = state->events.first; event; event = event->next) {
-        Gfx_Event *new_event = arena_push_struct_zero(arena, Gfx_Event);
+        Gfx_Event *new_event = arena_push_struct(arena, Gfx_Event);
         *new_event = *event;
         new_event->text = str8_copy(arena, new_event->text);
         new_event->path = str8_copy(arena, new_event->path);

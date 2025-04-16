@@ -34,7 +34,7 @@ internal B32 render_init(Void) {
 
         EGLint available_config_count = 0;
         eglChooseConfig(opengl_state->display, config_attributes, 0, 0, &available_config_count);
-        EGLConfig *available_configs = arena_push_array_zero(scratch.arena, EGLConfig, (U64) available_config_count);
+        EGLConfig *available_configs = arena_push_array(scratch.arena, EGLConfig, (U64) available_config_count);
         eglChooseConfig(opengl_state->display, config_attributes, available_configs, available_config_count, &available_config_count);
 
         for (EGLint i = 0; i < available_config_count; ++i) {

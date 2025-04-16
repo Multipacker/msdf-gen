@@ -5,14 +5,14 @@
 global FontCache_State global_font_cache_state;
 
 internal FontCache_Atlas *font_cache_atlas_create(Arena *arena, V2U32 size) {
-    FontCache_Atlas *atlas = arena_push_struct_zero(arena, FontCache_Atlas);
+    FontCache_Atlas *atlas = arena_push_struct(arena, FontCache_Atlas);
 
     V2U32 ceiled_size = v2u32(
             u32_ceil_to_power_of_2(size.width),
             u32_ceil_to_power_of_2(size.height)
     );
     atlas->texture   = render_texture_create(ceiled_size, Render_TextureFormat_R8, 0);
-    atlas->root      = arena_push_struct_zero(arena, FontCache_Region);
+    atlas->root      = arena_push_struct(arena, FontCache_Region);
     atlas->root_size = ceiled_size;
 
     return atlas;
@@ -37,7 +37,7 @@ internal R2U32 font_cache_atlas_allocate(Arena *arena, FontCache_Atlas *atlas, V
                 U32 best_corner = 4;
                 for (U32 corner = 0; corner < 4; ++corner) {
                     if (!region->children[corner]) {
-                        region->children[corner]                     = arena_push_struct_zero(arena, FontCache_Region);
+                        region->children[corner]                     = arena_push_struct(arena, FontCache_Region);
                         region->children[corner]->parent             = region;
                         region->children[corner]->max_availible_size = next_size;
                     }
@@ -175,7 +175,7 @@ internal FontCache_Font *font_cache_font_from_path(Str8 path) {
 
     // NOTE(simon): Load the font if it doesn't exist yet.
     if (!result) {
-        result = arena_push_struct_zero(state->arena, FontCache_Font);
+        result = arena_push_struct(state->arena, FontCache_Font);
 
         result->path = str8_copy(state->arena, path);
         result->font = raster_load(state->arena, path);
@@ -224,7 +224,7 @@ internal FontCache_Text font_cache_text(Arena *arena, FontCache_Font *font, Str8
 
     FontCache_Text result = { 0 };
 
-    result.letters = arena_push_array_zero(arena, FontCache_Letter, text.size);
+    result.letters = arena_push_array(arena, FontCache_Letter, text.size);
 
     result.ascent  = f32_ceil(font->ascent  * (F32) size / font->units_per_em);
     result.descent = f32_ceil(font->descent * (F32) size / font->units_per_em);
@@ -272,7 +272,7 @@ internal FontCache_Text font_cache_text(Arena *arena, FontCache_Font *font, Str8
 
             // NOTE(simon): Create glyph.
             V2U32 atlas_size = render_size_from_texture(selected_atlas->texture);
-            glyph = arena_push_struct_zero(state->arena, FontCache_Glyph);
+            glyph = arena_push_struct(state->arena, FontCache_Glyph);
             glyph->font       = font;
             glyph->codepoint  = decode.codepoint;
             glyph->point_size = size;
@@ -367,7 +367,7 @@ internal Void font_cache_create(Void) {
     Arena *arena = arena_create();
     result->arena = arena;
     result->font_table_size = 32;
-    result->font_table      = arena_push_array_zero(result->arena, FontCache_FontList, result->font_table_size);
+    result->font_table      = arena_push_array(result->arena, FontCache_FontList, result->font_table_size);
     result->glyph_table_size = 4096;
-    result->glyph_table      = arena_push_array_zero(result->arena, FontCache_GlyphList, result->glyph_table_size);
+    result->glyph_table      = arena_push_array(result->arena, FontCache_GlyphList, result->glyph_table_size);
 }

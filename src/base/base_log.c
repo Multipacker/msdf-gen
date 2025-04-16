@@ -3,7 +3,7 @@ thread_local Log *thread_active_log;
 // NOTE(simon): Logs
 internal Log *log_create(Void) {
     Arena *arena = arena_create();
-    Log *log = arena_push_struct_zero(arena, Log);
+    Log *log = arena_push_struct(arena, Log);
     log->arena = arena;
     return log;
 }
@@ -26,7 +26,7 @@ internal Void log_select(Log *log) {
 internal Void log_scope_begin(Void) {
     if (thread_active_log) {
         U64 position = thread_active_log->arena->position;
-        LogScope *scope = arena_push_struct_zero(thread_active_log->arena, LogScope);
+        LogScope *scope = arena_push_struct(thread_active_log->arena, LogScope);
         scope->arena_position = position;
         sll_stack_push(thread_active_log->top_scope, scope);
     }

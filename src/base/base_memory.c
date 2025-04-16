@@ -24,7 +24,7 @@ internal Void arena_destroy(Arena *arena) {
     os_memory_release(arena->memory, arena->capacity);
 }
 
-internal Void *arena_push(Arena *arena, U64 size, U64 alignment) {
+internal Void *arena_push_no_zero(Arena *arena, U64 size, U64 alignment) {
     Void *result = 0;
 
     arena->position = u64_round_up_to_power_of_2(arena->position, alignment);
@@ -69,10 +69,18 @@ internal Void arena_reset(Arena *arena) {
     arena_pop_to(arena, sizeof(Arena));
 }
 
-internal Void *arena_push_zero(Arena *arena, U64 size, U64 alignment) {
-    Void *result = arena_push(arena, size, alignment);
+internal Void *arena_push(Arena *arena, U64 size, U64 alignment) {
+    Void *result = arena_push_no_zero(arena, size, alignment);
     memory_zero(result, size);
     return result;
+}
+
+internal Void arena_align_no_zero(Arena *arena, U64 power) {
+    U64 position_aligned = u64_round_up_to_power_of_2(arena->position, power);
+    U64 align = position_aligned - arena->position;
+    if (align) {
+        arena_push_no_zero(arena, align, 1);
+    }
 }
 
 internal Void arena_align(Arena *arena, U64 power) {
@@ -80,14 +88,6 @@ internal Void arena_align(Arena *arena, U64 power) {
     U64 align = position_aligned - arena->position;
     if (align) {
         arena_push(arena, align, 1);
-    }
-}
-
-internal Void arena_align_zero(Arena *arena, U64 power) {
-    U64 position_aligned = u64_round_up_to_power_of_2(arena->position, power);
-    U64 align = position_aligned - arena->position;
-    if (align) {
-        arena_push_zero(arena, align, 1);
     }
 }
 

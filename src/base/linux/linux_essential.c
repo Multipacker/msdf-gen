@@ -30,7 +30,7 @@ internal Linux_Resource *linux_resource_create(Void) {
     if (result) {
         sll_stack_pop(linux_resource_freelist);
     } else {
-        result = arena_push_struct_zero(linux_resource_arena, Linux_Resource);
+        result = arena_push_struct(linux_resource_arena, Linux_Resource);
     }
     memory_zero_struct(result);
 
@@ -122,7 +122,7 @@ internal B32 os_file_read(Arena *arena, Str8 file_name, Str8 *result) {
         if (fstat(file_descriptor, &metadata) != -1) {
             U64 total_size = (U64) metadata.st_size;
             Arena_Temporary restore_point = arena_begin_temporary(arena);
-            U8 *buffer = arena_push_array(arena, U8, total_size);
+            U8 *buffer = arena_push_array_no_zero(arena, U8, total_size);
             U8 *ptr = buffer;
             U8 *opl = buffer + total_size;
 
@@ -345,7 +345,7 @@ internal Str8 os_file_path(Arena *arena, OS_SystemPath path) {
             Arena_Temporary scratch = arena_get_scratch(&arena, 1);
 
             U64 buffer_size = 256;
-            U8 *buffer = arena_push_array(scratch.arena, U8, buffer_size);
+            U8 *buffer = arena_push_array_no_zero(scratch.arena, U8, buffer_size);
 
             while (!getcwd((CStr) buffer, buffer_size)) {
                 if (errno == ERANGE) {
@@ -353,7 +353,7 @@ internal Str8 os_file_path(Arena *arena, OS_SystemPath path) {
                     scratch = arena_begin_temporary(scratch.arena);
 
                     buffer_size *= 2;
-                    buffer       = arena_push_array(scratch.arena, U8, buffer_size);
+                    buffer       = arena_push_array_no_zero(scratch.arena, U8, buffer_size);
                 } else {
                     // TODO: Handle error
                 }
@@ -367,7 +367,7 @@ internal Str8 os_file_path(Arena *arena, OS_SystemPath path) {
 
             U64     buffer_size = 256;
             ssize_t read        = 0;
-            U8     *buffer      = arena_push_array(scratch.arena, U8, buffer_size);
+            U8     *buffer      = arena_push_array_no_zero(scratch.arena, U8, buffer_size);
 
             // NOTE: Readlink truncates the result to fit in the buffer, so as
             // long as the number of bytes read is the same as the buffer size,
@@ -381,7 +381,7 @@ internal Str8 os_file_path(Arena *arena, OS_SystemPath path) {
                     scratch = arena_begin_temporary(scratch.arena);
 
                     buffer_size *= 2;
-                    buffer       = arena_push_array(scratch.arena, U8, buffer_size);
+                    buffer       = arena_push_array_no_zero(scratch.arena, U8, buffer_size);
                 } else {
                     break;
                 }
@@ -514,7 +514,7 @@ internal B32 os_console_run(Str8 program, Str8List arguments) {
     Arena_Temporary scratch = arena_get_scratch(0, 0);
 
     U64   argument_count  = 1 + arguments.node_count + 1;
-    CStr *arguments_array = arena_push_array(scratch.arena, CStr, argument_count);
+    CStr *arguments_array = arena_push_array_no_zero(scratch.arena, CStr, argument_count);
 
     arguments_array[0] = cstr_from_str8(scratch.arena, program);
     U32 argument_index = 1;
@@ -549,7 +549,7 @@ internal Void os_console_print(Str8 string) {
 internal Void os_restart_self(Void) {
     Arena_Temporary scratch = arena_get_scratch(0, 0);
     U64   argument_count  = linux_argument_list.node_count + 1;
-    CStr *arguments_array = arena_push_array(scratch.arena, CStr, argument_count);
+    CStr *arguments_array = arena_push_array_no_zero(scratch.arena, CStr, argument_count);
 
     U32 argument_index = 0;
     for (Str8Node *node = linux_argument_list.first; node; node = node->next, ++argument_index) {

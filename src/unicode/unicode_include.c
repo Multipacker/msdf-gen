@@ -105,7 +105,7 @@ internal Unicode_RangePropertyList unicode_range_property_list_from_file(Arena *
 
         // NOTE(simon): Insert.
         if (min_codepoint < max_codepoint) {
-            Unicode_RangePropertyNode *node = arena_push_struct_zero(arena, Unicode_RangePropertyNode);
+            Unicode_RangePropertyNode *node = arena_push_struct(arena, Unicode_RangePropertyNode);
             node->min = min_codepoint;
             node->max = max_codepoint;
             node->properties = fields;
@@ -119,7 +119,7 @@ internal Unicode_RangePropertyList unicode_range_property_list_from_file(Arena *
 }
 
 internal Str8 unicode_name_to_identifier(Arena *arena, Str8 name) {
-    U8 *buffer = arena_push_array_zero(arena, U8, name.size);
+    U8 *buffer = arena_push_array(arena, U8, name.size);
     U64 size = 0;
 
     for (U64 i = 0; i < name.size; ++i) {
@@ -151,9 +151,9 @@ internal Void unicode_test(Void) {
         U32 name_index;
     };
 
-    Str8 *names = arena_push_array_zero(arena, Str8, blocks.count);
+    Str8 *names = arena_push_array(arena, Str8, blocks.count);
     U64 name_count = 0;
-    U32 *all_name_indicies = arena_push_array_zero(arena, U32, 0x110000);
+    U32 *all_name_indicies = arena_push_array(arena, U32, 0x110000);
     for (Unicode_RangePropertyNode *range = blocks.first; range; range = range->next) {
         if (!range->properties.first) {
             continue;
@@ -183,7 +183,7 @@ internal Void unicode_test(Void) {
     os_console_print(str8_literal("} Unicode_Block;\n"));
 
     U64 items_per_level = 16;
-    U32 *offsets = arena_push_array_zero(arena, U32, 0x110000 / items_per_level);
+    U32 *offsets = arena_push_array(arena, U32, 0x110000 / items_per_level);
     U64 offset_count = 0;
     typedef struct Item Item;
     struct Item {
@@ -197,7 +197,7 @@ internal Void unicode_test(Void) {
         Item *last;
     };
     U64 bucket_count = 256;
-    Bucket *buckets = arena_push_array_zero(arena, Bucket, bucket_count);
+    Bucket *buckets = arena_push_array(arena, Bucket, bucket_count);
     U64 items = 0;
     for (U32 i = 0; i < 0x110000; i += items_per_level) {
         U64 hash = str8_hash(str8((U8 *) &all_name_indicies[i], items_per_level * sizeof(*all_name_indicies)));
@@ -209,7 +209,7 @@ internal Void unicode_test(Void) {
         }
 
         if (!item) {
-            item = arena_push_struct_zero(arena, Item);
+            item = arena_push_struct(arena, Item);
             item->offset = i;
             item->hash = hash;
             sll_stack_push(bucket->first, item);

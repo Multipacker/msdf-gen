@@ -2,9 +2,9 @@ internal Render_Shape *render_shape_list_push(Arena *arena, Render_ShapeList *sh
     Render_ShapeChunk *chunk = shapes->last;
 
     if (!chunk || chunk->count == chunk->capacity) {
-        chunk = arena_push_struct_zero(arena, Render_ShapeChunk);
+        chunk = arena_push_struct(arena, Render_ShapeChunk);
         chunk->capacity = 32;
-        chunk->shapes = arena_push_array(arena, Render_Shape, chunk->capacity);
+        chunk->shapes = arena_push_array_no_zero(arena, Render_Shape, chunk->capacity);
         sll_queue_push(shapes->first, shapes->last, chunk);
         ++shapes->chunk_count;
     }

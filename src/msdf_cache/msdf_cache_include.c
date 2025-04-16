@@ -40,12 +40,12 @@ internal Void msdf_cache_create(U32 glyph_size, VoidFunction *wakeup) {
     state->wakeup      = wakeup;
 
     state->request_size   = 128;
-    state->request_buffer = arena_push_array(state->arena, MSDFCache_Request, state->request_size);
+    state->request_buffer = arena_push_array_no_zero(state->arena, MSDFCache_Request, state->request_size);
     state->request_mutex  = os_mutex_create();
     state->request_condition_variable = os_condition_variable_create();
 
     state->result_size   = 128;
-    state->result_buffer = arena_push_array(state->arena, MSDFCache_Result, state->result_size);
+    state->result_buffer = arena_push_array_no_zero(state->arena, MSDFCache_Result, state->result_size);
     state->result_mutex  = os_mutex_create();
     state->result_condition_variable = os_condition_variable_create();
 
@@ -79,7 +79,7 @@ internal MSDFCache_Glyph *msdf_cache_get_glyph(TTF_Font *font, U32 codepoint) {
             // result in some memory churn, but old and possibly irrelevant
             // (for now) glyphs would not get generated.
             if (state->request_write - state->request_read < state->request_size) {
-                result = arena_push_struct_zero(state->glyph_arena, MSDFCache_Glyph);
+                result = arena_push_struct(state->glyph_arena, MSDFCache_Glyph);
                 result->glyph_index = glyph_index;
                 dll_push_back(glyphs->first, glyphs->last, result);
 
@@ -140,7 +140,7 @@ internal Void msdf_cache_update(Void) {
                 // NOTE(simon): Allocate a new atlas if we couldn't find one with space in it.
                 if (!selected_atlas) {
                     V2U32 size = v2u32(state->glyph_size * ATLAS_GLYPHS_PER_SIDE, state->glyph_size * ATLAS_GLYPHS_PER_SIDE);
-                    selected_atlas = arena_push_struct_zero(state->glyph_arena, MSDFCache_Atlas);
+                    selected_atlas = arena_push_struct(state->glyph_arena, MSDFCache_Atlas);
                     selected_atlas->texture = render_texture_create(size, Render_TextureFormat_RGBA8, 0);
                     dll_push_back(state->first_atlas, state->last_atlas, selected_atlas);
                 }
@@ -189,12 +189,12 @@ internal Void msdf_cache_update(Void) {
                 );
                 result->texture = selected_atlas->texture;
                 for (MSDF_LogEntry *src_entry = work.raster.log.first; src_entry; src_entry = src_entry->next) {
-                    MSDF_LogEntry *entry = arena_push_struct_zero(state->glyph_arena, MSDF_LogEntry);
+                    MSDF_LogEntry *entry = arena_push_struct(state->glyph_arena, MSDF_LogEntry);
                     entry->description = str8_copy(state->arena, src_entry->description);
                     for (MSDF_LogGroup *src_group = src_entry->first_group; src_group; src_group = src_group->next) {
-                        MSDF_LogGroup *group = arena_push_struct_zero(state->glyph_arena, MSDF_LogGroup);
+                        MSDF_LogGroup *group = arena_push_struct(state->glyph_arena, MSDF_LogGroup);
                         for (MSDF_LogGeometry *src_geometry = src_group->first_geometry; src_geometry; src_geometry = src_geometry->next) {
-                            MSDF_LogGeometry *geometry = arena_push_struct_zero(state->glyph_arena, MSDF_LogGeometry);
+                            MSDF_LogGeometry *geometry = arena_push_struct(state->glyph_arena, MSDF_LogGeometry);
                             memory_copy(geometry, src_geometry, sizeof(*geometry));
                             dll_push_back(group->first_geometry, group->last_geometry, geometry);
                         }

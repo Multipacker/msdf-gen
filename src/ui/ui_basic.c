@@ -369,7 +369,7 @@ internal UI_Input ui_line_edit(U8 *buffer, U64 *buffer_size, U64 buffer_capacity
 
     ui_parent_push(text_container_box);
 
-    UI_DrawLineEdit *draw_data = arena_push_struct_zero(ui_frame_arena(), UI_DrawLineEdit);
+    UI_DrawLineEdit *draw_data = arena_push_struct(ui_frame_arena(), UI_DrawLineEdit);
     draw_data->cursor = *cursor;
     draw_data->mark   = *mark;
 
@@ -425,7 +425,7 @@ UI_BOX_DRAW_FUNCTION(ui_draw_slider) {
 }
 
 internal UI_Input ui_slider(F32 min, F32 *value, F32 max, UI_Key key) {
-    F32 *percentage_filled = arena_push_struct_zero(ui_frame_arena(), F32);
+    F32 *percentage_filled = arena_push_struct(ui_frame_arena(), F32);
 
     ui_draw_data_next(percentage_filled);
     ui_draw_function_next(ui_draw_slider);
@@ -675,7 +675,7 @@ UI_BOX_DRAW_FUNCTION(ui_draw_alpha) {
 }
 
 internal UI_Input ui_saturation_value_picker(V4F32 *color) {
-    V4F32 *color_data = arena_push_struct_zero(ui_frame_arena(), V4F32);
+    V4F32 *color_data = arena_push_struct(ui_frame_arena(), V4F32);
     *color_data = *color;
     ui_draw_data_next(color_data);
     ui_draw_function_next(ui_draw_saturation_value);
@@ -712,7 +712,7 @@ internal UI_Input ui_saturation_value_picker(V4F32 *color) {
 }
 
 internal UI_Input ui_hue_picker(V4F32 *color) {
-    V4F32 *color_data = arena_push_struct_zero(ui_frame_arena(), V4F32);
+    V4F32 *color_data = arena_push_struct(ui_frame_arena(), V4F32);
     *color_data = *color;
     ui_draw_data_next(color_data);
     ui_draw_function_next(ui_draw_hue);
@@ -746,7 +746,7 @@ internal UI_Input ui_hue_picker(V4F32 *color) {
 }
 
 internal UI_Input ui_alpha_picker(V4F32 *color) {
-    V4F32 *color_data = arena_push_struct_zero(ui_frame_arena(), V4F32);
+    V4F32 *color_data = arena_push_struct(ui_frame_arena(), V4F32);
     *color_data = *color;
     ui_draw_data_next(color_data);
     ui_draw_function_next(ui_draw_alpha);

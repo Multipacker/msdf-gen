@@ -6,7 +6,7 @@ internal Tab *tab_create(State *state, Str8 name) {
         sll_stack_pop(state->tab_freelist);
         generation = tab->generation;
     } else {
-        tab = arena_push_struct_zero(state->arena, Tab);
+        tab = arena_push_struct(state->arena, Tab);
     }
 
     memory_zero_struct(tab);
@@ -29,7 +29,7 @@ internal Void *tab_get_state(Tab *tab, U64 size) {
     Void *state = tab->view_state;
 
     if (!state) {
-        state = arena_push_zero(tab->arena, size, 16);
+        state = arena_push(tab->arena, size, 16);
         tab->view_state = state;
     }
 
@@ -67,7 +67,7 @@ internal Panel *panel_create(State *state) {
         sll_stack_pop(state->panel_freelist);
         generation = panel->generation;
     } else {
-        panel = arena_push_struct_zero(state->arena, Panel);
+        panel = arena_push_struct(state->arena, Panel);
     }
 
     memory_zero_struct(panel);
@@ -134,7 +134,7 @@ internal R2F32 rectangle_from_panel(Panel *panel, R2F32 root_rectangle) {
     };
     WalkNode *first_walk_node = 0;
     for (Panel *p = panel; p->parent; p = p->parent) {
-        WalkNode *node = arena_push_struct_zero(scratch.arena, WalkNode);
+        WalkNode *node = arena_push_struct(scratch.arena, WalkNode);
         node->child = p;
         sll_stack_push(first_walk_node, node);
     }
@@ -202,7 +202,7 @@ internal Handle handle_from_panel(Panel *panel) {
 
 
 internal Context *copy_context(Arena *arena, Context *context) {
-    Context *result = arena_push_struct_zero(arena, Context);
+    Context *result = arena_push_struct(arena, Context);
     memory_copy(result, context, sizeof(*result));
     result->next = 0;
     return result;
@@ -230,7 +230,7 @@ internal Context *top_context(Void) {
 internal Void push_command_internal(CommandKind kind, Context *context) {
     State *state = global_state;
 
-    CommandNode *node = arena_push_struct_zero(state->command_arena, CommandNode);
+    CommandNode *node = arena_push_struct(state->command_arena, CommandNode);
     node->command.kind = kind;
     node->command.context = copy_context(state->command_arena, context);
     sll_queue_push(state->commands.first, state->commands.last, node);
@@ -537,7 +537,7 @@ internal Void update(Void) {
                 case Gfx_EventKind_Wakeup:     kind = UI_EventKind_Null;       break;
                 case Gfx_EventKind_COUNT:      kind = UI_EventKind_Null;       break;
             }
-            ui_event = arena_push_struct_zero(frame_arena(), UI_Event);
+            ui_event = arena_push_struct(frame_arena(), UI_Event);
             ui_event->kind      = kind;
             ui_event->text      = event->text;
             ui_event->position  = event->position;
@@ -883,254 +883,254 @@ internal Void update(Void) {
                     state->target_theme = global_themes[state->theme_index];
                 } break;
                 case Command_SelectWordLeft: {
-                    ui_event = arena_push_struct_zero(ui_frame_arena(), UI_Event);
+                    ui_event = arena_push_struct(ui_frame_arena(), UI_Event);
                     ui_event->kind = UI_EventKind_Navigation;
                     ui_event->delta.x = -1;
                     ui_event->unit = UI_EventDeltaUnit_Word;
                     ui_event->flags = UI_EventFlag_KeepMark;
                 } break;
                 case Command_SelectWordUp: {
-                    ui_event = arena_push_struct_zero(ui_frame_arena(), UI_Event);
+                    ui_event = arena_push_struct(ui_frame_arena(), UI_Event);
                     ui_event->kind = UI_EventKind_Navigation;
                     ui_event->delta.y = -1;
                     ui_event->unit = UI_EventDeltaUnit_Word;
                     ui_event->flags = UI_EventFlag_KeepMark;
                 } break;
                 case Command_SelectWordRight: {
-                    ui_event = arena_push_struct_zero(ui_frame_arena(), UI_Event);
+                    ui_event = arena_push_struct(ui_frame_arena(), UI_Event);
                     ui_event->kind = UI_EventKind_Navigation;
                     ui_event->delta.x = 1;
                     ui_event->unit = UI_EventDeltaUnit_Word;
                     ui_event->flags = UI_EventFlag_KeepMark;
                 } break;
                 case Command_SelectWordDown: {
-                    ui_event = arena_push_struct_zero(ui_frame_arena(), UI_Event);
+                    ui_event = arena_push_struct(ui_frame_arena(), UI_Event);
                     ui_event->kind = UI_EventKind_Navigation;
                     ui_event->delta.y = 1;
                     ui_event->unit = UI_EventDeltaUnit_Word;
                     ui_event->flags = UI_EventFlag_KeepMark;
                 } break;
                 case Command_SelectCharacterLeft: {
-                    ui_event = arena_push_struct_zero(ui_frame_arena(), UI_Event);
+                    ui_event = arena_push_struct(ui_frame_arena(), UI_Event);
                     ui_event->kind = UI_EventKind_Navigation;
                     ui_event->delta.x = -1;
                     ui_event->unit = UI_EventDeltaUnit_Character;
                     ui_event->flags = UI_EventFlag_KeepMark;
                 } break;
                 case Command_SelectCharacterUp: {
-                    ui_event = arena_push_struct_zero(ui_frame_arena(), UI_Event);
+                    ui_event = arena_push_struct(ui_frame_arena(), UI_Event);
                     ui_event->kind = UI_EventKind_Navigation;
                     ui_event->delta.y = -1;
                     ui_event->unit = UI_EventDeltaUnit_Character;
                     ui_event->flags = UI_EventFlag_KeepMark;
                 } break;
                 case Command_SelectCharacterRight: {
-                    ui_event = arena_push_struct_zero(ui_frame_arena(), UI_Event);
+                    ui_event = arena_push_struct(ui_frame_arena(), UI_Event);
                     ui_event->kind = UI_EventKind_Navigation;
                     ui_event->delta.x = 1;
                     ui_event->unit = UI_EventDeltaUnit_Character;
                     ui_event->flags = UI_EventFlag_KeepMark;
                 } break;
                 case Command_SelectCharacterDown: {
-                    ui_event = arena_push_struct_zero(ui_frame_arena(), UI_Event);
+                    ui_event = arena_push_struct(ui_frame_arena(), UI_Event);
                     ui_event->kind = UI_EventKind_Navigation;
                     ui_event->delta.y = 1;
                     ui_event->unit = UI_EventDeltaUnit_Character;
                     ui_event->flags = UI_EventFlag_KeepMark;
                 } break;
                 case Command_MoveWordLeft: {
-                    ui_event = arena_push_struct_zero(ui_frame_arena(), UI_Event);
+                    ui_event = arena_push_struct(ui_frame_arena(), UI_Event);
                     ui_event->kind = UI_EventKind_Navigation;
                     ui_event->delta.x = -1;
                     ui_event->unit = UI_EventDeltaUnit_Word;
                     ui_event->flags = UI_EventFlag_PickSelectSide | UI_EventFlag_ZeroDeltaOnSelection;
                 } break;
                 case Command_MoveWordUp: {
-                    ui_event = arena_push_struct_zero(ui_frame_arena(), UI_Event);
+                    ui_event = arena_push_struct(ui_frame_arena(), UI_Event);
                     ui_event->kind = UI_EventKind_Navigation;
                     ui_event->delta.y = -1;
                     ui_event->unit = UI_EventDeltaUnit_Word;
                     ui_event->flags = UI_EventFlag_PickSelectSide | UI_EventFlag_ZeroDeltaOnSelection;
                 } break;
                 case Command_MoveWordRight: {
-                    ui_event = arena_push_struct_zero(ui_frame_arena(), UI_Event);
+                    ui_event = arena_push_struct(ui_frame_arena(), UI_Event);
                     ui_event->kind = UI_EventKind_Navigation;
                     ui_event->delta.x = 1;
                     ui_event->unit = UI_EventDeltaUnit_Word;
                     ui_event->flags = UI_EventFlag_PickSelectSide | UI_EventFlag_ZeroDeltaOnSelection;
                 } break;
                 case Command_MoveWordDown: {
-                    ui_event = arena_push_struct_zero(ui_frame_arena(), UI_Event);
+                    ui_event = arena_push_struct(ui_frame_arena(), UI_Event);
                     ui_event->kind = UI_EventKind_Navigation;
                     ui_event->delta.y = 1;
                     ui_event->unit = UI_EventDeltaUnit_Word;
                     ui_event->flags = UI_EventFlag_PickSelectSide | UI_EventFlag_ZeroDeltaOnSelection;
                 } break;
                 case Command_MoveCharacterLeft: {
-                    ui_event = arena_push_struct_zero(ui_frame_arena(), UI_Event);
+                    ui_event = arena_push_struct(ui_frame_arena(), UI_Event);
                     ui_event->kind = UI_EventKind_Navigation;
                     ui_event->delta.x = -1;
                     ui_event->unit = UI_EventDeltaUnit_Character;
                     ui_event->flags = UI_EventFlag_PickSelectSide | UI_EventFlag_ZeroDeltaOnSelection;
                 } break;
                 case Command_MoveCharacterUp: {
-                    ui_event = arena_push_struct_zero(ui_frame_arena(), UI_Event);
+                    ui_event = arena_push_struct(ui_frame_arena(), UI_Event);
                     ui_event->kind = UI_EventKind_Navigation;
                     ui_event->delta.y = -1;
                     ui_event->unit = UI_EventDeltaUnit_Character;
                     ui_event->flags = UI_EventFlag_PickSelectSide | UI_EventFlag_ZeroDeltaOnSelection;
                 } break;
                 case Command_MoveCharacterRight: {
-                    ui_event = arena_push_struct_zero(ui_frame_arena(), UI_Event);
+                    ui_event = arena_push_struct(ui_frame_arena(), UI_Event);
                     ui_event->kind = UI_EventKind_Navigation;
                     ui_event->delta.x = 1;
                     ui_event->unit = UI_EventDeltaUnit_Character;
                     ui_event->flags = UI_EventFlag_PickSelectSide | UI_EventFlag_ZeroDeltaOnSelection;
                 } break;
                 case Command_MoveCharacterDown: {
-                    ui_event = arena_push_struct_zero(ui_frame_arena(), UI_Event);
+                    ui_event = arena_push_struct(ui_frame_arena(), UI_Event);
                     ui_event->kind = UI_EventKind_Navigation;
                     ui_event->delta.y = 1;
                     ui_event->unit = UI_EventDeltaUnit_Character;
                     ui_event->flags = UI_EventFlag_PickSelectSide | UI_EventFlag_ZeroDeltaOnSelection;
                 } break;
                 case Command_SelectHome: {
-                    ui_event = arena_push_struct_zero(ui_frame_arena(), UI_Event);
+                    ui_event = arena_push_struct(ui_frame_arena(), UI_Event);
                     ui_event->kind = UI_EventKind_Navigation;
                     ui_event->delta.x = -1;
                     ui_event->unit = UI_EventDeltaUnit_Line;
                     ui_event->flags = UI_EventFlag_KeepMark;
                 } break;
                 case Command_SelectEnd: {
-                    ui_event = arena_push_struct_zero(ui_frame_arena(), UI_Event);
+                    ui_event = arena_push_struct(ui_frame_arena(), UI_Event);
                     ui_event->kind = UI_EventKind_Navigation;
                     ui_event->delta.x = 1;
                     ui_event->unit = UI_EventDeltaUnit_Line;
                     ui_event->flags = UI_EventFlag_KeepMark;
                 } break;
                 case Command_MoveHome: {
-                    ui_event = arena_push_struct_zero(ui_frame_arena(), UI_Event);
+                    ui_event = arena_push_struct(ui_frame_arena(), UI_Event);
                     ui_event->kind = UI_EventKind_Navigation;
                     ui_event->delta.x = -1;
                     ui_event->unit = UI_EventDeltaUnit_Line;
                     ui_event->flags = UI_EventFlag_PickSelectSide | UI_EventFlag_ZeroDeltaOnSelection;
                 } break;
                 case Command_MoveEnd: {
-                    ui_event = arena_push_struct_zero(ui_frame_arena(), UI_Event);
+                    ui_event = arena_push_struct(ui_frame_arena(), UI_Event);
                     ui_event->kind = UI_EventKind_Navigation;
                     ui_event->delta.x = 1;
                     ui_event->unit = UI_EventDeltaUnit_Line;
                     ui_event->flags = UI_EventFlag_PickSelectSide | UI_EventFlag_ZeroDeltaOnSelection;
                 } break;
                 case Command_SelectPageUp: {
-                    ui_event = arena_push_struct_zero(ui_frame_arena(), UI_Event);
+                    ui_event = arena_push_struct(ui_frame_arena(), UI_Event);
                     ui_event->kind = UI_EventKind_Navigation;
                     ui_event->delta.y = -1;
                     ui_event->unit = UI_EventDeltaUnit_Page;
                     ui_event->flags = UI_EventFlag_KeepMark;
                 } break;
                 case Command_SelectPageDown: {
-                    ui_event = arena_push_struct_zero(ui_frame_arena(), UI_Event);
+                    ui_event = arena_push_struct(ui_frame_arena(), UI_Event);
                     ui_event->kind = UI_EventKind_Navigation;
                     ui_event->delta.y = 1;
                     ui_event->unit = UI_EventDeltaUnit_Page;
                     ui_event->flags = UI_EventFlag_KeepMark;
                 } break;
                 case Command_MovePageUp: {
-                    ui_event = arena_push_struct_zero(ui_frame_arena(), UI_Event);
+                    ui_event = arena_push_struct(ui_frame_arena(), UI_Event);
                     ui_event->kind = UI_EventKind_Navigation;
                     ui_event->delta.y = -1;
                     ui_event->unit = UI_EventDeltaUnit_Page;
                     ui_event->flags = UI_EventFlag_PickSelectSide | UI_EventFlag_ZeroDeltaOnSelection;
                 } break;
                 case Command_MovePageDown: {
-                    ui_event = arena_push_struct_zero(ui_frame_arena(), UI_Event);
+                    ui_event = arena_push_struct(ui_frame_arena(), UI_Event);
                     ui_event->kind = UI_EventKind_Navigation;
                     ui_event->delta.y = 1;
                     ui_event->unit = UI_EventDeltaUnit_Page;
                     ui_event->flags = UI_EventFlag_PickSelectSide | UI_EventFlag_ZeroDeltaOnSelection;
                 } break;
                 case Command_SelectWholeUp: {
-                    ui_event = arena_push_struct_zero(ui_frame_arena(), UI_Event);
+                    ui_event = arena_push_struct(ui_frame_arena(), UI_Event);
                     ui_event->kind = UI_EventKind_Navigation;
                     ui_event->delta.x = -1;
                     ui_event->unit = UI_EventDeltaUnit_Whole;
                     ui_event->flags = UI_EventFlag_KeepMark;
                 } break;
                 case Command_SelectWholeDown: {
-                    ui_event = arena_push_struct_zero(ui_frame_arena(), UI_Event);
+                    ui_event = arena_push_struct(ui_frame_arena(), UI_Event);
                     ui_event->kind = UI_EventKind_Navigation;
                     ui_event->delta.x = 1;
                     ui_event->unit = UI_EventDeltaUnit_Whole;
                     ui_event->flags = UI_EventFlag_KeepMark;
                 } break;
                 case Command_MoveWholeUp: {
-                    ui_event = arena_push_struct_zero(ui_frame_arena(), UI_Event);
+                    ui_event = arena_push_struct(ui_frame_arena(), UI_Event);
                     ui_event->kind = UI_EventKind_Navigation;
                     ui_event->delta.x = -1;
                     ui_event->unit = UI_EventDeltaUnit_Whole;
                     ui_event->flags = UI_EventFlag_PickSelectSide | UI_EventFlag_ZeroDeltaOnSelection;
                 } break;
                 case Command_MoveWholeDown: {
-                    ui_event = arena_push_struct_zero(ui_frame_arena(), UI_Event);
+                    ui_event = arena_push_struct(ui_frame_arena(), UI_Event);
                     ui_event->kind = UI_EventKind_Navigation;
                     ui_event->delta.x = 1;
                     ui_event->unit = UI_EventDeltaUnit_Whole;
                     ui_event->flags = UI_EventFlag_PickSelectSide | UI_EventFlag_ZeroDeltaOnSelection;
                 } break;
                 case Command_RemoveWord: {
-                    ui_event = arena_push_struct_zero(ui_frame_arena(), UI_Event);
+                    ui_event = arena_push_struct(ui_frame_arena(), UI_Event);
                     ui_event->kind = UI_EventKind_Edit;
                     ui_event->delta.x = -1;
                     ui_event->unit = UI_EventDeltaUnit_Word;
                     ui_event->flags = UI_EventFlag_ZeroDeltaOnSelection | UI_EventFlag_Delete;
                 } break;
                 case Command_DeleteWord: {
-                    ui_event = arena_push_struct_zero(ui_frame_arena(), UI_Event);
+                    ui_event = arena_push_struct(ui_frame_arena(), UI_Event);
                     ui_event->kind = UI_EventKind_Edit;
                     ui_event->delta.x = 1;
                     ui_event->unit = UI_EventDeltaUnit_Word;
                     ui_event->flags = UI_EventFlag_ZeroDeltaOnSelection | UI_EventFlag_Delete;
                 } break;
                 case Command_RemoveCharacter: {
-                    ui_event = arena_push_struct_zero(ui_frame_arena(), UI_Event);
+                    ui_event = arena_push_struct(ui_frame_arena(), UI_Event);
                     ui_event->kind = UI_EventKind_Edit;
                     ui_event->delta.x = -1;
                     ui_event->unit = UI_EventDeltaUnit_Character;
                     ui_event->flags = UI_EventFlag_ZeroDeltaOnSelection | UI_EventFlag_Delete;
                 } break;
                 case Command_DeleteCharacter: {
-                    ui_event = arena_push_struct_zero(ui_frame_arena(), UI_Event);
+                    ui_event = arena_push_struct(ui_frame_arena(), UI_Event);
                     ui_event->kind = UI_EventKind_Edit;
                     ui_event->delta.x = 1;
                     ui_event->unit = UI_EventDeltaUnit_Character;
                     ui_event->flags = UI_EventFlag_ZeroDeltaOnSelection | UI_EventFlag_Delete;
                 } break;
                 case Command_SelectAll: {
-                    UI_Event *move_start = arena_push_struct_zero(ui_frame_arena(), UI_Event);
+                    UI_Event *move_start = arena_push_struct(ui_frame_arena(), UI_Event);
                     move_start->kind = UI_EventKind_Navigation;
                     move_start->unit = UI_EventDeltaUnit_Whole;
                     move_start->delta.x = -1;
                     ui_event_list_push_event(&ui_events, move_start);
 
-                    ui_event = arena_push_struct_zero(ui_frame_arena(), UI_Event);
+                    ui_event = arena_push_struct(ui_frame_arena(), UI_Event);
                     ui_event->kind = UI_EventKind_Navigation;
                     ui_event->flags = UI_EventFlag_KeepMark;
                     ui_event->unit = UI_EventDeltaUnit_Whole;
                     ui_event->delta.x = 1;
                 } break;
                 case Command_Copy: {
-                    ui_event = arena_push_struct_zero(ui_frame_arena(), UI_Event);
+                    ui_event = arena_push_struct(ui_frame_arena(), UI_Event);
                     ui_event->kind = UI_EventKind_Edit;
                     ui_event->flags = UI_EventFlag_Copy | UI_EventFlag_KeepMark;
                 } break;
                 case Command_Paste: {
-                    ui_event = arena_push_struct_zero(ui_frame_arena(), UI_Event);
+                    ui_event = arena_push_struct(ui_frame_arena(), UI_Event);
                     ui_event->kind = UI_EventKind_Text;
                     ui_event->text = gfx_get_clipboard_text(ui_frame_arena());
                 } break;
                 case Command_Cut: {
-                    ui_event = arena_push_struct_zero(ui_frame_arena(), UI_Event);
+                    ui_event = arena_push_struct(ui_frame_arena(), UI_Event);
                     ui_event->kind = UI_EventKind_Edit;
                     ui_event->flags = UI_EventFlag_Copy | UI_EventFlag_Delete;
                 } break;
@@ -1156,11 +1156,11 @@ internal Void update(Void) {
                     push_command(Command_OpenTab, .tab_specification = str8_literal("Test"));
                 } break;
                 case Command_Accept: {
-                    ui_event = arena_push_struct_zero(ui_frame_arena(), UI_Event);
+                    ui_event = arena_push_struct(ui_frame_arena(), UI_Event);
                     ui_event->kind = UI_EventKind_Accept;
                 } break;
                 case Command_Cancel: {
-                    ui_event = arena_push_struct_zero(ui_frame_arena(), UI_Event);
+                    ui_event = arena_push_struct(ui_frame_arena(), UI_Event);
                     ui_event->kind = UI_EventKind_Cancel;
                 } break;
                 case Command_UnloadFont: {

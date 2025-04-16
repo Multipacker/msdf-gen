@@ -114,7 +114,7 @@ internal Void update(Void) {
                 case Gfx_EventKind_Wakeup:     kind = UI_EventKind_Null;       break;
                 case Gfx_EventKind_COUNT:      kind = UI_EventKind_Null;       break;
             }
-            ui_event = arena_push_struct_zero(frame_arena(), UI_Event);
+            ui_event = arena_push_struct(frame_arena(), UI_Event);
             ui_event->kind      = kind;
             ui_event->text      = event->text;
             ui_event->position  = event->position;
@@ -147,7 +147,7 @@ internal Void update(Void) {
         Arena_Temporary scratch = arena_get_scratch(0, 0);
 
         state->point_count = u64_from_str8(str8(state->buffer, state->buffer_size)).value;
-        state->points = arena_push_array_zero(state->data_arena, V2F32, state->point_count);
+        state->points = arena_push_array(state->data_arena, V2F32, state->point_count);
         for (U64 i = 0; i < state->point_count; ++i) {
             U32 x_rand = 0;
             U32 y_rand = 0;
@@ -158,12 +158,12 @@ internal Void update(Void) {
         }
 
         state->edge_count = 0;
-        state->edges = arena_push_array_zero(state->data_arena, V2U64, state->point_count);
+        state->edges = arena_push_array(state->data_arena, V2U64, state->point_count);
 
         U64 visited_count = 0;
-        U64 *visited = arena_push_array_zero(scratch.arena, U64, state->point_count);
+        U64 *visited = arena_push_array(scratch.arena, U64, state->point_count);
         U64 free_count = 0;
-        U64 *free = arena_push_array_zero(scratch.arena, U64, state->point_count);
+        U64 *free = arena_push_array(scratch.arena, U64, state->point_count);
         for (U64 i = 0; i < state->point_count; ++i) {
             free[free_count] = i;
             ++free_count;
@@ -621,7 +621,7 @@ internal Void update(Void) {
 
 internal S32 os_run(Str8List arguments) {
     Arena *arena = arena_create();
-    state = arena_push_struct_zero(arena, State);
+    state = arena_push_struct(arena, State);
     state->arena = arena;
     state->running = true;
 
