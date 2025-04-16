@@ -224,7 +224,7 @@ internal UI_Input ui_line_edit(U8 *buffer, U64 *buffer_size, U64 buffer_capacity
     );
 
     // NOTE(simon): Input handling
-    if (ui_is_focus_active()) {
+    if (text_container_box->flags & UI_BoxFlag_FocusActive && !(text_container_box->flags & UI_BoxFlag_FocusDisabled)) {
         prof_zone_begin(prof_events, "events");
         for (UI_Event *event = 0; ui_next_event(&event);) {
             if (!(event->kind == UI_EventKind_Text || event->kind == UI_EventKind_Edit || event->kind == UI_EventKind_Navigation)) {
