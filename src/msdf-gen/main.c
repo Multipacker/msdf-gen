@@ -41,8 +41,6 @@
 #include "views.c"
 
 internal S32 os_run(Str8List arguments) {
-    unicode_test();
-    return 0;
     Arena *arena = arena_create();
     State *state = arena_push_struct(arena, State);
     state->arena = arena;
