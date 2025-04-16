@@ -14,6 +14,30 @@ internal Void ui_select_state(UI_Context *ui_state) {
     global_ui_state = ui_state;
 }
 
+internal Arena *ui_frame_arena(Void) {
+    UI_Context *ui = global_ui_state;
+    Arena *result = ui->frame_arenas[ui->frame_index % array_count(ui->frame_arenas)];
+    return result;
+}
+
+internal UI_Key ui_active_seed_key(Void) {
+    UI_Box *parent_seed = &global_ui_null_box;
+
+    for (UI_Box *parent = ui_parent_top(); !ui_box_is_null(parent); parent = parent->parent) {
+        if (!ui_key_is_null(parent->key)) {
+            parent_seed = parent;
+            break;
+        }
+    }
+
+    return parent_seed->key;
+}
+
+internal V2F32 ui_mouse(Void) {
+    UI_Context *ui = global_ui_state;
+    return ui->mouse;
+}
+
 
 
 // NOTE(simon): Event lists
@@ -73,27 +97,6 @@ internal UI_Event *ui_consume_key_press(Gfx_Key key, Gfx_KeyModifier modifiers) 
 
 
 
-internal B32 ui_keys_match(UI_Key a, UI_Key b) {
-    B32 result = a == b;
-    return result;
-}
-
-internal B32 ui_key_is_null(UI_Key key) {
-    B32 result = ui_keys_match(key, global_ui_null_key);
-    return result;
-}
-
-internal B32 ui_box_is_null(UI_Box *box) {
-    B32 result = box == &global_ui_null_box;
-    return result;
-}
-
-internal Arena *ui_frame_arena(Void) {
-    UI_Context *ui = global_ui_state;
-    Arena *result = ui->frame_arenas[ui->frame_index % array_count(ui->frame_arenas)];
-    return result;
-}
-
 // NOTE(simon): Either everything is hashed or only the part after '###'.
 internal Str8 ui_hash_part_from_string(Str8 string) {
     Str8 result = string;
@@ -126,22 +129,17 @@ internal Str8 ui_display_part_from_string(Str8 string) {
     return result;
 }
 
-internal UI_Key ui_active_seed_key(Void) {
-    UI_Box *parent_seed = &global_ui_null_box;
 
-    for (UI_Box *parent = ui_parent_top(); !ui_box_is_null(parent); parent = parent->parent) {
-        if (!ui_key_is_null(parent->key)) {
-            parent_seed = parent;
-            break;
-        }
-    }
 
-    return parent_seed->key;
+// NOTE(simon): Keys
+internal B32 ui_keys_match(UI_Key a, UI_Key b) {
+    B32 result = a == b;
+    return result;
 }
 
-internal V2F32 ui_mouse(Void) {
-    UI_Context *ui = global_ui_state;
-    return ui->mouse;
+internal B32 ui_key_is_null(UI_Key key) {
+    B32 result = ui_keys_match(key, global_ui_null_key);
+    return result;
 }
 
 internal UI_Key ui_key_from_string(UI_Key seed, Str8 string) {
@@ -169,6 +167,7 @@ internal UI_Key ui_key_from_string_format(UI_Key seed, CStr format, ...) {
 
 
 
+// NOTE(simon): Focus
 internal B32 ui_is_focus_active(Void) {
     UI_Context *ui = global_ui_state;
     B32 result = ui_focus_top() == UI_Focus_Active;
@@ -188,6 +187,7 @@ internal B32 ui_is_focus_active(Void) {
 
 
 
+// NOTE(simon): Sizes
 internal UI_Size ui_size_pixels(F32 pixels, F32 strictness) {
     UI_Size result = { 0 };
     result.kind = UI_Size_Pixels;
@@ -713,23 +713,6 @@ internal Void ui_end(Void) {
 
 
 
-internal UI_Box *ui_box_from_key(UI_Key key) {
-    UI_Context *ui = global_ui_state;
-    UI_Box *result = &global_ui_null_box;
-
-    if (!ui_key_is_null(key)) {
-        UI_BoxList boxes = ui->box_table[key & (UI_BOX_TABLE_SIZE - 1)];
-        for (UI_Box *box = boxes.first; box; box = box->hash_next) {
-            if (ui_keys_match(box->key, key)) {
-                result = box;
-                break;
-            }
-        }
-    }
-
-    return result;
-}
-
 internal UI_BoxIterator ui_box_iterator_depth_first_pre_order(UI_Box *box) {
     UI_BoxIterator iterator = { 0 };
     iterator.next = &global_ui_null_box;
@@ -748,6 +731,31 @@ internal UI_BoxIterator ui_box_iterator_depth_first_pre_order(UI_Box *box) {
     }
 
     return iterator;
+}
+
+
+
+// NOTE(simon): Boxes
+internal B32 ui_box_is_null(UI_Box *box) {
+    B32 result = box == &global_ui_null_box;
+    return result;
+}
+
+internal UI_Box *ui_box_from_key(UI_Key key) {
+    UI_Context *ui = global_ui_state;
+    UI_Box *result = &global_ui_null_box;
+
+    if (!ui_key_is_null(key)) {
+        UI_BoxList boxes = ui->box_table[key & (UI_BOX_TABLE_SIZE - 1)];
+        for (UI_Box *box = boxes.first; box; box = box->hash_next) {
+            if (ui_keys_match(box->key, key)) {
+                result = box;
+                break;
+            }
+        }
+    }
+
+    return result;
 }
 
 internal UI_Box *ui_create_box_from_key(UI_BoxFlags flags, UI_Key key) {
@@ -1069,6 +1077,9 @@ internal UI_Input ui_input_from_box(UI_Box *box) {
     return result;
 }
 
+
+
+// NOTE(simon): Tooltips
 internal Void ui_tooltip_begin(Void) {
     UI_Context *ui = global_ui_state;
     ui->is_tooltip_active = true;
@@ -1079,6 +1090,9 @@ internal Void ui_tooltip_end(Void) {
     ui_parent_pop();
 }
 
+
+
+// NOTE(simon): Context menus
 internal Void ui_context_menu_open(UI_Key context_key, UI_Key anchor_key, V2F32 anchor_offset) {
     UI_Context *ui = global_ui_state;
     ui->context_menu_key_next           = context_key;
@@ -1113,6 +1127,9 @@ internal B32 ui_context_menu_is_open(UI_Key context_key) {
     return result;
 }
 
+
+
+// NOTE(simon): Drag and drop
 internal UI_Key ui_drop_hot_key(Void) {
     UI_Context *ui = global_ui_state;
     return ui->drop_hot_key;
@@ -1146,6 +1163,9 @@ internal Void ui_set_drag_data_str8(Str8 data) {
     ui->drag_data = str8_copy(ui->drag_arena, data);
 }
 
+
+
+// NOTE(simon): Animation
 internal F32 ui_animation_super_slow_rate(Void) {
     F32 result = global_ui_state->super_slow_rate;
     return result;

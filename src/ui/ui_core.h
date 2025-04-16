@@ -383,6 +383,8 @@ struct UI_Context {
 };
 
 internal Void ui_select_state(UI_Context *state);
+internal UI_Key ui_active_seed_key(Void);
+internal V2F32  ui_mouse(Void);
 
 // NOTE(simon): Event lists
 internal Void ui_event_list_push_event(UI_EventList *list, UI_Event *event);
@@ -394,21 +396,20 @@ internal Void      ui_consume_event(UI_Event *event);
 internal UI_Event *ui_consume_event_kind(UI_EventKind kind);
 internal UI_Event *ui_consume_key_press(Gfx_Key key, Gfx_KeyModifier modifiers);
 
-internal B32 ui_keys_match(UI_Key a, UI_Key b);
-internal B32 ui_key_is_null(UI_Key key);
-internal B32 ui_box_is_null(UI_Box *box);
-
+// NOTE(simon): Extracting parts from UI strings.
 internal Str8 ui_hash_part_from_string(Str8 string);
 internal Str8 ui_display_part_from_string(Str8 string);
 
+// NOTE(simon): Keys
+internal B32    ui_keys_match(UI_Key a, UI_Key b);
+internal B32    ui_key_is_null(UI_Key key);
 internal UI_Key ui_key_from_string(UI_Key seed, Str8 string);
 internal UI_Key ui_key_from_string_format(UI_Key seed, CStr format, ...);
 
-internal UI_Key ui_active_seed_key(Void);
-internal V2F32  ui_mouse(Void);
-
+// NOTE(simon): Focus
 internal B32 ui_is_focus_active(Void);
 
+// NOTE(simon): Sizes
 internal UI_Size ui_size_pixels(F32 pixels, F32 strictness);
 internal UI_Size ui_size_ems(F32 ems, F32 strictness);
 internal UI_Size ui_size_parent_percent(F32 percent, F32 strictness);
@@ -421,15 +422,15 @@ internal UI_Context *ui_create(Void);
 internal Void ui_begin(UI_EventList *ui_events, F32 dt);
 internal Void ui_end(Void);
 
-internal UI_Box **ui_box_reference_from_key(UI_Key key);
-internal UI_Box *ui_box_from_key(UI_Key key);
-
 internal UI_BoxIterator ui_box_iterator_depth_first_pre_order(UI_Box *box);
 
-internal UI_Box *ui_create_box_from_key(UI_BoxFlags flags, UI_Key key);
-internal UI_Box *ui_create_box(UI_BoxFlags flags);
-internal UI_Box *ui_create_box_from_string(UI_BoxFlags flags, Str8 string);
-internal UI_Box *ui_create_box_from_string_format(UI_BoxFlags flags, CStr format, ...);
+// NOTE(simon): Boxes
+internal B32      ui_box_is_null(UI_Box *box);
+internal UI_Box  *ui_box_from_key(UI_Key key);
+internal UI_Box  *ui_create_box_from_key(UI_BoxFlags flags, UI_Key key);
+internal UI_Box  *ui_create_box(UI_BoxFlags flags);
+internal UI_Box  *ui_create_box_from_string(UI_BoxFlags flags, Str8 string);
+internal UI_Box  *ui_create_box_from_string_format(UI_BoxFlags flags, CStr format, ...);
 
 internal Void     ui_box_set_string(UI_Box *box, Str8 string);
 internal Void     ui_box_set_fuzzy_match_list(UI_Box *box, FuzzyMatchList fuzzy_matches);
@@ -437,10 +438,12 @@ internal Void     ui_box_set_draw_list(UI_Box *box, Draw_List *list);
 internal V2F32    ui_box_text_location(UI_Box *box);
 internal UI_Input ui_input_from_box(UI_Box *box);
 
+// NOTE(simon): Tooltips
 internal Void ui_tooltip_begin(Void);
 internal Void ui_tooltip_end(Void);
 #define ui_tooltip() defer_loop(ui_tooltip_begin(), ui_tooltip_end())
 
+// NOTE(simon): Context menus
 internal Void ui_context_menu_open(UI_Key context_key, UI_Key anchor_key, V2F32 anchor_offset);
 internal Void ui_context_menu_close(Void);
 internal B32  ui_context_menu_begin(UI_Key context_key);
@@ -453,14 +456,15 @@ internal B32 ui_context_menu_is_open(UI_Key context_key);
         glue(is_open, __LINE__) = false                                   \
     )
 
+// NOTE(simon): Drag and drop
 internal UI_Key ui_drop_hot_key(Void);
-
-internal V2F32 ui_drag_delta(Void);
-internal Str8  ui_get_drag_data_str8(U64 min_size);
-internal Void  ui_set_drag_data_str8(Str8 data);
+internal V2F32  ui_drag_delta(Void);
+internal Str8   ui_get_drag_data_str8(U64 min_size);
+internal Void   ui_set_drag_data_str8(Str8 data);
 #define ui_get_drag_data(type) ((type *) ui_get_drag_data_str8(sizeof(type)).data)
 #define ui_set_drag_data(ptr) ui_set_drag_data_str8(str8((U8 *) (ptr), sizeof(*(ptr))))
 
+// NOTE(simon): Animation
 internal F32 ui_animation_slow_rate(Void);
 internal F32 ui_animation_fast_rate(Void);
 internal B32 ui_is_animating_from_context(UI_Context *ui);
