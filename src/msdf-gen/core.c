@@ -500,7 +500,7 @@ internal Void update(Void) {
 
         for (U64 i = 0; i < array_count(bindings); ++i) {
             Binding binding = bindings[i];
-            if (event->key == binding.key && (event->key_modifiers & binding.modifiers) == binding.modifiers && (~event->key_modifiers & ~binding.modifiers) == ~binding.modifiers) {
+            if (event->key == binding.key && event->key_modifiers == binding.modifiers) {
                 push_command(binding.command);
                 dll_remove(events.first, events.last, event);
                 break;
@@ -2172,7 +2172,7 @@ internal Void update(Void) {
 
         draw_rectangle(r2f32(0, 0, (F32) client_area.width, (F32) client_area.height), color_from_theme(ThemeColor_BaseBackground), 0, 0, 0);
 
-        for (UI_Box *box = state->ui->root; box != &global_ui_null_box;) {
+        for (UI_Box *box = state->ui->root; !ui_box_is_null(box);) {
             if (box->flags & UI_BoxFlag_DrawDropShadow) {
                 draw_rectangle(
                     r2f32(

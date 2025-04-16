@@ -392,6 +392,11 @@ internal Void ui_event_list_consume_event(UI_EventList *list, UI_Event *event);
 internal B32       ui_next_event(UI_Event **event);
 internal Void      ui_consume_event(UI_Event *event);
 internal UI_Event *ui_consume_event_kind(UI_EventKind kind);
+internal UI_Event *ui_consume_key_press(Gfx_Key key, Gfx_KeyModifier modifiers);
+
+internal B32 ui_keys_match(UI_Key a, UI_Key b);
+internal B32 ui_key_is_null(UI_Key key);
+internal B32 ui_box_is_null(UI_Box *box);
 
 internal Str8 ui_hash_part_from_string(Str8 string);
 internal Str8 ui_display_part_from_string(Str8 string);

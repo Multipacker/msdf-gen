@@ -59,10 +59,32 @@ internal UI_Event *ui_consume_event_kind(UI_EventKind kind) {
     return result;
 }
 
+internal UI_Event *ui_consume_key_press(Gfx_Key key, Gfx_KeyModifier modifiers) {
+    UI_Event *result = 0;
+    for (UI_Event *event = 0; ui_next_event(&event);) {
+        if (event->kind == UI_EventKind_KeyPress && event->key == key && event->modifiers == modifiers) {
+            result = event;
+            ui_consume_event(event);
+            break;
+        }
+    }
+    return result;
+}
+
 
 
 internal B32 ui_keys_match(UI_Key a, UI_Key b) {
     B32 result = a == b;
+    return result;
+}
+
+internal B32 ui_key_is_null(UI_Key key) {
+    B32 result = ui_keys_match(key, global_ui_null_key);
+    return result;
+}
+
+internal B32 ui_box_is_null(UI_Box *box) {
+    B32 result = box == &global_ui_null_box;
     return result;
 }
 
@@ -107,8 +129,8 @@ internal Str8 ui_display_part_from_string(Str8 string) {
 internal UI_Key ui_active_seed_key(Void) {
     UI_Box *parent_seed = &global_ui_null_box;
 
-    for (UI_Box *parent = ui_parent_top(); parent != &global_ui_null_box; parent = parent->parent) {
-        if (!ui_keys_match(parent->key, global_ui_null_key)) {
+    for (UI_Box *parent = ui_parent_top(); !ui_box_is_null(parent); parent = parent->parent) {
+        if (!ui_key_is_null(parent->key)) {
             parent_seed = parent;
             break;
         }
@@ -323,9 +345,9 @@ internal Void ui_begin(UI_EventList *events, F32 dt) {
     // NOTE(simon): Reset active key if the active box is disabled or pruned.
     for (UI_MouseButton button = 0; button < UI_MouseButton_COUNT; ++button) {
         // TODO(simon): This first check could probably be removed because of null values.
-        if (!ui_keys_match(ui->active_key[button], global_ui_null_key)) {
+        if (!ui_key_is_null(ui->active_key[button])) {
             UI_Box *box = ui_box_from_key(ui->active_key[button]);
-            if (box == &global_ui_null_box || box->flags & UI_BoxFlag_Disabled) {
+            if (ui_box_is_null(box) || box->flags & UI_BoxFlag_Disabled) {
                 ui->active_key[button] = global_ui_null_key;
             }
         }
@@ -335,7 +357,7 @@ internal Void ui_begin(UI_EventList *events, F32 dt) {
     {
         B32 is_active = false;
         for (UI_MouseButton button = 0; button < UI_MouseButton_COUNT; ++button) {
-            is_active |= !ui_keys_match(ui->active_key[button], global_ui_null_key);
+            is_active |= !ui_key_is_null(ui->active_key[button]);
         }
         if (!is_active) {
             ui->hot_key = global_ui_null_key;
@@ -362,7 +384,7 @@ internal Void ui_layout_independent_sizes(UI_Box **boxes, Axis2 axis) {
 internal Void ui_layout_upwards_dependent_sizes_no_recurse(UI_Box *box, Axis2 axis) {
     if (box->size[axis].kind == UI_Size_ParentPercent) {
         UI_Box *parent = box->parent;
-        while (parent != &global_ui_null_box && parent->size[axis].kind != UI_Size_Pixels) {
+        while (!ui_box_is_null(parent) && parent->size[axis].kind != UI_Size_Pixels) {
             parent = parent->parent;
         }
 
@@ -396,13 +418,13 @@ internal Void ui_layout_downwards_dependent_sizes(UI_Box **boxes, Axis2 axis) {
         if (box->size[axis].kind == UI_Size_ChildrenSum) {
             F32 sum = 0.0f;
             if (axis == box->layout_axis) {
-                for (UI_Box *child = box->first; child != &global_ui_null_box; child = child->next) {
+                for (UI_Box *child = box->first; !ui_box_is_null(child); child = child->next) {
                     if (!(child->flags & (UI_BoxFlags) (UI_BoxFlag_FloatingX << axis))) {
                         sum += child->calculated_size.values[axis];
                     }
                 }
             } else {
-                for (UI_Box *child = box->first; child != &global_ui_null_box; child = child->next) {
+                for (UI_Box *child = box->first; !ui_box_is_null(child); child = child->next) {
                     if (!(child->flags & (UI_BoxFlags) (UI_BoxFlag_FloatingX << axis))) {
                         sum = f32_max(sum, child->calculated_size.values[axis]);
                     }
@@ -429,14 +451,14 @@ internal Void ui_layout_position(UI_Box *box, Axis2 axis) {
     // NOTE(simon): Position children
     if (axis == box->layout_axis) {
         F32 position = 0.0f;
-        for (UI_Box *child = box->first; child != &global_ui_null_box; child = child->next) {
+        for (UI_Box *child = box->first; !ui_box_is_null(child); child = child->next) {
             if (!(child->flags & (UI_BoxFlags) (UI_BoxFlag_FloatingX << axis))) {
                 child->calculated_position.values[axis] = position;
                 position += child->calculated_size.values[axis];
             }
         }
     } else {
-        for (UI_Box *child = box->first; child != &global_ui_null_box; child = child->next) {
+        for (UI_Box *child = box->first; !ui_box_is_null(child); child = child->next) {
             if (!(child->flags & (UI_BoxFlags) (UI_BoxFlag_FloatingX << axis))) {
                 child->calculated_position.values[axis] = 0.0f;
             }
@@ -444,7 +466,7 @@ internal Void ui_layout_position(UI_Box *box, Axis2 axis) {
     }
 
     // NOTE(simon): Recurse
-    for (UI_Box *child = box->first; child != &global_ui_null_box; child = child->next) {
+    for (UI_Box *child = box->first; !ui_box_is_null(child); child = child->next) {
         ui_layout_position(child, axis);
     }
 
@@ -459,14 +481,14 @@ internal Void ui_layout_resolve_violations(UI_Box **boxes, Axis2 axis) {
         UI_Box *box = boxes[i];
 
         if (box->flags & (UI_BoxFlags) (UI_BoxFlag_OverflowX << axis)) {
-            for (UI_Box *child = box->first; child != &global_ui_null_box; child = child->next) {
+            for (UI_Box *child = box->first; !ui_box_is_null(child); child = child->next) {
                 ui_layout_upwards_dependent_sizes_no_recurse(child, axis);
             }
         } else {
             if (axis == box->layout_axis) {
                 F32 total_size = 0.0f;
                 F32 total_adjustable_size = 0.0f;
-                for (UI_Box *child = box->first; child != &global_ui_null_box; child = child->next) {
+                for (UI_Box *child = box->first; !ui_box_is_null(child); child = child->next) {
                     if (!(child->flags & (UI_BoxFlags) (UI_BoxFlag_FloatingX << axis))) {
                         total_size += child->calculated_size.values[axis];
                         total_adjustable_size += child->calculated_size.values[axis] * (1.0f - child->size[axis].strictness);
@@ -477,7 +499,7 @@ internal Void ui_layout_resolve_violations(UI_Box **boxes, Axis2 axis) {
                 if (violation > 0.0f && total_adjustable_size > 0.0f) {
                     // NOTE(simon): Adjust children
                     F32 adjust_percent = violation / total_adjustable_size;
-                    for (UI_Box *child = box->first; child != &global_ui_null_box; child = child->next) {
+                    for (UI_Box *child = box->first; !ui_box_is_null(child); child = child->next) {
                         if (!(child->flags & (UI_BoxFlags) (UI_BoxFlag_FloatingX << axis))) {
                             F32 child_size = child->calculated_size.values[axis];
                             F32 adjustable_size = child_size * (1.0f - child->size[axis].strictness);
@@ -487,7 +509,7 @@ internal Void ui_layout_resolve_violations(UI_Box **boxes, Axis2 axis) {
                     }
                 }
             } else {
-                for (UI_Box *child = box->first; child != &global_ui_null_box; child = child->next) {
+                for (UI_Box *child = box->first; !ui_box_is_null(child); child = child->next) {
                     if (!(child->flags & (UI_BoxFlags) (UI_BoxFlag_FloatingX << axis))) {
                         F32 violation = f32_max(0.0f, child->calculated_size.values[axis] - box->calculated_size.values[axis]);
                         child->calculated_size.values[axis] -= violation;
@@ -503,7 +525,7 @@ internal Void ui_end(Void) {
 
     UI_Context *ui = global_ui_state;
 
-    if (!ui_keys_match(ui->context_menu_key, global_ui_null_key)) {
+    if (!ui_key_is_null(ui->context_menu_key)) {
         if (ui_consume_event_kind(UI_EventKind_Cancel)) {
             ui_context_menu_close();
         }
@@ -528,7 +550,7 @@ internal Void ui_end(Void) {
 
     prof_zone_begin(prof_collect, "collect");
     UI_Box **box_array = arena_push_array(ui_frame_arena(), UI_Box *, ui->box_count);
-    for (UI_Box *box = ui->root, **ptr = box_array; box != &global_ui_null_box; box = ui_box_iterator_depth_first_pre_order(box).next) {
+    for (UI_Box *box = ui->root, **ptr = box_array; !ui_box_is_null(box); box = ui_box_iterator_depth_first_pre_order(box).next) {
         *ptr++ = box;
     }
     prof_zone_end(prof_collect);
@@ -550,8 +572,8 @@ internal Void ui_end(Void) {
     }
 
     // NOTE(simon): Move context menu to anchor.
-    if (!ui_keys_match(ui->context_menu_key, global_ui_null_key)) {
-        if (ui_keys_match(ui->context_menu_anchor_key, global_ui_null_key)) {
+    if (!ui_key_is_null(ui->context_menu_key)) {
+        if (ui_key_is_null(ui->context_menu_anchor_key)) {
             ui->context_menu_root->calculated_position = ui->context_menu_anchor_offset;
         } else {
             UI_Box *anchor = ui_box_from_key(ui->context_menu_anchor_key);
@@ -566,9 +588,9 @@ internal Void ui_end(Void) {
     {
         UI_Box *update_roots[] = { ui->tooltip_root, ui->context_menu_root, };
         B32 force_contain[] = {
-            ui_keys_match(ui->active_key[UI_MouseButton_Left], global_ui_null_key) &&
-            ui_keys_match(ui->active_key[UI_MouseButton_Middle], global_ui_null_key) &&
-            ui_keys_match(ui->active_key[UI_MouseButton_Right], global_ui_null_key),
+            ui_key_is_null(ui->active_key[UI_MouseButton_Left]) &&
+            ui_key_is_null(ui->active_key[UI_MouseButton_Middle]) &&
+            ui_key_is_null(ui->active_key[UI_MouseButton_Right]),
             1,
         };
         for (U32 i = 0; i < array_count(update_roots); ++i) {
@@ -656,7 +678,7 @@ internal Void ui_end(Void) {
     }
 
     // NOTE(simon): Make sure events don't go through the context menu.
-    if (!ui_keys_match(ui->context_menu_anchor_key, global_ui_null_key)) {
+    if (!ui_key_is_null(ui->context_menu_anchor_key)) {
         ui_input_from_box(ui->context_menu_root);
     }
 
@@ -695,7 +717,7 @@ internal UI_Box *ui_box_from_key(UI_Key key) {
     UI_Context *ui = global_ui_state;
     UI_Box *result = &global_ui_null_box;
 
-    if (key != global_ui_null_key) {
+    if (!ui_key_is_null(key)) {
         UI_BoxList boxes = ui->box_table[key & (UI_BOX_TABLE_SIZE - 1)];
         for (UI_Box *box = boxes.first; box; box = box->hash_next) {
             if (ui_keys_match(box->key, key)) {
@@ -712,12 +734,12 @@ internal UI_BoxIterator ui_box_iterator_depth_first_pre_order(UI_Box *box) {
     UI_BoxIterator iterator = { 0 };
     iterator.next = &global_ui_null_box;
 
-    if (box->last != &global_ui_null_box) {
+    if (!ui_box_is_null(box->last)) {
         iterator.next = box->last;
         iterator.push_count = 1;
     } else {
-        for (UI_Box *parent = box; parent != &global_ui_null_box; parent = parent->parent) {
-            if (parent->previous != &global_ui_null_box) {
+        for (UI_Box *parent = box; !ui_box_is_null(parent); parent = parent->parent) {
+            if (!ui_box_is_null(parent->previous)) {
                 iterator.next = parent->previous;
                 break;
             }
@@ -735,14 +757,14 @@ internal UI_Box *ui_create_box_from_key(UI_BoxFlags flags, UI_Key key) {
     UI_Box *box = ui_box_from_key(key);
 
     // NOTE(simon): Zero the box if it was already used this frame.
-    if (box != &global_ui_null_box && box->last_used_index == ui->frame_index) {
+    if (!ui_box_is_null(box) && box->last_used_index == ui->frame_index) {
         box = &global_ui_null_box;
         key = global_ui_null_key;
     }
 
-    B32 is_transient = ui_keys_match(key, global_ui_null_key);
+    B32 is_transient = ui_key_is_null(key);
 
-    if (box == &global_ui_null_box) {
+    if (ui_box_is_null(box)) {
         if (is_transient) {
             box = arena_push_struct_zero(ui_frame_arena(), UI_Box);
         } else {
@@ -769,7 +791,7 @@ internal UI_Box *ui_create_box_from_key(UI_BoxFlags flags, UI_Key key) {
 
     // NOTE(simon): Set links
     box->parent = ui->parent_stack.top->item;
-    if (box->parent != &global_ui_null_box) {
+    if (!ui_box_is_null(box->parent)) {
         dll_insert_next_previous_zero(box->parent->first, box->parent->last, box->parent->last, box, next, previous, &global_ui_null_box);
     }
 
@@ -922,7 +944,7 @@ internal UI_Input ui_input_from_box(UI_Box *box) {
     B32 is_focused = box->flags & UI_BoxFlag_FocusActive && !(box->flags & UI_BoxFlag_FocusDisabled);
 
     R2F32 bounds = box->calculated_rectangle;
-    for (UI_Box *parent = box; parent != &global_ui_null_box; parent = parent->parent) {
+    for (UI_Box *parent = box; !ui_box_is_null(parent); parent = parent->parent) {
         if (parent->flags & UI_BoxFlag_Clip) {
             bounds = r2f32_intersect(bounds, parent->calculated_rectangle);
         }
@@ -930,7 +952,7 @@ internal UI_Input ui_input_from_box(UI_Box *box) {
 
     // NOTE(simon): Are we part of the context menu?
     B32 is_context_menu = false;
-    for (UI_Box *parent = box; parent != &global_ui_null_box; parent = parent->parent) {
+    for (UI_Box *parent = box; !ui_box_is_null(parent); parent = parent->parent) {
         if (parent == ui->context_menu_root) {
             is_context_menu = true;
             break;
