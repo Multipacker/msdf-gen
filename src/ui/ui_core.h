@@ -379,7 +379,7 @@ struct UI_Context {
     UI_F32Stack             text_x_padding_stack;
     UI_F32Stack             text_y_padding_stack;
     UI_F32Stack             corner_radius_stacks[Corner_COUNT];
-    UI_FocusStack           focus_stack;
+    UI_FocusStack           focus_hot_stack;
 };
 
 internal Void ui_select_state(UI_Context *state);
@@ -635,11 +635,11 @@ internal B32 ui_is_animating_from_context(UI_Context *ui);
 #define ui_corner_radius(radius)      defer_loop(ui_corner_radius_push(radius), ui_corner_radius_pop())
 #define ui_corner_radius_next(radius) (ui_corner_radius_00_next(radius), ui_corner_radius_01_next(radius), ui_corner_radius_10_next(radius), ui_corner_radius_11_next(radius))
 
-#define ui_focus_push(focus) ui_focus_stack_push(&global_ui_state->focus_stack, focus, false)
-#define ui_focus_pop()       ui_focus_stack_pop(&global_ui_state->focus_stack)
-#define ui_focus(focus)      defer_loop(ui_focus_push(focus), ui_focus_pop())
-#define ui_focus_next(focus) ui_focus_stack_push(&global_ui_state->focus_stack, focus, true)
-#define ui_focus_auto_pop()  ui_focus_stack_auto_pop(&global_ui_state->focus_stack)
-#define ui_focus_top()       (global_ui_state->focus_stack.top->item)
+#define ui_focus_hot_push(focus) ui_focus_stack_push(&global_ui_state->focus_hot_stack, focus, false)
+#define ui_focus_hot_pop()       ui_focus_stack_pop(&global_ui_state->focus_hot_stack)
+#define ui_focus_hot(focus)      defer_loop(ui_focus_hot_push(focus), ui_focus_hot_pop())
+#define ui_focus_hot_next(focus) ui_focus_stack_push(&global_ui_state->focus_hot_stack, focus, true)
+#define ui_focus_hot_auto_pop()  ui_focus_stack_auto_pop(&global_ui_state->focus_hot_stack)
+#define ui_focus_hot_top()       (global_ui_state->focus_hot_stack.top->item)
 
 #endif // UI_CORE_H

@@ -170,9 +170,9 @@ internal UI_Key ui_key_from_string_format(UI_Key seed, CStr format, ...) {
 // NOTE(simon): Focus
 internal B32 ui_is_focus_active(Void) {
     UI_Context *ui = global_ui_state;
-    B32 result = ui_focus_top() == UI_Focus_Active;
+    B32 result = ui_focus_hot_top() == UI_Focus_Active;
     if (result) {
-        for (UI_FocusStackNode *node = ui->focus_stack.top; node; node = node->next) {
+        for (UI_FocusStackNode *node = ui->focus_hot_stack.top; node; node = node->next) {
             if (node->item == UI_Focus_Root) {
                 break;
             } else if (node->item == UI_Focus_Inactive) {
@@ -279,7 +279,7 @@ internal Void ui_begin(UI_EventList *events, F32 dt) {
     memory_zero_struct(&ui->draw_function_stack);
     memory_zero_struct(&ui->draw_data_stack);
     memory_zero_struct(&ui->corner_radius_stacks);
-    memory_zero_struct(&ui->focus_stack);
+    memory_zero_struct(&ui->focus_hot_stack);
 
     ui->mouse = gfx_get_mouse_position();
     ui->events = events;
@@ -310,7 +310,7 @@ internal Void ui_begin(UI_EventList *events, F32 dt) {
     ui_corner_radius_01_push(0.0f);
     ui_corner_radius_10_push(0.0f);
     ui_corner_radius_11_push(0.0f);
-    ui_focus_push(UI_Focus_None);
+    ui_focus_hot_push(UI_Focus_None);
 
     // NOTE(simon): Build root
     {
@@ -823,11 +823,11 @@ internal UI_Box *ui_create_box_from_key(UI_BoxFlags flags, UI_Key key) {
     box->corner_radies[Corner_10] = ui_corner_radius_10_top();
     box->corner_radies[Corner_11] = ui_corner_radius_11_top();
 
-    if (ui_focus_top() == UI_Focus_Active) {
+    if (ui_focus_hot_top() == UI_Focus_Active) {
         box->flags |= UI_BoxFlag_FocusActive;
     }
 
-    if (ui_focus_top() == UI_Focus_Active && !ui_is_focus_active()) {
+    if (ui_focus_hot_top() == UI_Focus_Active && !ui_is_focus_active()) {
         box->flags |= UI_BoxFlag_FocusDisabled;
     }
 
@@ -863,7 +863,7 @@ internal UI_Box *ui_create_box_from_key(UI_BoxFlags flags, UI_Key key) {
     ui_corner_radius_01_auto_pop();
     ui_corner_radius_10_auto_pop();
     ui_corner_radius_11_auto_pop();
-    ui_focus_auto_pop();
+    ui_focus_hot_auto_pop();
 
     prof_function_end();
     return box;
