@@ -168,11 +168,28 @@ internal UI_Key ui_key_from_string_format(UI_Key seed, CStr format, ...) {
 
 
 // NOTE(simon): Focus
-internal B32 ui_is_focus_active(Void) {
+internal B32 ui_is_focus_hot(Void) {
     UI_Context *ui = global_ui_state;
     B32 result = ui_focus_hot_top() == UI_Focus_Active;
     if (result) {
         for (UI_FocusStackNode *node = ui->focus_hot_stack.top; node; node = node->next) {
+            if (node->item == UI_Focus_Root) {
+                break;
+            } else if (node->item == UI_Focus_Inactive) {
+                result = false;
+                break;
+            }
+        }
+    }
+
+    return result;
+}
+
+internal B32 ui_is_focus_active(Void) {
+    UI_Context *ui = global_ui_state;
+    B32 result = ui_focus_active_top() == UI_Focus_Active;
+    if (result) {
+        for (UI_FocusStackNode *node = ui->focus_active_stack.top; node; node = node->next) {
             if (node->item == UI_Focus_Root) {
                 break;
             } else if (node->item == UI_Focus_Inactive) {
@@ -280,6 +297,7 @@ internal Void ui_begin(UI_EventList *events, F32 dt) {
     memory_zero_struct(&ui->draw_data_stack);
     memory_zero_struct(&ui->corner_radius_stacks);
     memory_zero_struct(&ui->focus_hot_stack);
+    memory_zero_struct(&ui->focus_active_stack);
 
     ui->mouse = gfx_get_mouse_position();
     ui->events = events;
@@ -311,6 +329,7 @@ internal Void ui_begin(UI_EventList *events, F32 dt) {
     ui_corner_radius_10_push(0.0f);
     ui_corner_radius_11_push(0.0f);
     ui_focus_hot_push(UI_Focus_None);
+    ui_focus_active_push(UI_Focus_None);
 
     // NOTE(simon): Build root
     {
@@ -622,45 +641,52 @@ internal Void ui_end(Void) {
         for (U64 i = 0; i < ui->box_count; ++i) {
             UI_Box *box = box_array[i];
 
-            B32 is_hot            = ui_keys_match(ui->hot_key, box->key);
-            B32 is_active         = ui_keys_match(ui->active_key[UI_MouseButton_Left], box->key);
-            B32 is_disabled       = !!(box->flags & UI_BoxFlag_Disabled);
-            B32 is_focus_active   = !!(box->flags & UI_BoxFlag_FocusActive);
-            B32 is_focus_disabled = !!(box->flags & UI_BoxFlag_FocusDisabled);
+            B32 is_hot                   = ui_keys_match(ui->hot_key, box->key);
+            B32 is_active                = ui_keys_match(ui->active_key[UI_MouseButton_Left], box->key);
+            B32 is_disabled              = !!(box->flags & UI_BoxFlag_Disabled);
+            B32 is_focus_hot             = !!(box->flags & UI_BoxFlag_FocusHot);
+            B32 is_focus_hot_disabled    = !!(box->flags & UI_BoxFlag_FocusHotDisabled);
+            B32 is_focus_active          = !!(box->flags & UI_BoxFlag_FocusActive);
+            B32 is_focus_active_disabled = !!(box->flags & UI_BoxFlag_FocusActiveDisabled);
 
-            F32 position_x_delta       = (box->calculated_position.x - box->animated_position.x) * ui->fast_rate;
-            F32 position_y_delta       = (box->calculated_position.y - box->animated_position.y) * ui->fast_rate;
-            F32 hot_t_delta            = ((F32) is_hot               - box->hot_t)               * ui->fast_rate;
-            F32 active_t_delta         = ((F32) is_active            - box->active_t)            * ui->fast_rate;
-            F32 disabled_t_delta       = ((F32) is_disabled          - box->disabled_t)          * ui->slow_rate;
-            F32 focus_active_t_delta   = ((F32) is_focus_active      - box->focus_active_t)      * ui->fast_rate;
-            F32 focus_disabled_t_delta = ((F32) is_focus_disabled    - box->focus_disabled_t)    * ui->fast_rate;
+            F32 position_x_delta              = (box->calculated_position.x     - box->animated_position.x)     * ui->fast_rate;
+            F32 position_y_delta              = (box->calculated_position.y     - box->animated_position.y)     * ui->fast_rate;
+            F32 hot_t_delta                   = ((F32) is_hot                   - box->hot_t)                   * ui->fast_rate;
+            F32 active_t_delta                = ((F32) is_active                - box->active_t)                * ui->fast_rate;
+            F32 disabled_t_delta              = ((F32) is_disabled              - box->disabled_t)              * ui->slow_rate;
+            F32 focus_hot_t_delta             = ((F32) is_focus_hot             - box->focus_hot_t)             * ui->fast_rate;
+            F32 focus_active_t_delta          = ((F32) is_focus_active          - box->focus_active_t)          * ui->fast_rate;
+            F32 focus_active_disabled_t_delta = ((F32) is_focus_active_disabled - box->focus_active_disabled_t) * ui->fast_rate;
 
             B32 is_animating = false;
-            is_animating |= f32_abs(position_x_delta)       >= 1.0f;
-            is_animating |= f32_abs(position_y_delta)       >= 1.0f;
-            is_animating |= f32_abs(hot_t_delta)            >= 0.001f;
-            is_animating |= f32_abs(active_t_delta)         >= 0.001f;
-            is_animating |= f32_abs(disabled_t_delta)       >= 0.001f;
-            is_animating |= f32_abs(focus_active_t_delta)   >= 0.001f;
-            is_animating |= f32_abs(focus_disabled_t_delta) >= 0.001f;
+            is_animating |= f32_abs(position_x_delta)              >= 1.0f;
+            is_animating |= f32_abs(position_y_delta)              >= 1.0f;
+            is_animating |= f32_abs(hot_t_delta)                   >= 0.001f;
+            is_animating |= f32_abs(active_t_delta)                >= 0.001f;
+            is_animating |= f32_abs(disabled_t_delta)              >= 0.001f;
+            is_animating |= f32_abs(focus_active_t_delta)          >= 0.001f;
+            is_animating |= f32_abs(focus_hot_t_delta)             >= 0.001f;
+            is_animating |= f32_abs(focus_active_t_delta)          >= 0.001f;
+            is_animating |= f32_abs(focus_active_disabled_t_delta) >= 0.001f;
 
             if (is_animating) {
-                box->animated_position.x += position_x_delta;
-                box->animated_position.y += position_y_delta;
-                box->hot_t               += hot_t_delta;
-                box->active_t            += active_t_delta;
-                box->disabled_t          += disabled_t_delta;
-                box->focus_active_t      += focus_active_t_delta;
-                box->focus_disabled_t    += focus_disabled_t_delta;
+                box->animated_position.x     += position_x_delta;
+                box->animated_position.y     += position_y_delta;
+                box->hot_t                   += hot_t_delta;
+                box->active_t                += active_t_delta;
+                box->disabled_t              += disabled_t_delta;
+                box->focus_hot_t             += focus_active_t_delta;
+                box->focus_active_t          += focus_active_t_delta;
+                box->focus_active_disabled_t += focus_active_disabled_t_delta;
             } else {
-                box->animated_position.x = box->calculated_position.x;
-                box->animated_position.y = box->calculated_position.y;
-                box->hot_t               = (F32) is_hot;
-                box->active_t            = (F32) is_active;
-                box->disabled_t          = (F32) is_disabled;
-                box->focus_active_t      = (F32) is_focus_active;
-                box->focus_disabled_t    = (F32) is_focus_disabled;
+                box->animated_position.x     = box->calculated_position.x;
+                box->animated_position.y     = box->calculated_position.y;
+                box->hot_t                   = (F32) is_hot;
+                box->active_t                = (F32) is_active;
+                box->disabled_t              = (F32) is_disabled;
+                box->focus_hot_t             = (F32) is_focus_active;
+                box->focus_active_t          = (F32) is_focus_active;
+                box->focus_active_disabled_t = (F32) is_focus_active_disabled;
             }
 
             ui->is_animating |= is_animating;
@@ -824,11 +850,19 @@ internal UI_Box *ui_create_box_from_key(UI_BoxFlags flags, UI_Key key) {
     box->corner_radies[Corner_11] = ui_corner_radius_11_top();
 
     if (ui_focus_hot_top() == UI_Focus_Active) {
+        box->flags |= UI_BoxFlag_FocusHot;
+    }
+
+    if (ui_focus_active_top() == UI_Focus_Active) {
         box->flags |= UI_BoxFlag_FocusActive;
     }
 
-    if (ui_focus_hot_top() == UI_Focus_Active && !ui_is_focus_active()) {
-        box->flags |= UI_BoxFlag_FocusDisabled;
+    if (ui_focus_hot_top() == UI_Focus_Active && !ui_is_focus_hot()) {
+        box->flags |= UI_BoxFlag_FocusHotDisabled;
+    }
+
+    if (ui_focus_active_top() == UI_Focus_Active && !ui_is_focus_active()) {
+        box->flags |= UI_BoxFlag_FocusActiveDisabled;
     }
 
     if (ui->fixed_x_stack.top) {
@@ -864,6 +898,7 @@ internal UI_Box *ui_create_box_from_key(UI_BoxFlags flags, UI_Key key) {
     ui_corner_radius_10_auto_pop();
     ui_corner_radius_11_auto_pop();
     ui_focus_hot_auto_pop();
+    ui_focus_active_auto_pop();
 
     prof_function_end();
     return box;
@@ -949,7 +984,7 @@ internal UI_Input ui_input_from_box(UI_Box *box) {
     UI_Input result = { 0 };
     result.box = box;
 
-    B32 is_focused = box->flags & UI_BoxFlag_FocusActive && !(box->flags & UI_BoxFlag_FocusDisabled);
+    B32 is_focused = box->flags & UI_BoxFlag_FocusActive && !(box->flags & UI_BoxFlag_FocusActiveDisabled);
 
     R2F32 bounds = box->calculated_rectangle;
     for (UI_Box *parent = box; !ui_box_is_null(parent); parent = parent->parent) {

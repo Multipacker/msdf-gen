@@ -1259,7 +1259,7 @@ internal Void update(Void) {
         }
 
         // NOTE(simon): Build command lister.
-        if (state->show_command_lister) {
+        if (state->show_command_lister) ui_focus(UI_Focus_Active) {
             Arena_Temporary scratch = arena_get_scratch(0, 0);
 
             local U8 buffer[1024];
@@ -1318,9 +1318,8 @@ internal Void update(Void) {
             ui_width_next(ui_size_pixels(command_rectangle_width, 1.0f));
             ui_height_next(ui_size_pixels(command_rectangle_height, 1.0f));
             ui_layout_axis_next(Axis2_Y);
-            ui_focus_next(UI_Focus_Root);
             UI_Box *command_box = ui_create_box_from_string(
-                UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawBorder | UI_BoxFlag_DrawDropShadow |
+                UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawBorder | UI_BoxFlag_DrawDropShadow | UI_BoxFlag_DisableFocusOverlay |
                 UI_BoxFlag_Clickable | UI_BoxFlag_Scrollable,
                 str8_literal("##command_lister")
             );
@@ -1328,6 +1327,7 @@ internal Void update(Void) {
             ui_parent(command_box)
             ui_width(ui_size_fill())
             ui_height(ui_size_ems(1.5f, 1.0f))
+            ui_focus(UI_Focus_None)
             ui_text_x_padding(ui_size_ems(0.5f, 1.0f).value) {
                 UI_Key key = ui_key_from_string(ui_active_seed_key(), str8_literal("##query"));
                 ui_palette(palette_from_code(PaletteCode_Button))
@@ -1374,7 +1374,8 @@ internal Void update(Void) {
                 ui_width(ui_size_fill())
                 ui_height(ui_size_pixels(height, 1.0f)) {
                     for (S64 i = top_row; i < bottom_row; ++i) {
-                        ui_focus_push(i == active_index ? UI_Focus_Active : UI_Focus_Inactive);
+                        ui_focus_hot_push(i == active_index ? UI_Focus_Active : UI_Focus_Inactive);
+                        ui_focus_active_push(i == active_index ? UI_Focus_Active : UI_Focus_Inactive);
                         ui_palette_push(palette_from_code(i % 2 == 0 ? PaletteCode_Button : PaletteCode_SecondaryButton));
 
                         ui_hover_cursor_next(Gfx_Cursor_Hand);
@@ -1410,7 +1411,8 @@ internal Void update(Void) {
                         }
 
                         ui_palette_pop();
-                        ui_focus_pop();
+                        ui_focus_hot_pop();
+                        ui_focus_active_pop();
                     }
 
                     for (UI_Event *event = 0; ui_next_event(&event);) {
@@ -1833,7 +1835,7 @@ internal Void update(Void) {
 
             push_context(.panel = handle_from_panel(panel), .tab = panel->active_tab);
 
-            ui_focus(panel == panel_from_handle(state->active_panel) && !state->show_command_lister ? UI_Focus_None : UI_Focus_Inactive) {
+            ui_focus_hot(panel == panel_from_handle(state->active_panel) && !state->show_command_lister ? UI_Focus_None : UI_Focus_Inactive) {
                 R2F32 panel_rectangle = r2f32_pad(
                     r2f32(
                         panel->animated_rectangle_percentage.min.x * (F32) client_area.x,
@@ -2322,14 +2324,14 @@ internal Void update(Void) {
                     }
                 }
 
-                if (parent->flags & UI_BoxFlag_Clickable && parent->flags & UI_BoxFlag_FocusActive) {
+                if (parent->flags & UI_BoxFlag_Clickable && parent->flags & UI_BoxFlag_FocusActive && !(parent->flags & UI_BoxFlag_DisableFocusOverlay)) {
                     V4F32 color = color_from_theme(ThemeColor_Focus);
                     color.a *= 0.2f * parent->focus_active_t;
                     Render_Shape *shape = draw_rectangle(parent->calculated_rectangle, color, 0.0f, 0.0f, 0.0f);
                     memory_copy(shape->radies, parent->corner_radies, sizeof(shape->radies));
                 }
 
-                if (parent->flags & UI_BoxFlag_Clickable && parent->flags & UI_BoxFlag_FocusActive) {
+                if (parent->flags & UI_BoxFlag_Clickable && parent->flags & UI_BoxFlag_FocusActive && !(parent->flags & UI_BoxFlag_DisableFocusBorder)) {
                     V4F32 color = color_from_theme(ThemeColor_Focus);
                     color.a *= parent->focus_active_t;
                     Render_Shape *shape = draw_rectangle(r2f32_pad(parent->calculated_rectangle, 1.0f), color, 0.0f, 1.0f, 1.0f);

@@ -155,7 +155,8 @@ PANEL_BUILD_FUNCTION(view_glyph_list) {
                         *codepoint = codepoint_from_map_index(codepoint_map, index);
 
                         ui_draw_data_next(codepoint);
-                        ui_focus_next(*codepoint == top_context()->codepoint ? UI_Focus_Active : UI_Focus_Inactive);
+                        ui_focus_hot_next(*codepoint == top_context()->codepoint ? UI_Focus_Active : UI_Focus_Inactive);
+                        ui_focus_active_next(*codepoint == top_context()->codepoint ? UI_Focus_Active : UI_Focus_Inactive);
 
                         UI_Box *box = ui_create_box_from_string_format(
                             UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawBorder | UI_BoxFlag_DrawHot | UI_BoxFlag_DrawActive |
@@ -729,7 +730,7 @@ PANEL_BUILD_FUNCTION(view_test) {
                     is_initialized = true;
                 }
 
-                ui_focus(UI_Focus_Active) {
+                ui_focus_hot(UI_Focus_Active) {
                     ui_line_edit(buffer, &buffer_size, buffer_capacity, &cursor, &mark, ui_key_from_string(global_ui_null_key, str8_literal("line_edit")));
                 }
 

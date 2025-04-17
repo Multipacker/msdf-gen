@@ -279,7 +279,7 @@ internal Void update(Void) {
                     ui_spacer_sized(ui_size_ems(0.5f, 1.0f));
                     ui_slider(0.01f, &state->target_point_scale, 10.0f, ui_key_from_string(ui_active_seed_key(), str8_literal("##scale_slider")));
                     ui_spacer_sized(ui_size_ems(0.5f, 1.0f));
-                    ui_focus(UI_Focus_Active) {
+                    ui_focus_hot(UI_Focus_Active) {
                         ui_line_edit(state->buffer, &state->buffer_size, array_count(state->buffer), &state->cursor, &state->mark, ui_key_from_string(ui_active_seed_key(), str8_literal("##point_count")));
                     }
                     ui_spacer_sized(ui_size_ems(0.5f, 1.0f));

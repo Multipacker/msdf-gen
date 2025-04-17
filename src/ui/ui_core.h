@@ -68,37 +68,42 @@ union UI_Palette {
 
 typedef enum {
     // NOTE(simon): Interaction
-    UI_BoxFlag_Disabled          = 1 << 0,
-    UI_BoxFlag_Clickable         = 1 << 1,
-    UI_BoxFlag_Scrollable        = 1 << 2,
-    UI_BoxFlag_DropTarget        = 1 << 3,
-    UI_BoxFlag_KeyboardClickable = 1 << 4,
+    UI_BoxFlag_Disabled             = 1 << 0,
+    UI_BoxFlag_Clickable            = 1 << 1,
+    UI_BoxFlag_Scrollable           = 1 << 2,
+    UI_BoxFlag_DropTarget           = 1 << 3,
+    UI_BoxFlag_KeyboardClickable    = 1 << 4,
 
     // NOTE(simon): Layout
-    UI_BoxFlag_OverflowX         = 1 << 5,
-    UI_BoxFlag_OverflowY         = 1 << 6,
-    UI_BoxFlag_FloatingX         = 1 << 7,
-    UI_BoxFlag_FloatingY         = 1 << 8,
+    UI_BoxFlag_OverflowX            = 1 << 5,
+    UI_BoxFlag_OverflowY            = 1 << 6,
+    UI_BoxFlag_FloatingX            = 1 << 7,
+    UI_BoxFlag_FloatingY            = 1 << 8,
 
     // NOTE(simon): Appearance
-    UI_BoxFlag_AnimateX          = 1 << 9,
-    UI_BoxFlag_AnimateY          = 1 << 10,
-    UI_BoxFlag_DrawBackground    = 1 << 11,
-    UI_BoxFlag_DrawBorder        = 1 << 12,
-    UI_BoxFlag_DrawText          = 1 << 13,
-    UI_BoxFlag_DrawHot           = 1 << 14,
-    UI_BoxFlag_DrawActive        = 1 << 15,
-    UI_BoxFlag_DrawDropShadow    = 1 << 16,
-    UI_BoxFlag_DrawFuzzyMatches  = 1 << 17,
-    UI_BoxFlag_Clip              = 1 << 18,
+    UI_BoxFlag_AnimateX             = 1 << 9,
+    UI_BoxFlag_AnimateY             = 1 << 10,
+    UI_BoxFlag_DrawBackground       = 1 << 11,
+    UI_BoxFlag_DrawBorder           = 1 << 12,
+    UI_BoxFlag_DrawText             = 1 << 13,
+    UI_BoxFlag_DrawHot              = 1 << 14,
+    UI_BoxFlag_DrawActive           = 1 << 15,
+    UI_BoxFlag_DrawDropShadow       = 1 << 16,
+    UI_BoxFlag_DrawFuzzyMatches     = 1 << 17,
+    UI_BoxFlag_Clip                 = 1 << 18,
+    UI_BoxFlag_DisableFocusBorder   = 1 << 19,
+    UI_BoxFlag_DisableFocusOverlay  = 1 << 20,
 
-    UI_BoxFlag_FocusActive       = 1 << 19,
-    UI_BoxFlag_FocusDisabled     = 1 << 20,
+    UI_BoxFlag_FocusHot             = 1 << 21,
+    UI_BoxFlag_FocusHotDisabled     = 1 << 22,
+    UI_BoxFlag_FocusActive          = 1 << 23,
+    UI_BoxFlag_FocusActiveDisabled  = 1 << 24,
 
     // NOTE(simon): Convenient combinations
-    UI_BoxFlag_Overflow          = UI_BoxFlag_OverflowX | UI_BoxFlag_OverflowY,
-    UI_BoxFlag_AnimatePosition   = UI_BoxFlag_AnimateX  | UI_BoxFlag_AnimateY,
-    UI_BoxFlag_FloatingPosition  = UI_BoxFlag_FloatingX | UI_BoxFlag_FloatingY,
+    UI_BoxFlag_Overflow            = UI_BoxFlag_OverflowX | UI_BoxFlag_OverflowY,
+    UI_BoxFlag_AnimatePosition     = UI_BoxFlag_AnimateX  | UI_BoxFlag_AnimateY,
+    UI_BoxFlag_FloatingPosition    = UI_BoxFlag_FloatingX | UI_BoxFlag_FloatingY,
+    UI_BoxFlag_DisableFocusEffects = UI_BoxFlag_DisableFocusBorder | UI_BoxFlag_DisableFocusOverlay,
 } UI_BoxFlags;
 
 struct UI_Box {
@@ -144,8 +149,9 @@ struct UI_Box {
     F32 hot_t;
     F32 active_t;
     F32 disabled_t;
+    F32 focus_hot_t;
     F32 focus_active_t;
-    F32 focus_disabled_t;
+    F32 focus_active_disabled_t;
 };
 
 typedef struct UI_BoxIterator UI_BoxIterator;
@@ -380,6 +386,7 @@ struct UI_Context {
     UI_F32Stack             text_y_padding_stack;
     UI_F32Stack             corner_radius_stacks[Corner_COUNT];
     UI_FocusStack           focus_hot_stack;
+    UI_FocusStack           focus_active_stack;
 };
 
 internal Void ui_select_state(UI_Context *state);
@@ -407,6 +414,7 @@ internal UI_Key ui_key_from_string(UI_Key seed, Str8 string);
 internal UI_Key ui_key_from_string_format(UI_Key seed, CStr format, ...);
 
 // NOTE(simon): Focus
+internal B32 ui_is_focus_hot(Void);
 internal B32 ui_is_focus_active(Void);
 
 // NOTE(simon): Sizes
@@ -641,5 +649,14 @@ internal B32 ui_is_animating_from_context(UI_Context *ui);
 #define ui_focus_hot_next(focus) ui_focus_stack_push(&global_ui_state->focus_hot_stack, focus, true)
 #define ui_focus_hot_auto_pop()  ui_focus_stack_auto_pop(&global_ui_state->focus_hot_stack)
 #define ui_focus_hot_top()       (global_ui_state->focus_hot_stack.top->item)
+
+#define ui_focus_active_push(focus) ui_focus_stack_push(&global_ui_state->focus_active_stack, focus, false)
+#define ui_focus_active_pop()       ui_focus_stack_pop(&global_ui_state->focus_active_stack)
+#define ui_focus_active(focus)      defer_loop(ui_focus_active_push(focus), ui_focus_active_pop())
+#define ui_focus_active_next(focus) ui_focus_stack_push(&global_ui_state->focus_active_stack, focus, true)
+#define ui_focus_active_auto_pop()  ui_focus_stack_auto_pop(&global_ui_state->focus_active_stack)
+#define ui_focus_active_top()       (global_ui_state->focus_active_stack.top->item)
+
+#define ui_focus(focus) defer_loop((ui_focus_hot_push(focus), ui_focus_active_push(focus)), (ui_focus_hot_pop(), ui_focus_active_pop()))
 
 #endif // UI_CORE_H
