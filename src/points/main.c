@@ -220,7 +220,7 @@ internal Void update(Void) {
         .text       = color_from_srgba(v4f32(0.9f, 0.9f, 0.9f, 1.0f)),
         .border     = color_from_srgba(v4f32(0.41f, 0.4f, 0.4f, 1.0f)),
         .cursor     = color_from_srgba(v4f32(0.7f, 0.6f, 0.0f, 1.0f)),
-        .selection  = color_from_srgba(v4f32(0.6f, 0.6f, 0.8f, 0.4f)),
+        .selection  = color_from_srgba(v4f32(0.5f, 0.5f, 1.0f, 0.4f)),
     };
     ui_palette_push(palette);
 
@@ -644,6 +644,10 @@ internal S32 os_run(Str8List arguments) {
     state->point_radius = 10.0f;
     state->line_width = 2.0f;
     state->point_color = v4f32(0.9f, 0.9f, 0.9f, 1.0f);
+    state->buffer[0] = '1';
+    state->buffer[1] = '0';
+    state->buffer[2] = '0';
+    state->buffer_size = 3;
 
     while (state->running) {
         update();
