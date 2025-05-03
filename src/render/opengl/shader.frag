@@ -60,20 +60,24 @@ void main() {
         vec4 msdf_sample = texture(uniform_sampler, vert_source / textureSize(uniform_sampler, 0));
         float distance = median_of_3(msdf_sample.r, msdf_sample.g, msdf_sample.b) - 0.5;
 
-        alpha = clamp(distance / fwidth(distance) + 0.5, 0.0, 1.0);
+        alpha *= clamp(distance / fwidth(distance) + 0.5, 0.0, 1.0);
     } else if ((vert_flags & Render_ShapeFlag_AlphaMask) != 0) {
-        alpha = texture(uniform_sampler, vert_source / textureSize(uniform_sampler, 0)).r;
+        alpha *= texture(uniform_sampler, vert_source / textureSize(uniform_sampler, 0)).r;
     } else {
+        // NOTE(simon): Box with potentially rounded corners and border.
         int   corner_index = int(0.5 * sign(vert_position.x) + sign(vert_position.y) + 1.5);
         float outer_radius = vert_radies[corner_index];
         float inner_radius = outer_radius - vert_thickness;
-        float outer_distance = sdf_box(vert_position, vert_half_size - outer_radius - vert_softness) - outer_radius;
-        float inner_distance = -outer_distance;
+
         if (vert_thickness > 0.0) {
-            inner_distance = sdf_box(vert_position, vert_half_size - inner_radius - vert_thickness - vert_softness) - inner_radius;
+            float inner_distance = sdf_box(vert_position, vert_half_size - inner_radius - vert_thickness - 2.0 * vert_softness) - inner_radius;
+            alpha *= smoothstep(0, 2.0 * vert_softness, inner_distance);
         }
-        float distance = max(outer_distance, -inner_distance);
-        alpha = 1.0 - smoothstep(0, vert_softness, distance);
+
+        if (outer_radius > 0.0 || vert_softness > 0.75) {
+            float outer_distance = sdf_box(vert_position, vert_half_size - outer_radius - 2.0 * vert_softness) - outer_radius;
+            alpha *= 1.0 - smoothstep(0.0, 2.0 * vert_softness, outer_distance);
+        }
     }
 
     vec4 color = linear_from_srgb(mix(

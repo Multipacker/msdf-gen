@@ -2190,7 +2190,7 @@ internal Void update(Void) {
 
             if (box->flags & UI_BoxFlag_DrawBackground) {
                 {
-                    Render_Shape *shape = draw_rectangle(box->calculated_rectangle, box->palette.background, 0.0f, 0.0f, 1.0f);
+                    Render_Shape *shape = draw_rectangle(r2f32_pad(box->calculated_rectangle, 1), box->palette.background, 0.0f, 0.0f, 1.0f);
                     memory_copy(shape->radies, box->corner_radies, sizeof(shape->radies));
                 }
 
@@ -2282,7 +2282,7 @@ internal Void update(Void) {
 
             if (box->flags & UI_BoxFlag_Clip) {
                 R2F32 top_clip = draw_clip_top();
-                R2F32 new_clip = r2f32_intersect(top_clip, box->calculated_rectangle);
+                R2F32 new_clip = r2f32_intersect(r2f32_pad(top_clip, -1.0f), box->calculated_rectangle);
                 draw_clip_push(new_clip);
             }
 
@@ -2324,17 +2324,17 @@ internal Void update(Void) {
                     }
                 }
 
-                if (parent->flags & UI_BoxFlag_Clickable && parent->flags & UI_BoxFlag_FocusActive && !(parent->flags & UI_BoxFlag_DisableFocusOverlay)) {
+                if (parent->flags & UI_BoxFlag_Clickable && parent->focus_hot_t > 0.01f && !(parent->flags & UI_BoxFlag_DisableFocusOverlay)) {
                     V4F32 color = color_from_theme(ThemeColor_Focus);
-                    color.a *= 0.2f * parent->focus_active_t;
+                    color.a *= 0.2f * parent->focus_hot_t;
                     Render_Shape *shape = draw_rectangle(parent->calculated_rectangle, color, 0.0f, 0.0f, 0.0f);
                     memory_copy(shape->radies, parent->corner_radies, sizeof(shape->radies));
                 }
 
-                if (parent->flags & UI_BoxFlag_Clickable && parent->flags & UI_BoxFlag_FocusActive && !(parent->flags & UI_BoxFlag_DisableFocusBorder)) {
+                if (parent->flags & UI_BoxFlag_Clickable && parent->focus_active_t > 0.01f && !(parent->flags & UI_BoxFlag_DisableFocusBorder)) {
                     V4F32 color = color_from_theme(ThemeColor_Focus);
                     color.a *= parent->focus_active_t;
-                    Render_Shape *shape = draw_rectangle(r2f32_pad(parent->calculated_rectangle, 1.0f), color, 0.0f, 1.0f, 1.0f);
+                    Render_Shape *shape = draw_rectangle(parent->calculated_rectangle, color, 0.0f, 1.0f, 1.0f);
                     memory_copy(shape->radies, parent->corner_radies, sizeof(shape->radies));
                 }
 

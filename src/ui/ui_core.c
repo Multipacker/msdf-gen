@@ -403,7 +403,13 @@ internal Void ui_layout_independent_sizes(UI_Box **boxes, Axis2 axis) {
 internal Void ui_layout_upwards_dependent_sizes_no_recurse(UI_Box *box, Axis2 axis) {
     if (box->size[axis].kind == UI_Size_ParentPercent) {
         UI_Box *parent = box->parent;
-        while (!ui_box_is_null(parent) && parent->size[axis].kind != UI_Size_Pixels) {
+        while (
+            !ui_box_is_null(parent) && !(
+                parent->size[axis].kind == UI_Size_Pixels ||
+                parent->size[axis].kind == UI_Size_TextContent ||
+                parent->size[axis].kind == UI_Size_ParentPercent
+            )
+        ) {
             parent = parent->parent;
         }
 

@@ -185,7 +185,7 @@ UI_BOX_DRAW_FUNCTION(ui_draw_line_edit) {
             selection_color,
             0.0f,
             0.0f,
-            0.0f
+            1.0f
         );
     }
     draw_rectangle(
@@ -198,7 +198,7 @@ UI_BOX_DRAW_FUNCTION(ui_draw_line_edit) {
         cursor_color,
         0.0f,
         0.0f,
-        0.0f
+        1.0f
     );
 }
 
@@ -419,7 +419,7 @@ UI_BOX_DRAW_FUNCTION(ui_draw_slider) {
     Render_Shape *shape = draw_rectangle(
         rectangle,
         selection_color,
-        0, 0, 0
+        0.0f, 0.0f, 1.0f
     );
     memory_copy(shape->radies, box->corner_radies, sizeof(shape->radies));
 }
