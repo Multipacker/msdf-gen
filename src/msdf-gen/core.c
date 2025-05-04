@@ -320,6 +320,8 @@ internal S64 command_item_compare(CommandItem a, CommandItem b) {
     }
 
     // NOTE(simon): Earlier first matches make items appear earlier.
+    // TODO(simon): Maybe items with less space between matches should be
+    // earlier, or the ones were matches overall are earlier in the string.
     if (result == 0) {
         U64 a_first_fuzzy = U64_MAX;
         for (FuzzyMatch *match = a.fuzzy_matches.first; match; match = match->next) {
