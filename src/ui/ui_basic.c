@@ -479,31 +479,30 @@ internal UI_ScrollPosition ui_scroll_bar(UI_ScrollPosition position, S64 first_r
     UI_Input down_input   = { 0 };
 
     // NOTE(simon): Build
-    ui_layout_axis_next(Axis2_Y);
-    UI_Box *scroll_container = ui_create_box_from_string(0, str8_literal("##scroll_container"));
-
-    ui_parent(scroll_container)
+    ui_column_string(str8_literal("##scroll"))
     ui_hover_cursor(Gfx_Cursor_Hand) {
         ui_height_next(ui_size_pixels(ui_parent_top()->calculated_size.width, 1.0f));
         ui_text_align_next(UI_TextAlign_Center);
         up_input = ui_button(str8_literal("^"));
 
-        ui_height_next(ui_size_parent_percent(((F32) rows_above + position.offset) / (F32) row_count, 0.0f));
-        UI_Box *scroll_before = ui_create_box_from_string(UI_BoxFlag_Clickable, str8_literal("##before"));
-        before_input = ui_input_from_box(scroll_before);
+        ui_height_next(ui_size_fill());
+        ui_column_string(str8_literal("##container")) {
+            ui_height_next(ui_size_parent_percent(((F32) rows_above + position.offset) / (F32) row_count, 0.0f));
+            UI_Box *scroll_before = ui_create_box_from_string(UI_BoxFlag_Clickable, str8_literal("##before"));
+            before_input = ui_input_from_box(scroll_before);
 
-        ui_height_next(ui_size_parent_percent(f32_max(0.01f, (F32) visible_rows / (F32) row_count), 0.0f));
-        ui_corner_radius_next(ui_parent_top()->calculated_size.width / 2.0f);
-        scroll = ui_create_box_from_string(
-            UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawHot | UI_BoxFlag_DrawActive |
-            UI_BoxFlag_Clickable,
-            str8_literal("##scrollbar")
-        );
-        scroll_input = ui_input_from_box(scroll);
+            ui_height_next(ui_size_parent_percent(f32_max(0.01f, (F32) visible_rows / (F32) row_count), 0.0f));
+            scroll = ui_create_box_from_string(
+                UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawBorder | UI_BoxFlag_DrawHot | UI_BoxFlag_DrawActive |
+                UI_BoxFlag_Clickable,
+                str8_literal("##scrollbar")
+            );
+            scroll_input = ui_input_from_box(scroll);
 
-        ui_height_next(ui_size_parent_percent(((F32) rows_below - position.offset) / (F32) row_count, 0.0f));
-        UI_Box *scroll_after = ui_create_box_from_string(UI_BoxFlag_Clickable, str8_literal("##after"));
-        after_input = ui_input_from_box(scroll_after);
+            ui_height_next(ui_size_parent_percent(((F32) rows_below - position.offset) / (F32) row_count, 0.0f));
+            UI_Box *scroll_after = ui_create_box_from_string(UI_BoxFlag_Clickable, str8_literal("##after"));
+            after_input = ui_input_from_box(scroll_after);
+        }
 
         ui_height_next(ui_size_pixels(ui_parent_top()->calculated_size.width, 1.0f));
         ui_text_align_next(UI_TextAlign_Center);
@@ -530,7 +529,7 @@ internal UI_ScrollPosition ui_scroll_bar(UI_ScrollPosition position, S64 first_r
 
         S64 start_row = *ui_get_drag_data(S64);
 
-        F32 scroll_size  = scroll_container->calculated_size.height - scroll->calculated_size.height;
+        F32 scroll_size  = scroll->parent->calculated_size.height - scroll->calculated_size.height;
         F32 drag_percent = ui_drag_delta().y / scroll_size;
         result.index  = start_row + (S64) f32_round(drag_percent * (F32) (row_count - visible_rows));
         result.index  = s64_clamp(result.index, first_row, last_row - 1);

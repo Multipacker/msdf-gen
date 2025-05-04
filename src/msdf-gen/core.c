@@ -1324,9 +1324,13 @@ internal Void update(Void) {
                 str8_literal("##command_lister")
             );
 
+            F32 query_height = ui_size_ems(1.5f, 1.0f).value;
+            F32 region_width  = command_rectangle_width;
+            F32 region_height = command_rectangle_height - query_height;
+
             ui_parent(command_box)
-            ui_width(ui_size_fill())
-            ui_height(ui_size_ems(1.5f, 1.0f))
+            ui_width(ui_size_pixels(region_width, 1.0f))
+            ui_height(ui_size_pixels(query_height, 1.0f))
             ui_focus(UI_Focus_None)
             ui_text_x_padding(ui_size_ems(0.5f, 1.0f).value) {
                 UI_Key key = ui_key_from_string(ui_active_seed_key(), str8_literal("##query"));
@@ -1335,20 +1339,16 @@ internal Void update(Void) {
                     ui_line_edit(buffer, &buffer_size, array_count(buffer), &cursor, &mark, key);
                 }
 
-                ui_spacer_sized(ui_size_ems(0.5f, 1.0f));
-
                 // NOTE(simon): Scroll region
                 // TODO(simon): Replace with fixed size.
-                ui_height_next(ui_size_fill());
+                ui_height_next(ui_size_pixels(region_height, 1.0f));
                 ui_layout_axis_next(Axis2_X);
                 UI_Box *region = ui_create_box_from_string(UI_BoxFlag_OverflowY | UI_BoxFlag_Clip | UI_BoxFlag_Scrollable, str8_literal("##region"));
                 ui_parent_push(region);
 
-                V2F32 region_size = region->calculated_size;
-
                 F32 scrollbar_width = (F32) ui_font_size_top();
-                F32 container_width = region_size.width - scrollbar_width;
-                F32 container_height = region_size.height;
+                F32 container_width = region_width - scrollbar_width;
+                F32 container_height = region_height;
 
                 F32 height = ui_size_ems(3.0, 1.0f).value;
 
@@ -1450,7 +1450,7 @@ internal Void update(Void) {
 
                 ui_palette(palette_from_code(PaletteCode_Button))
                 ui_width(ui_size_pixels(scrollbar_width, 1.0f))
-                ui_height(ui_size_pixels(region_size.height, 1.0f)) {
+                ui_height(ui_size_pixels(region_height, 1.0f)) {
                     position = ui_scroll_bar(position, 0, last_row, visible_rows);
                 }
 
