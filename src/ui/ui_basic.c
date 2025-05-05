@@ -479,6 +479,7 @@ internal UI_ScrollPosition ui_scroll_bar(UI_ScrollPosition position, S64 first_r
     UI_Input down_input   = { 0 };
 
     // NOTE(simon): Build
+    ui_extra_box_flags_next(UI_BoxFlag_DrawBorder);
     ui_column_string(str8_literal("##scroll"))
     ui_hover_cursor(Gfx_Cursor_Hand) {
         ui_height_next(ui_size_pixels(ui_parent_top()->calculated_size.width, 1.0f));

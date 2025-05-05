@@ -113,7 +113,7 @@ internal S32 os_run(Str8List arguments) {
             theme->inactive_tab_background = surface1;
             theme->inactive_tab_border     = surface1;
             theme->button_background       = surface0;
-            theme->button_border           = surface0;
+            theme->button_border           = surface1;
             theme->secondary_button_background = surface1;
             theme->secondary_button_border     = surface1;
 
@@ -176,7 +176,7 @@ internal S32 os_run(Str8List arguments) {
             theme->inactive_tab_background = surface1;
             theme->inactive_tab_border     = surface1;
             theme->button_background       = surface0;
-            theme->button_border           = surface0;
+            theme->button_border           = surface1;
             theme->secondary_button_background = surface1;
             theme->secondary_button_border     = surface1;
 
@@ -239,7 +239,7 @@ internal S32 os_run(Str8List arguments) {
             theme->inactive_tab_background = surface1;
             theme->inactive_tab_border     = surface1;
             theme->button_background       = surface0;
-            theme->button_border           = surface0;
+            theme->button_border           = surface1;
             theme->secondary_button_background = surface1;
             theme->secondary_button_border     = surface1;
 
@@ -302,7 +302,7 @@ internal S32 os_run(Str8List arguments) {
             theme->inactive_tab_background = surface1;
             theme->inactive_tab_border     = surface1;
             theme->button_background       = surface0;
-            theme->button_border           = surface0;
+            theme->button_border           = surface1;
             theme->secondary_button_background = surface1;
             theme->secondary_button_border     = surface1;
 
