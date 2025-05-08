@@ -483,9 +483,9 @@ internal Void update(Void) {
             { Gfx_Key_V,         Gfx_KeyModifier_Control,                         Command_Paste,                },
             { Gfx_Key_X,         Gfx_KeyModifier_Control,                         Command_Cut,                  },
             { Gfx_Key_T,         Gfx_KeyModifier_Control,                         Command_ToggleListView,       },
-            { Gfx_Key_F1,        0                      ,                         Command_OpenCommandLister,    },
-            { Gfx_Key_Return,    0                      ,                         Command_Accept,               },
-            { Gfx_Key_Escape,    0                      ,                         Command_Cancel,               },
+            { Gfx_Key_F1,        0,                                               Command_OpenCommandLister,    },
+            { Gfx_Key_Return,    0,                                               Command_Accept,               },
+            { Gfx_Key_Escape,    0,                                               Command_Cancel,               },
             { Gfx_Key_H,         Gfx_KeyModifier_Control,                         Command_FocusPanelLeft,       },
             { Gfx_Key_J,         Gfx_KeyModifier_Control,                         Command_FocusPanelDown,       },
             { Gfx_Key_K,         Gfx_KeyModifier_Control,                         Command_FocusPanelUp,         },
@@ -1312,7 +1312,7 @@ internal Void update(Void) {
                 quicksort(commands, command_count);
             }
 
-            F32 command_rectangle_width  = (F32) client_area.width * 0.6f * state->command_lister_t;
+            F32 command_rectangle_width  = (F32) client_area.width  * 0.6f * state->command_lister_t;
             F32 command_rectangle_height = (F32) client_area.height * 0.8f * state->command_lister_t;
 
             ui_fixed_x_next(((F32) client_area.width  - command_rectangle_width)  / 2.0f);
@@ -1326,7 +1326,7 @@ internal Void update(Void) {
                 str8_literal("##command_lister")
             );
 
-            F32 query_height = ui_size_ems(1.5f, 1.0f).value;
+            F32 query_height  = ui_size_ems(1.5f, 1.0f).value;
             F32 region_width  = command_rectangle_width;
             F32 region_height = command_rectangle_height - query_height;
 

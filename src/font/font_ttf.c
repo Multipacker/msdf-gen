@@ -222,45 +222,6 @@ internal TTF_HmtxMetrics ttf_get_metrics(TTF_Font *font, U32 glyph_index) {
     return result;
 }
 
-internal U32 ttf_rank_subtable(TTF_CmapSubtable *subtable) {
-    U16 platform_id          = u16_big_to_local_endian(subtable->platform_id);
-    U16 platform_specifig_id = u16_big_to_local_endian(subtable->platform_specific_id);
-
-    U32 rank = 0;
-
-    switch (platform_id) {
-        case TTF_CMAP_PLATFORM_UNICODE: {
-            switch (platform_specifig_id) {
-                case TTF_CMAP_UNICODE_1_0:                 rank = 3; break;
-                case TTF_CMAP_UNICODE_1_1:                 rank = 4; break;
-                case TTF_CMAP_UNICODE_DEPRECATED:          rank = 0; break;
-                case TTF_CMAP_UNICODE_2_0_BMP:             rank = 2; break;
-                case TTF_CMAP_UNICODE_2_0_NON_BMP:         rank = 6; break;
-                case TTF_CMAP_UNICODE_VARIATION_SEQUENCES: rank = 0; break;
-                case TTF_CMAP_UNICODE_LAST_RESORT:         rank = 0; break;
-                default:                                   rank = 0; break;
-            }
-        } break;
-        case TTF_CMAP_PLATFORM_WINDOWS: {
-            switch (platform_specifig_id) {
-                case TTF_CMAP_WINDOWS_SYMBOL:      rank = 0; break;
-                case TTF_CMAP_WINDOWS_UNICODE_BMP: rank = 1; break;
-                case TTF_CMAP_WINDOWS_SHIFT_JIS:   rank = 0; break;
-                case TTF_CMAP_WINDOWS_PRC:         rank = 0; break;
-                case TTF_CMAP_WINDOWS_BIG_FIVE:    rank = 0; break;
-                case TTF_CMAP_WINDOWS_JOHAB:       rank = 0; break;
-                case TTF_CMAP_WINDOWS_UNICODE_4:   rank = 5; break;
-                default:                           rank = 0; break;
-            }
-        } break;
-        default: {
-            rank = 0;
-        } break;
-    }
-
-    return rank;
-}
-
 internal Void ttf_codepoint_range_list_push(Arena *arena, TTF_CodepointRangeList *list, TTF_CodepointRange range) {
     if (range.size) {
         TTF_CodepointRangeNode *node = arena_push_struct_no_zero(arena, TTF_CodepointRangeNode);
@@ -331,17 +292,53 @@ internal TTF_CodepointMap ttf_get_codepoint_map(Arena *arena, TTF_Font *font) {
         subtable_count = 0;
     }
 
+    // NOTE(simon): Pick the best subtable.
     TTF_CmapSubtable *subtable = 0;
     U32 rank = 0;
     for (U32 i = 0; i < subtable_count; ++i) {
         TTF_CmapSubtable *possible_subtable = &subtables[i];
-        U32 new_rank = ttf_rank_subtable(possible_subtable);
+        U16 platform_id          = u16_big_to_local_endian(possible_subtable->platform_id);
+        U16 platform_specifig_id = u16_big_to_local_endian(possible_subtable->platform_specific_id);
+
+        // NOTE(simon): Calculate the subtables rank.
+        U32 new_rank = 0;
+        switch (platform_id) {
+            case TTF_CMAP_PLATFORM_UNICODE: {
+                switch (platform_specifig_id) {
+                    case TTF_CMAP_UNICODE_1_0:                 new_rank = 3; break;
+                    case TTF_CMAP_UNICODE_1_1:                 new_rank = 4; break;
+                    case TTF_CMAP_UNICODE_DEPRECATED:          new_rank = 0; break;
+                    case TTF_CMAP_UNICODE_2_0_BMP:             new_rank = 2; break;
+                    case TTF_CMAP_UNICODE_2_0_NON_BMP:         new_rank = 6; break;
+                    case TTF_CMAP_UNICODE_VARIATION_SEQUENCES: new_rank = 0; break;
+                    case TTF_CMAP_UNICODE_LAST_RESORT:         new_rank = 0; break;
+                    default:                                   new_rank = 0; break;
+                }
+            } break;
+            case TTF_CMAP_PLATFORM_WINDOWS: {
+                switch (platform_specifig_id) {
+                    case TTF_CMAP_WINDOWS_SYMBOL:      new_rank = 0; break;
+                    case TTF_CMAP_WINDOWS_UNICODE_BMP: new_rank = 1; break;
+                    case TTF_CMAP_WINDOWS_SHIFT_JIS:   new_rank = 0; break;
+                    case TTF_CMAP_WINDOWS_PRC:         new_rank = 0; break;
+                    case TTF_CMAP_WINDOWS_BIG_FIVE:    new_rank = 0; break;
+                    case TTF_CMAP_WINDOWS_JOHAB:       new_rank = 0; break;
+                    case TTF_CMAP_WINDOWS_UNICODE_4:   new_rank = 5; break;
+                    default:                           new_rank = 0; break;
+                }
+            } break;
+            default: {
+                rank = 0;
+            } break;
+        }
+
         if (new_rank > rank) {
             subtable = possible_subtable;
             rank     = new_rank;
         }
     }
 
+    // NOTE(simon): Acquire subtable data.
     Str8 subtable_data = { 0 };
     if (subtable) {
         subtable_data = str8_skip(cmap_data, u32_big_to_local_endian(subtable->offset));
@@ -358,6 +355,7 @@ internal TTF_CodepointMap ttf_get_codepoint_map(Arena *arena, TTF_Font *font) {
         font->character_map_format = U32_MAX; // NOTE(simon): Intentionally invalid format.
     }
 
+    // NOTE(simon): Collect subtable mappings into our own unified set of mapping.
     TTF_CodepointRangeList ranges = { 0 };
     switch (font->character_map_format) {
         case 0: {
@@ -429,9 +427,7 @@ internal TTF_CodepointMap ttf_get_codepoint_map(Arena *arena, TTF_Font *font) {
                                     if (range.size && range.first_glyph_index + range.size == glyph_index) {
                                         ++range.size;
                                     } else {
-                                        if (range.size) {
-                                            ttf_codepoint_range_list_push(scratch.arena, &ranges, range);
-                                        }
+                                        ttf_codepoint_range_list_push(scratch.arena, &ranges, range);
 
                                         range.first_codepoint = codepoint;
                                         range.first_glyph_index = glyph_index;
