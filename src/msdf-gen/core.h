@@ -354,7 +354,8 @@ internal UI_Palette palette_from_code(PaletteCode code);
 
 // NOTE(simon): Frame related functions
 internal Void request_frame(Void);
-internal Void update(Void);
 internal Arena *frame_arena(Void);
+
+internal Void update(Void);
 
 #endif // CORE_H

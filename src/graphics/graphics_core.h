@@ -21,82 +21,90 @@ typedef enum {
     Gfx_KeyModifier_Shift   = 1 << 1,
 } Gfx_KeyModifier;
 
+#define GFX_KEYS                          \
+    X(Null,        "Null")                \
+    X(A,           "A")                   \
+    X(B,           "B")                   \
+    X(C,           "C")                   \
+    X(D,           "D")                   \
+    X(E,           "E")                   \
+    X(F,           "F")                   \
+    X(G,           "G")                   \
+    X(H,           "H")                   \
+    X(I,           "I")                   \
+    X(J,           "J")                   \
+    X(K,           "K")                   \
+    X(L,           "L")                   \
+    X(M,           "M")                   \
+    X(N,           "N")                   \
+    X(O,           "O")                   \
+    X(P,           "P")                   \
+    X(Q,           "Q")                   \
+    X(R,           "R")                   \
+    X(S,           "S")                   \
+    X(T,           "T")                   \
+    X(U,           "U")                   \
+    X(V,           "V")                   \
+    X(W,           "W")                   \
+    X(X,           "X")                   \
+    X(Y,           "Y")                   \
+    X(Z,           "Z")                   \
+    X(0,           "0")                   \
+    X(1,           "1")                   \
+    X(2,           "2")                   \
+    X(3,           "3")                   \
+    X(4,           "4")                   \
+    X(5,           "5")                   \
+    X(6,           "6")                   \
+    X(7,           "7")                   \
+    X(8,           "8")                   \
+    X(9,           "9")                   \
+    X(F1,          "F1")                  \
+    X(F2,          "F2")                  \
+    X(F3,          "F3")                  \
+    X(F4,          "F4")                  \
+    X(F5,          "F5")                  \
+    X(F6,          "F6")                  \
+    X(F7,          "F7")                  \
+    X(F8,          "F8")                  \
+    X(F9,          "F9")                  \
+    X(F10,         "F10")                 \
+    X(F11,         "F11")                 \
+    X(F12,         "F12")                 \
+    X(Backspace,   "Backspace")           \
+    X(Space,       "Space")               \
+    X(Alt,         "Alt")                 \
+    X(OS,          "Win")                 \
+    X(Tab,         "Tab")                 \
+    X(Return,      "Return")              \
+    X(Shift,       "Shift")               \
+    X(Control,     "Control")             \
+    X(Escape,      "Escape")              \
+    X(PageUp,      "Page Up")             \
+    X(PageDown,    "Page Down")           \
+    X(End,         "End")                 \
+    X(Home,        "Home")                \
+    X(Left,        "Left")                \
+    X(Right,       "Right")               \
+    X(Up,          "Up")                  \
+    X(Down,        "Down")                \
+    X(Delete,      "Delete")              \
+    X(MouseLeft,   "Left Mouse Button")   \
+    X(MouseRight,  "Right Mouse Button")  \
+    X(MouseMiddle, "Middle Mouse Button") \
+
+#define X(name, display_name) Gfx_Key_##name,
 typedef enum {
-    Gfx_Key_Null,
-
-    Gfx_Key_A,
-    Gfx_Key_B,
-    Gfx_Key_C,
-    Gfx_Key_D,
-    Gfx_Key_E,
-    Gfx_Key_F,
-    Gfx_Key_G,
-    Gfx_Key_H,
-    Gfx_Key_I,
-    Gfx_Key_J,
-    Gfx_Key_K,
-    Gfx_Key_L,
-    Gfx_Key_M,
-    Gfx_Key_N,
-    Gfx_Key_O,
-    Gfx_Key_P,
-    Gfx_Key_Q,
-    Gfx_Key_R,
-    Gfx_Key_S,
-    Gfx_Key_T,
-    Gfx_Key_U,
-    Gfx_Key_V,
-    Gfx_Key_W,
-    Gfx_Key_X,
-    Gfx_Key_Y,
-    Gfx_Key_Z,
-
-    Gfx_Key_0,
-    Gfx_Key_1,
-    Gfx_Key_2,
-    Gfx_Key_3,
-    Gfx_Key_4,
-    Gfx_Key_5,
-    Gfx_Key_6,
-    Gfx_Key_7,
-    Gfx_Key_8,
-    Gfx_Key_9,
-
-    Gfx_Key_F1,
-    Gfx_Key_F2,
-    Gfx_Key_F3,
-    Gfx_Key_F4,
-    Gfx_Key_F5,
-    Gfx_Key_F6,
-    Gfx_Key_F7,
-    Gfx_Key_F8,
-    Gfx_Key_F9,
-    Gfx_Key_F10,
-    Gfx_Key_F11,
-    Gfx_Key_F12,
-
-    Gfx_Key_Backspace,
-    Gfx_Key_Space,
-    Gfx_Key_Alt,
-    Gfx_Key_OS,
-    Gfx_Key_Tab,
-    Gfx_Key_Return,
-    Gfx_Key_Shift,
-    Gfx_Key_Control,
-    Gfx_Key_Escape,
-    Gfx_Key_PageUp,
-    Gfx_Key_PageDown,
-    Gfx_Key_End,
-    Gfx_Key_Home,
-    Gfx_Key_Left,
-    Gfx_Key_Right,
-    Gfx_Key_Up,
-    Gfx_Key_Down,
-    Gfx_Key_Delete,
-    Gfx_Key_MouseLeft,
-    Gfx_Key_MouseRight,
-    Gfx_Key_MouseMiddle,
+    GFX_KEYS
+    Gfx_Key_COUNT,
 } Gfx_Key;
+#undef X
+
+#define X(name, display_name) str8_literal(display_name),
+global Str8 gfx_name_from_key[] = {
+    GFX_KEYS
+};
+#undef X
 
 typedef struct Gfx_Event Gfx_Event;
 struct Gfx_Event {

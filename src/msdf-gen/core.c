@@ -1,3 +1,4 @@
+// NOTE(simon): Tabs
 internal Tab *tab_create(State *state, Str8 name) {
     U64 generation = 0;
 
@@ -59,6 +60,7 @@ internal Handle handle_from_tab(Tab *tab) {
 
 
 
+// NOTE(simon): Panels
 internal Panel *panel_create(State *state) {
     U64 generation = 0;
 
@@ -201,6 +203,7 @@ internal Handle handle_from_panel(Panel *panel) {
 
 
 
+// NOTE(simon): Context
 internal Context *copy_context(Arena *arena, Context *context) {
     Context *result = arena_push_struct(arena, Context);
     memory_copy(result, context, sizeof(*result));
@@ -227,6 +230,7 @@ internal Context *top_context(Void) {
 
 
 
+// NOTE(simon): Commands
 internal Void push_command_internal(CommandKind kind, Context *context) {
     State *state = global_state;
 
@@ -238,6 +242,7 @@ internal Void push_command_internal(CommandKind kind, Context *context) {
 
 
 
+// NOTE(simon): Drag-and-drop
 internal B32 drag_is_active(Void) {
     State *state = global_state;
     B32 result = (state->drag_state == DragState_Dragging || state->drag_state == DragState_Dropping);
@@ -274,6 +279,7 @@ internal Void drag_cancel(Void) {
 
 
 
+// NOTE(simon): Themes
 internal V4F32 color_from_theme(ThemeColor color) {
     State *state = global_state;
     V4F32 result = state->theme.colors[color];
@@ -288,6 +294,7 @@ internal UI_Palette palette_from_code(PaletteCode code) {
 
 
 
+// NOTE(simon): Frame related functions
 internal Void request_frame(Void) {
     State *state = global_state;
     state->frames_to_render = 4;
@@ -299,12 +306,16 @@ internal Arena *frame_arena(Void) {
     return result;
 }
 
+
+
 typedef struct CommandItem CommandItem;
 struct CommandItem {
     CommandKind command;
     Str8 name;
     Str8 description;
     FuzzyMatchList fuzzy_matches;
+    Gfx_Key         key;
+    Gfx_KeyModifier modifiers;
 };
 
 internal S64 command_item_compare(CommandItem a, CommandItem b) {
@@ -1279,10 +1290,21 @@ internal Void update(Void) {
                 // NOTE(simon): Fill commands
                 for (CommandKind command = 0; command < array_count(commands); ++command) {
                     if (command_show_in_ui[command]) {
+                        // NOTE(simon): Find binding, if any.
+                        Binding binding = { 0 };
+                        for (U64 i = 0; i < array_count(bindings); ++i) {
+                            if (bindings[i].command == command) {
+                                binding = bindings[i];
+                                break;
+                            }
+                        }
+
                         commands[command_count].command       = command;
                         commands[command_count].name          = command_names[command];
                         commands[command_count].description   = command_descriptions[command];
                         commands[command_count].fuzzy_matches = str8_fuzzy_match(scratch.arena, str8(buffer, buffer_size), command_names[command]);
+                        commands[command_count].key           = binding.key;
+                        commands[command_count].modifiers     = binding.modifiers;
                         ++command_count;
                     }
                 }
@@ -1381,7 +1403,7 @@ internal Void update(Void) {
                         ui_palette_push(palette_from_code(i % 2 == 0 ? PaletteCode_Button : PaletteCode_SecondaryButton));
 
                         ui_hover_cursor_next(Gfx_Cursor_Hand);
-                        ui_layout_axis_next(Axis2_Y);
+                        ui_layout_axis_next(Axis2_X);
                         UI_Box *command_button_box = ui_create_box_from_string_format(
                             UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawBorder |
                             UI_BoxFlag_DrawHot | UI_BoxFlag_DrawActive |
@@ -1389,16 +1411,43 @@ internal Void update(Void) {
                             "##command_%u", commands[i].command
                         );
 
-                        ui_height(ui_size_text_content(0.0f, 1.0f))
                         ui_parent(command_button_box) {
-                            UI_Box *name_box = ui_create_box_from_string(UI_BoxFlag_DrawText, commands[i].name);
-                            ui_box_set_fuzzy_match_list(name_box, commands[i].fuzzy_matches);
+                            ui_width(ui_size_fill())
+                            ui_column()
+                            ui_height(ui_size_text_content(0.0f, 1.0f)) {
+                                UI_Box *name_box = ui_create_box_from_string(UI_BoxFlag_DrawText, commands[i].name);
+                                ui_box_set_fuzzy_match_list(name_box, commands[i].fuzzy_matches);
 
-                            ui_font_size_next(((U32) (0.9f * (F32) ui_font_size_top())));
-                            UI_Palette palette = ui_palette_top();
-                            palette.text = color_from_theme(ThemeColor_WeakText);
-                            ui_palette_next(palette);
-                            ui_label(commands[i].description);
+                                ui_font_size_next(((U32) (0.9f * (F32) ui_font_size_top())));
+                                UI_Palette palette = ui_palette_top();
+                                palette.text = color_from_theme(ThemeColor_WeakText);
+                                ui_palette_next(palette);
+                                ui_label(commands[i].description);
+                            }
+
+                            ui_width(ui_size_children_sum(1.0f))
+                            ui_column()
+                            ui_center() {
+                                if (commands[i].key != Gfx_Key_Null) {
+                                    Str8List parts = { 0 };
+                                    if (commands[i].modifiers & Gfx_KeyModifier_Shift) {
+                                        str8_list_push(ui_frame_arena(), &parts, str8_literal("Shift + "));
+                                    }
+                                    if (commands[i].modifiers & Gfx_KeyModifier_Control) {
+                                        str8_list_push(ui_frame_arena(), &parts, str8_literal("Control + "));
+                                    }
+                                    str8_list_push(ui_frame_arena(), &parts, gfx_name_from_key[commands[i].key]);
+
+                                    Str8 binding_name = str8_join(ui_frame_arena(), &parts);
+
+                                    ui_width_next(ui_size_text_content(0.0f, 1.0f));
+                                    ui_height_next(ui_size_text_content(0.0f, 1.0f));
+                                    ui_palette_next(palette_from_code(PaletteCode_Button));
+                                    ui_label(binding_name);
+                                }
+                            }
+
+                            ui_spacer_sized(ui_size_ems(0.5f, 1.0f));
                         }
                         UI_Input command_button_input = ui_input_from_box(command_button_box);
 
