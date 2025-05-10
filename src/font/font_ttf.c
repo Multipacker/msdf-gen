@@ -973,14 +973,14 @@ internal Void ttf_get_glyph_data_ranges(Arena *arena, TTF_Font *font) {
     if (loca_format == 0) {
         // NOTE(simon): There is one extra location at the end to indicate the
         // end of the last glyph.
-        U64 location_count = u64_min(loca_data.size / sizeof(U16), font->glyph_count + 1);
+        S64 location_count = s64_min((S64) (loca_data.size / sizeof(U16)), font->glyph_count + 1);
 
         if (location_count != font->glyph_count + 1) {
             log_error(str8_literal("Not enough data for short loca table.\n"));
         }
 
         U16 *offsets = (U16 *) loca_data.data;
-        for (U32 i = 0; i < location_count - 1; ++i) {
+        for (S64 i = 0; i < location_count - 1; ++i) {
             U32 start = 2 * (U32) u16_big_to_local_endian(offsets[i + 0]);
             U32 end   = 2 * (U32) u16_big_to_local_endian(offsets[i + 1]);
             Str8 data = str8_substring(glyf_data, start, end - start);
@@ -1000,14 +1000,14 @@ internal Void ttf_get_glyph_data_ranges(Arena *arena, TTF_Font *font) {
     } else if (loca_format == 1) {
         // NOTE(simon): There is one extra location at the end to indicate the
         // end of the last glyph.
-        U64 location_count = u64_min(loca_data.size / sizeof(U32), font->glyph_count + 1);
+        S64 location_count = s64_min((S64) (loca_data.size / sizeof(U32)), font->glyph_count + 1);
 
         if (location_count != font->glyph_count + 1) {
             log_error(str8_literal("Not enough data for long loca table.\n"));
         }
 
         U32 *offsets = (U32 *) loca_data.data;
-        for (U32 i = 0; i < location_count - 1; ++i) {
+        for (S64 i = 0; i < location_count - 1; ++i) {
             U32 start = u32_big_to_local_endian(offsets[i + 0]);
             U32 end   = u32_big_to_local_endian(offsets[i + 1]);
             Str8 data = str8_substring(glyf_data, start, end - start);
