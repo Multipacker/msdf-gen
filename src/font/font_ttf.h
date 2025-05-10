@@ -6,12 +6,14 @@
 
 #define TTF_MAGIC_NUMBER 0x5F0F3CF5
 
-#define TTF_SIMPLE_GLYPH_FLAGS_ON_CURVE           0x01
-#define TTF_SIMPLE_GLYPH_FLAGS_SHORT_X            0x02
-#define TTF_SIMPLE_GLYPH_FLAGS_SHORT_Y            0x04
-#define TTF_SIMPLE_GLYPH_FLAGS_REPEAT             0x08
-#define TTF_SIMPLE_GLYPH_FLAGS_SAME_OR_POSITIVE_X 0x10
-#define TTF_SIMPLE_GLYPH_FLAGS_SAME_OR_POSITIVE_Y 0x20
+typedef enum {
+    TTF_SimpleGlyphFlags_OnCurve         = 1 << 0,
+    TTF_SimpleGlyphFlags_ShortX          = 1 << 1,
+    TTF_SimpleGlyphFlags_ShortY          = 1 << 2,
+    TTF_SimpleGlyphFlags_Repeat          = 1 << 3,
+    TTF_SimpleGlyphFlags_SameOrPositiveX = 1 << 4,
+    TTF_SimpleGlyphFlags_SameOrPositiveY = 1 << 5,
+} TTF_SimpleGlyphFlags;
 
 #define TTF_COMPOUND_GLYPH_FLAGS_ARG_1_AND_2_ARE_WORDS    0x0001
 #define TTF_COMPOUND_GLYPH_FLAGS_ARGS_ARE_XY_VALUES       0x0002
@@ -233,19 +235,25 @@ typedef struct {
     U16 max_component_depth;
 } TTF_MaxpTable;
 
-typedef struct {
-    TTF_FWord x_min;
-    TTF_FWord y_min;
-    TTF_FWord x_max;
-    TTF_FWord y_max;
-    U32 contour_count;
-    U32 point_count;
-    U16       *contour_end_points;
-    U8        *flags;
-    TTF_FWord *x_coordinates;
-    TTF_FWord *y_coordinates;
-    Str8List   errors;
-} TTF_Glyph;
+typedef struct TTF_Glyph TTF_Glyph;
+struct TTF_Glyph {
+    // NOTE(simon): Bounds.
+    V2S32 min;
+    V2S32 max;
+
+    // NOTE(simon): Compound glyph data.
+    S32        component_count;
+    TTF_Glyph *components;
+    M3F32     *transforms;
+    V2S32     *alignment;
+
+    // NOTE(simon): Simple glyph data.
+    S32    contour_count;
+    S32    point_count;
+    U16   *contour_end_points;
+    U8    *point_flags;
+    V2F32 *point_coordinates;
+};
 
 typedef struct TTF_CodepointRange TTF_CodepointRange;
 struct TTF_CodepointRange {
@@ -281,9 +289,6 @@ typedef struct {
     Str8 *raw_glyph_data;
 
     U16 glyph_count;
-
-    U32 contour_capacity;
-    U32 point_capacity;
 
     U16 *ttf_to_internal_glyph_indicies; // NOTE: The stored indicies are 1-based.
     U16 *internal_to_ttf_glyph_indicies;
