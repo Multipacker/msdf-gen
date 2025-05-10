@@ -15,19 +15,21 @@ typedef enum {
     TTF_SimpleGlyphFlags_SameOrPositiveY = 1 << 5,
 } TTF_SimpleGlyphFlags;
 
-#define TTF_COMPOUND_GLYPH_FLAGS_ARG_1_AND_2_ARE_WORDS    0x0001
-#define TTF_COMPOUND_GLYPH_FLAGS_ARGS_ARE_XY_VALUES       0x0002
-#define TTF_COMPOUND_GLYPH_FLAGS_ROUND_XY_TO_GRID         0x0004
-#define TTF_COMPOUND_GLYPH_FLAGS_WE_HAVE_A_SCALE          0x0008
-// NOTE: 0x0010 is obsolete.
-#define TTF_COMPOUND_GLYPH_FLAGS_MORE_COMPONENTS           0x0020
-#define TTF_COMPOUND_GLYPH_FLAGS_WE_HAVE_AN_X_AND_Y_SCALE  0x0040
-#define TTF_COMPOUND_GLYPH_FLAGS_WE_HAVE_A_TWO_BY_TWO      0x0080
-#define TTF_COMPOUND_GLYPH_FLAGS_WE_HAVE_INSTRUCTIONS      0x0100
-#define TTF_COMPOUND_GLYPH_FLAGS_USE_MY_METRICS            0x0200
-#define TTF_COMPOUND_GLYPH_FLAGS_OVERLAP_COMPUND           0x0400
-#define TTF_COMPOUND_GLYPH_FLAGS_SCALED_COMPONENT_OFFSET   0x0800
-#define TTF_COMPOUND_GLYPH_FLAGS_UNSCALED_COMPONENT_OFFSET 0x1000
+typedef enum {
+    TTF_CompoundGlyphFlag_Arg1And2AreWords        = 1 << 0,
+    TTF_CompoundGlyphFlag_ArgsAreXYValues         = 1 << 1,
+    TTF_CompoundGlyphFlag_RoundXYToGrid           = 1 << 2,
+    TTF_CompoundGlyphFlag_WeHaveAScale            = 1 << 3,
+    // NOTE(simon): 1 << 4 is obsolete.
+    TTF_CompoundGlyphFlag_MoreComponents          = 1 << 5,
+    TTF_CompoundGlyphFlag_WeHaveAnXAndYScale      = 1 << 6,
+    TTF_CompoundGlyphFlag_WeHaveATwoByTwo         = 1 << 7,
+    TTF_CompoundGlyphFlag_WeHaveInstructions      = 1 << 8,
+    TTF_CompoundGlyphFlag_UseMyMetrics            = 1 << 9,
+    TTF_CompoundGlyphFlag_OverlapCompund          = 1 << 10,
+    TTF_CompoundGlyphFlag_ScaledComponentOffset   = 1 << 11,
+    TTF_CompoundGlyphFlag_UnscaledComponentOffset = 1 << 12,
+} TTF_CompoundGlyphFlags;
 
 #define TTF_MAKE_TAG(a, b, c, d) ((U32) a << 24 | (U32) b << 16 | (U32) c << 8 | (U32) d)
 #define TTF_MAKE_VERSION(major, minor) (((major) & 0xFFFF) << 16 | ((minor) & 0xFFFF))
@@ -39,7 +41,7 @@ typedef U16 TTF_UFWord;
 typedef U16 TTF_F2Dot14;
 typedef U64 TTF_LongDateTime;
 
-#define TTF_TABLES(X)           \
+#define TTF_TABLES              \
     X(Cmap, 'c', 'm', 'a', 'p') \
     X(Glyf, 'g', 'l', 'y', 'f') \
     X(Head, 'h', 'e', 'a', 'd') \
@@ -50,7 +52,7 @@ typedef U64 TTF_LongDateTime;
 
 #define X(name, ...) TTF_Table_##name,
 typedef enum {
-    TTF_TABLES(X)
+    TTF_TABLES
     TTF_Table_COUNT,
     TTF_Table_MaxRequired = TTF_Table_Maxp,
 } TTF_Tables;
@@ -58,7 +60,7 @@ typedef enum {
 
 #define X(name, a, b, c, d) [TTF_Table_##name] = TTF_MAKE_TAG(a, b, c, d),
 global U32 ttf_table_tags[TTF_Table_COUNT] = {
-    TTF_TABLES(X)
+    TTF_TABLES
 };
 #undef X
 
@@ -80,28 +82,28 @@ typedef struct {
 // NOTE: The TrueType spec states that platform IDs other than 0, 1, and 3 are
 // allowed but ignored. Thus, we only list the ones we are interested in.
 typedef enum {
-    TTF_CMAP_PLATFORM_UNICODE = 0,
-    TTF_CMAP_PLATFORM_WINDOWS = 3,
+    TTF_CmapPlatform_Unicode = 0,
+    TTF_CmapPlatform_Windows = 3,
 } TTF_CmapPlatformId;
 
 typedef enum {
-    TTF_CMAP_UNICODE_1_0                 = 0,
-    TTF_CMAP_UNICODE_1_1                 = 1,
-    TTF_CMAP_UNICODE_DEPRECATED          = 2,
-    TTF_CMAP_UNICODE_2_0_BMP             = 3,
-    TTF_CMAP_UNICODE_2_0_NON_BMP         = 4,
-    TTF_CMAP_UNICODE_VARIATION_SEQUENCES = 5,
-    TTF_CMAP_UNICODE_LAST_RESORT         = 6,
+    TTF_CmapUnicode_1_0                = 0,
+    TTF_CmapUnicode_1_1                = 1,
+    TTF_CmapUnicode_Deprecated         = 2,
+    TTF_CmapUnicode_2_0_Bmp            = 3,
+    TTF_CmapUnicode_2_0_NonBmp         = 4,
+    TTF_CmapUnicode_VariationSequences = 5,
+    TTF_CmapUnicode_LastResort         = 6,
 } TTF_CmapUnicodeId;
 
 typedef enum {
-    TTF_CMAP_WINDOWS_SYMBOL      = 0,
-    TTF_CMAP_WINDOWS_UNICODE_BMP = 1,
-    TTF_CMAP_WINDOWS_SHIFT_JIS   = 2,
-    TTF_CMAP_WINDOWS_PRC         = 3,
-    TTF_CMAP_WINDOWS_BIG_FIVE    = 4,
-    TTF_CMAP_WINDOWS_JOHAB       = 5,
-    TTF_CMAP_WINDOWS_UNICODE_4   = 10,
+    TTF_CmapWindows_Symbol     = 0,
+    TTF_CmapWindows_UnicodeBmp = 1,
+    TTF_CmapWindows_ShiftJis   = 2,
+    TTF_CmapWindows_Prc        = 3,
+    TTF_CmapWindows_BigFive    = 4,
+    TTF_CmapWindows_Johab      = 5,
+    TTF_CmapWindows_Unicode4   = 10,
 } TTF_CmapWindowsId;
 
 typedef struct {
@@ -163,14 +165,6 @@ typedef struct {
     U32 n_groups;
     // TTF_CmapFormat12Group groups[n_groups];
 } TTF_CmapFormat12;
-
-typedef struct {
-    S16 number_of_contours;
-    TTF_FWord x_min;
-    TTF_FWord y_min;
-    TTF_FWord x_max;
-    TTF_FWord y_max;
-} TTF_GlyphHeader;
 
 typedef packed_struct({
     TTF_Fixed        version;
@@ -238,8 +232,8 @@ typedef struct {
 typedef struct TTF_Glyph TTF_Glyph;
 struct TTF_Glyph {
     // NOTE(simon): Bounds.
-    V2S32 min;
-    V2S32 max;
+    V2F32 min;
+    V2F32 max;
 
     // NOTE(simon): Compound glyph data.
     S32        component_count;
@@ -282,8 +276,8 @@ struct TTF_CodepointRangeList {
     U32 range_count;
 };
 
-// Used ONLY for parsing
-typedef struct {
+typedef struct TTF_Font TTF_Font;
+struct TTF_Font {
     Str8 tables[TTF_Table_COUNT];
 
     Str8 *raw_glyph_data;
@@ -304,7 +298,7 @@ typedef struct {
     Str8 character_map;
     U32  character_map_format;
     TTF_CodepointMap codepoint_map;
-} TTF_Font;
+};
 
 global TTF_Font ttf_font_nil = { 0 };
 
