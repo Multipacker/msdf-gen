@@ -332,7 +332,7 @@ internal Void ttf_codepoint_range_list_push(Arena *arena, TTF_CodepointRangeList
     if (range.size) {
         TTF_CodepointRangeNode *node = arena_push_struct_no_zero(arena, TTF_CodepointRangeNode);
         node->range = range;
-        sll_queue_push(list->first, list->last, node);
+        dll_push_back(list->first, list->last, node);
         ++list->range_count;
     }
 }
@@ -374,102 +374,67 @@ internal TTF_CodepointMap ttf_get_codepoint_map(Arena *arena, TTF_Font *font) {
     Arena_Temporary scratch = arena_get_scratch(&arena, 1);
     Str8 cmap_data = font->tables[TTF_Table_Cmap];
 
-    TTF_CmapTable    *cmap           = 0;
-    U32               subtable_count = 0;
-    TTF_CmapSubtable *subtables      = 0;
+    TTF_Parser cmap_parser = { 0 };
+    cmap_parser.data = cmap_data.data;
+    cmap_parser.size = cmap_data.size;
 
-    if (cmap_data.size >= sizeof(TTF_CmapTable)) {
-        cmap = (TTF_CmapTable *) cmap_data.data;
-        U16 version    = u16_big_to_local_endian(cmap->version);
-        subtable_count = u16_big_to_local_endian(cmap->number_subtables);
+    U16 version        = ttf_read_u16(&cmap_parser);
+    U16 subtable_count = ttf_read_u16(&cmap_parser);
 
-        if (version != 0) {
-            log_error(str8_literal("Unsupported version of cmap table.\n"));
-        }
-    } else {
+    if (cmap_parser.out_of_data) {
         log_error(str8_literal("Not enough data for cmap table.\n"));
     }
 
-    Str8 table_data = str8_skip(cmap_data, sizeof(TTF_CmapTable));
-    if (table_data.size >= subtable_count * sizeof(TTF_CmapSubtable)) {
-        subtables = (TTF_CmapSubtable *) table_data.data;
-    } else {
-        log_error(str8_literal("Not enough data for cmap subtables.\n"));
-        subtable_count = 0;
+    if (version != 0) {
+        log_error(str8_literal("Unsupported version of cmap table.\n"));
     }
 
     // NOTE(simon): Pick the best subtable.
-    TTF_CmapSubtable *subtable = 0;
+    U32 subtable_offset = 0;
     U32 rank = 0;
     for (U32 i = 0; i < subtable_count; ++i) {
-        TTF_CmapSubtable *possible_subtable = &subtables[i];
-        U16 platform_id          = u16_big_to_local_endian(possible_subtable->platform_id);
-        U16 platform_specifig_id = u16_big_to_local_endian(possible_subtable->platform_specific_id);
+        U16 platform_id          = ttf_read_u16(&cmap_parser);
+        U16 platform_specifig_id = ttf_read_u16(&cmap_parser);
+        U32 offset               = ttf_read_u32(&cmap_parser);
 
-        // NOTE(simon): Calculate the subtables rank.
+        if (cmap_parser.out_of_data) {
+            log_error(str8_literal("Not enough data for cmap subtables.\n"));
+            subtable_count = (U16) i;
+            break;
+        }
+
         U32 new_rank = 0;
-        switch (platform_id) {
-            case TTF_CmapPlatform_Unicode: {
-                switch (platform_specifig_id) {
-                    case TTF_CmapUnicode_1_0:                new_rank = 3; break;
-                    case TTF_CmapUnicode_1_1:                new_rank = 4; break;
-                    case TTF_CmapUnicode_Deprecated:         new_rank = 0; break;
-                    case TTF_CmapUnicode_2_0_Bmp:            new_rank = 2; break;
-                    case TTF_CmapUnicode_2_0_NonBmp:         new_rank = 6; break;
-                    case TTF_CmapUnicode_VariationSequences: new_rank = 0; break;
-                    case TTF_CmapUnicode_LastResort:         new_rank = 0; break;
-                    default:                                 new_rank = 0; break;
-                }
-            } break;
-            case TTF_CmapPlatform_Windows: {
-                switch (platform_specifig_id) {
-                    case TTF_CmapWindows_Symbol:     new_rank = 0; break;
-                    case TTF_CmapWindows_UnicodeBmp: new_rank = 1; break;
-                    case TTF_CmapWindows_ShiftJis:   new_rank = 0; break;
-                    case TTF_CmapWindows_Prc:        new_rank = 0; break;
-                    case TTF_CmapWindows_BigFive:    new_rank = 0; break;
-                    case TTF_CmapWindows_Johab:      new_rank = 0; break;
-                    case TTF_CmapWindows_Unicode4:   new_rank = 5; break;
-                    default:                         new_rank = 0; break;
-                }
-            } break;
-            default: {
-                new_rank = 0;
-            } break;
+        if (platform_id < TTF_CmapPlatform_COUNT && platform_specifig_id < TTF_CMAP_MAX_PLATFORM_SPECIFIC_ID) {
+            new_rank = ttf_cmap_subtable_ids_to_rank[platform_id][platform_specifig_id];
         }
 
         if (new_rank > rank) {
-            subtable = possible_subtable;
-            rank     = new_rank;
+            subtable_offset = offset;
+            rank            = new_rank;
         }
     }
 
     // NOTE(simon): Acquire subtable data.
-    Str8 subtable_data = { 0 };
-    // NOTE(simon): Intentionally invalid format.
-    U32 character_map_format = U32_MAX;
-    if (subtable) {
-        subtable_data = str8_skip(cmap_data, u32_big_to_local_endian(subtable->offset));
-
-        if (u32_big_to_local_endian(subtable->offset) + sizeof(U16) <= cmap_data.size) {
-            character_map_format = u16_big_to_local_endian(*(U16 *) subtable_data.data);
-        } else {
-            log_error(str8_literal("Subtable is outside of cmap table.\n"));
-        }
+    TTF_Parser parser = { 0 };
+    if (subtable_offset) {
+        Str8 subtable_data = str8_skip(cmap_data, subtable_offset);
+        parser.data = subtable_data.data;
+        parser.size = subtable_data.size;
     } else {
         log_error(str8_literal("Could not find a suitable cmap subtable.\n"));
     }
 
+    U32 format = ttf_read_u16(&parser);
+    if (parser.out_of_data) {
+        log_error(str8_literal("Not enough data for cmap subtable.\n"));
+        format = U32_MAX;
+    }
+
     // NOTE(simon): Collect subtable mappings into our own unified set of mapping.
     TTF_CodepointRangeList ranges = { 0 };
-    switch (character_map_format) {
+    switch (format) {
         case 0: {
-            TTF_Parser parser = { 0 };
-            parser.data = subtable_data.data;
-            parser.size = subtable_data.size;
-
             // TODO(simon): Should we use the length field for the parser?
-            U16 format   = ttf_read_u16(&parser);
             U16 length   = ttf_read_u16(&parser);
             U16 language = ttf_read_u16(&parser);
 
@@ -502,11 +467,6 @@ internal TTF_CodepointMap ttf_get_codepoint_map(Arena *arena, TTF_Font *font) {
             log_error(str8_literal("Cmap format 2 is not supported.\n"));
         } break;
         case 4: {
-            TTF_Parser parser = { 0 };
-            parser.data = subtable_data.data;
-            parser.size = subtable_data.size;
-
-            U16 format         = ttf_read_u16(&parser);
             U16 length         = ttf_read_u16(&parser);
             U16 language       = ttf_read_u16(&parser);
             U16 seg_count_x2   = ttf_read_u16(&parser);
@@ -576,12 +536,7 @@ internal TTF_CodepointMap ttf_get_codepoint_map(Arena *arena, TTF_Font *font) {
             }
         } break;
         case 6: {
-            TTF_Parser parser = { 0 };
-            parser.data = subtable_data.data;
-            parser.size = subtable_data.size;
-
             // TODO(simon): Should we use the length field for the parser?
-            U16 format      = ttf_read_u16(&parser);
             U16 length      = ttf_read_u16(&parser);
             U16 language    = ttf_read_u16(&parser);
             U16 first_code  = ttf_read_u16(&parser);
@@ -619,12 +574,7 @@ internal TTF_CodepointMap ttf_get_codepoint_map(Arena *arena, TTF_Font *font) {
             log_error(str8_literal("Cmap format 10 is not supported.\n"));
         } break;
         case 12: {
-            TTF_Parser parser = { 0 };
-            parser.data = subtable_data.data;
-            parser.size = subtable_data.size;
-
             // TODO(simon): Should we use the length field for the parser?
-            U16 format      = ttf_read_u16(&parser);
             U16 reserved    = ttf_read_u16(&parser);
             U32 length      = ttf_read_u32(&parser);
             U32 language    = ttf_read_u32(&parser);
@@ -662,7 +612,24 @@ internal TTF_CodepointMap ttf_get_codepoint_map(Arena *arena, TTF_Font *font) {
         } break;
     }
 
-    // TODO(simon): Make sure that mappings to glyph index 0 are not added.
+    // NOTE(simon): Filter out mappings to the missing glyph.
+    for (TTF_CodepointRangeNode *node = ranges.first, *next = 0; node; node = next) {
+        next = node->next;
+
+        // NOTE(simon): Mappings to the missing glyph can only be at the start
+        // of a range.
+        if (node->range.first_glyph_index == 0) {
+            ++node->range.first_codepoint;
+            ++node->range.first_glyph_index;
+            --node->range.size;
+        }
+
+        // NOTE(simon): Remove empty ranges.
+        if (node->range.size == 0) {
+            dll_remove(ranges.first, ranges.last, node);
+            --ranges.range_count;
+        }
+    }
 
     // TODO(simon): Sort ranges.
 
@@ -670,7 +637,7 @@ internal TTF_CodepointMap ttf_get_codepoint_map(Arena *arena, TTF_Font *font) {
 
     // NOTE(simon): Copy to output.
     TTF_CodepointMap codepoint_map = { 0 };
-    codepoint_map.ranges = arena_push_array_no_zero(arena, TTF_CodepointRange, ranges.range_count);
+    codepoint_map.ranges = arena_push_array(arena, TTF_CodepointRange, ranges.range_count);
     for (TTF_CodepointRangeNode *node = ranges.first; node; node = node->next, ++codepoint_map.range_count) {
         codepoint_map.ranges[codepoint_map.range_count] = node->range;
         codepoint_map.codepoint_count += node->range.size;

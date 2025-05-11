@@ -84,6 +84,7 @@ typedef struct {
 typedef enum {
     TTF_CmapPlatform_Unicode = 0,
     TTF_CmapPlatform_Windows = 3,
+    TTF_CmapPlatform_COUNT,
 } TTF_CmapPlatformId;
 
 typedef enum {
@@ -106,16 +107,28 @@ typedef enum {
     TTF_CmapWindows_Unicode4   = 10,
 } TTF_CmapWindowsId;
 
-typedef struct {
-    U16 version;
-    U16 number_subtables;
-} TTF_CmapTable;
+#define TTF_CMAP_MAX_PLATFORM_SPECIFIC_ID 11
 
-typedef struct {
-    U16 platform_id;
-    U16 platform_specific_id;
-    U32 offset;
-} TTF_CmapSubtable;
+global U32 ttf_cmap_subtable_ids_to_rank[TTF_CmapPlatform_COUNT][TTF_CMAP_MAX_PLATFORM_SPECIFIC_ID] = {
+    [TTF_CmapPlatform_Unicode] = {
+        [TTF_CmapUnicode_1_0]                = 3,
+        [TTF_CmapUnicode_1_1]                = 4,
+        [TTF_CmapUnicode_Deprecated]         = 0,
+        [TTF_CmapUnicode_2_0_Bmp]            = 2,
+        [TTF_CmapUnicode_2_0_NonBmp]         = 6,
+        [TTF_CmapUnicode_VariationSequences] = 0,
+        [TTF_CmapUnicode_LastResort]         = 0,
+    },
+    [TTF_CmapPlatform_Windows] = {
+        [TTF_CmapWindows_Symbol]     = 0,
+        [TTF_CmapWindows_UnicodeBmp] = 1,
+        [TTF_CmapWindows_ShiftJis]   = 0,
+        [TTF_CmapWindows_Prc]        = 0,
+        [TTF_CmapWindows_BigFive]    = 0,
+        [TTF_CmapWindows_Johab]      = 0,
+        [TTF_CmapWindows_Unicode4]   = 5,
+    },
+};
 
 typedef packed_struct({
     TTF_Fixed        version;
@@ -217,6 +230,7 @@ struct TTF_CodepointMap {
 typedef struct TTF_CodepointRangeNode TTF_CodepointRangeNode;
 struct TTF_CodepointRangeNode {
     TTF_CodepointRangeNode *next;
+    TTF_CodepointRangeNode *previous;
     TTF_CodepointRange range;
 };
 
