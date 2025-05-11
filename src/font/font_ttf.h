@@ -121,13 +121,6 @@ typedef struct {
     U16 format;
     U16 length;
     U16 language;
-    U8 glyph_index_array[256];
-} TTF_CmapFormat0;
-
-typedef struct {
-    U16 format;
-    U16 length;
-    U16 language;
     U16 seg_count_x2;
     U16 search_range;
     U16 entry_selector;
@@ -141,30 +134,6 @@ typedef struct {
     // U16 id_range_offset[seg_count];
     // U16 glyph_index_array[variable]; // UGH...
 } TTF_CmapFormat4;
-
-typedef struct {
-    U16 format;
-    U16 length;
-    U16 language;
-    U16 first_code;
-    U16 entry_count;
-    // U16 glyph_index_array[entry_count];
-} TTF_CmapFormat6;
-
-typedef struct {
-    U32 start_char_code;
-    U32 end_char_code;
-    U32 start_glyph_code;
-} TTF_CmapFormat12Group;
-
-typedef struct {
-    U16 format;
-    U16 reserved;
-    U32 length;
-    U32 language;
-    U32 n_groups;
-    // TTF_CmapFormat12Group groups[n_groups];
-} TTF_CmapFormat12;
 
 typedef packed_struct({
     TTF_Fixed        version;

@@ -85,6 +85,18 @@ internal S16 ttf_read_s16(TTF_Parser *data) {
     return result;
 }
 
+internal U32 ttf_read_u32(TTF_Parser *data) {
+    U32 result = 0;
+    if (sizeof(U32) <= data->size) {
+        result = (U32) (data->data[0] << 24 | data->data[1] << 16 | data->data[2] << 8 | data->data[3] << 0);
+        data->data += sizeof(U32);
+        data->size -= sizeof(U32);
+    } else {
+        data->out_of_data = true;
+    }
+    return result;
+}
+
 internal Str8 ttf_read_bytes(TTF_Parser *data, U64 size) {
     Str8 result = { 0 };
     if (size <= data->size) {
@@ -437,35 +449,42 @@ internal TTF_CodepointMap ttf_get_codepoint_map(Arena *arena, TTF_Font *font) {
     }
 
     // NOTE(simon): Collect subtable mappings into our own unified set of mapping.
+    // TODO(simon): Make sure that mappings to glyph index 0 are not added.
     TTF_CodepointRangeList ranges = { 0 };
     switch (font->character_map_format) {
         case 0: {
-            // TODO(simon): Should we allow subtables that are larger here?
-            // Technically we can load them, but they might be wrong. We could
-            // also load tables that are smaller, though we will be missing
-            // some mappings.
-            if (subtable_data.size != sizeof(TTF_CmapFormat0)) {
-                log_error(str8_literal("Not enough data for cmap format 0.\n"));
-            } else {
-                TTF_CmapFormat0 *format = (TTF_CmapFormat0 *) subtable_data.data;
+            TTF_Parser parser = { 0 };
+            parser.data = subtable_data.data;
+            parser.size = subtable_data.size;
 
-                // NOTE(simon): Collect initial ranges.
-                TTF_CodepointRange range = { 0 };
-                for (U32 i = 0; i < array_count(format->glyph_index_array); ++i) {
-                    U32 glyph_index = format->glyph_index_array[i];
+            // TODO(simon): Should we use the length field for the parser?
+            U16 format   = ttf_read_u16(&parser);
+            U16 length   = ttf_read_u16(&parser);
+            U16 language = ttf_read_u16(&parser);
 
-                    if (range.size && range.first_glyph_index + range.size == glyph_index) {
-                        ++range.size;
-                    } else {
-                        ttf_codepoint_range_list_push(scratch.arena, &ranges, range);
+            // NOTE(simon): Build contiguous ranges.
+            TTF_CodepointRange range = { 0 };
+            for (U32 i = 0; i < 256; ++i) {
+                U32 glyph_index = ttf_read_u8(&parser);
 
-                        range.first_codepoint = i;
-                        range.first_glyph_index = glyph_index;
-                        range.size = 1;
-                    }
+                if (range.size && range.first_glyph_index + range.size == glyph_index) {
+                    // NOTE(simon): Extend the range.
+                    ++range.size;
+                } else {
+                    ttf_codepoint_range_list_push(scratch.arena, &ranges, range);
+
+                    // NOTE(simon): Start a new range.
+                    range.first_codepoint = i;
+                    range.first_glyph_index = glyph_index;
+                    range.size = 1;
                 }
+            }
 
-                ttf_codepoint_range_list_push(scratch.arena, &ranges, range);
+            // NOTE(simon): Push the last range which would not be handled by the above.
+            ttf_codepoint_range_list_push(scratch.arena, &ranges, range);
+
+            if (parser.out_of_data) {
+                log_error(str8_literal("Not enough data for cmap format 0.\n"));
             }
         } break;
         case 2: {
@@ -566,37 +585,39 @@ internal TTF_CodepointMap ttf_get_codepoint_map(Arena *arena, TTF_Font *font) {
             }
         } break;
         case 6: {
-            if (subtable_data.size >= sizeof(TTF_CmapFormat6)) {
-                TTF_CmapFormat6 *format = (TTF_CmapFormat6 *) subtable_data.data;
+            TTF_Parser parser = { 0 };
+            parser.data = subtable_data.data;
+            parser.size = subtable_data.size;
 
-                U32 first_code  = u16_big_to_local_endian(format->first_code);
-                U32 entry_count = u16_big_to_local_endian(format->entry_count);
+            // TODO(simon): Should we use the length field for the parser?
+            U16 format      = ttf_read_u16(&parser);
+            U16 length      = ttf_read_u16(&parser);
+            U16 language    = ttf_read_u16(&parser);
+            U16 first_code  = ttf_read_u16(&parser);
+            U16 entry_count = ttf_read_u16(&parser);
 
-                if (subtable_data.size < sizeof(TTF_CmapFormat6) + entry_count * sizeof(U16)) {
-                    log_error(str8_literal("Not enough data for cmap format 6.\n"));
+            // NOTE(simon): Build contiguous ranges.
+            TTF_CodepointRange range = { 0 };
+            for (U32 codepoint_offset = 0; codepoint_offset < entry_count; ++codepoint_offset) {
+                U32 glyph_index = ttf_read_u16(&parser);
+
+                if (range.size && range.first_glyph_index + range.size == glyph_index) {
+                    // NOTE(simon): Extend the range.
+                    ++range.size;
                 } else {
-                    U16 *glyph_index_array = (U16 *) &subtable_data.data[sizeof(*format)];
-
-                    // NOTE(simon): Build contiguous ranges.
-                    TTF_CodepointRange range = { 0 };
-                    for (U32 codepoint_offset = 0; codepoint_offset < entry_count; ++codepoint_offset) {
-                        U32 glyph_index = u16_big_to_local_endian(glyph_index_array[codepoint_offset]);
-
-                        if (range.size && range.first_glyph_index + range.size == glyph_index) {
-                            ++range.size;
-                        } else {
-                            ttf_codepoint_range_list_push(scratch.arena, &ranges, range);
-
-                            range.first_codepoint = first_code + codepoint_offset;
-                            range.first_glyph_index = glyph_index;
-                            range.size = 1;
-                        }
-                    }
-
-                    // NOTE(simon): Push the last range which would not be handled by the above.
                     ttf_codepoint_range_list_push(scratch.arena, &ranges, range);
+
+                    // NOTE(simon): Start a new range.
+                    range.first_codepoint = first_code + codepoint_offset;
+                    range.first_glyph_index = glyph_index;
+                    range.size = 1;
                 }
-            } else {
+            }
+
+            // NOTE(simon): Push the last range which would not be handled by the above.
+            ttf_codepoint_range_list_push(scratch.arena, &ranges, range);
+
+            if (parser.out_of_data) {
                 log_error(str8_literal("Not enough data for cmap format 6.\n"));
             }
         } break;
@@ -607,34 +628,31 @@ internal TTF_CodepointMap ttf_get_codepoint_map(Arena *arena, TTF_Font *font) {
             log_error(str8_literal("Cmap format 10 is not supported.\n"));
         } break;
         case 12: {
-            if (subtable_data.size >= sizeof(TTF_CmapFormat12)) {
-                TTF_CmapFormat12 *format = (TTF_CmapFormat12 *) subtable_data.data;
+            TTF_Parser parser = { 0 };
+            parser.data = subtable_data.data;
+            parser.size = subtable_data.size;
 
-                U32 length      = u32_big_to_local_endian(format->length);
-                U32 group_count = u32_big_to_local_endian(format->n_groups);
+            // TODO(simon): Should we use the length field for the parser?
+            U16 format      = ttf_read_u16(&parser);
+            U16 reserved    = ttf_read_u16(&parser);
+            U32 length      = ttf_read_u32(&parser);
+            U32 language    = ttf_read_u32(&parser);
+            U32 group_count = ttf_read_u32(&parser);
 
-                if (length > subtable_data.size) {
-                    log_error(str8_literal("Not enough data for cmap format 12.\n"));
-                } else if (sizeof(TTF_CmapFormat12) + group_count * sizeof(TTF_CmapFormat12Group) > subtable_data.size) {
-                    log_error(str8_literal("Not enough data for cmap format 12 groups.\n"));
-                } else {
-                    TTF_CmapFormat12Group *groups      = (TTF_CmapFormat12Group *) &subtable_data.data[sizeof(*format)];
+            // NOTE(simon): Convert group to ranges.
+            for (U32 i = 0; i < group_count; ++i) {
+                U32 start_char_code  = ttf_read_u32(&parser);
+                U32 end_char_code    = ttf_read_u32(&parser);
+                U32 start_glyph_code = ttf_read_u32(&parser);
 
-                    // NOTE(simon): Convert group to ranges.
-                    // TODO(simon): We assume that the groups are sorted, they might not be. Sort them!
-                    for (U32 i = 0; i < group_count; ++i) {
-                        U32 first_codepoint   = u32_big_to_local_endian(groups[i].start_char_code);
-                        U32 last_codepoint    = u32_big_to_local_endian(groups[i].end_char_code);
-                        U32 first_glyph_index = u32_big_to_local_endian(groups[i].start_glyph_code);
+                TTF_CodepointRange range = { 0 };
+                range.first_codepoint   = start_char_code;
+                range.first_glyph_index = start_glyph_code;
+                range.size              = end_char_code - start_char_code + 1;
+                ttf_codepoint_range_list_push(scratch.arena, &ranges, range);
+            }
 
-                        TTF_CodepointRange range = { 0 };
-                        range.first_codepoint   = first_codepoint;
-                        range.first_glyph_index = first_glyph_index;
-                        range.size              = last_codepoint - first_codepoint + 1;
-                        ttf_codepoint_range_list_push(scratch.arena, &ranges, range);
-                    }
-                }
-            } else {
+            if (parser.out_of_data) {
                 log_error(str8_literal("Not enough data for cmap format 12.\n"));
             }
         } break;
