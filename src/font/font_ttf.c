@@ -97,6 +97,25 @@ internal U32 ttf_read_u32(TTF_Parser *data) {
     return result;
 }
 
+internal U64 ttf_read_u64(TTF_Parser *data) {
+    U64 result = 0;
+    if (sizeof(U64) <= data->size) {
+        result |= (U64) data->data[0] << 56;
+        result |= (U64) data->data[1] << 48;
+        result |= (U64) data->data[2] << 40;
+        result |= (U64) data->data[3] << 32;
+        result |= (U64) data->data[4] << 24;
+        result |= (U64) data->data[5] << 16;
+        result |= (U64) data->data[6] <<  8;
+        result |= (U64) data->data[7] <<  0;
+        data->data += sizeof(U64);
+        data->size -= sizeof(U64);
+    } else {
+        data->out_of_data = true;
+    }
+    return result;
+}
+
 internal Str8 ttf_read_bytes(TTF_Parser *data, U64 size) {
     Str8 result = { 0 };
     if (size <= data->size) {
@@ -124,7 +143,7 @@ internal TTF_Parser ttf_sub_parser(TTF_Parser *data, U64 size) {
 
 
 
-internal Void ttf_parse_font_tables(Arena *arena, Str8 data, TTF_Font *font) {
+internal B32 ttf_parse_font_tables(Arena *arena, Str8 data, TTF_Font *font) {
     U32 table_count = 0;
     if (data.size >= sizeof(TTF_OffsetSubtable)) {
         TTF_OffsetSubtable *offset_subtable = (TTF_OffsetSubtable *) &data.data[0];
@@ -181,123 +200,8 @@ internal Void ttf_parse_font_tables(Arena *arena, Str8 data, TTF_Font *font) {
     if (!all_present) {
         log_error(str8_literal("Not all required tables are present.\n"));
     }
-}
 
-internal Void ttf_parse_head_table(Arena *arena, TTF_Font *font) {
-    if (font->tables[TTF_Table_Head].size >= sizeof(TTF_HeadTable)) {
-        TTF_HeadTable *head = (TTF_HeadTable *) font->tables[TTF_Table_Head].data;
-
-        TTF_Fixed version             = u32_big_to_local_endian(head->version);
-        U32       magic_number        = u32_big_to_local_endian(head->magic_number);
-        U16       flags               = u16_big_to_local_endian(head->flags);
-        U16       units_per_em        = u16_big_to_local_endian(head->units_per_em);
-        TTF_FWord x_min               = (S16) u16_big_to_local_endian((U16) head->x_min);
-        TTF_FWord y_min               = (S16) u16_big_to_local_endian((U16) head->y_min);
-        TTF_FWord x_max               = (S16) u16_big_to_local_endian((U16) head->x_max);
-        TTF_FWord y_max               = (S16) u16_big_to_local_endian((U16) head->y_max);
-        U16       lowest_rec_ppem     = u16_big_to_local_endian(head->lowest_rec_ppem);
-        S16       font_direction_hint = s16_big_to_local_endian(head->font_direction_hint);
-        S16       glyph_data_format   = s16_big_to_local_endian(head->glyph_data_format);
-
-        if (version != TTF_MAKE_VERSION(1, 0)) {
-            log_error(str8_literal("ERROR(font/ttf): Unsupported version of head table.\n"));
-        }
-
-        // TODO: Validate check_sum_adjustment
-
-        if (magic_number != TTF_MAGIC_NUMBER) {
-            log_error(str8_literal("Wrong magic number.\n"));
-        }
-
-        if ((flags & 0x0020) != 0) {
-            log_error(str8_literal("Flags required to be unset are set.\n"));
-        }
-
-        if (!(64 <= units_per_em && units_per_em <= 16384)) {
-            log_error(str8_literal("Invalid number of units per em.\n"));
-        }
-
-        if (!(-2 <= font_direction_hint && font_direction_hint <= 2)) {
-            log_error(str8_literal("Invalid font direction hint.\n"));
-        }
-
-        if (glyph_data_format != 0) {
-            log_error(str8_literal("Unknown glyph data format.\n"));
-        }
-
-        font->funits_per_em       = units_per_em;
-        font->lowest_rec_ppem     = lowest_rec_ppem;
-    } else {
-        log_error(str8_literal("Not enough data in head table.\n"));
-    }
-}
-
-internal Void ttf_parse_maxp_table(Arena *arena, TTF_Font *font) {
-    if (font->tables[TTF_Table_Maxp].size >= sizeof(TTF_MaxpTable)) {
-        TTF_MaxpTable *maxp = (TTF_MaxpTable *) font->tables[TTF_Table_Maxp].data;
-
-        TTF_Fixed version                = u32_big_to_local_endian(maxp->version);
-        U16       num_glyphs             = u16_big_to_local_endian(maxp->num_glyphs);
-        U16       max_zones              = u16_big_to_local_endian(maxp->max_zones);
-        U16       max_component_depth    = u16_big_to_local_endian(maxp->max_component_depth);
-        U16       max_contours           = u16_big_to_local_endian(maxp->max_contours);
-        U16       max_component_contours = u16_big_to_local_endian(maxp->max_component_contours);
-        U16       max_points             = u16_big_to_local_endian(maxp->max_points);
-        U16       max_component_points   = u16_big_to_local_endian(maxp->max_component_points);
-
-        if (version != TTF_MAKE_VERSION(1, 0)) {
-            log_error(str8_literal("Unsupported version of maxp table.\n"));
-        }
-
-        if (!(1 <= max_zones && max_zones <= 2)) {
-            log_error(str8_literal("Max zones must between 1 and 2 inclusive.\n"));
-        }
-
-        if (max_component_depth > 16) {
-            log_error(str8_literal("Max component depth is outside of the legal range.\n"));
-        }
-
-        font->glyph_count = num_glyphs;
-    } else {
-        log_error(str8_literal("Not enough data in maxp table.\n"));
-    }
-}
-
-internal Void ttf_validate_metrics(Arena *arena, TTF_Font *font) {
-    TTF_HheaTable *hhea = (TTF_HheaTable *) font->tables[TTF_Table_Hhea].data;
-    Str8 hmtx_data = font->tables[TTF_Table_Hmtx];
-
-    if (font->tables[TTF_Table_Hhea].size >= sizeof(TTF_HheaTable)) {
-        TTF_Fixed version             = u32_big_to_local_endian(hhea->version);
-        S16       caret_slope_rise    = s16_big_to_local_endian(hhea->caret_slope_rise);
-        S16       caret_slope_run     = s16_big_to_local_endian(hhea->caret_slope_run);
-        S16       metric_data_format  = s16_big_to_local_endian(hhea->metric_data_format);
-        U16       advance_width_count = u16_big_to_local_endian(hhea->num_of_long_hor_metrics);
-
-        U32 left_side_bearing_count = font->glyph_count - advance_width_count;
-
-        if (version != TTF_MAKE_VERSION(1, 0)) {
-            log_error(str8_literal("Unsupported version of hhea table.\n"));
-        }
-
-        if (caret_slope_rise == 0 && caret_slope_run == 0) {
-            log_error(str8_literal("Both the caret slopes rise and run are 0.\n"));
-        }
-
-        if (metric_data_format != 0) {
-            log_error(str8_literal("Unknown metric data format.\n"));
-        }
-
-        if (advance_width_count == 0) {
-            log_error(str8_literal("There must be at least one long-form entry in the hmtx table.\n"));
-        }
-
-        if (hmtx_data.size < advance_width_count * sizeof(TTF_HmtxMetrics) + left_side_bearing_count * sizeof(TTF_FWord)) {
-            log_error(str8_literal("Not enough data in hmtx table.\n"));
-        }
-    } else {
-        log_error(str8_literal("Not enough data in hhea table.\n"));
-    }
+    return all_present;
 }
 
 internal TTF_HmtxMetrics ttf_get_metrics(TTF_Font *font, U32 glyph_index) {
@@ -1004,110 +908,261 @@ internal MSDF_Glyph ttf_expand_contours_to_msdf(Arena *arena, TTF_Font *font, U3
     return result;
 }
 
-internal Void ttf_get_glyph_data_ranges(Arena *arena, TTF_Font *font) {
-    font->raw_glyph_data = arena_push_array(arena, Str8, font->glyph_count);
+internal TTF_Font *ttf_load(Arena *arena, Str8 font_path) {
+    TTF_Font *font = arena_push_struct(arena, TTF_Font);
+    Str8 font_data = { 0 };
 
-    Str8 head_data = font->tables[TTF_Table_Head];
-    Str8 loca_data = font->tables[TTF_Table_Loca];
-    Str8 glyf_data = font->tables[TTF_Table_Glyf];
+    B32 good = true;
+
+    if (good) {
+        good = os_file_read(arena, font_path, &font_data);
+        if (!good) {
+            log_error(str8_literal("Could not read file.\n"));
+        }
+    }
+
+    if (good) {
+        good = ttf_parse_font_tables(arena, font_data, font);
+    }
 
     S32 loca_format = S32_MAX;
 
-    // NOTE(simon): Extract index to location encoding format.
-    if (head_data.size >= sizeof(TTF_HeadTable)) {
-        TTF_HeadTable *head = (TTF_HeadTable *) head_data.data;
-        loca_format = s16_big_to_local_endian(head->index_to_loc_format);
-    }
+    // NOTE(simon): Parse head table
+    if (good) {
+        Str8 head_data = font->tables[TTF_Table_Head];
+        TTF_Parser parser = { 0 };
+        parser.data = head_data.data;
+        parser.size = head_data.size;
 
-    // NOTE(simon): Extract glyph locations.
-    if (loca_format == 0) {
-        // NOTE(simon): There is one extra location at the end to indicate the
-        // end of the last glyph.
-        S64 location_count = s64_min((S64) (loca_data.size / sizeof(U16)), font->glyph_count + 1);
+        TTF_Fixed        version              = ttf_read_u32(&parser);
+        TTF_Fixed        font_revision        = ttf_read_u32(&parser);
+        TTF_Fixed        check_sum_adjustment = ttf_read_u32(&parser);
+        U32              magic_number         = ttf_read_u32(&parser);
+        U16              flags                = ttf_read_u16(&parser);
+        U16              units_per_em         = ttf_read_u16(&parser);
+        TTF_LongDateTime created              = ttf_read_u64(&parser);
+        TTF_LongDateTime modified             = ttf_read_u64(&parser);
+        TTF_FWord        x_min                = ttf_read_s16(&parser);
+        TTF_FWord        y_min                = ttf_read_s16(&parser);
+        TTF_FWord        x_max                = ttf_read_s16(&parser);
+        TTF_FWord        y_max                = ttf_read_s16(&parser);
+        U16              mac_style            = ttf_read_u16(&parser);
+        U16              lowest_rec_ppem      = ttf_read_u16(&parser);
+        S16              font_direction_hint  = ttf_read_s16(&parser);
+        S16              index_to_loc_format  = ttf_read_s16(&parser);
+        S16              glyph_data_format    = ttf_read_s16(&parser);
 
-        if (location_count != font->glyph_count + 1) {
-            log_error(str8_literal("Not enough data for short loca table.\n"));
+        if (parser.out_of_data) {
+            log_error(str8_literal("Not enough data in head table.\n"));
+            good = false;
         }
 
-        U16 *offsets = (U16 *) loca_data.data;
-        for (S64 i = 0; i < location_count - 1; ++i) {
-            U32 start = 2 * (U32) u16_big_to_local_endian(offsets[i + 0]);
-            U32 end   = 2 * (U32) u16_big_to_local_endian(offsets[i + 1]);
-            Str8 data = str8_substring(glyf_data, start, end - start);
-
-            if (start > end) {
-                log_error(str8_literal("Invalid short loca range (start must be less than end).\n"));
-                data.size = 0;
-            }
-
-            if (end > glyf_data.size) {
-                log_error(str8_literal("Not enough data for glyf table.\n"));
-                data.size = 0;
-            }
-
-            font->raw_glyph_data[i] = data;
-        }
-    } else if (loca_format == 1) {
-        // NOTE(simon): There is one extra location at the end to indicate the
-        // end of the last glyph.
-        S64 location_count = s64_min((S64) (loca_data.size / sizeof(U32)), font->glyph_count + 1);
-
-        if (location_count != font->glyph_count + 1) {
-            log_error(str8_literal("Not enough data for long loca table.\n"));
+        if (version != TTF_MAKE_VERSION(1, 0)) {
+            log_error(str8_literal("Unsupported version of head table.\n"));
+            good = false;
         }
 
-        U32 *offsets = (U32 *) loca_data.data;
-        for (S64 i = 0; i < location_count - 1; ++i) {
-            U32 start = u32_big_to_local_endian(offsets[i + 0]);
-            U32 end   = u32_big_to_local_endian(offsets[i + 1]);
-            Str8 data = str8_substring(glyf_data, start, end - start);
+        // TODO: Validate check_sum_adjustment
 
-            if (start > end) {
-                log_error(str8_literal("Invalid long loca range (start must be less than end).\n"));
-                data.size = 0;
-            }
-
-            if (end > glyf_data.size) {
-                log_error(str8_literal("Not enough data for glyf table.\n"));
-                data.size = 0;
-            }
-
-            font->raw_glyph_data[i] = data;
+        if (magic_number != TTF_MAGIC_NUMBER) {
+            log_error(str8_literal("Wrong magic number.\n"));
         }
-    } else if (loca_format == S32_MAX) {
-        log_error(str8_literal("Not enough data in head table to read loca format.\n"));
-    } else {
-        log_error(str8_literal("Unknown index to location format.\n"));
-    }
-}
 
-internal TTF_Font *ttf_load(Arena *arena, Str8 font_path) {
-    TTF_Font *result = arena_push_struct(arena, TTF_Font);
-    Str8 font_data = { 0 };
+        if ((flags & 0x0020) != 0) {
+            log_error(str8_literal("Flags required to be unset are set.\n"));
+        }
 
-    if (!os_file_read(arena, font_path, &font_data)) {
-        log_error(str8_literal("Could not read file.\n"));
-    }
+        if (!(64 <= units_per_em && units_per_em <= 16384)) {
+            log_error(str8_literal("Invalid number of units per em.\n"));
+        }
 
-    ttf_parse_font_tables(arena, font_data, result);
+        if (!(-2 <= font_direction_hint && font_direction_hint <= 2)) {
+            log_error(str8_literal("Invalid font direction hint.\n"));
+        }
 
-    if (result->tables[TTF_Table_Head].data) {
-        ttf_parse_head_table(arena, result);
-    }
+        if (glyph_data_format != 0) {
+            log_error(str8_literal("Unknown glyph data format.\n"));
+            good = false;
+        }
 
-    if (result->tables[TTF_Table_Maxp].data) {
-        ttf_parse_maxp_table(arena, result);
-    }
-
-    ttf_get_glyph_data_ranges(arena, result);
-
-    if (result->tables[TTF_Table_Hhea].data && result->tables[TTF_Table_Hmtx].data) {
-        ttf_validate_metrics(arena, result);
+        if (good) {
+            font->funits_per_em   = units_per_em;
+            font->lowest_rec_ppem = lowest_rec_ppem;
+            loca_format           = index_to_loc_format;
+        }
     }
 
-    if (result->tables[TTF_Table_Cmap].data) {
-        result->codepoint_map = ttf_get_codepoint_map(arena, result);
+    // NOTE(simon): Parse maxp table.
+    if (good) {
+        Str8 maxp_data = font->tables[TTF_Table_Maxp];
+        TTF_Parser parser = { 0 };
+        parser.data = maxp_data.data;
+        parser.size = maxp_data.size;
+
+        TTF_Fixed version            = ttf_read_u32(&parser);
+        U16 num_glyphs               = ttf_read_u16(&parser);
+        U16 max_points               = ttf_read_u16(&parser);
+        U16 max_contours             = ttf_read_u16(&parser);
+        U16 max_component_points     = ttf_read_u16(&parser);
+        U16 max_component_contours   = ttf_read_u16(&parser);
+        U16 max_zones                = ttf_read_u16(&parser);
+        U16 max_twilight_points      = ttf_read_u16(&parser);
+        U16 max_storage              = ttf_read_u16(&parser);
+        U16 max_function_defs        = ttf_read_u16(&parser);
+        U16 max_instruction_defs     = ttf_read_u16(&parser);
+        U16 max_stack_elements       = ttf_read_u16(&parser);
+        U16 max_size_of_instructions = ttf_read_u16(&parser);
+        U16 max_component_elements   = ttf_read_u16(&parser);
+        U16 max_component_depth      = ttf_read_u16(&parser);
+
+        if (parser.out_of_data) {
+            log_error(str8_literal("Not enough data in maxp table.\n"));
+            good = false;
+        }
+
+        if (version != TTF_MAKE_VERSION(1, 0)) {
+            log_error(str8_literal("Unsupported version of maxp table.\n"));
+            good = false;
+        }
+
+        if (!(1 <= max_zones && max_zones <= 2)) {
+            log_error(str8_literal("Max zones must between 1 and 2 inclusive.\n"));
+        }
+
+        if (max_component_depth > 16) {
+            log_error(str8_literal("Max component depth is outside of the legal range.\n"));
+        }
+
+        if (good) {
+            font->glyph_count = num_glyphs;
+        }
     }
 
-    return result;
+    // NOTE(simon): Get glyph data ranges.
+    if (good) {
+        font->raw_glyph_data = arena_push_array(arena, Str8, font->glyph_count);
+
+        Str8 loca_data = font->tables[TTF_Table_Loca];
+        Str8 glyf_data = font->tables[TTF_Table_Glyf];
+
+        // NOTE(simon): Extract glyph locations.
+        TTF_Parser parser = { 0 };
+        parser.data = loca_data.data;
+        parser.size = loca_data.size;
+        if (loca_format == 0) {
+            U32 start = 2 * ttf_read_u16(&parser);
+            for (S64 i = 0; i < font->glyph_count; ++i) {
+                U32 end = 2 * ttf_read_u16(&parser);
+                if (parser.out_of_data) {
+                    log_error(str8_literal("Not enough data for short loca table.\n"));
+                    break;
+                }
+
+                Str8 data = str8_substring(glyf_data, start, end - start);
+
+                if (start > end) {
+                    log_error(str8_literal("Invalid short loca range (start must be less than end).\n"));
+                    data.size = 0;
+                }
+
+                if (end > glyf_data.size) {
+                    log_error(str8_literal("Not enough data for glyf table.\n"));
+                    data.size = 0;
+                }
+
+                font->raw_glyph_data[i] = data;
+                start = end;
+            }
+        } else if (loca_format == 1) {
+            U32 start = ttf_read_u32(&parser);
+            for (S64 i = 0; i < font->glyph_count; ++i) {
+                U32 end = ttf_read_u32(&parser);
+                if (parser.out_of_data) {
+                    log_error(str8_literal("Not enough data for long loca table.\n"));
+                    break;
+                }
+
+                Str8 data = str8_substring(glyf_data, start, end - start);
+
+                if (start > end) {
+                    log_error(str8_literal("Invalid long loca range (start must be less than end).\n"));
+                    data.size = 0;
+                }
+
+                if (end > glyf_data.size) {
+                    log_error(str8_literal("Not enough data for glyf table.\n"));
+                    data.size = 0;
+                }
+
+                font->raw_glyph_data[i] = data;
+                start = end;
+            }
+        } else if (loca_format == S32_MAX) {
+            log_error(str8_literal("Not enough data in head table to read loca format.\n"));
+        } else {
+            log_error(str8_literal("Unknown index to location format.\n"));
+        }
+    }
+
+    // NOTE(simon): Validate metrics.
+    if (good) {
+        Str8 hhea_data = font->tables[TTF_Table_Hhea];
+        TTF_Parser parser = { 0 };
+        parser.data = hhea_data.data;
+        parser.size = hhea_data.size;
+
+        Str8 hmtx_data = font->tables[TTF_Table_Hmtx];
+
+        TTF_Fixed  version                 = ttf_read_u32(&parser);
+        TTF_FWord  ascent                  = ttf_read_s16(&parser);
+        TTF_FWord  descent                 = ttf_read_s16(&parser);
+        TTF_FWord  line_gap                = ttf_read_s16(&parser);
+        TTF_UFWord advance_width_max       = ttf_read_u16(&parser);
+        TTF_FWord  min_left_side_bearing   = ttf_read_s16(&parser);
+        TTF_FWord  min_right_side_bearing  = ttf_read_s16(&parser);
+        TTF_FWord  x_max_extent            = ttf_read_s16(&parser);
+        S16        caret_slope_rise        = ttf_read_s16(&parser);
+        S16        caret_slope_run         = ttf_read_s16(&parser);
+        TTF_FWord  caret_offset            = ttf_read_s16(&parser);
+        S16        reserved0               = ttf_read_s16(&parser);
+        S16        reserved1               = ttf_read_s16(&parser);
+        S16        reserved2               = ttf_read_s16(&parser);
+        S16        reserved3               = ttf_read_s16(&parser);
+        S16        metric_data_format      = ttf_read_s16(&parser);
+        U16        num_of_long_hor_metrics = ttf_read_u16(&parser);
+
+        if (parser.out_of_data) {
+            log_error(str8_literal("Not enough data in hhea table.\n"));
+            good = false;
+        }
+
+        if (version != TTF_MAKE_VERSION(1, 0)) {
+            log_error(str8_literal("Unsupported version of hhea table.\n"));
+            good = false;
+        }
+
+        U32 left_side_bearing_count = font->glyph_count - advance_width_max;
+
+        if (caret_slope_rise == 0 && caret_slope_run == 0) {
+            log_error(str8_literal("Both the caret slopes rise and run are 0.\n"));
+        }
+
+        if (metric_data_format != 0) {
+            log_error(str8_literal("Unknown metric data format.\n"));
+        }
+
+        if (advance_width_max == 0) {
+            log_error(str8_literal("There must be at least one long-form entry in the hmtx table.\n"));
+        }
+
+        if (hmtx_data.size < advance_width_max * sizeof(TTF_HmtxMetrics) + left_side_bearing_count * sizeof(TTF_FWord)) {
+            log_error(str8_literal("Not enough data in hmtx table.\n"));
+        }
+    }
+
+    if (good) {
+        font->codepoint_map = ttf_get_codepoint_map(arena, font);
+    }
+
+    return font;
 }

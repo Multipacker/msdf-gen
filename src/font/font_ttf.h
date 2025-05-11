@@ -130,26 +130,6 @@ global U32 ttf_cmap_subtable_ids_to_rank[TTF_CmapPlatform_COUNT][TTF_CMAP_MAX_PL
     },
 };
 
-typedef packed_struct({
-    TTF_Fixed        version;
-    TTF_Fixed        font_revision;
-    U32              check_sum_adjustment;
-    U32              magic_number;
-    U16              flags;
-    U16              units_per_em;
-    TTF_LongDateTime created;
-    TTF_LongDateTime modified;
-    TTF_FWord        x_min;
-    TTF_FWord        y_min;
-    TTF_FWord        x_max;
-    TTF_FWord        y_max;
-    U16              mac_style;
-    U16              lowest_rec_ppem;
-    S16              font_direction_hint;
-    S16              index_to_loc_format;
-    S16              glyph_data_format;
-}) TTF_HeadTable;
-
 typedef struct {
     TTF_Fixed  version;
     TTF_FWord  ascent;
@@ -174,24 +154,6 @@ typedef struct {
     TTF_UFWord advance_width;
     TTF_FWord  left_side_bearing;
 } TTF_HmtxMetrics;
-
-typedef struct {
-    TTF_Fixed version;
-    U16 num_glyphs;
-    U16 max_points;
-    U16 max_contours;
-    U16 max_component_points;
-    U16 max_component_contours;
-    U16 max_zones;
-    U16 max_twilight_points;
-    U16 max_storage;
-    U16 max_function_defs;
-    U16 max_instruction_defs;
-    U16 max_stack_elements;
-    U16 max_size_of_instructions;
-    U16 max_component_elements;
-    U16 max_component_depth;
-} TTF_MaxpTable;
 
 typedef struct TTF_Glyph TTF_Glyph;
 struct TTF_Glyph {
@@ -248,14 +210,6 @@ struct TTF_Font {
     Str8 *raw_glyph_data;
 
     U16 glyph_count;
-
-    U16 *ttf_to_internal_glyph_indicies; // NOTE: The stored indicies are 1-based.
-    U16 *internal_to_ttf_glyph_indicies;
-    U16 internal_glyph_count;
-
-    U32 codepoint_count;
-    U32 *codepoints;
-    U32 *glyph_indicies;
 
     U16 funits_per_em;
     U16 lowest_rec_ppem;
