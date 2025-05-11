@@ -117,24 +117,6 @@ typedef struct {
     U32 offset;
 } TTF_CmapSubtable;
 
-typedef struct {
-    U16 format;
-    U16 length;
-    U16 language;
-    U16 seg_count_x2;
-    U16 search_range;
-    U16 entry_selector;
-    U16 range_shift;
-
-    // NOTE: These are variable segments and can thus not be represented in the struct.
-    // U16 end_code[seg_count];
-    // U16 reserved_pad;
-    // U16 start_code[seg_count];
-    // U16 id_delta[seg_count];
-    // U16 id_range_offset[seg_count];
-    // U16 glyph_index_array[variable]; // UGH...
-} TTF_CmapFormat4;
-
 typedef packed_struct({
     TTF_Fixed        version;
     TTF_Fixed        font_revision;
@@ -264,8 +246,6 @@ struct TTF_Font {
     U16 funits_per_em;
     U16 lowest_rec_ppem;
 
-    Str8 character_map;
-    U32  character_map_format;
     TTF_CodepointMap codepoint_map;
 };
 
