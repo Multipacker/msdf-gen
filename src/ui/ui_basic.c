@@ -532,9 +532,10 @@ internal UI_ScrollPosition ui_scroll_bar(UI_ScrollPosition position, S64 first_r
 
         F32 scroll_size  = scroll->parent->calculated_size.height - scroll->calculated_size.height;
         F32 drag_percent = ui_drag_delta().y / scroll_size;
-        result.index  = start_row + (S64) f32_round(drag_percent * (F32) (row_count - visible_rows));
-        result.index  = s64_clamp(result.index, first_row, last_row - 1);
-        result.offset = 0.0f;
+        S64 previous_index = result.index;
+        result.index   = start_row + (S64) f32_round(drag_percent * (F32) (row_count - visible_rows));
+        result.index   = s64_clamp(result.index, first_row, last_row - 1);
+        result.offset += (F32) (previous_index - result.index);
     }
 
     if (after_input.flags & UI_InputFlag_LeftDragging) {
