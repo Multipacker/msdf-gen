@@ -208,25 +208,7 @@ internal TTF_HmtxMetrics ttf_get_metrics(TTF_Font *font, U32 glyph_index) {
     TTF_HmtxMetrics result = { 0 };
 
     if (glyph_index < font->glyph_count) {
-        TTF_HheaTable *hhea = (TTF_HheaTable *) font->tables[TTF_Table_Hhea].data;
-        Str8 hmtx_data = font->tables[TTF_Table_Hmtx];
-
-        U32 advance_width_count     = u16_big_to_local_endian(hhea->num_of_long_hor_metrics);
-        U32 left_side_bearing_count = font->glyph_count - advance_width_count;
-
-        TTF_HmtxMetrics *metrics            = (TTF_HmtxMetrics *) hmtx_data.data;
-        TTF_FWord       *left_side_bearings = (TTF_FWord *) &hmtx_data.data[advance_width_count * sizeof(TTF_HmtxMetrics)];
-
-        U32 base_metrics_index = u32_min(glyph_index, advance_width_count - 1);
-        result = metrics[base_metrics_index];
-
-        if (glyph_index >= advance_width_count) {
-            U32 left_side_bearing_index = glyph_index - advance_width_count;
-            result.left_side_bearing = left_side_bearings[left_side_bearing_index];
-        }
-
-        result.advance_width     = u16_big_to_local_endian(result.advance_width);
-        result.left_side_bearing = s16_big_to_local_endian(result.left_side_bearing);
+        result = font->metrics[glyph_index];
     }
 
     return result;
@@ -1104,34 +1086,34 @@ internal TTF_Font *ttf_load(Arena *arena, Str8 font_path) {
         }
     }
 
-    // NOTE(simon): Validate metrics.
+    U32 advance_width_count = 0;
+
+    // NOTE(simon): Parse metrics.
     if (good) {
         Str8 hhea_data = font->tables[TTF_Table_Hhea];
-        TTF_Parser parser = { 0 };
-        parser.data = hhea_data.data;
-        parser.size = hhea_data.size;
+        TTF_Parser hhea_parser = { 0 };
+        hhea_parser.data = hhea_data.data;
+        hhea_parser.size = hhea_data.size;
 
-        Str8 hmtx_data = font->tables[TTF_Table_Hmtx];
+        TTF_Fixed  version                 = ttf_read_u32(&hhea_parser);
+        TTF_FWord  ascent                  = ttf_read_s16(&hhea_parser);
+        TTF_FWord  descent                 = ttf_read_s16(&hhea_parser);
+        TTF_FWord  line_gap                = ttf_read_s16(&hhea_parser);
+        TTF_UFWord advance_width_max       = ttf_read_u16(&hhea_parser);
+        TTF_FWord  min_left_side_bearing   = ttf_read_s16(&hhea_parser);
+        TTF_FWord  min_right_side_bearing  = ttf_read_s16(&hhea_parser);
+        TTF_FWord  x_max_extent            = ttf_read_s16(&hhea_parser);
+        S16        caret_slope_rise        = ttf_read_s16(&hhea_parser);
+        S16        caret_slope_run         = ttf_read_s16(&hhea_parser);
+        TTF_FWord  caret_offset            = ttf_read_s16(&hhea_parser);
+        S16        reserved0               = ttf_read_s16(&hhea_parser);
+        S16        reserved1               = ttf_read_s16(&hhea_parser);
+        S16        reserved2               = ttf_read_s16(&hhea_parser);
+        S16        reserved3               = ttf_read_s16(&hhea_parser);
+        S16        metric_data_format      = ttf_read_s16(&hhea_parser);
+        U16        num_of_long_hor_metrics = ttf_read_u16(&hhea_parser);
 
-        TTF_Fixed  version                 = ttf_read_u32(&parser);
-        TTF_FWord  ascent                  = ttf_read_s16(&parser);
-        TTF_FWord  descent                 = ttf_read_s16(&parser);
-        TTF_FWord  line_gap                = ttf_read_s16(&parser);
-        TTF_UFWord advance_width_max       = ttf_read_u16(&parser);
-        TTF_FWord  min_left_side_bearing   = ttf_read_s16(&parser);
-        TTF_FWord  min_right_side_bearing  = ttf_read_s16(&parser);
-        TTF_FWord  x_max_extent            = ttf_read_s16(&parser);
-        S16        caret_slope_rise        = ttf_read_s16(&parser);
-        S16        caret_slope_run         = ttf_read_s16(&parser);
-        TTF_FWord  caret_offset            = ttf_read_s16(&parser);
-        S16        reserved0               = ttf_read_s16(&parser);
-        S16        reserved1               = ttf_read_s16(&parser);
-        S16        reserved2               = ttf_read_s16(&parser);
-        S16        reserved3               = ttf_read_s16(&parser);
-        S16        metric_data_format      = ttf_read_s16(&parser);
-        U16        num_of_long_hor_metrics = ttf_read_u16(&parser);
-
-        if (parser.out_of_data) {
+        if (hhea_parser.out_of_data) {
             log_error(str8_literal("Not enough data in hhea table.\n"));
             good = false;
         }
@@ -1141,21 +1123,47 @@ internal TTF_Font *ttf_load(Arena *arena, Str8 font_path) {
             good = false;
         }
 
-        U32 left_side_bearing_count = font->glyph_count - advance_width_max;
-
         if (caret_slope_rise == 0 && caret_slope_run == 0) {
             log_error(str8_literal("Both the caret slopes rise and run are 0.\n"));
         }
 
         if (metric_data_format != 0) {
             log_error(str8_literal("Unknown metric data format.\n"));
+            good = false;
         }
 
         if (advance_width_max == 0) {
             log_error(str8_literal("There must be at least one long-form entry in the hmtx table.\n"));
+            good = false;
         }
 
-        if (hmtx_data.size < advance_width_max * sizeof(TTF_HmtxMetrics) + left_side_bearing_count * sizeof(TTF_FWord)) {
+        if (good) {
+            advance_width_count = advance_width_max;
+        }
+    }
+
+    // NOTE(simon): Parse horizontal metrics.
+    if (good) {
+        Str8 hmtx_data = font->tables[TTF_Table_Hmtx];
+        TTF_Parser hmtx_parser = { 0 };
+        hmtx_parser.data = hmtx_data.data;
+        hmtx_parser.size = hmtx_data.size;
+
+        font->metrics = arena_push_array(arena, TTF_HmtxMetrics, font->glyph_count);
+
+        // NOTE(simon): Read both advance width and left side bearing.
+        for (U32 glyph_index = 0; glyph_index < advance_width_count; ++glyph_index) {
+            font->metrics[glyph_index].advance_width     = ttf_read_u16(&hmtx_parser);
+            font->metrics[glyph_index].left_side_bearing = ttf_read_s16(&hmtx_parser);
+        }
+
+        // NOTE(simon): Only read left side bearing
+        for (U32 glyph_index = advance_width_count; glyph_index < font->glyph_count; ++glyph_index) {
+            font->metrics[glyph_index].advance_width     = font->metrics[advance_width_count - 1].advance_width;
+            font->metrics[glyph_index].left_side_bearing = ttf_read_s16(&hmtx_parser);
+        }
+
+        if (hmtx_parser.out_of_data) {
             log_error(str8_literal("Not enough data in hmtx table.\n"));
         }
     }

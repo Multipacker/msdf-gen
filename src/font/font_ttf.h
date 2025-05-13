@@ -131,26 +131,6 @@ global U32 ttf_cmap_subtable_ids_to_rank[TTF_CmapPlatform_COUNT][TTF_CMAP_MAX_PL
 };
 
 typedef struct {
-    TTF_Fixed  version;
-    TTF_FWord  ascent;
-    TTF_FWord  descent;
-    TTF_FWord  line_gap;
-    TTF_UFWord advance_width_max;
-    TTF_FWord  min_left_side_bearing;
-    TTF_FWord  min_right_side_bearing;
-    TTF_FWord  x_max_extent;
-    S16        caret_slope_rise;
-    S16        caret_slope_run;
-    TTF_FWord  caret_offset;
-    S16        reserved0;
-    S16        reserved1;
-    S16        reserved2;
-    S16        reserved3;
-    S16        metric_data_format;
-    U16        num_of_long_hor_metrics;
-} TTF_HheaTable;
-
-typedef struct {
     TTF_UFWord advance_width;
     TTF_FWord  left_side_bearing;
 } TTF_HmtxMetrics;
@@ -208,6 +188,7 @@ struct TTF_Font {
     Str8 tables[TTF_Table_COUNT];
 
     Str8 *raw_glyph_data;
+    TTF_HmtxMetrics *metrics;
 
     U16 glyph_count;
 
