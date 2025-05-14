@@ -144,54 +144,60 @@ internal TTF_Parser ttf_sub_parser(TTF_Parser *data, U64 size) {
 
 
 internal B32 ttf_parse_font_tables(Arena *arena, Str8 data, TTF_Font *font) {
-    U32 table_count = 0;
-    if (data.size >= sizeof(TTF_OffsetSubtable)) {
-        TTF_OffsetSubtable *offset_subtable = (TTF_OffsetSubtable *) &data.data[0];
+    TTF_Parser parser = { 0 };
+    parser.data = data.data;
+    parser.size = data.size;
 
-        U32 scaler_type = u32_big_to_local_endian(offset_subtable->scaler_type);
-        if (scaler_type == TTF_SCALER_TYPE_TRUE || scaler_type == TTF_SCALER_TYPE_1) {
-            table_count = u16_big_to_local_endian(offset_subtable->num_tables);
-        } else {
-            log_error(str8_literal("Unknown scaler type.\n"));
+    U32 scaler_type    = ttf_read_u32(&parser);
+    U16 num_tables     = ttf_read_u16(&parser);
+    U16 search_range   = ttf_read_u16(&parser);
+    U16 entry_selector = ttf_read_u16(&parser);
+    U16 range_shift    = ttf_read_u16(&parser);
+
+    if (parser.out_of_data) {
+        log_error(str8_literal("Not enough data for offset subtable.\n"));
+        num_tables = 0;
+    }
+
+    if (!(scaler_type == TTF_SCALER_TYPE_TRUE || scaler_type == TTF_SCALER_TYPE_1)) {
+        log_error(str8_literal("Unknown scaler type.\n"));
+        num_tables = 0;
+    }
+
+    // NOTE(simon): Parse table directory entries.
+    for (U32 i = 0; i < num_tables; ++i) {
+        U32 tag       = ttf_read_u32(&parser);
+        U32 check_sum = ttf_read_u32(&parser);
+        U32 offset    = ttf_read_u32(&parser);
+        U32 length    = ttf_read_u32(&parser);
+
+        if (parser.out_of_data) {
+            log_error(str8_literal("Not enough data for offset subtable.\n"));
+            break;
         }
-    } else {
-        log_error(str8_literal("Not enough data for offset subtable.\n"));
-    }
 
-    TTF_TableDirectoryEntry *table_directory_entries = 0;
-    Str8 table_directory_data = str8_skip(data, sizeof(TTF_OffsetSubtable));
-    if (table_directory_data.size >= table_count * sizeof(TTF_TableDirectoryEntry)) {
-        table_directory_entries = (TTF_TableDirectoryEntry *) table_directory_data.data;
-    } else {
-        log_error(str8_literal("Not enough data for offset subtable.\n"));
-    }
+        Str8 table_data = str8_substring(data, offset, length);
 
-    for (U32 i = 0; i < table_count; ++i) {
-        TTF_TableDirectoryEntry *entry = &table_directory_entries[i];
-        U32 tag       = u32_big_to_local_endian(entry->tag);
-        U32 check_sum = u32_big_to_local_endian(entry->check_sum);
-        U32 offset    = u32_big_to_local_endian(entry->offset);
-        U32 length    = u32_big_to_local_endian(entry->length);
-
-        if (offset + length <= data.size) {
-            Str8 table_data = str8_substring(data, offset, length);
-
-            // TODO: Verify the check sum.
-
-            for (U32 j = 0; j < TTF_Table_COUNT; ++j) {
-                if (tag == ttf_table_tags[j]) {
-                    if (!font->tables[j].data) {
-                        font->tables[j] = table_data;
-                    } else {
-                        log_error(str8_literal("Duplicated entry in the table directory.\n"));
-                    }
-                }
-            }
-        } else {
+        if (table_data.size != length) {
             log_error(str8_literal("Table is referencing data outside of the file.\n"));
+            continue;
+        }
+
+        // TODO(simon): Verify the check sum.
+
+        for (U32 j = 0; j < TTF_Table_COUNT; ++j) {
+            if (tag == ttf_table_tags[j]) {
+                if (!font->tables[j].data) {
+                    font->tables[j] = table_data;
+                } else {
+                    log_error(str8_literal("Duplicated entry in the table directory.\n"));
+                }
+                break;
+            }
         }
     }
 
+    // NOTE(simon): Verify that we have all required tables.
     B32 all_present = true;
     for (U32 i = 0; i < TTF_Table_MaxRequired; ++i) {
         all_present &= font->tables[i].data != 0;

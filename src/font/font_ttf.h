@@ -64,21 +64,6 @@ global U32 ttf_table_tags[TTF_Table_COUNT] = {
 };
 #undef X
 
-typedef struct {
-    U32 scaler_type;
-    U16 num_tables;
-    U16 search_range;
-    U16 entry_selector;
-    U16 range_shift;
-} TTF_OffsetSubtable;
-
-typedef struct {
-    U32 tag;
-    U32 check_sum;
-    U32 offset;
-    U32 length;
-} TTF_TableDirectoryEntry;
-
 // NOTE: The TrueType spec states that platform IDs other than 0, 1, and 3 are
 // allowed but ignored. Thus, we only list the ones we are interested in.
 typedef enum {
