@@ -90,7 +90,6 @@ struct Wayland_State {
     struct wp_viewporter *viewporter;
     struct wp_fractional_scale_manager_v1 *fractional_scale_manager;
     struct zxdg_decoration_manager_v1 *xdg_decoration_manager;
-    B32 has_server_side_decorations;
     struct xkb_context *xkb_context;
     Wayland_CursorTheme *first_cursor_theme;
     Wayland_CursorTheme *last_cursor_theme;
@@ -149,6 +148,8 @@ struct Wayland_State {
     struct xdg_surface  *xdg_surface;
     struct xdg_toplevel *xdg_toplevel;
     struct zxdg_toplevel_decoration_v1 *xdg_toplevel_decoration;
+    B32 has_server_side_decorations;
+    B32 is_maximized;
     U32 xdg_surface_configure_serial;
     U32 xdg_surface_last_configure_serial;
     VoidFunction *swap_buffers;

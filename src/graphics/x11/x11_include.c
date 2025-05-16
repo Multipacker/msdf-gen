@@ -641,6 +641,14 @@ internal B32 gfx_has_os_top_bar(Void) {
 internal Void gfx_minimize(Void) {
 }
 
+internal B32 gfx_is_maximized(Void) {
+    B32 result = false;
+    return result;
+}
+
+internal Void gfx_set_maximized(B32 maximized) {
+}
+
 
 
 // NOTE(simon): Clipboard

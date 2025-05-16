@@ -905,6 +905,17 @@ internal Void wayland_xdg_toplevel_configure(Void *data, struct xdg_toplevel *xg
         state->width = width;
         state->height = height;
     }
+
+    // NOTE(simon): Reset all state for the window.
+    state->is_maximized = false;
+
+    // NOTE(simon): Acquire new state for window.
+    U32 *toplevel_state = 0;
+    wl_array_for_each(toplevel_state, states) {
+        if (*toplevel_state == XDG_TOPLEVEL_STATE_MAXIMIZED) {
+            state->is_maximized = true;
+        }
+    }
 }
 
 internal Void wayland_xdg_toplevel_close(Void *data, struct xdg_toplevel *xdg_toplevel) {
@@ -1290,6 +1301,22 @@ internal Void gfx_minimize(Void) {
     Wayland_State *state = &global_wayland_state;
     xdg_toplevel_set_minimized(state->xdg_toplevel);
 }
+
+internal B32 gfx_is_maximized(Void) {
+    Wayland_State *state = &global_wayland_state;
+    B32 result = state->is_maximized;
+    return result;
+}
+
+internal Void gfx_set_maximized(B32 maximized) {
+    Wayland_State *state = &global_wayland_state;
+    if (maximized) {
+        xdg_toplevel_set_maximized(state->xdg_toplevel);
+    } else {
+        xdg_toplevel_unset_maximized(state->xdg_toplevel);
+    }
+}
+
 
 
 // NOTE(simon): Clipboard

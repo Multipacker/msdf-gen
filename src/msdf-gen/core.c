@@ -1646,11 +1646,15 @@ internal Void update(Void) {
             ui_text_align(UI_TextAlign_Center) {
                 ui_spacer_sized(ui_size_fill());
 
-                UI_Input minimize_input = ui_button(str8_literal("-"));
-                UI_Input close_input = ui_button(str8_literal("X"));
+                UI_Input minimize_input = ui_button(str8_literal("-##minimize"));
+                UI_Input maximize_input = ui_button(str8_literal("[]##maximize"));
+                UI_Input close_input    = ui_button(str8_literal("X##close"));
 
                 if (minimize_input.flags & UI_InputFlag_Clicked) {
                     gfx_minimize();
+                }
+                if (maximize_input.flags & UI_InputFlag_Clicked) {
+                    gfx_set_maximized(!gfx_is_maximized());
                 }
                 if (close_input.flags & UI_InputFlag_Clicked) {
                     push_command(Command_Quit);
