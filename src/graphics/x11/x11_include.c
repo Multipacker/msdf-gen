@@ -270,7 +270,7 @@ internal Gfx_EventList gfx_get_events(Arena *arena, B32 wait) {
     xcb_generic_event_t *xcb_event = 0;
     if (!wait || state->first_event || (xcb_event = xcb_wait_for_event(state->connection))) {
         for (B32 first_wait = wait && !state->first_event; first_wait || (xcb_event = xcb_poll_for_event(state->connection)); first_wait = false) {
-            X11_EventNode *event_node = arena_push_struct_zero(state->event_arena, X11_EventNode);
+            X11_EventNode *event_node = arena_push_struct(state->event_arena, X11_EventNode);
             event_node->event = xcb_event;
             sll_queue_push(state->first_event, state->last_event, event_node);
         }
@@ -307,7 +307,7 @@ internal Gfx_EventList gfx_get_events(Arena *arena, B32 wait) {
                 };
 
                 if (button->detail < array_count(buttons) && buttons[button->detail].kind != Gfx_EventKind_Null) {
-                    Gfx_Event *button_event = arena_push_struct_zero(arena, Gfx_Event);
+                    Gfx_Event *button_event = arena_push_struct(arena, Gfx_Event);
                     button_event->kind       = buttons[button->detail].kind;
                     button_event->key        = buttons[button->detail].key;
                     button_event->scroll     = buttons[button->detail].scroll;
@@ -321,10 +321,10 @@ internal Gfx_EventList gfx_get_events(Arena *arena, B32 wait) {
 
                 int required_length = xkb_state_key_get_utf8(state->xkb_state, key->detail, 0, 0) + 1;
                 if (required_length > 1) {
-                    CStr buffer = arena_push_array_zero(arena, char, (U64) required_length);
+                    CStr buffer = arena_push_array(arena, char, (U64) required_length);
                     int length = xkb_state_key_get_utf8(state->xkb_state, key->detail, buffer, (size_t) required_length);
 
-                    Gfx_Event *text_event = arena_push_struct_zero(arena, Gfx_Event);
+                    Gfx_Event *text_event = arena_push_struct(arena, Gfx_Event);
                     text_event->kind = Gfx_EventKind_Text;
                     text_event->text = str8((U8 *) buffer, (U64) length);
                     dll_push_back(events.first, events.last, text_event);
@@ -414,7 +414,7 @@ internal Gfx_EventList gfx_get_events(Arena *arena, B32 wait) {
                     }
 
                     if (event_key != Gfx_Key_Null) {
-                        Gfx_Event *key_event = arena_push_struct_zero(arena, Gfx_Event);
+                        Gfx_Event *key_event = arena_push_struct(arena, Gfx_Event);
                         key_event->kind = (response_type == XCB_KEY_PRESS ? Gfx_EventKind_KeyPress : Gfx_EventKind_KeyRelease);
                         key_event->key  = event_key;
                         key_event->key_modifiers |= (key->state & XCB_MOD_MASK_SHIFT   ? Gfx_KeyModifier_Shift   : 0);
@@ -427,7 +427,7 @@ internal Gfx_EventList gfx_get_events(Arena *arena, B32 wait) {
                 xcb_client_message_event_t *client = (xcb_client_message_event_t *) event_node->event;
 
                 if (client->type == state->wm_protocols_atom && client->format == 32 && client->data.data32[0] == state->wm_delete_window_atom) {
-                    Gfx_Event *quit_event = arena_push_struct_zero(arena, Gfx_Event);
+                    Gfx_Event *quit_event = arena_push_struct(arena, Gfx_Event);
                     quit_event->kind = Gfx_EventKind_Quit;
                     dll_push_back(events.first, events.last, quit_event);
                 }
@@ -792,7 +792,7 @@ internal Str8 gfx_get_clipboard_text(Arena *arena) {
             } else {
                 // NOTE(simon): Save the event for the next time someone calls
                 // `gfx_get_events`.
-                X11_EventNode *event_node = arena_push_struct_zero(state->event_arena, X11_EventNode);
+                X11_EventNode *event_node = arena_push_struct(state->event_arena, X11_EventNode);
                 event_node->event = xcb_event;
                 sll_queue_push(state->first_event, state->last_event, event_node);
             }
