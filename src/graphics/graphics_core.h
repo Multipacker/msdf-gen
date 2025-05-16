@@ -157,6 +157,7 @@ internal Void          gfx_swap_buffers(Void);
 internal Void          gfx_set_cursor(Gfx_Cursor cursor);
 internal Void          gfx_set_update_function(VoidFunction *update);
 internal F32           gfx_dpi(Void);
+internal B32           gfx_has_os_top_bar(Void);
 
 // NOTE(simon): Clipboard
 internal Void gfx_set_clipboard_text(Str8 text);

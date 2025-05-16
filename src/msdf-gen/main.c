@@ -26,6 +26,9 @@
  * TODO long term
  * * Focus and keyboard navigation / interaction
  * * More input information
+ * * Complete client side decorations for wayland
+ * * Client side decorations for Windows
+ * * Client side decorations for Xorg
  */
 
 /*

@@ -112,6 +112,7 @@ struct Context {
 
 // NOTE(simon): Enum name, show in command lister, display name, description
 #define COMMANDS                                                                                                                                  \
+    X(Quit,                 true,  "Quit",                        "Quits the program")                                                            \
     X(FocusPanel,           false, "Focus panel",                 "Focuses a panel")                                                              \
     X(FocusPanelLeft,       true,  "Focus panel left",            "Focuses a panel to the left")                                                  \
     X(FocusPanelUp,         true,  "Focus panel up",              "Focuses a panel to up")                                                        \

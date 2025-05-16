@@ -917,6 +917,8 @@ internal Void wayland_xdg_toplevel_close(Void *data, struct xdg_toplevel *xdg_to
 
 // NOTE(simon): XDG toplevel decoration events.
 internal Void wayland_xdg_toplevel_decoration_configure(Void *data, struct zxdg_toplevel_decoration_v1 *xdg_toplevel_decoration, U32 mode) {
+    Wayland_State *state = &global_wayland_state;
+    state->has_server_side_decorations = mode == ZXDG_TOPLEVEL_DECORATION_V1_MODE_SERVER_SIDE;
 }
 
 
@@ -1276,6 +1278,12 @@ internal F32 gfx_dpi(Void) {
     Wayland_State *state = &global_wayland_state;
     F32 dpi = (F32) (96.0 * state->surface->scale);
     return dpi;
+}
+
+internal B32 gfx_has_os_top_bar(Void) {
+    Wayland_State *state = &global_wayland_state;
+    B32 result = state->has_server_side_decorations;
+    return result;
 }
 
 

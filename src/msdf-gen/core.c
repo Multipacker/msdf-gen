@@ -530,7 +530,7 @@ internal Void update(Void) {
 
         if (event->kind == Gfx_EventKind_Quit) {
             consume = true;
-            state->running = false;
+            push_command(Command_Quit);
         } else if (event->kind == Gfx_EventKind_FileDrop) {
             consume = true;
             push_command(Command_LoadFont, .path = event->path);
@@ -585,6 +585,9 @@ internal Void update(Void) {
             UI_Event *ui_event = 0;
             Context *command_context = node->command.context;
             switch (node->command.kind) {
+                case Command_Quit: {
+                    state->running = false;
+                } break;
                 case Command_FocusPanel: {
                     state->active_panel = command_context->panel;
                 } break;
@@ -1253,7 +1256,16 @@ internal Void update(Void) {
         // NOTE(simon): state->font_size points * dpi pixels per inch / 72 points per inch
         ui_font_size_push((U32) (state->font_size * gfx_dpi() / 72.0f));
 
-        R2F32 root_rectangle = r2f32(0.0f, 0.0f, (F32) client_area.x, (F32) client_area.y);
+        ui_height_push(ui_size_ems(1.5f, 1.0f));
+
+        R2F32 root_rectangle    = r2f32(0.0f, 0.0f, (F32) client_area.x, (F32) client_area.y);
+        R2F32 top_bar_rectangle = { 0 };
+        if (!gfx_has_os_top_bar()) {
+            top_bar_rectangle = r2f32(root_rectangle.min.x, root_rectangle.min.y, root_rectangle.max.x, root_rectangle.min.y + ui_height_top().value);
+        }
+        R2F32 content_rectangle = r2f32(root_rectangle.min.x, top_bar_rectangle.max.y, root_rectangle.max.x, root_rectangle.max.y);
+
+        V2F32 content_size = r2f32_size(content_rectangle);
 
         typedef struct DragTabData DragTabData;
         struct DragTabData {
@@ -1334,11 +1346,11 @@ internal Void update(Void) {
                 quicksort(commands, command_count);
             }
 
-            F32 command_rectangle_width  = (F32) client_area.width  * 0.6f * state->command_lister_t;
-            F32 command_rectangle_height = (F32) client_area.height * 0.8f * state->command_lister_t;
+            F32 command_rectangle_width  = content_size.width  * 0.6f * state->command_lister_t;
+            F32 command_rectangle_height = content_size.height * 0.8f * state->command_lister_t;
 
-            ui_fixed_x_next(((F32) client_area.width  - command_rectangle_width)  / 2.0f);
-            ui_fixed_y_next(((F32) client_area.height - command_rectangle_height) / 2.0f);
+            ui_fixed_x_next((content_size.width  - command_rectangle_width)  / 2.0f);
+            ui_fixed_y_next((content_size.height - command_rectangle_height) / 2.0f);
             ui_width_next(ui_size_pixels(command_rectangle_width, 1.0f));
             ui_height_next(ui_size_pixels(command_rectangle_height, 1.0f));
             ui_layout_axis_next(Axis2_Y);
@@ -1613,6 +1625,37 @@ internal Void update(Void) {
             }
         }
 
+        // NOTE(simon): Build top bar if needed.
+        if (!gfx_has_os_top_bar()) {
+            V2F32 top_bar_size = r2f32_size(top_bar_rectangle);
+            ui_fixed_position_next(top_bar_rectangle.min);
+            ui_width_next(ui_size_pixels(top_bar_size.width, 1.0f));
+            ui_height_next(ui_size_pixels(top_bar_size.height, 1.0f));
+
+            ui_layout_axis_next(Axis2_X);
+            UI_Box *bar_box = ui_create_box_from_string(
+                UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawBorder | UI_BoxFlag_DisableFocusEffects |
+                UI_BoxFlag_Clickable | UI_BoxFlag_Clip,
+                str8_literal("##top_bar")
+            );
+
+            ui_parent(bar_box)
+            ui_width(ui_size_ems(3.0f, 1.0f))
+            ui_height(ui_size_fill())
+            ui_palette(palette_from_code(PaletteCode_Button)) {
+                ui_spacer_sized(ui_size_fill());
+
+                ui_text_align_next(UI_TextAlign_Center);
+                UI_Input close_input = ui_button(str8_literal("X"));
+
+                if (close_input.flags & UI_InputFlag_Clicked) {
+                    push_command(Command_Quit);
+                }
+            }
+
+            ui_input_from_box(bar_box);
+        }
+
         F32 panel_pad = 2.0f;
 
         // NOTE(simon): Build non-leaf panel UI.
@@ -1622,7 +1665,7 @@ internal Void update(Void) {
                 continue;
             }
 
-            R2F32 panel_rectangle = rectangle_from_panel(panel, root_rectangle);
+            R2F32 panel_rectangle = rectangle_from_panel(panel, content_rectangle);
             V2F32 panel_rectangle_size = r2f32_size(panel_rectangle);
 
             if (drag_is_active()) {
@@ -1851,19 +1894,19 @@ internal Void update(Void) {
 
         // NOTE(simon): Animate panels.
         for (Panel *panel = state->panel_root; panel; panel = panel_iterator_depth_first_pre_order(panel, 0).next) {
-            R2F32 target = rectangle_from_panel(panel, root_rectangle);
+            R2F32 target = rectangle_from_panel(panel, content_rectangle);
             R2F32 target_percentage = r2f32(
-                target.min.x / (F32) client_area.x,
-                target.min.y / (F32) client_area.y,
-                target.max.x / (F32) client_area.x,
-                target.max.y / (F32) client_area.y
+                target.min.x / (F32) content_size.x,
+                target.min.y / (F32) content_size.y,
+                target.max.x / (F32) content_size.x,
+                target.max.y / (F32) content_size.y
             );
 
             B32 is_animating = false;
-            is_animating |= f32_abs(target.min.x - panel->animated_rectangle_percentage.min.x * (F32) client_area.x) > 0.5f;
-            is_animating |= f32_abs(target.min.y - panel->animated_rectangle_percentage.min.y * (F32) client_area.y) > 0.5f;
-            is_animating |= f32_abs(target.max.x - panel->animated_rectangle_percentage.max.x * (F32) client_area.x) > 0.5f;
-            is_animating |= f32_abs(target.max.y - panel->animated_rectangle_percentage.max.y * (F32) client_area.y) > 0.5f;
+            is_animating |= f32_abs(target.min.x - panel->animated_rectangle_percentage.min.x * (F32) content_size.x) > 0.5f;
+            is_animating |= f32_abs(target.min.y - panel->animated_rectangle_percentage.min.y * (F32) content_size.y) > 0.5f;
+            is_animating |= f32_abs(target.max.x - panel->animated_rectangle_percentage.max.x * (F32) content_size.x) > 0.5f;
+            is_animating |= f32_abs(target.max.y - panel->animated_rectangle_percentage.max.y * (F32) content_size.y) > 0.5f;
 
             if (is_animating) {
                 panel->animated_rectangle_percentage.min.x += (target_percentage.min.x - panel->animated_rectangle_percentage.min.x) * ui_animation_fast_rate();
@@ -1889,10 +1932,10 @@ internal Void update(Void) {
             ui_focus_hot(panel == panel_from_handle(state->active_panel) && !state->show_command_lister ? UI_Focus_None : UI_Focus_Inactive) {
                 R2F32 panel_rectangle = r2f32_pad(
                     r2f32(
-                        panel->animated_rectangle_percentage.min.x * (F32) client_area.x,
-                        panel->animated_rectangle_percentage.min.y * (F32) client_area.y,
-                        panel->animated_rectangle_percentage.max.x * (F32) client_area.x,
-                        panel->animated_rectangle_percentage.max.y * (F32) client_area.y
+                        panel->animated_rectangle_percentage.min.x * (F32) content_size.x,
+                        panel->animated_rectangle_percentage.min.y * (F32) content_size.y,
+                        panel->animated_rectangle_percentage.max.x * (F32) content_size.x,
+                        panel->animated_rectangle_percentage.max.y * (F32) content_size.y
                     ),
                     -panel_pad
                 );
@@ -2065,7 +2108,7 @@ internal Void update(Void) {
 
                 UI_Size tab_height = ui_size_ems(2.0f, 1.0f);
                 R2F32 tab_bar_rectangle = r2f32(panel_rectangle.min.x, panel_rectangle.min.y, panel_rectangle.max.x, panel_rectangle.min.y + tab_height.value);
-                R2F32 content_rectangle = r2f32(panel_rectangle.min.x, panel_rectangle.min.y + tab_height.value, panel_rectangle.max.x, panel_rectangle.max.y);
+                R2F32 panel_content_rectangle = r2f32(panel_rectangle.min.x, panel_rectangle.min.y + tab_height.value, panel_rectangle.max.x, panel_rectangle.max.y);
 
                 if (panel != panel_from_handle(state->active_panel) || state->show_command_lister) {
                     UI_Palette overlay = ui_palette_top();
@@ -2157,9 +2200,9 @@ internal Void update(Void) {
                     overlay.border = color_from_theme(ThemeColor_Focus);
                     ui_palette_next(overlay);
                 }
-                ui_fixed_position_next(content_rectangle.min);
-                ui_width_next(ui_size_pixels(r2f32_size(content_rectangle).width, 1.0f));
-                ui_height_next(ui_size_pixels(r2f32_size(content_rectangle).height, 1.0f));
+                ui_fixed_position_next(panel_content_rectangle.min);
+                ui_width_next(ui_size_pixels(r2f32_size(panel_content_rectangle).width, 1.0f));
+                ui_height_next(ui_size_pixels(r2f32_size(panel_content_rectangle).height, 1.0f));
                 UI_Box *content_box = ui_create_box_from_string_format(
                     UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawBorder | UI_BoxFlag_Clickable | UI_BoxFlag_DropTarget | UI_BoxFlag_FloatingPosition | UI_BoxFlag_Clip,
                     "###panel_box_%p", panel
@@ -2168,7 +2211,7 @@ internal Void update(Void) {
                 ui_parent(content_box) {
                     Tab *tab = tab_from_handle(panel->active_tab);
                     if (tab && tab->build_view) {
-                        tab->build_view(tab, content_rectangle);
+                        tab->build_view(tab, panel_content_rectangle);
                     } else {
                         ui_width(ui_size_parent_percent(1.0f, 1.0f))
                         ui_height(ui_size_parent_percent(1.0f, 1.0f))

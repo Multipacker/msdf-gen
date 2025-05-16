@@ -273,6 +273,11 @@ internal F32 gfx_dpi(Void) {
     return dpi;
 }
 
+internal B32 gfx_has_os_top_bar(Void) {
+    B32 result = true;
+    return result;
+}
+
 
 
 // NOTE(simon): Clipboard
