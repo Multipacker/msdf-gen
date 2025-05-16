@@ -103,6 +103,10 @@ internal Uri uri_from_string(Str8 string) {
 internal Void wayland_update_cursor(Void) {
     Wayland_State *state = &global_wayland_state;
 
+    if (!state->pointer_surface) {
+        return;
+    }
+
     Wayland_CursorTheme *theme = state->first_cursor_theme;
     while (theme && theme->scale != state->pointer_surface->scale) {
         theme = theme->next;
