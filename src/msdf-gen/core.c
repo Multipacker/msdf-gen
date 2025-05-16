@@ -1642,12 +1642,16 @@ internal Void update(Void) {
             ui_parent(bar_box)
             ui_width(ui_size_ems(3.0f, 1.0f))
             ui_height(ui_size_fill())
-            ui_palette(palette_from_code(PaletteCode_Button)) {
+            ui_palette(palette_from_code(PaletteCode_Button))
+            ui_text_align(UI_TextAlign_Center) {
                 ui_spacer_sized(ui_size_fill());
 
-                ui_text_align_next(UI_TextAlign_Center);
+                UI_Input minimize_input = ui_button(str8_literal("-"));
                 UI_Input close_input = ui_button(str8_literal("X"));
 
+                if (minimize_input.flags & UI_InputFlag_Clicked) {
+                    gfx_minimize();
+                }
                 if (close_input.flags & UI_InputFlag_Clicked) {
                     push_command(Command_Quit);
                 }

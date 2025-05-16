@@ -638,6 +638,9 @@ internal B32 gfx_has_os_top_bar(Void) {
     return result;
 }
 
+internal Void gfx_minimize(Void) {
+}
+
 
 
 // NOTE(simon): Clipboard

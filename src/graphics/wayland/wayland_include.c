@@ -1286,6 +1286,11 @@ internal B32 gfx_has_os_top_bar(Void) {
     return result;
 }
 
+internal Void gfx_minimize(Void) {
+    Wayland_State *state = &global_wayland_state;
+    xdg_toplevel_set_minimized(state->xdg_toplevel);
+}
+
 
 // NOTE(simon): Clipboard
 internal Void gfx_set_clipboard_text(Str8 text) {
