@@ -1092,7 +1092,7 @@ internal TTF_Font *ttf_load(Arena *arena, Str8 font_path) {
         }
     }
 
-    U32 advance_width_count = 0;
+    U32 long_horizontal_metrics_count = 0;
 
     // NOTE(simon): Parse metrics.
     if (good) {
@@ -1138,13 +1138,13 @@ internal TTF_Font *ttf_load(Arena *arena, Str8 font_path) {
             good = false;
         }
 
-        if (advance_width_max == 0) {
+        if (num_of_long_hor_metrics == 0) {
             log_error(str8_literal("There must be at least one long-form entry in the hmtx table.\n"));
             good = false;
         }
 
         if (good) {
-            advance_width_count = advance_width_max;
+            long_horizontal_metrics_count = num_of_long_hor_metrics;
         }
     }
 
@@ -1158,14 +1158,14 @@ internal TTF_Font *ttf_load(Arena *arena, Str8 font_path) {
         font->metrics = arena_push_array(arena, TTF_HmtxMetrics, font->glyph_count);
 
         // NOTE(simon): Read both advance width and left side bearing.
-        for (U32 glyph_index = 0; glyph_index < advance_width_count; ++glyph_index) {
+        for (U32 glyph_index = 0; glyph_index < long_horizontal_metrics_count; ++glyph_index) {
             font->metrics[glyph_index].advance_width     = ttf_read_u16(&hmtx_parser);
             font->metrics[glyph_index].left_side_bearing = ttf_read_s16(&hmtx_parser);
         }
 
         // NOTE(simon): Only read left side bearing
-        for (U32 glyph_index = advance_width_count; glyph_index < font->glyph_count; ++glyph_index) {
-            font->metrics[glyph_index].advance_width     = font->metrics[advance_width_count - 1].advance_width;
+        for (U32 glyph_index = long_horizontal_metrics_count; glyph_index < font->glyph_count; ++glyph_index) {
+            font->metrics[glyph_index].advance_width     = font->metrics[long_horizontal_metrics_count - 1].advance_width;
             font->metrics[glyph_index].left_side_bearing = ttf_read_s16(&hmtx_parser);
         }
 
