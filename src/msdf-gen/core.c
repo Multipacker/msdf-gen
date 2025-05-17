@@ -1595,7 +1595,6 @@ internal Void update(Void) {
                 ui_tooltip() {
                     ui_width_next(ui_size_ems(60.0f, 1.0f));
                     ui_height_next(ui_size_ems(40.0f, 1.0f));
-                    ui_corner_radius_next(10.0f);
                     ui_layout_axis_next(Axis2_Y);
                     UI_Box *preview_box = ui_create_box(UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawBorder | UI_BoxFlag_DrawDropShadow);
                     ui_parent(preview_box) {
@@ -1603,11 +1602,9 @@ internal Void update(Void) {
                         ui_corner_radius_01_next(10.0f);
                         ui_text_align_next(UI_TextAlign_Left);
                         ui_width_next(ui_size_text_content(5.0f, 1.0f));
-                        ui_height_next(ui_size_text_content(0.0f, 1.0f));
+                        ui_height_next(ui_size_ems(2.0f, 1.0f));
                         ui_palette_next(palette_from_code(PaletteCode_Tab));
                         UI_Box *tab_box = ui_create_box_from_string(UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawBorder | UI_BoxFlag_DrawText, tab->name);
-
-                        ui_spacer_sized(ui_size_pixels(10.0f, 1.0f));
 
                         ui_width_next(ui_size_fill());
                         ui_height_next(ui_size_fill());
@@ -1616,8 +1613,6 @@ internal Void update(Void) {
                         ui_parent(content_box) {
                             tab->build_view(tab, content_box->calculated_rectangle);
                         }
-
-                        ui_spacer_sized(ui_size_pixels(10.0f, 1.0f));
                     }
                 }
             } else {
