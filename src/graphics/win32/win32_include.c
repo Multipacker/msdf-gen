@@ -273,6 +273,15 @@ internal F32 gfx_dpi(Void) {
     return dpi;
 }
 
+internal Void gfx_clear_custom_title_bar_data(Void) {
+}
+
+internal Void gfx_set_custom_title_bar_height(F32 height) {
+}
+
+internal Void gfx_push_cusomt_title_bar_client_area(R2F32 rectangle) {
+}
+
 internal B32 gfx_has_os_top_bar(Void) {
     B32 result = true;
     return result;

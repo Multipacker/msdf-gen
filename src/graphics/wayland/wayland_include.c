@@ -481,12 +481,41 @@ internal Void wayland_pointer_button(Void *data, struct wl_pointer *pointer, U32
         case BTN_RIGHT:  key = Gfx_Key_MouseRight;  break;
     }
 
-    if (kind != Gfx_EventKind_Null && key != Gfx_Key_Null) {
-        Gfx_Event *event = arena_push_struct(state->event_arena, Gfx_Event);
-        event->kind     = kind;
-        event->key      = key;
-        event->position = state->pointer_position;
-        dll_push_back(state->events.first, state->events.last, event);
+    // NOTE(simon): Determine if we are interacting with the title bar or with
+    // the client area.
+    B32 client_interaction = true;
+    if (state->pointer_position.y < state->title_bar_height) {
+        client_interaction = false;
+    }
+    for (Wayland_TitleBarClientArea *area = state->first_client_area; area; area = area->next) {
+        if (r2f32_contains_v2f32(area->rectangle, state->pointer_position)) {
+            client_interaction = true;
+            break;
+        }
+    }
+
+    // TODO(simon): If we press inside the client area and release in the title
+    // bar, that event should still be sent to the client.
+    if (client_interaction) {
+        if (kind != Gfx_EventKind_Null && key != Gfx_Key_Null) {
+            Gfx_Event *event = arena_push_struct(state->event_arena, Gfx_Event);
+            event->kind     = kind;
+            event->key      = key;
+            event->position = state->pointer_position;
+            dll_push_back(state->events.first, state->events.last, event);
+        }
+    } else {
+        if (kind == Gfx_EventKind_KeyPress && key == Gfx_Key_MouseLeft) {
+            xdg_toplevel_move(state->xdg_toplevel, state->seat, serial);
+        } else if (kind == Gfx_EventKind_KeyPress && key == Gfx_Key_MouseRight) {
+            xdg_toplevel_show_window_menu(
+                state->xdg_toplevel,
+                state->seat,
+                serial,
+                (S32) f32_round(state->pointer_position.x),
+                (S32) f32_round(state->pointer_position.y)
+            );
+        }
     }
 }
 
@@ -1144,6 +1173,7 @@ internal Void gfx_create(Str8 title, U32 width, U32 height) {
     state->height = (S32) height;
     state->surface = wayland_surface_create();
     state->event_arena = arena_create();
+    state->title_bar_arena = arena_create_reserve(kilobytes(1));
     state->xdg_surface = xdg_wm_base_get_xdg_surface(state->xdg_wm_base, state->surface->surface);
     xdg_surface_add_listener(state->xdg_surface, &wayland_xdg_surface_listener, 0);
     state->xdg_toplevel = xdg_surface_get_toplevel(state->xdg_surface);
@@ -1289,6 +1319,26 @@ internal F32 gfx_dpi(Void) {
     Wayland_State *state = &global_wayland_state;
     F32 dpi = (F32) (96.0 * state->surface->scale);
     return dpi;
+}
+
+internal Void gfx_clear_custom_title_bar_data(Void) {
+    Wayland_State *state = &global_wayland_state;
+    arena_reset(state->title_bar_arena);
+    state->title_bar_height = 0.0f;
+    state->first_client_area = 0;
+    state->last_client_area = 0;
+}
+
+internal Void gfx_set_custom_title_bar_height(F32 height) {
+    Wayland_State *state = &global_wayland_state;
+    state->title_bar_height = height;
+}
+
+internal Void gfx_push_cusomt_title_bar_client_area(R2F32 rectangle) {
+    Wayland_State *state = &global_wayland_state;
+    Wayland_TitleBarClientArea *client_area = arena_push_struct(state->title_bar_arena, Wayland_TitleBarClientArea);
+    client_area->rectangle = rectangle;
+    sll_queue_push(state->first_client_area, state->last_client_area, client_area);
 }
 
 internal B32 gfx_has_os_top_bar(Void) {

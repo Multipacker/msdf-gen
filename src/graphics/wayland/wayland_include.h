@@ -78,6 +78,12 @@ struct Wayland_DataOffer {
     Wayland_MimeType mime_types;
 };
 
+typedef struct Wayland_TitleBarClientArea Wayland_TitleBarClientArea;
+struct Wayland_TitleBarClientArea {
+    Wayland_TitleBarClientArea *next;
+    R2F32 rectangle;
+};
+
 typedef struct Wayland_State Wayland_State;
 struct Wayland_State {
     // NOTE(simon): Shared state.
@@ -150,12 +156,16 @@ struct Wayland_State {
     struct zxdg_toplevel_decoration_v1 *xdg_toplevel_decoration;
     B32 has_server_side_decorations;
     B32 is_maximized;
+    F32 title_bar_height;
     U32 xdg_surface_configure_serial;
     U32 xdg_surface_last_configure_serial;
     VoidFunction *swap_buffers;
     VoidFunction *update;
     Arena        *event_arena;
     Gfx_EventList events;
+    Arena *title_bar_arena;
+    Wayland_TitleBarClientArea *first_client_area;
+    Wayland_TitleBarClientArea *last_client_area;
 };
 
 // NOTE(simon): Forward declaration of all event listeners.

@@ -1622,6 +1622,9 @@ internal Void update(Void) {
 
         // NOTE(simon): Build top bar if needed.
         if (!gfx_has_os_top_bar()) {
+            gfx_clear_custom_title_bar_data();
+            gfx_set_custom_title_bar_height(top_bar_rectangle.max.y);
+
             V2F32 top_bar_size = r2f32_size(top_bar_rectangle);
             ui_fixed_position_next(top_bar_rectangle.min);
             ui_width_next(ui_size_pixels(top_bar_size.width, 1.0f));
@@ -1654,6 +1657,10 @@ internal Void update(Void) {
                 if (close_input.flags & UI_InputFlag_Clicked) {
                     push_command(Command_Quit);
                 }
+
+                gfx_push_cusomt_title_bar_client_area(minimize_input.box->calculated_rectangle);
+                gfx_push_cusomt_title_bar_client_area(maximize_input.box->calculated_rectangle);
+                gfx_push_cusomt_title_bar_client_area(close_input.box->calculated_rectangle);
             }
 
             ui_input_from_box(bar_box);
