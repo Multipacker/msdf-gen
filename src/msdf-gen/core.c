@@ -1263,7 +1263,7 @@ internal Void update(Void) {
 
         R2F32 root_rectangle    = r2f32(0.0f, 0.0f, (F32) client_area.x, (F32) client_area.y);
         R2F32 top_bar_rectangle = { 0 };
-        if (!gfx_has_os_top_bar()) {
+        if (!gfx_has_os_title_bar()) {
             top_bar_rectangle = r2f32(root_rectangle.min.x, root_rectangle.min.y, root_rectangle.max.x, root_rectangle.min.y + ui_height_top().value);
         }
         R2F32 content_rectangle = r2f32(root_rectangle.min.x, top_bar_rectangle.max.y, root_rectangle.max.x, root_rectangle.max.y);
