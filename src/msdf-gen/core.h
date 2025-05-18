@@ -14,6 +14,8 @@
     X(InactivePanelOverlay,      inactive_panel_overlay,      "Inactive panel overlay")      \
     X(BaseBackground,            base_background,             "Base background")             \
     X(BaseBorder,                base_border,                 "Base border")                 \
+    X(TitleBarBackground,        title_bar_background,        "Title bar background")        \
+    X(TitleBarBorder,            title_bar_border,            "Title bar border")            \
     X(TabBackground,             tab_background,              "Tab background")              \
     X(TabBorder,                 tab_border,                  "Tab border")                  \
     X(InactiveTabBackground,     inactive_tab_background,     "Inactive tab background")     \
@@ -56,6 +58,7 @@ global Theme global_themes[4];
 
 typedef enum {
     PaletteCode_Base,
+    PaletteCode_TitleBar,
     PaletteCode_Button,
     PaletteCode_SecondaryButton,
     PaletteCode_Tab,

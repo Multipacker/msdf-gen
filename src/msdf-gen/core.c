@@ -1223,6 +1223,9 @@ internal Void update(Void) {
     state->palettes[PaletteCode_Base].background = state->theme.base_background;
     state->palettes[PaletteCode_Base].border     = state->theme.base_border;
     state->palettes[PaletteCode_Base].text       = state->theme.text;
+    state->palettes[PaletteCode_TitleBar].background = state->theme.title_bar_background;
+    state->palettes[PaletteCode_TitleBar].border     = state->theme.title_bar_border;
+    state->palettes[PaletteCode_TitleBar].text       = state->theme.text;
     state->palettes[PaletteCode_Button].background = state->theme.button_background;
     state->palettes[PaletteCode_Button].border     = state->theme.button_border;
     state->palettes[PaletteCode_Button].text       = state->theme.text;
@@ -1631,6 +1634,7 @@ internal Void update(Void) {
             ui_height_next(ui_size_pixels(top_bar_size.height, 1.0f));
 
             ui_layout_axis_next(Axis2_X);
+            ui_palette_next(palette_from_code(PaletteCode_TitleBar));
             UI_Box *bar_box = ui_create_box_from_string(
                 UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawBorder | UI_BoxFlag_DisableFocusEffects |
                 UI_BoxFlag_Clickable | UI_BoxFlag_Clip,
@@ -1642,25 +1646,36 @@ internal Void update(Void) {
             ui_height(ui_size_fill())
             ui_palette(palette_from_code(PaletteCode_Button))
             ui_text_align(UI_TextAlign_Center) {
+                // NOTE(simon): Left side
                 ui_spacer_sized(ui_size_fill());
 
-                UI_Input minimize_input = ui_button(str8_literal("—##minimize"));
-                UI_Input maximize_input = ui_button(str8_literal("[]##maximize"));
-                UI_Input close_input    = ui_button(str8_literal("X##close"));
+                // NOTE(simon): Middle
+                ui_width_next(ui_size_text_content(0.0f, 1.0f));
+                ui_label(str8_literal("MSDF-gen"));
 
-                if (minimize_input.flags & UI_InputFlag_Clicked) {
-                    gfx_minimize();
-                }
-                if (maximize_input.flags & UI_InputFlag_Clicked) {
-                    gfx_set_maximized(!gfx_is_maximized());
-                }
-                if (close_input.flags & UI_InputFlag_Clicked) {
-                    push_command(Command_Quit);
-                }
+                // NOTE(simon): Right side
+                ui_width_next(ui_size_fill());
+                ui_row() {
+                    ui_spacer_sized(ui_size_fill());
 
-                gfx_push_cusomt_title_bar_client_area(minimize_input.box->calculated_rectangle);
-                gfx_push_cusomt_title_bar_client_area(maximize_input.box->calculated_rectangle);
-                gfx_push_cusomt_title_bar_client_area(close_input.box->calculated_rectangle);
+                    UI_Input minimize_input = ui_button(str8_literal("—##minimize"));
+                    UI_Input maximize_input = ui_button(str8_literal("[]##maximize"));
+                    UI_Input close_input    = ui_button(str8_literal("X##close"));
+
+                    if (minimize_input.flags & UI_InputFlag_Clicked) {
+                        gfx_minimize();
+                    }
+                    if (maximize_input.flags & UI_InputFlag_Clicked) {
+                        gfx_set_maximized(!gfx_is_maximized());
+                    }
+                    if (close_input.flags & UI_InputFlag_Clicked) {
+                        push_command(Command_Quit);
+                    }
+
+                    gfx_push_cusomt_title_bar_client_area(minimize_input.box->calculated_rectangle);
+                    gfx_push_cusomt_title_bar_client_area(maximize_input.box->calculated_rectangle);
+                    gfx_push_cusomt_title_bar_client_area(close_input.box->calculated_rectangle);
+                }
             }
 
             ui_input_from_box(bar_box);

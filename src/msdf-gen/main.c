@@ -111,6 +111,8 @@ internal S32 os_run(Str8List arguments) {
 
             theme->base_background         = base;
             theme->base_border             = mantle;
+            theme->title_bar_background    = surface1;
+            theme->title_bar_border        = surface2;
             theme->tab_background          = surface2;
             theme->tab_border              = surface2;
             theme->inactive_tab_background = surface1;
@@ -174,6 +176,8 @@ internal S32 os_run(Str8List arguments) {
 
             theme->base_background         = base;
             theme->base_border             = mantle;
+            theme->title_bar_background    = surface1;
+            theme->title_bar_border        = surface2;
             theme->tab_background          = surface2;
             theme->tab_border              = surface2;
             theme->inactive_tab_background = surface1;
@@ -237,6 +241,8 @@ internal S32 os_run(Str8List arguments) {
 
             theme->base_background         = base;
             theme->base_border             = mantle;
+            theme->title_bar_background    = surface1;
+            theme->title_bar_border        = surface2;
             theme->tab_background          = surface2;
             theme->tab_border              = surface2;
             theme->inactive_tab_background = surface1;
@@ -300,6 +306,8 @@ internal S32 os_run(Str8List arguments) {
 
             theme->base_background         = base;
             theme->base_border             = mantle;
+            theme->title_bar_background    = surface1;
+            theme->title_bar_border        = surface2;
             theme->tab_background          = surface2;
             theme->tab_border              = surface2;
             theme->inactive_tab_background = surface1;
