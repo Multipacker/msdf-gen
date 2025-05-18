@@ -160,7 +160,7 @@ internal F32           gfx_dpi(Void);
 internal Void          gfx_clear_custom_title_bar_data(Void);
 internal Void          gfx_set_custom_title_bar_height(F32 height);
 internal Void          gfx_push_cusomt_title_bar_client_area(R2F32 rectangle);
-internal B32           gfx_has_os_top_bar(Void);
+internal B32           gfx_has_os_title_bar(Void);
 internal Void          gfx_minimize(Void);
 internal B32           gfx_is_maximized(Void);
 internal Void          gfx_set_maximized(B32 maximized);

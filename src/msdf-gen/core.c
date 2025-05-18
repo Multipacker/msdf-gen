@@ -1623,8 +1623,8 @@ internal Void update(Void) {
             }
         }
 
-        // NOTE(simon): Build top bar if needed.
-        if (!gfx_has_os_top_bar()) {
+        // NOTE(simon): Build title bar if needed.
+        if (!gfx_has_os_title_bar()) {
             gfx_clear_custom_title_bar_data();
             gfx_set_custom_title_bar_height(top_bar_rectangle.max.y);
 

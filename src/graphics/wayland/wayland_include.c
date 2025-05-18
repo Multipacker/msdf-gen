@@ -1341,7 +1341,7 @@ internal Void gfx_push_cusomt_title_bar_client_area(R2F32 rectangle) {
     sll_queue_push(state->first_client_area, state->last_client_area, client_area);
 }
 
-internal B32 gfx_has_os_top_bar(Void) {
+internal B32 gfx_has_os_title_bar(Void) {
     Wayland_State *state = &global_wayland_state;
     B32 result = state->has_server_side_decorations;
     return result;
