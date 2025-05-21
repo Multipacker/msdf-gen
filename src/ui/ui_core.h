@@ -99,6 +99,8 @@ typedef enum {
     UI_BoxFlag_FocusActive          = 1 << 23,
     UI_BoxFlag_FocusActiveDisabled  = 1 << 24,
 
+    UI_BoxFlag_DefaultNavigation    = 1 << 25,
+
     // NOTE(simon): Convenient combinations
     UI_BoxFlag_Overflow            = UI_BoxFlag_OverflowX | UI_BoxFlag_OverflowY,
     UI_BoxFlag_AnimatePosition     = UI_BoxFlag_AnimateX  | UI_BoxFlag_AnimateY,
@@ -152,6 +154,11 @@ struct UI_Box {
     F32 focus_hot_t;
     F32 focus_active_t;
     F32 focus_active_disabled_t;
+
+    UI_Key default_navigation_focus_hot_key;
+    UI_Key default_navigation_focus_hot_key_next;
+    UI_Key default_navigation_focus_active_key;
+    UI_Key default_navigation_focus_active_key_next;
 };
 
 typedef struct UI_BoxIterator UI_BoxIterator;

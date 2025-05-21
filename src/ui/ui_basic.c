@@ -215,6 +215,12 @@ internal B32 ui_is_word(U32 codepoint) {
 internal UI_Input ui_line_edit(U8 *buffer, U64 *buffer_size, U64 buffer_capacity, U64 *cursor, U64 *mark, UI_Key key) {
     prof_function_begin();
     Arena_Temporary scratch = arena_get_scratch(0, 0);
+
+    B32 is_auto_focus_hot    = ui_is_key_auto_focus_hot(key);
+    B32 is_auto_focus_active = ui_is_key_auto_focus_active(key);
+    ui_focus_hot_push(is_auto_focus_hot ? UI_Focus_Active : UI_Focus_None);
+    ui_focus_active_push(is_auto_focus_active ? UI_Focus_Active : UI_Focus_None);
+
     ui_hover_cursor_next(Gfx_Cursor_Beam);
     UI_Box *text_container_box = ui_create_box_from_key(
         UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawBorder | UI_BoxFlag_DrawHot | UI_BoxFlag_DrawActive |
@@ -405,8 +411,10 @@ internal UI_Input ui_line_edit(U8 *buffer, U64 *buffer_size, U64 buffer_capacity
     text_container_box->view_offset.x += min_delta;
     text_container_box->view_offset.x += max_delta;
 
-    arena_end_temporary(scratch);
+    ui_focus_hot_pop();
+    ui_focus_active_pop();
 
+    arena_end_temporary(scratch);
     prof_function_end();
     return input;
 }

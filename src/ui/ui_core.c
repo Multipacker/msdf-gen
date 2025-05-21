@@ -202,6 +202,58 @@ internal B32 ui_is_focus_active(Void) {
     return result;
 }
 
+internal B32 ui_is_key_auto_focus_hot(UI_Key key) {
+    B32 result = false;
+
+    if (!ui_key_is_null(key)) {
+        for (UI_Box *parent = ui_parent_top(); !ui_box_is_null(parent); parent = parent->parent) {
+            if (parent->flags & UI_BoxFlag_DefaultNavigation && ui_keys_match(parent->default_navigation_focus_hot_key, key)) {
+                result = true;
+                break;
+            }
+        }
+    }
+
+    return result;
+}
+
+internal B32 ui_is_key_auto_focus_active(UI_Key key) {
+    B32 result = false;
+
+    if (!ui_key_is_null(key)) {
+        for (UI_Box *parent = ui_parent_top(); !ui_box_is_null(parent); parent = parent->parent) {
+            if (parent->flags & UI_BoxFlag_DefaultNavigation && ui_keys_match(parent->default_navigation_focus_active_key, key)) {
+                result = true;
+                break;
+            }
+        }
+    }
+
+    return result;
+}
+
+internal Void ui_set_auto_focus_hot_key(UI_Key key) {
+    if (!ui_key_is_null(key)) {
+        for (UI_Box *parent = ui_parent_top(); !ui_box_is_null(parent); parent = parent->parent) {
+            if (parent->flags & UI_BoxFlag_DefaultNavigation) {
+                parent->default_navigation_focus_hot_key_next = key;
+                break;
+            }
+        }
+    }
+}
+
+internal Void ui_set_auto_focus_active_key(UI_Key key) {
+    if (!ui_key_is_null(key)) {
+        for (UI_Box *parent = ui_parent_top(); !ui_box_is_null(parent); parent = parent->parent) {
+            if (parent->flags & UI_BoxFlag_DefaultNavigation) {
+                parent->default_navigation_focus_active_key_next = key;
+                break;
+            }
+        }
+    }
+}
+
 
 
 // NOTE(simon): Sizes
@@ -330,6 +382,16 @@ internal Void ui_begin(UI_EventList *events, F32 dt) {
     ui_corner_radius_11_push(0.0f);
     ui_focus_hot_push(UI_Focus_None);
     ui_focus_active_push(UI_Focus_None);
+
+    // NOTE(simon): Update focus hot and focus active.
+    // TODO(simon): Maybe move to ui_end
+    for (U32 i = 0; i < UI_BOX_TABLE_SIZE; ++i) {
+        UI_BoxList *boxes = &ui->box_table[i];
+        for (UI_Box *box = boxes->first; box; box = box->hash_next) {
+            box->default_navigation_focus_hot_key    = box->default_navigation_focus_hot_key_next;
+            box->default_navigation_focus_active_key = box->default_navigation_focus_active_key_next;
+        }
+    }
 
     // NOTE(simon): Build root
     {
@@ -559,7 +621,7 @@ internal Void ui_end(Void) {
     // NOTE(simon): Remove untouched boxes.
     for (U32 i = 0; i < UI_BOX_TABLE_SIZE; ++i) {
         UI_BoxList *boxes = &ui->box_table[i];
-        for (UI_Box *box = boxes->first, *next; box; box = next) {
+        for (UI_Box *box = boxes->first, *next = 0; box; box = next) {
             next = box->hash_next;
 
             if (box->last_used_index != ui->frame_index) {
@@ -854,6 +916,17 @@ internal UI_Box *ui_create_box_from_key(UI_BoxFlags flags, UI_Key key) {
     box->corner_radies[Corner_01] = ui_corner_radius_01_top();
     box->corner_radies[Corner_10] = ui_corner_radius_10_top();
     box->corner_radies[Corner_11] = ui_corner_radius_11_top();
+
+    B32 is_auto_focus_hot    = ui_is_key_auto_focus_hot(key);
+    B32 is_auto_focus_active = ui_is_key_auto_focus_active(key);
+
+    if (is_auto_focus_hot) {
+        ui_focus_hot_next(UI_Focus_Active);
+    }
+
+    if (is_auto_focus_active) {
+        ui_focus_active_next(UI_Focus_Active);
+    }
 
     if (ui_focus_hot_top() == UI_Focus_Active) {
         box->flags |= UI_BoxFlag_FocusHot;
