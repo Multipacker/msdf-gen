@@ -1954,7 +1954,7 @@ internal Void update(Void) {
 
             push_context(.panel = handle_from_panel(panel), .tab = panel->active_tab);
 
-            ui_focus_hot(panel == panel_from_handle(state->active_panel) && !state->show_command_lister ? UI_Focus_None : UI_Focus_Inactive) {
+            ui_focus(panel == panel_from_handle(state->active_panel) && !state->show_command_lister ? UI_Focus_None : UI_Focus_Inactive) {
                 R2F32 panel_rectangle = r2f32_pad(
                     r2f32(
                         panel->animated_rectangle_percentage.min.x * (F32) content_size.x,
@@ -2220,18 +2220,17 @@ internal Void update(Void) {
                     }
                 }
 
-                if (panel == panel_from_handle(state->active_panel)) {
-                    UI_Palette overlay = ui_palette_top();
-                    overlay.border = color_from_theme(ThemeColor_Focus);
-                    ui_palette_next(overlay);
-                }
                 ui_fixed_position_next(panel_content_rectangle.min);
                 ui_width_next(ui_size_pixels(r2f32_size(panel_content_rectangle).width, 1.0f));
                 ui_height_next(ui_size_pixels(r2f32_size(panel_content_rectangle).height, 1.0f));
-                UI_Box *content_box = ui_create_box_from_string_format(
-                    UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawBorder | UI_BoxFlag_Clickable | UI_BoxFlag_DropTarget | UI_BoxFlag_FloatingPosition | UI_BoxFlag_Clip,
-                    "###panel_box_%p", panel
-                );
+                UI_Box *content_box = 0;
+                ui_focus(UI_Focus_Active) {
+                    content_box = ui_create_box_from_string_format(
+                        UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawBorder | UI_BoxFlag_Clip | UI_BoxFlag_DisableFocusOverlay | (panel == panel_from_handle(state->active_panel) ? 0 : UI_BoxFlag_DisableFocusBorder) |
+                        UI_BoxFlag_Clickable | UI_BoxFlag_DropTarget | UI_BoxFlag_FloatingPosition,
+                        "###panel_box_%p", panel
+                    );
+                }
 
                 ui_parent(content_box) {
                     Tab *tab = tab_from_handle(panel->active_tab);

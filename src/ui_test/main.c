@@ -235,10 +235,7 @@ internal Void update(Void) {
                     ui_spacer_sized(ui_size_ems(0.5f, 1.0f));
                     ui_slider(0.01f, &state->target_point_scale, 10.0f, ui_key_from_string(ui_active_seed_key(), str8_literal("##scale_slider")));
                     ui_spacer_sized(ui_size_ems(0.5f, 1.0f));
-                    {
-                        UI_Key line_key = ui_key_from_string(ui_active_seed_key(), str8_literal("##point_count"));
-                        ui_line_edit(state->buffer, &state->buffer_size, array_count(state->buffer), &state->cursor, &state->mark, line_key);
-                    }
+                    ui_line_edit(state->buffer, &state->buffer_size, array_count(state->buffer), &state->cursor, &state->mark, ui_key_from_string(ui_active_seed_key(), str8_literal("##point_count")));
                     ui_spacer_sized(ui_size_ems(0.5f, 1.0f));
                     {
                         UI_Key dropdown_key = ui_key_from_string(ui_active_seed_key(), str8_literal("##color_dropdown"));
@@ -325,10 +322,7 @@ internal Void update(Void) {
                         }
                     }
                     ui_spacer_sized(ui_size_ems(0.5f, 1.0f));
-                    {
-                        UI_Key line_key = ui_key_from_string(ui_active_seed_key(), str8_literal("##second_point_count"));
-                        ui_line_edit(state->second_buffer, &state->second_buffer_size, array_count(state->second_buffer), &state->second_cursor, &state->second_mark, line_key);
-                    }
+                    ui_line_edit(state->second_buffer, &state->second_buffer_size, array_count(state->second_buffer), &state->second_cursor, &state->second_mark, ui_key_from_string(ui_active_seed_key(), str8_literal("##second_point_count")));
                 }
             }
         }

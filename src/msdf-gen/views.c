@@ -730,9 +730,7 @@ PANEL_BUILD_FUNCTION(view_test) {
                     is_initialized = true;
                 }
 
-                ui_focus_hot(UI_Focus_Active) {
-                    ui_line_edit(buffer, &buffer_size, buffer_capacity, &cursor, &mark, ui_key_from_string(global_ui_null_key, str8_literal("line_edit")));
-                }
+                ui_line_edit(buffer, &buffer_size, buffer_capacity, &cursor, &mark, ui_key_from_string(global_ui_null_key, str8_literal("line_edit")));
 
                 ui_spacer_sized(ui_size_ems(1.0f, 1.0f));
 
