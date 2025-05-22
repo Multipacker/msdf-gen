@@ -233,23 +233,19 @@ internal B32 ui_is_key_auto_focus_active(UI_Key key) {
 }
 
 internal Void ui_set_auto_focus_hot_key(UI_Key key) {
-    if (!ui_key_is_null(key)) {
-        for (UI_Box *parent = ui_parent_top(); !ui_box_is_null(parent); parent = parent->parent) {
-            if (parent->flags & UI_BoxFlag_DefaultNavigation) {
-                parent->default_navigation_focus_hot_key_next = key;
-                break;
-            }
+    for (UI_Box *parent = ui_parent_top(); !ui_box_is_null(parent); parent = parent->parent) {
+        if (parent->flags & UI_BoxFlag_DefaultNavigation) {
+            parent->default_navigation_focus_hot_key_next = key;
+            break;
         }
     }
 }
 
 internal Void ui_set_auto_focus_active_key(UI_Key key) {
-    if (!ui_key_is_null(key)) {
-        for (UI_Box *parent = ui_parent_top(); !ui_box_is_null(parent); parent = parent->parent) {
-            if (parent->flags & UI_BoxFlag_DefaultNavigation) {
-                parent->default_navigation_focus_active_key_next = key;
-                break;
-            }
+    for (UI_Box *parent = ui_parent_top(); !ui_box_is_null(parent); parent = parent->parent) {
+        if (parent->flags & UI_BoxFlag_DefaultNavigation) {
+            parent->default_navigation_focus_active_key_next = key;
+            break;
         }
     }
 }
@@ -743,7 +739,7 @@ internal Void ui_end(Void) {
                 box->hot_t                   += hot_t_delta;
                 box->active_t                += active_t_delta;
                 box->disabled_t              += disabled_t_delta;
-                box->focus_hot_t             += focus_active_t_delta;
+                box->focus_hot_t             += focus_hot_t_delta;
                 box->focus_active_t          += focus_active_t_delta;
                 box->focus_active_disabled_t += focus_active_disabled_t_delta;
             } else {
@@ -752,7 +748,7 @@ internal Void ui_end(Void) {
                 box->hot_t                   = (F32) is_hot;
                 box->active_t                = (F32) is_active;
                 box->disabled_t              = (F32) is_disabled;
-                box->focus_hot_t             = (F32) is_focus_active;
+                box->focus_hot_t             = (F32) is_focus_hot;
                 box->focus_active_t          = (F32) is_focus_active;
                 box->focus_active_disabled_t = (F32) is_focus_active_disabled;
             }
@@ -1063,7 +1059,7 @@ internal UI_Input ui_input_from_box(UI_Box *box) {
     UI_Input result = { 0 };
     result.box = box;
 
-    B32 is_focused = box->flags & UI_BoxFlag_FocusActive && !(box->flags & UI_BoxFlag_FocusActiveDisabled);
+    B32 is_focus_hot = box->flags & UI_BoxFlag_FocusHot && !(box->flags & UI_BoxFlag_FocusHotDisabled);
 
     R2F32 bounds = box->calculated_rectangle;
     for (UI_Box *parent = box; !ui_box_is_null(parent); parent = parent->parent) {
@@ -1136,7 +1132,7 @@ internal UI_Input ui_input_from_box(UI_Box *box) {
             consumed = true;
         }
 
-        if ((box->flags & UI_BoxFlag_KeyboardClickable) && is_focused && event->kind == UI_EventKind_Accept) {
+        if ((box->flags & UI_BoxFlag_KeyboardClickable) && is_focus_hot && event->kind == UI_EventKind_Accept) {
             result.flags |= UI_InputFlag_KeyboardPressed;
             consumed = true;
         }

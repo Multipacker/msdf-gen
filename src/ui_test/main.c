@@ -474,9 +474,9 @@ internal Void update(Void) {
                 }
             }
 
-            if (parent->flags & UI_BoxFlag_Clickable && parent->flags & UI_BoxFlag_FocusActive) {
+            if (parent->flags & UI_BoxFlag_Clickable && parent->flags & UI_BoxFlag_FocusHot) {
                 V4F32 color = color_from_srgba(v4f32(0.7f, 0.6f, 0.0f, 1.0f));
-                color.a *= 0.2f * box->focus_active_t;
+                color.a *= 0.2f * box->focus_hot_t;
                 Render_Shape *shape = draw_rectangle(parent->calculated_rectangle, color, 0.0f, 0.0f, 0.0f);
                 memory_copy(shape->radies, parent->corner_radies, sizeof(shape->radies));
             }
