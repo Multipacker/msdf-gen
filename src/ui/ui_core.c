@@ -1184,6 +1184,21 @@ internal UI_Input ui_input_from_box(UI_Box *box) {
         ui_context_menu_close();
     }
 
+    UI_Box *default_navigation_parent = &global_ui_null_box;
+    for (UI_Box *parent = box->parent; !ui_box_is_null(parent); parent = parent->parent) {
+        if (parent->flags & UI_BoxFlag_DefaultNavigation) {
+            default_navigation_parent = parent;
+            break;
+        }
+    }
+
+    if (box->flags & UI_BoxFlag_ClickToFocus && result.flags & UI_InputFlag_Pressed && !ui_box_is_null(default_navigation_parent)) {
+        default_navigation_parent->default_navigation_focus_hot_key_next = box->key;
+        if (!ui_keys_match(default_navigation_parent->default_navigation_focus_active_key, box->key)) {
+            default_navigation_parent->default_navigation_focus_active_key_next = global_ui_null_key;
+        }
+    }
+
     return result;
 }
 

@@ -100,6 +100,7 @@ typedef enum {
     UI_BoxFlag_FocusActiveDisabled  = 1 << 24,
 
     UI_BoxFlag_DefaultNavigation    = 1 << 25,
+    UI_BoxFlag_ClickToFocus         = 1 << 26,
 
     // NOTE(simon): Convenient combinations
     UI_BoxFlag_Overflow            = UI_BoxFlag_OverflowX | UI_BoxFlag_OverflowY,
