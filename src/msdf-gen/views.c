@@ -555,10 +555,10 @@ PANEL_BUILD_FUNCTION(view_glyph) {
                                 UI_Input next_input = ui_button(str8_literal("Next"));
                                 ui_spacer_sized(ui_size_ems(0.5f, 1.0f));
                                 ui_label_format("%lu: %.*s", state->log_index, str8_expand(log_entry->description));
-                                if (next_input.flags & UI_InputFlag_LeftClicked) {
+                                if (next_input.flags & UI_InputFlag_Clicked) {
                                     next_log_index = (state->log_index + 1) % msdf_glyph->log.count;
                                 }
-                                if (previous_input.flags & UI_InputFlag_LeftClicked) {
+                                if (previous_input.flags & UI_InputFlag_Clicked) {
                                     next_log_index = (state->log_index + msdf_glyph->log.count - 1) % msdf_glyph->log.count;
                                 }
                             }
