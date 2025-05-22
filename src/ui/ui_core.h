@@ -68,39 +68,40 @@ union UI_Palette {
 
 typedef enum {
     // NOTE(simon): Interaction
-    UI_BoxFlag_Disabled             = 1 << 0,
-    UI_BoxFlag_Clickable            = 1 << 1,
-    UI_BoxFlag_Scrollable           = 1 << 2,
-    UI_BoxFlag_DropTarget           = 1 << 3,
-    UI_BoxFlag_KeyboardClickable    = 1 << 4,
+    UI_BoxFlag_Disabled              = 1 << 0,
+    UI_BoxFlag_Clickable             = 1 << 1,
+    UI_BoxFlag_Scrollable            = 1 << 2,
+    UI_BoxFlag_DropTarget            = 1 << 3,
+    UI_BoxFlag_KeyboardClickable     = 1 << 4,
 
     // NOTE(simon): Layout
-    UI_BoxFlag_OverflowX            = 1 << 5,
-    UI_BoxFlag_OverflowY            = 1 << 6,
-    UI_BoxFlag_FloatingX            = 1 << 7,
-    UI_BoxFlag_FloatingY            = 1 << 8,
+    UI_BoxFlag_OverflowX             = 1 << 5,
+    UI_BoxFlag_OverflowY             = 1 << 6,
+    UI_BoxFlag_FloatingX             = 1 << 7,
+    UI_BoxFlag_FloatingY             = 1 << 8,
 
     // NOTE(simon): Appearance
-    UI_BoxFlag_AnimateX             = 1 << 9,
-    UI_BoxFlag_AnimateY             = 1 << 10,
-    UI_BoxFlag_DrawBackground       = 1 << 11,
-    UI_BoxFlag_DrawBorder           = 1 << 12,
-    UI_BoxFlag_DrawText             = 1 << 13,
-    UI_BoxFlag_DrawHot              = 1 << 14,
-    UI_BoxFlag_DrawActive           = 1 << 15,
-    UI_BoxFlag_DrawDropShadow       = 1 << 16,
-    UI_BoxFlag_DrawFuzzyMatches     = 1 << 17,
-    UI_BoxFlag_Clip                 = 1 << 18,
-    UI_BoxFlag_DisableFocusBorder   = 1 << 19,
-    UI_BoxFlag_DisableFocusOverlay  = 1 << 20,
+    UI_BoxFlag_AnimateX              = 1 << 9,
+    UI_BoxFlag_AnimateY              = 1 << 10,
+    UI_BoxFlag_DrawBackground        = 1 << 11,
+    UI_BoxFlag_DrawBorder            = 1 << 12,
+    UI_BoxFlag_DrawText              = 1 << 13,
+    UI_BoxFlag_DrawHot               = 1 << 14,
+    UI_BoxFlag_DrawActive            = 1 << 15,
+    UI_BoxFlag_DrawDropShadow        = 1 << 16,
+    UI_BoxFlag_DrawFuzzyMatches      = 1 << 17,
+    UI_BoxFlag_Clip                  = 1 << 18,
+    UI_BoxFlag_DisableFocusBorder    = 1 << 19,
+    UI_BoxFlag_DisableFocusOverlay   = 1 << 20,
 
-    UI_BoxFlag_FocusHot             = 1 << 21,
-    UI_BoxFlag_FocusHotDisabled     = 1 << 22,
-    UI_BoxFlag_FocusActive          = 1 << 23,
-    UI_BoxFlag_FocusActiveDisabled  = 1 << 24,
+    UI_BoxFlag_FocusHot              = 1 << 21,
+    UI_BoxFlag_FocusHotDisabled      = 1 << 22,
+    UI_BoxFlag_FocusActive           = 1 << 23,
+    UI_BoxFlag_FocusActiveDisabled   = 1 << 24,
 
-    UI_BoxFlag_DefaultNavigation    = 1 << 25,
-    UI_BoxFlag_ClickToFocus         = 1 << 26,
+    UI_BoxFlag_DefaultNavigation     = 1 << 25,
+    UI_BoxFlag_ClickToFocus          = 1 << 26,
+    UI_BoxFlag_DefaultNavigationSkip = 1 << 27,
 
     // NOTE(simon): Convenient combinations
     UI_BoxFlag_Overflow            = UI_BoxFlag_OverflowX | UI_BoxFlag_OverflowY,
@@ -357,6 +358,7 @@ struct UI_Context {
     UI_Key active_key[UI_MouseButton_COUNT];
     UI_Key drop_hot_key;
     B32 is_animating;
+    UI_Key default_navigation_root_key;
 
     // NOTE(simon): Drag data
     V2F32  drag_start;

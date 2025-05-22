@@ -379,6 +379,80 @@ internal Void ui_begin(UI_EventList *events, F32 dt) {
     ui_focus_hot_push(UI_Focus_None);
     ui_focus_active_push(UI_Focus_None);
 
+    // NOTE(simon): Default navigation.
+    if (!ui_key_is_null(ui->default_navigation_root_key)) {
+        UI_Box *default_navigation_root_box = ui_box_from_key(ui->default_navigation_root_key);
+        if (!ui_box_is_null(default_navigation_root_box)) {
+            if (ui_key_is_null(default_navigation_root_box->default_navigation_focus_active_key)) {
+                // NOTE(simon): No child has focus, do navigation at this
+                // layer.
+                for (;;) {
+                    UI_Box *focus_box = ui_box_from_key(default_navigation_root_box->default_navigation_focus_hot_key_next);
+
+                    B32 move_next     = ui_consume_key_press(Gfx_Key_Tab, 0) != 0;
+                    B32 move_previous = ui_consume_key_press(Gfx_Key_Tab, Gfx_KeyModifier_Shift) != 0;
+
+                    UI_Box *next_focus_box = &global_ui_null_box;
+
+                    if (move_next) {
+                        UI_Box *start = ui_box_is_null(focus_box) ? default_navigation_root_box : focus_box;
+                        for (UI_Box *box = start;;) {
+                            if (box != start && !(box->flags & UI_BoxFlag_DefaultNavigationSkip) && box->flags & UI_BoxFlag_Clickable) {
+                                next_focus_box = box;
+                                break;
+                            }
+
+                            // NOTE(simon): Find next candidate.
+                            if (!ui_box_is_null(box->first)) {
+                                box = box->first;
+                            } else {
+                                for (UI_Box *parent = box; !ui_box_is_null(parent) && parent != default_navigation_root_box; parent = parent->parent) {
+                                    if (!ui_box_is_null(parent->next)) {
+                                        box = parent->next;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    if (move_previous) {
+                        UI_Box *start = ui_box_is_null(focus_box) ? default_navigation_root_box : focus_box;
+                        for (UI_Box *box = start;;) {
+                            if (box != start && !(box->flags & UI_BoxFlag_DefaultNavigationSkip) && box->flags & UI_BoxFlag_Clickable) {
+                                next_focus_box = box;
+                                break;
+                            }
+
+                            // NOTE(simon): Find next candidate.
+                            if (!ui_box_is_null(box->last)) {
+                                box = box->last;
+                            } else {
+                                for (UI_Box *parent = box; !ui_box_is_null(parent) && parent != default_navigation_root_box; parent = parent->parent) {
+                                    if (!ui_box_is_null(parent->previous)) {
+                                        box = parent->previous;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    if (ui_box_is_null(next_focus_box)) {
+                        break;
+                    } else {
+                        default_navigation_root_box->default_navigation_focus_hot_key_next = next_focus_box->key;
+                    }
+                }
+            } else {
+                // NOTE(simon): Some child has focus, potentially pop from the
+                // active key stack.
+            }
+        }
+
+        ui->default_navigation_root_key = global_ui_null_key;
+    }
+
     // NOTE(simon): Update focus hot and focus active.
     // TODO(simon): Maybe move to ui_end
     for (U32 i = 0; i < UI_BOX_TABLE_SIZE; ++i) {
@@ -922,6 +996,10 @@ internal UI_Box *ui_create_box_from_key(UI_BoxFlags flags, UI_Key key) {
 
     if (is_auto_focus_active) {
         ui_focus_active_next(UI_Focus_Active);
+    }
+
+    if (box->flags & UI_BoxFlag_DefaultNavigation && ui_is_focus_active() && ui_key_is_null(ui->default_navigation_root_key)) {
+        ui->default_navigation_root_key = key;
     }
 
     if (ui_focus_hot_top() == UI_Focus_Active) {

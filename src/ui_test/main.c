@@ -184,6 +184,8 @@ internal Void update(Void) {
     ui_height(ui_size_fill())
     ui_text_x_padding(ui_size_ems(0.5f, 1.0f).value) {
         ui_layout_axis_next(Axis2_X);
+        ui_focus_hot_next(UI_Focus_Active);
+        ui_focus_active_next(UI_Focus_Active);
         UI_Box *panel = ui_create_box_from_string(
             UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawBorder | UI_BoxFlag_DrawDropShadow |
             UI_BoxFlag_Clickable | UI_BoxFlag_Scrollable | UI_BoxFlag_DefaultNavigation,
