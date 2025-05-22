@@ -105,6 +105,12 @@ internal Void update(Void) {
             ui_event_list_push_event(&ui_events, ui_event);
 
             dll_remove(events.first, events.last, event);
+        } else if (event->key == Gfx_Key_Escape && event->key_modifiers == 0) {
+            UI_Event *ui_event = arena_push_struct(frame_arena(), UI_Event);
+            ui_event->kind = UI_EventKind_Cancel;
+            ui_event_list_push_event(&ui_events, ui_event);
+
+            dll_remove(events.first, events.last, event);
         } else if (event->key == Gfx_Key_Return && event->key_modifiers == 0) {
             UI_Event *ui_event = arena_push_struct(frame_arena(), UI_Event);
             ui_event->kind = UI_EventKind_Accept;
@@ -261,13 +267,23 @@ internal Void update(Void) {
                             }
                         }
 
+                        UI_Key key = ui_key_from_string(ui_active_seed_key(), str8_literal("coloring_selector"));
+                        B32 is_auto_focus_hot    = ui_is_key_auto_focus_hot(key);
+                        B32 is_auto_focus_active = ui_is_key_auto_focus_active(key);
+                        if (is_auto_focus_hot) {
+                            ui_focus_hot_push(UI_Focus_Active);
+                        }
+                        if (is_auto_focus_active) {
+                            ui_focus_active_push(UI_Focus_Active);
+                        }
+
                         ui_layout_axis_next(Axis2_X);
                         ui_hover_cursor_next(Gfx_Cursor_Hand);
-                        UI_Box *combo_box = ui_create_box_from_string(
+                        UI_Box *combo_box = ui_create_box_from_key(
                             UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawBorder |
                             UI_BoxFlag_DrawHot | UI_BoxFlag_DrawActive |
                             UI_BoxFlag_Clickable | UI_BoxFlag_KeyboardClickable,
-                            str8_literal("##coloring_selector")
+                            key
                         );
                         ui_parent(combo_box) {
                             ui_width_next(ui_size_fill());
@@ -279,6 +295,13 @@ internal Void update(Void) {
                         UI_Input combo_input = ui_input_from_box(combo_box);
                         if (combo_input.flags & UI_InputFlag_Clicked) {
                             ui_context_menu_open(dropdown_key, combo_box->key, v2f32(0.0f, 0.0f));
+                        }
+
+                        if (is_auto_focus_hot) {
+                            ui_focus_hot_pop();
+                        }
+                        if (is_auto_focus_active) {
+                            ui_focus_active_pop();
                         }
                     }
                     ui_spacer_sized(ui_size_ems(0.5f, 1.0f));

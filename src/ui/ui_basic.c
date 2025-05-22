@@ -216,17 +216,23 @@ internal UI_Input ui_line_edit(U8 *buffer, U64 *buffer_size, U64 buffer_capacity
     prof_function_begin();
     Arena_Temporary scratch = arena_get_scratch(0, 0);
 
+    // NOTE(simon): Handle auto focus.
     B32 is_auto_focus_hot    = ui_is_key_auto_focus_hot(key);
     B32 is_auto_focus_active = ui_is_key_auto_focus_active(key);
     if (is_auto_focus_hot) {
         ui_focus_hot_push(UI_Focus_Active);
     }
-    if (is_auto_focus_active) {
+    if (is_auto_focus_active ) {
         ui_focus_active_push(UI_Focus_Active);
     }
+
+    // NOTE(simon): Acquire focus information.
     B32 is_focus_hot    = ui_is_focus_hot();
     B32 is_focus_active = ui_is_focus_active();
+    B32 is_focus_hot_disabled    = !is_focus_hot    && ui_focus_hot_top()    == UI_Focus_Active;
+    B32 is_focus_active_disabled = !is_focus_active && ui_focus_active_top() == UI_Focus_Active;
 
+    // NOTE(simon): Build box.
     ui_hover_cursor_next(Gfx_Cursor_Beam);
     UI_Box *text_container_box = ui_create_box_from_key(
         UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawBorder | UI_BoxFlag_DrawHot | UI_BoxFlag_DrawActive |
@@ -238,18 +244,27 @@ internal UI_Input ui_line_edit(U8 *buffer, U64 *buffer_size, U64 buffer_capacity
     // NOTE(simon): Input handling
     UI_Input input = ui_input_from_box(text_container_box);
 
-    B32 edit_by_typing = false;
+    B32 start_edit = false;
+
     if (is_focus_hot) {
         for (UI_Event *event = 0; ui_next_event(&event);) {
             if (event->kind == UI_EventKind_Text) {
                 ui_set_auto_focus_active_key(key);
-                edit_by_typing = true;
+                start_edit = true;
                 break;
             }
         }
     }
 
-    if (edit_by_typing || (text_container_box->flags & UI_BoxFlag_FocusActive && !(text_container_box->flags & UI_BoxFlag_FocusActiveDisabled))) {
+    if (!is_focus_active && input.flags & UI_InputFlag_KeyboardPressed) {
+        ui_set_auto_focus_active_key(key);
+        start_edit = true;
+    } else if (is_focus_active && input.flags & UI_InputFlag_KeyboardPressed) {
+        ui_set_auto_focus_active_key(global_ui_null_key);
+        input.flags |= UI_InputFlag_Commit;
+    }
+
+    if (start_edit || (text_container_box->flags & UI_BoxFlag_FocusActive && !(text_container_box->flags & UI_BoxFlag_FocusActiveDisabled))) {
         prof_zone_begin(prof_events, "events");
         for (UI_Event *event = 0; ui_next_event(&event);) {
             if (!(event->kind == UI_EventKind_Text || event->kind == UI_EventKind_Edit || event->kind == UI_EventKind_Navigation)) {
@@ -407,11 +422,6 @@ internal UI_Input ui_line_edit(U8 *buffer, U64 *buffer_size, U64 buffer_capacity
     F32 text_mouse = mouse - ui_box_text_location(text_box).x;
     U64 mouse_position = font_cache_offset_from_text_position(text_box->text, text_mouse);
 
-    if (!is_focus_active && input.flags & UI_InputFlag_KeyboardPressed) {
-        ui_set_auto_focus_active_key(key);
-    } else if (is_focus_active && input.flags & UI_InputFlag_KeyboardPressed) {
-        ui_set_auto_focus_active_key(global_ui_null_key);
-    }
     if (input.flags & UI_InputFlag_LeftDragging) {
         if (input.flags & UI_InputFlag_LeftPressed) {
             *mark = mouse_position;
@@ -436,7 +446,7 @@ internal UI_Input ui_line_edit(U8 *buffer, U64 *buffer_size, U64 buffer_capacity
     if (is_auto_focus_hot) {
         ui_focus_hot_pop();
     }
-    if (is_auto_focus_active) {
+    if (is_auto_focus_active ) {
         ui_focus_active_pop();
     }
 

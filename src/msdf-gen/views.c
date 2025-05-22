@@ -225,6 +225,7 @@ PANEL_BUILD_FUNCTION(view_glyph_list) {
         }
 
         ui_palette(palette_from_code(PaletteCode_Button))
+        ui_focus(UI_Focus_None)
         ui_width(ui_size_pixels(scrollbar_width, 1.0f))
         ui_height(ui_size_pixels(panel_size.y, 1.0f)) {
             state->position = ui_scroll_bar(state->position, first_row, last_row, visible_rows);

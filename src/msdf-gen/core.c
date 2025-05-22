@@ -1373,9 +1373,10 @@ internal Void update(Void) {
             ui_focus(UI_Focus_None)
             ui_text_x_padding(ui_size_ems(0.5f, 1.0f).value) {
                 UI_Key key = ui_key_from_string(ui_active_seed_key(), str8_literal("##query"));
+                UI_Input line_input = { 0 };
                 ui_palette(palette_from_code(PaletteCode_Button))
                 ui_focus(UI_Focus_Active) {
-                    ui_line_edit(buffer, &buffer_size, array_count(buffer), &cursor, &mark, key);
+                    line_input = ui_line_edit(buffer, &buffer_size, array_count(buffer), &cursor, &mark, key);
                 }
 
                 // NOTE(simon): Scroll region
@@ -1466,7 +1467,7 @@ internal Void update(Void) {
                         }
                         UI_Input command_button_input = ui_input_from_box(command_button_box);
 
-                        if (command_button_input.flags & UI_InputFlag_Clicked) {
+                        if (line_input.flags & UI_InputFlag_Commit || command_button_input.flags & UI_InputFlag_Clicked) {
                             push_command(commands[i].command);
                             state->show_command_lister = 0;
                             buffer_size = 0;

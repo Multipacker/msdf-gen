@@ -262,6 +262,7 @@ typedef enum {
 
     // NOTE(simon): Keyboard interaction with
     UI_InputFlag_KeyboardPressed = 1 << 13,
+    UI_InputFlag_Commit          = 1 << 14,
 
     // NOTE(simon): Convenient combinations
     UI_InputFlag_Pressed  = UI_InputFlag_LeftPressed  | UI_InputFlag_KeyboardPressed,
