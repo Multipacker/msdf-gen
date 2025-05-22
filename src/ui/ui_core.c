@@ -457,6 +457,19 @@ internal Void ui_begin(UI_EventList *events, F32 dt) {
             } else {
                 // NOTE(simon): Some child has focus, potentially pop from the
                 // active key stack.
+                while (ui_consume_event_kind(UI_EventKind_Cancel)) {
+                    UI_Box *previous_focus_root_box = default_navigation_root_box;
+                    for (UI_Box *focus_root_box = ui_box_from_key(previous_focus_root_box->default_navigation_focus_active_key); !ui_box_is_null(focus_root_box);) {
+                        UI_Box *next_focus_root_box = ui_box_from_key(focus_root_box->default_navigation_focus_active_key);
+                        if (ui_box_is_null(next_focus_root_box)) {
+                            previous_focus_root_box->default_navigation_focus_active_key_next = global_ui_null_key;
+                            break;
+                        } else {
+                            previous_focus_root_box = focus_root_box;
+                            focus_root_box = next_focus_root_box;
+                        }
+                    }
+                }
             }
         }
 
