@@ -403,6 +403,7 @@ internal Void ui_begin(UI_EventList *events, F32 dt) {
                             }
 
                             // NOTE(simon): Find next candidate.
+                            UI_Box *last_box = box;
                             if (!ui_box_is_null(box->first)) {
                                 box = box->first;
                             } else {
@@ -412,6 +413,10 @@ internal Void ui_begin(UI_EventList *events, F32 dt) {
                                         break;
                                     }
                                 }
+                            }
+
+                            if (last_box == box) {
+                                break;
                             }
                         }
                     }
@@ -425,6 +430,7 @@ internal Void ui_begin(UI_EventList *events, F32 dt) {
                             }
 
                             // NOTE(simon): Find next candidate.
+                            UI_Box *last_box = box;
                             if (!ui_box_is_null(box->last)) {
                                 box = box->last;
                             } else {
@@ -434,6 +440,10 @@ internal Void ui_begin(UI_EventList *events, F32 dt) {
                                         break;
                                     }
                                 }
+                            }
+
+                            if (last_box == box) {
+                                break;
                             }
                         }
                     }
