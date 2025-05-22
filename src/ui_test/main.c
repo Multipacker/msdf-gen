@@ -204,8 +204,6 @@ internal Void update(Void) {
                     ui_spacer_sized(ui_size_ems(0.5f, 1.0f));
                     {
                         UI_Key line_key = ui_key_from_string(ui_active_seed_key(), str8_literal("##point_count"));
-                        ui_set_auto_focus_hot_key(line_key);
-                        ui_set_auto_focus_active_key(line_key);
                         ui_line_edit(state->buffer, &state->buffer_size, array_count(state->buffer), &state->cursor, &state->mark, line_key);
                     }
                     ui_spacer_sized(ui_size_ems(0.5f, 1.0f));
@@ -285,7 +283,6 @@ internal Void update(Void) {
                             ui_context_menu_open(color_picker_key, color_box->key, v2f32(0.0f, 0.0f));
                         }
                     }
-
                     for (U32 i = 0; i < 10; ++i) {
                         ui_spacer_sized(ui_size_ems(0.5f, 1.0f));
 

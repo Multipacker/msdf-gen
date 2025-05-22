@@ -218,19 +218,38 @@ internal UI_Input ui_line_edit(U8 *buffer, U64 *buffer_size, U64 buffer_capacity
 
     B32 is_auto_focus_hot    = ui_is_key_auto_focus_hot(key);
     B32 is_auto_focus_active = ui_is_key_auto_focus_active(key);
-    ui_focus_hot_push(is_auto_focus_hot ? UI_Focus_Active : UI_Focus_None);
-    ui_focus_active_push(is_auto_focus_active ? UI_Focus_Active : UI_Focus_None);
+    if (is_auto_focus_hot) {
+        ui_focus_hot_push(UI_Focus_Active);
+    }
+    if (is_auto_focus_active) {
+        ui_focus_active_push(UI_Focus_Active);
+    }
+    B32 is_focus_hot    = ui_is_focus_hot();
+    B32 is_focus_active = ui_is_focus_active();
 
     ui_hover_cursor_next(Gfx_Cursor_Beam);
     UI_Box *text_container_box = ui_create_box_from_key(
         UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawBorder | UI_BoxFlag_DrawHot | UI_BoxFlag_DrawActive |
         UI_BoxFlag_OverflowX | UI_BoxFlag_Clip |
-        UI_BoxFlag_Clickable,
+        UI_BoxFlag_Clickable | UI_BoxFlag_KeyboardClickable | UI_BoxFlag_ClickToFocus,
         key
     );
 
     // NOTE(simon): Input handling
-    if (text_container_box->flags & UI_BoxFlag_FocusActive && !(text_container_box->flags & UI_BoxFlag_FocusActiveDisabled)) {
+    UI_Input input = ui_input_from_box(text_container_box);
+
+    B32 edit_by_typing = false;
+    if (is_focus_hot) {
+        for (UI_Event *event = 0; ui_next_event(&event);) {
+            if (event->kind == UI_EventKind_Text) {
+                ui_set_auto_focus_active_key(key);
+                edit_by_typing = true;
+                break;
+            }
+        }
+    }
+
+    if (edit_by_typing || (text_container_box->flags & UI_BoxFlag_FocusActive && !(text_container_box->flags & UI_BoxFlag_FocusActiveDisabled))) {
         prof_zone_begin(prof_events, "events");
         for (UI_Event *event = 0; ui_next_event(&event);) {
             if (!(event->kind == UI_EventKind_Text || event->kind == UI_EventKind_Edit || event->kind == UI_EventKind_Navigation)) {
@@ -370,7 +389,6 @@ internal UI_Input ui_line_edit(U8 *buffer, U64 *buffer_size, U64 buffer_capacity
     FontCache_Font *font = ui_font_top();
     U32 font_size = ui_font_size_top();
 
-    U64 mouse_position = 0;
     Str8 edit_string = str8(buffer, *buffer_size);
 
     ui_parent_push(text_container_box);
@@ -387,17 +405,21 @@ internal UI_Input ui_line_edit(U8 *buffer, U64 *buffer_size, U64 buffer_capacity
 
     F32 mouse = ui_mouse().x;
     F32 text_mouse = mouse - ui_box_text_location(text_box).x;
-    mouse_position = font_cache_offset_from_text_position(text_box->text, text_mouse);
+    U64 mouse_position = font_cache_offset_from_text_position(text_box->text, text_mouse);
 
-    ui_parent_pop();
-
-    UI_Input input = ui_input_from_box(text_container_box);
+    if (!is_focus_active && input.flags & UI_InputFlag_KeyboardPressed) {
+        ui_set_auto_focus_active_key(key);
+    } else if (is_focus_active && input.flags & UI_InputFlag_KeyboardPressed) {
+        ui_set_auto_focus_active_key(global_ui_null_key);
+    }
     if (input.flags & UI_InputFlag_LeftDragging) {
         if (input.flags & UI_InputFlag_LeftPressed) {
             *mark = mouse_position;
         }
         *cursor = mouse_position;
     }
+
+    ui_parent_pop();
 
     // NOTE(simon): Focus the cursor
     F32 cursor_position = font_cache_text_prefix(text_box->text, *cursor).size.width;
@@ -411,8 +433,12 @@ internal UI_Input ui_line_edit(U8 *buffer, U64 *buffer_size, U64 buffer_capacity
     text_container_box->view_offset.x += min_delta;
     text_container_box->view_offset.x += max_delta;
 
-    ui_focus_hot_pop();
-    ui_focus_active_pop();
+    if (is_auto_focus_hot) {
+        ui_focus_hot_pop();
+    }
+    if (is_auto_focus_active) {
+        ui_focus_active_pop();
+    }
 
     arena_end_temporary(scratch);
     prof_function_end();
