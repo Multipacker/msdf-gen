@@ -52,6 +52,12 @@ struct State {
     U64 buffer_size;
     U64 cursor;
     U64 mark;
+
+    U8 second_buffer[10];
+    U64 second_buffer_size;
+    U64 second_cursor;
+    U64 second_mark;
+
     Coloring coloring;
     V4F32 point_color;
 
@@ -82,6 +88,31 @@ internal Void update(Void) {
     }
 
     UI_EventList ui_events = { 0 };
+
+    for (Gfx_Event *event = events.first, *next; event; event = next) {
+        next = event->next;
+
+        if (event->kind != Gfx_EventKind_KeyPress) {
+            continue;
+        }
+
+        if (event->key == Gfx_Key_Backspace && event->key_modifiers == 0) {
+            UI_Event *ui_event = arena_push_struct(frame_arena(), UI_Event);
+            ui_event->kind = UI_EventKind_Edit;
+            ui_event->delta.x = -1;
+            ui_event->unit = UI_EventDeltaUnit_Character;
+            ui_event->flags = UI_EventFlag_ZeroDeltaOnSelection | UI_EventFlag_Delete;
+            ui_event_list_push_event(&ui_events, ui_event);
+
+            dll_remove(events.first, events.last, event);
+        } else if (event->key == Gfx_Key_Return && event->key_modifiers == 0) {
+            UI_Event *ui_event = arena_push_struct(frame_arena(), UI_Event);
+            ui_event->kind = UI_EventKind_Accept;
+            ui_event_list_push_event(&ui_events, ui_event);
+
+            dll_remove(events.first, events.last, event);
+        }
+    }
 
     for (Gfx_Event *event = events.first, *next = 0; event; event = next) {
         next = event->next;
@@ -290,6 +321,11 @@ internal Void update(Void) {
                         if (input.flags & UI_InputFlag_Clicked) {
                             os_console_print(str8_format(ui_frame_arena(), "Button %u\n", i));
                         }
+                    }
+                    ui_spacer_sized(ui_size_ems(0.5f, 1.0f));
+                    {
+                        UI_Key line_key = ui_key_from_string(ui_active_seed_key(), str8_literal("##second_point_count"));
+                        ui_line_edit(state->second_buffer, &state->second_buffer_size, array_count(state->second_buffer), &state->second_cursor, &state->second_mark, line_key);
                     }
                 }
             }
