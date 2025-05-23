@@ -105,6 +105,60 @@ internal Void update(Void) {
             ui_event_list_push_event(&ui_events, ui_event);
 
             dll_remove(events.first, events.last, event);
+        } else if (event->key == Gfx_Key_Left && event->key_modifiers == 0) {
+            UI_Event *ui_event = arena_push_struct(frame_arena(), UI_Event);
+            ui_event->kind = UI_EventKind_Navigation;
+            ui_event->delta.x = -1;
+            ui_event->unit = UI_EventDeltaUnit_Character;
+            ui_event->flags = UI_EventFlag_PickSelectSide | UI_EventFlag_ZeroDeltaOnSelection;
+            ui_event_list_push_event(&ui_events, ui_event);
+
+            dll_remove(events.first, events.last, event);
+        } else if (event->key == Gfx_Key_Right && event->key_modifiers == 0) {
+            UI_Event *ui_event = arena_push_struct(frame_arena(), UI_Event);
+            ui_event->kind = UI_EventKind_Navigation;
+            ui_event->delta.x = 1;
+            ui_event->unit = UI_EventDeltaUnit_Character;
+            ui_event->flags = UI_EventFlag_PickSelectSide | UI_EventFlag_ZeroDeltaOnSelection;
+            ui_event_list_push_event(&ui_events, ui_event);
+
+            dll_remove(events.first, events.last, event);
+        } else if (event->key == Gfx_Key_Left && event->key_modifiers == Gfx_KeyModifier_Control) {
+            UI_Event *ui_event = arena_push_struct(frame_arena(), UI_Event);
+            ui_event->kind = UI_EventKind_Navigation;
+            ui_event->delta.x = -1;
+            ui_event->unit = UI_EventDeltaUnit_Word;
+            ui_event->flags = UI_EventFlag_PickSelectSide | UI_EventFlag_ZeroDeltaOnSelection;
+            ui_event_list_push_event(&ui_events, ui_event);
+
+            dll_remove(events.first, events.last, event);
+        } else if (event->key == Gfx_Key_Right && event->key_modifiers == Gfx_KeyModifier_Control) {
+            UI_Event *ui_event = arena_push_struct(frame_arena(), UI_Event);
+            ui_event->kind = UI_EventKind_Navigation;
+            ui_event->delta.x = 1;
+            ui_event->unit = UI_EventDeltaUnit_Word;
+            ui_event->flags = UI_EventFlag_PickSelectSide | UI_EventFlag_ZeroDeltaOnSelection;
+            ui_event_list_push_event(&ui_events, ui_event);
+
+            dll_remove(events.first, events.last, event);
+        } else if (event->key == Gfx_Key_Home && event->key_modifiers == 0) {
+            UI_Event *ui_event = arena_push_struct(frame_arena(), UI_Event);
+            ui_event->kind = UI_EventKind_Navigation;
+            ui_event->delta.x = -1;
+            ui_event->unit = UI_EventDeltaUnit_Line;
+            ui_event->flags = UI_EventFlag_PickSelectSide | UI_EventFlag_ZeroDeltaOnSelection;
+            ui_event_list_push_event(&ui_events, ui_event);
+
+            dll_remove(events.first, events.last, event);
+        } else if (event->key == Gfx_Key_End && event->key_modifiers == 0) {
+            UI_Event *ui_event = arena_push_struct(frame_arena(), UI_Event);
+            ui_event->kind = UI_EventKind_Navigation;
+            ui_event->delta.x = 1;
+            ui_event->unit = UI_EventDeltaUnit_Line;
+            ui_event->flags = UI_EventFlag_PickSelectSide | UI_EventFlag_ZeroDeltaOnSelection;
+            ui_event_list_push_event(&ui_events, ui_event);
+
+            dll_remove(events.first, events.last, event);
         } else if (event->key == Gfx_Key_Escape && event->key_modifiers == 0) {
             UI_Event *ui_event = arena_push_struct(frame_arena(), UI_Event);
             ui_event->kind = UI_EventKind_Cancel;
