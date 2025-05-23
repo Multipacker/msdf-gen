@@ -469,8 +469,25 @@ UI_BOX_DRAW_FUNCTION(ui_draw_slider) {
 }
 
 internal UI_Input ui_slider(F32 min, F32 *value, F32 max, UI_Key key) {
+    // NOTE(simon): Handle auto focus.
+    B32 is_auto_focus_hot    = ui_is_key_auto_focus_hot(key);
+    B32 is_auto_focus_active = ui_is_key_auto_focus_active(key);
+    if (is_auto_focus_hot) {
+        ui_focus_hot_push(UI_Focus_Active);
+    }
+    if (is_auto_focus_active ) {
+        ui_focus_active_push(UI_Focus_Active);
+    }
+
+    // NOTE(simon): Acquire focus information.
+    B32 is_focus_hot    = ui_is_focus_hot();
+    B32 is_focus_active = ui_is_focus_active();
+    B32 is_focus_hot_disabled    = !is_focus_hot    && ui_focus_hot_top()    == UI_Focus_Active;
+    B32 is_focus_active_disabled = !is_focus_active && ui_focus_active_top() == UI_Focus_Active;
+
     F32 *percentage_filled = arena_push_struct(ui_frame_arena(), F32);
 
+    // NOTE(simon): Build box.
     ui_draw_data_next(percentage_filled);
     ui_draw_function_next(ui_draw_slider);
     ui_text_align_next(UI_TextAlign_Center);
@@ -478,12 +495,64 @@ internal UI_Input ui_slider(F32 min, F32 *value, F32 max, UI_Key key) {
     UI_Box *box = ui_create_box_from_key(
         UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawBorder | UI_BoxFlag_DrawText |
         UI_BoxFlag_DrawHot | UI_BoxFlag_DrawActive |
-        UI_BoxFlag_Clickable,
+        UI_BoxFlag_Clickable | UI_BoxFlag_KeyboardClickable,
         key
     );
     ui_box_set_string(box, str8_format(ui_frame_arena(), "%.2f", *value));
 
     UI_Input input = ui_input_from_box(box);
+
+    // NOTE(simon): Take and release focus from the keyboard.
+    if (!is_focus_active && input.flags & UI_InputFlag_KeyboardPressed) {
+        ui_set_auto_focus_active_key(key);
+    } else if (is_focus_active && input.flags & UI_InputFlag_KeyboardPressed) {
+        ui_set_auto_focus_active_key(global_ui_null_key);
+        input.flags |= UI_InputFlag_Commit;
+    }
+
+    // NOTE(simon): Changing the value from with the keyboard.
+    if (is_focus_active) {
+        F32 percentage = (*value - min) / (max - min);
+
+        for (UI_Event *event = 0; ui_next_event(&event);) {
+            if (event->kind != UI_EventKind_Navigation) {
+                continue;
+            }
+
+            if (event->delta.y != 0) {
+                continue;
+            }
+
+            switch (event->unit) {
+                case UI_EventDeltaUnit_Null: {
+                } break;
+                case UI_EventDeltaUnit_Character: {
+                    percentage += (F32) event->delta.x * 0.01f;
+                } break;
+                case UI_EventDeltaUnit_Word: {
+                    percentage += (F32) event->delta.x * 0.1f;
+                } break;
+                case UI_EventDeltaUnit_Line: {
+                    percentage = event->delta.x < 0 ? 0.0f : 1.0f;
+                } break;
+                case UI_EventDeltaUnit_Page: {
+                } break;
+                case UI_EventDeltaUnit_Whole: {
+                    percentage = event->delta.x < 0 ? 0.0f : 1.0f;
+                } break;
+                case UI_EventDeltaUnit_COUNT: {
+                } break;
+            }
+
+            ui_consume_event(event);
+        }
+
+        F32 value_post_change         = min + percentage * (max - min);
+        F32 clamped_value_post_change = f32_clamp(value_post_change, min, max);
+        *value = clamped_value_post_change;
+    }
+
+    // NOTE(simon): Changing the value by dragging with the mouse.
     if (input.flags & UI_InputFlag_LeftDragging) {
         if (input.flags & UI_InputFlag_LeftPressed) {
             F32 drag_data = *value;
@@ -501,7 +570,16 @@ internal UI_Input ui_slider(F32 min, F32 *value, F32 max, UI_Key key) {
         *value = clamped_value_post_drag;
     }
 
+    // NOTE(simon): Fill draw data.
     *percentage_filled = (*value - min) / (max - min);
+
+    // NOTE(simon): Clear auto focus.
+    if (is_auto_focus_hot) {
+        ui_focus_hot_pop();
+    }
+    if (is_auto_focus_active ) {
+        ui_focus_active_pop();
+    }
 
     return input;
 }
