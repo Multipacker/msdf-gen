@@ -668,6 +668,9 @@ internal B32 ui_is_animating_from_context(UI_Context *ui);
 #define ui_focus_active_auto_pop()  ui_focus_stack_auto_pop(&global_ui_state->focus_active_stack)
 #define ui_focus_active_top()       (global_ui_state->focus_active_stack.top->item)
 
-#define ui_focus(focus) defer_loop((ui_focus_hot_push(focus), ui_focus_active_push(focus)), (ui_focus_hot_pop(), ui_focus_active_pop()))
+#define ui_focus_push(focus) (ui_focus_hot_push(focus), ui_focus_active_push(focus))
+#define ui_focus_pop()       (ui_focus_hot_pop(), ui_focus_active_pop())
+#define ui_focus_next(focus) (ui_focus_hot_next(focus), ui_focus_active_next(focus))
+#define ui_focus(focus)      defer_loop((ui_focus_hot_push(focus), ui_focus_active_push(focus)), (ui_focus_hot_pop(), ui_focus_active_pop()))
 
 #endif // UI_CORE_H
