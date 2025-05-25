@@ -1178,6 +1178,9 @@ internal Void update(Void) {
                 case Command_OpenGlyphViewView: {
                     push_command(Command_OpenTab, .tab_specification = str8_literal("GlyphView"));
                 } break;
+                case Command_OpenPreviewView: {
+                    push_command(Command_OpenTab, .tab_specification = str8_literal("Preview"));
+                } break;
                 case Command_OpenRenderStatsView: {
                     push_command(Command_OpenTab, .tab_specification = str8_literal("RenderStats"));
                 } break;

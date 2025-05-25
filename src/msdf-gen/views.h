@@ -7,6 +7,7 @@
     X(GlyphView,   "Glyph view",        view_glyph)      \
     X(RenderStats, "Render statistics", view_stats)      \
     X(Theme,       "Theme",             view_theme)      \
+    X(Preview,     "Preview",           view_preview)    \
     X(Test,        "Test",              view_test)
 
 #define X(name, ...) Tab_##name,

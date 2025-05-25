@@ -172,6 +172,7 @@ struct Context {
     X(OpenCommandLister,    true,  "Open command lister",         "Opens the command lister")                                                     \
     X(OpenGlyphListView,    true,  "Open glyph list view",        "Opens a new tab with a glyph list")                                            \
     X(OpenGlyphViewView,    true,  "Open glyph view",             "Opens a new tab with a glyph inspector")                                       \
+    X(OpenPreviewView,      true,  "Open preview view",           "Opens a new tab with a preview")                                               \
     X(OpenRenderStatsView,  true,  "Open render statistics view", "Opens a new tab with render statistics")                                       \
     X(OpenThemeView,        true,  "Open theme view",             "Opens a new tab with theme settings")                                          \
     X(OpenTestView,         true,  "Open test view",              "Opens a new tab with a test view")                                             \

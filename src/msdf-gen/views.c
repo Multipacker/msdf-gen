@@ -740,6 +740,115 @@ PANEL_BUILD_FUNCTION(view_theme) {
     prof_function_end();
 }
 
+PANEL_BUILD_FUNCTION(view_preview) {
+    prof_function_begin();
+    Arena_Temporary scratch = arena_get_scratch(0, 0);
+
+    typedef struct ViewState ViewState;
+    struct ViewState {
+        U64 cursor;
+        U64 mark;
+        U64 size;
+        U8 buffer[1024];
+    };
+
+    B32 is_new_tab = tab->view_state == 0;
+    ViewState *state = (ViewState *) tab_get_state(tab, sizeof(ViewState));
+
+    if (is_new_tab) {
+        Str8 starter_text = str8_literal("Sphinx of black quartz, judge my vow.");
+        memory_copy(state->buffer, starter_text.data, starter_text.size);
+        state->size = starter_text.size;
+    }
+
+    ui_focus(UI_Focus_Active)
+    ui_palette(palette_from_code(PaletteCode_Button))
+    ui_width(ui_size_fill())
+    ui_height(ui_size_ems(1.5f, 1.0f))
+    ui_text_x_padding(ui_size_ems(0.5f, 1.0f).value) {
+        ui_line_edit(state->buffer, &state->size, array_count(state->buffer), &state->cursor, &state->mark, ui_key_from_string(ui_active_seed_key(), str8_literal("preview_text")));
+    }
+
+    ui_palette_next(palette_from_code(PaletteCode_Button));
+    ui_width_next(ui_size_fill());
+    ui_height_next(ui_size_fill());
+    UI_Box *canvas = ui_create_box_from_string(UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawBorder, str8_literal("##preview"));
+
+    FontCache_Text text = { 0 };
+
+    // NOTE(simon): Build laid out text.
+    {
+        TTF_Font *font = global_state->ttf_font;
+
+        text.letters = arena_push_array(scratch.arena, FontCache_Letter, state->size);
+
+        text.ascent  = (F32) font->ascent  / (F32) font->funits_per_em;
+        text.descent = (F32) font->descent / (F32) font->funits_per_em;
+        text.size.height = text.ascent - text.descent;
+
+        U8 *ptr = state->buffer;
+        U8 *opl = state->buffer + state->size;
+        while (ptr < opl) {
+            StringDecode decode = string_decode_utf8(ptr, (U64) (opl - ptr));
+            ptr += decode.size;
+
+            MSDFCache_Glyph *msdf_glyph = msdf_cache_get_glyph(font, decode.codepoint);
+
+            // TODO(simon): Verify that this is the correct layouting.
+            FontCache_Letter *letter = &text.letters[text.letter_count++];
+            letter->texture = msdf_glyph->texture;
+            letter->offset  = msdf_glyph->rectangle_pt.min;
+            letter->size    = r2f32_size(msdf_glyph->rectangle_pt);
+            letter->source = r2f32(
+                msdf_glyph->uv.min.x,
+                msdf_glyph->uv.max.y,
+                msdf_glyph->uv.max.x,
+                msdf_glyph->uv.min.y
+            );
+            letter->advance = msdf_glyph->advance_pt;
+            letter->decode_size = decode.size;
+
+            text.size.width += msdf_glyph->advance_pt;
+        }
+    }
+
+    Draw_List *draw_list = draw_list_create();
+    draw_list_scope(draw_list) {
+        F32   padding      = 2.0f * (F32) ui_font_size_top();
+        V2F32 box_size     = r2f32_size(canvas->calculated_rectangle);
+        M3F32 center_box   = m3f32_translation(v2f32_scale(box_size, 0.5f));
+        M3F32 center_text = m3f32_translation(v2f32(-text.size.width * 0.5f, 0.0f));
+        F32   scale        = f32_max(0.0f, f32_min((box_size.x - 2.0f * padding) / text.size.width, (box_size.y - 2.0f * padding) / text.size.height));
+        M3F32 scale_to_box = m3f32_scale(v2f32(scale, -scale));
+        M3F32 transform    = m3f32_multiply_m3f32(center_box, m3f32_multiply_m3f32(scale_to_box, center_text));
+
+        draw_transform(transform) {
+            F32 advance = 0.0f;
+            for (U64 i = 0; i < text.letter_count; ++i) {
+                FontCache_Letter *letter = &text.letters[i];
+                draw_msdf(
+                    r2f32(
+                        letter->offset.x + advance,
+                        letter->offset.y,
+                        letter->offset.x + advance + letter->size.x,
+                        letter->offset.y + letter->size.y
+                    ),
+                    letter->source,
+                    letter->texture,
+                    canvas->palette.text
+                );
+
+                advance += letter->advance;
+            }
+        }
+    }
+
+    ui_box_set_draw_list(canvas, draw_list);
+
+    arena_end_temporary(scratch);
+    prof_function_end();
+}
+
 PANEL_BUILD_FUNCTION(view_test) {
     prof_function_begin();
     ui_center() {

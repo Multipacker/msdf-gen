@@ -29,6 +29,7 @@
  * * Complete client side decorations for wayland
  * * Client side decorations for Windows
  * * Client side decorations for Xorg
+ * * Combine preview and glyph view into one inspector
  */
 
 /*
