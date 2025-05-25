@@ -1029,6 +1029,7 @@ internal TTF_Font *ttf_load(Arena *arena, Str8 font_path) {
 
         if (good) {
             font->glyph_count = num_glyphs;
+            font->metrics = arena_push_array(arena, TTF_HmtxMetrics, font->glyph_count);
         }
     }
 
@@ -1160,8 +1161,6 @@ internal TTF_Font *ttf_load(Arena *arena, Str8 font_path) {
         TTF_Parser hmtx_parser = { 0 };
         hmtx_parser.data = hmtx_data.data;
         hmtx_parser.size = hmtx_data.size;
-
-        font->metrics = arena_push_array(arena, TTF_HmtxMetrics, font->glyph_count);
 
         // NOTE(simon): Read both advance width and left side bearing.
         for (U32 glyph_index = 0; glyph_index < long_horizontal_metrics_count; ++glyph_index) {
