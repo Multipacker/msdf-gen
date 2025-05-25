@@ -59,6 +59,7 @@ internal S32 os_run(Str8List arguments) {
     state->context_stack = &state->base_context;
 
     state->command_arena = arena_create();
+    state->popup_arena = arena_create();
 
     // NOTE(simon): Themes
     {

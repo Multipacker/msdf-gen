@@ -308,6 +308,22 @@ internal Arena *frame_arena(Void) {
 
 
 
+internal Void open_popup(Str8 title, Str8 message) {
+    State *state = global_state;
+    Str8 message_copy = str8_copy(state->popup_arena, message);
+    state->popup_title         = str8_copy(state->popup_arena, title);
+    state->popup_message_lines = str8_split_by_codepoints(state->popup_arena, message_copy, str8_literal("\n"));
+}
+
+internal Void close_popup(Void) {
+    State *state = global_state;
+    arena_reset(state->popup_arena);
+    memory_zero_struct(&state->popup_title);
+    memory_zero_struct(&state->popup_message_lines);
+}
+
+
+
 typedef struct CommandItem CommandItem;
 struct CommandItem {
     CommandKind command;
@@ -1197,9 +1213,10 @@ internal Void update(Void) {
 
                     LogScopeResult log_result = log_scope_end(scratch.arena);
 
-                    for (LogMessageKind kind = 0; kind < Log_MessageKind_COUNT; ++kind) {
-                        os_console_print(log_result.strings[kind]);
+                    if (log_result.strings[Log_MessageKind_Error].size) {
+                        open_popup(str8_format(frame_arena(), "Encountered errors when loading %.*s", str8_expand(command_context->path)), log_result.strings[Log_MessageKind_Error]);
                     }
+
                     arena_end_temporary(scratch);
                 } break;
                 case Command_COUNT: {
@@ -1275,6 +1292,77 @@ internal Void update(Void) {
             Handle panel;
             Handle tab;
         };
+
+        B32 is_popup_open = state->popup_title.size != 0;
+
+        // NOTE(simon): Animate popup.
+        if (f32_abs((F32) is_popup_open - state->popup_t) > 0.001f) {
+            state->popup_t += ((F32) is_popup_open - state->popup_t) * ui_animation_fast_rate();
+            request_frame();
+        } else {
+            state->popup_t = (F32) is_popup_open;
+        }
+
+        // NOTE(simon): Popups
+        if (is_popup_open) {
+            UI_Palette modal_palette = ui_palette_top();
+            modal_palette.background = color_from_theme(ThemeColor_DropShadow);
+            modal_palette.background.a *= state->popup_t;
+
+            ui_fixed_x_next(0.0f);
+            ui_fixed_y_next(0.0f);
+            ui_width_next(ui_size_pixels(content_size.width, 1.0f));
+            ui_height_next(ui_size_pixels(content_size.height, 1.0f));
+            ui_palette_next(modal_palette);
+            ui_layout_axis_next(Axis2_X);
+            UI_Box *modal_box = ui_create_box_from_string(UI_BoxFlag_DrawBackground | UI_BoxFlag_Clickable | UI_BoxFlag_Scrollable, str8_literal("##modal"));
+
+            ui_parent(modal_box)
+            ui_width(ui_size_children_sum(state->popup_t))
+            ui_height(ui_size_children_sum(state->popup_t))
+            ui_padding(ui_size_parent_percent(0.5f, 1.0f - state->popup_t))
+            ui_column()
+            ui_padding(ui_size_parent_percent(0.5f, 1.0f - state->popup_t)) {
+                ui_layout_axis_next(Axis2_X);
+                ui_focus_next(UI_Focus_Active);
+                UI_Box *popup_box = ui_create_box_from_string(
+                    UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawBorder | UI_BoxFlag_Clip | UI_BoxFlag_DrawDropShadow | UI_BoxFlag_DisableFocusOverlay |
+                    UI_BoxFlag_Clickable |
+                    UI_BoxFlag_DefaultNavigation,
+                    str8_literal("##popup")
+                );
+
+                ui_parent(popup_box)
+                ui_palette(palette_from_code(PaletteCode_Button))
+                ui_padding(ui_size_ems(0.5f, 1.0f))
+                ui_column()
+                ui_padding(ui_size_ems(0.5f, 1.0f))
+                ui_width(ui_size_text_content(0.0, 1.0f))
+                ui_height(ui_size_text_content(0.0, 1.0f))
+                ui_text_padding(v2f32(ui_size_ems(0.5f, 1.0f).value, 0.0)) {
+                    ui_label(state->popup_title);
+
+                    if (state->popup_message_lines.first) {
+                        ui_spacer_sized(ui_size_ems(0.5f, 1.0f));
+
+                        for (Str8Node *line = state->popup_message_lines.first; line; line = line->next) {
+                            ui_label(line->string);
+                        }
+                    }
+
+                    ui_spacer_sized(ui_size_ems(0.5f, 1.0f));
+
+                    UI_Input close_input = ui_button(str8_literal("Close"));
+                    if (close_input.flags & UI_InputFlag_Clicked) {
+                        close_popup();
+                    }
+                }
+
+                ui_input_from_box(popup_box);
+            }
+
+            ui_input_from_box(modal_box);
+        }
 
         // NOTE(simon): Animate command lister.
         {

@@ -310,6 +310,11 @@ struct State {
 
     B32 show_command_lister;
     F32 command_lister_t;
+
+    Arena *popup_arena;
+    Str8 popup_title;
+    Str8List popup_message_lines;
+    F32 popup_t;
 };
 
 global State *global_state;
