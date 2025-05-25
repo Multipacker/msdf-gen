@@ -159,7 +159,13 @@ internal B32 ttf_parse_font_tables(Arena *arena, Str8 data, TTF_Font *font) {
         num_tables = 0;
     }
 
-    if (!(scaler_type == TTF_SCALER_TYPE_TRUE || scaler_type == TTF_SCALER_TYPE_1)) {
+    if (scaler_type == TTF_SCALER_TYPE_COLLECTION) {
+        log_error(str8_literal("TrueType collections are not supported yet.\n"));
+        num_tables = 0;
+    } else if (scaler_type == TTF_SCALER_TYPE_OPEN) {
+        log_error(str8_literal("OpenType fonts are not supported yet.\n"));
+        num_tables = 0;
+    } else if (!(scaler_type == TTF_SCALER_TYPE_TRUE || scaler_type == TTF_SCALER_TYPE_1)) {
         log_error(str8_literal("Unknown scaler type.\n"));
         num_tables = 0;
     }

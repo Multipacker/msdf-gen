@@ -1,9 +1,6 @@
 #ifndef TTF_H
 #define TTF_H
 
-#define TTF_SCALER_TYPE_TRUE 0x74727565
-#define TTF_SCALER_TYPE_1    0x00010000
-
 #define TTF_MAGIC_NUMBER 0x5F0F3CF5
 
 typedef enum {
@@ -33,6 +30,11 @@ typedef enum {
 
 #define TTF_MAKE_TAG(a, b, c, d) ((U32) a << 24 | (U32) b << 16 | (U32) c << 8 | (U32) d)
 #define TTF_MAKE_VERSION(major, minor) (((major) & 0xFFFF) << 16 | ((minor) & 0xFFFF))
+
+#define TTF_SCALER_TYPE_TRUE       0x74727565
+#define TTF_SCALER_TYPE_1          0x00010000
+#define TTF_SCALER_TYPE_OPEN       0x4F54544F
+#define TTF_SCALER_TYPE_COLLECTION TTF_MAKE_TAG('t', 't', 'c', 'f')
 
 typedef U16 TTF_ShortFrac;
 typedef U32 TTF_Fixed;
