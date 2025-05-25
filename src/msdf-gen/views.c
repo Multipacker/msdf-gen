@@ -291,12 +291,18 @@ PANEL_BUILD_FUNCTION(view_glyph) {
         U64 hovered_group;
         F32 hovered_t;
         F32 hovered_target_t;
+        F32 point_size;
+        F32 line_width;
     };
 
+    B32 is_new_tab = tab->view_state == 0;
     ViewState *state = (ViewState *) tab_get_state(tab, sizeof(ViewState));
-    if (state->zoom == 0.0f) {
+
+    if (is_new_tab) {
         state->zoom = 1.0f;
         state->target_zoom = 1.0f;
+        state->point_size = 0.5f;
+        state->line_width = 0.3f;
     }
 
     // NOTE(simon): Reset panning information when a new codepoint is selected.
@@ -308,6 +314,9 @@ PANEL_BUILD_FUNCTION(view_glyph) {
         state->is_group_visible = 0;
         state->codepoint = global_state->selected_codepoint;
     }
+
+    F32 point_size = state->point_size * (F32) ui_font_size_top();
+    F32 line_width = state->line_width * (F32) ui_font_size_top();
 
     ui_extra_box_flags_next(UI_BoxFlag_DefaultNavigation);
     ui_focus_next(UI_Focus_Active);
@@ -382,7 +391,6 @@ PANEL_BUILD_FUNCTION(view_glyph) {
         Draw_List *draw_list = draw_list_create();
         draw_list_scope(draw_list) {
             F32 padding = 2.0f * (F32) ui_font_size_top();
-            F32 point_size = 0.4f * (F32) ui_font_size_top();
 
             U32 glyph_index = ttf_glyph_index_from_font_codepoint(global_state->ttf_font, global_state->selected_codepoint);
             MSDF_Glyph glyph = ttf_expand_contours_to_msdf(scratch.arena, global_state->ttf_font, glyph_index);
@@ -440,10 +448,10 @@ PANEL_BUILD_FUNCTION(view_glyph) {
                                 case MSDF_Segment_Null: {
                                 } break;
                                 case MSDF_Segment_Line: {
-                                    draw_line(segment->p0, segment->p1, color_from_theme(ThemeColor_Outline), 2.0f / scale, 0.0f, 1.0f / scale);
+                                    draw_line(segment->p0, segment->p1, color_from_theme(ThemeColor_Outline), line_width / scale, 0.0f, 1.0f / scale);
                                 } break;
                                 case MSDF_Segment_QuadraticBezier: {
-                                    draw_bezier(segment->p0, segment->p1, segment->p2, color_from_theme(ThemeColor_Outline), 2.0f / scale, 0.0f, 1.0f / scale);
+                                    draw_bezier(segment->p0, segment->p1, segment->p2, color_from_theme(ThemeColor_Outline), line_width / scale, 0.0f, 1.0f / scale);
                                 } break;
                                 case MSDF_Segment_COUNT: {
                                 } break;
@@ -496,10 +504,10 @@ PANEL_BUILD_FUNCTION(view_glyph) {
                                     draw_circle(geometry->p0, point_size / scale, color, 0.0f, 1.0f / scale);
                                 } break;
                                 case MSDF_LogKind_Line: {
-                                    draw_line(geometry->p0, geometry->p1, color, 2.0f / scale, 0.0f, 1.0f / scale);
+                                    draw_line(geometry->p0, geometry->p1, color, line_width / scale, 0.0f, 1.0f / scale);
                                 } break;
                                 case MSDF_LogKind_Bezier: {
-                                    draw_bezier(geometry->p0, geometry->p1, geometry->p2, color, 2.0f / scale, 0.0f, 1.0f / scale);
+                                    draw_bezier(geometry->p0, geometry->p1, geometry->p2, color, line_width / scale, 0.0f, 1.0f / scale);
                                 } break;
                             }
                         }
@@ -540,6 +548,24 @@ PANEL_BUILD_FUNCTION(view_glyph) {
                     ui_checkbox_b32(&state->render_nearest, str8_literal("Draw nearest"));
                     ui_spacer_sized(ui_size_ems(0.5f, 1.0f));
                     ui_checkbox_b32(&state->render_logs, str8_literal("Draw logs"));
+                    ui_spacer_sized(ui_size_ems(0.5f, 1.0f));
+                    ui_width_next(ui_size_children_sum(1.0f));
+                    ui_height_next(ui_size_children_sum(1.0f));
+                    ui_row() {
+                        ui_width_next(ui_size_ems(5.0f, 1.0f));
+                        ui_slider(0.1f, &state->point_size, 1.0f, ui_key_from_string(ui_active_seed_key(), str8_literal("point_size")));
+                        ui_spacer_sized(ui_size_ems(0.5f, 1.0f));
+                        ui_label(str8_literal("Point size"));
+                    }
+                    ui_spacer_sized(ui_size_ems(0.5f, 1.0f));
+                    ui_width_next(ui_size_children_sum(1.0f));
+                    ui_height_next(ui_size_children_sum(1.0f));
+                    ui_row() {
+                        ui_width_next(ui_size_ems(5.0f, 1.0f));
+                        ui_slider(0.1f, &state->line_width, 1.0f, ui_key_from_string(ui_active_seed_key(), str8_literal("line_width")));
+                        ui_spacer_sized(ui_size_ems(0.5f, 1.0f));
+                        ui_label(str8_literal("Line width"));
+                    }
                     ui_spacer_sized(ui_size_ems(0.5f, 1.0f));
                     ui_label_format("Selected glyph: U+%.6X", global_state->selected_codepoint);
                     ui_spacer_sized(ui_size_ems(0.5f, 1.0f));
