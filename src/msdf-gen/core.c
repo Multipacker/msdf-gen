@@ -2443,16 +2443,16 @@ internal Void update(Void) {
                     }
                 }
 
-                if (parent->flags & UI_BoxFlag_Clickable && parent->focus_hot_t > 0.01f && !(parent->flags & UI_BoxFlag_DisableFocusOverlay)) {
+                if (parent->flags & UI_BoxFlag_Clickable && parent->focus_active_t > 0.01f && !(parent->flags & UI_BoxFlag_DisableFocusOverlay)) {
                     V4F32 color = color_from_theme(ThemeColor_Focus);
-                    color.a *= 0.2f * parent->focus_hot_t;
+                    color.a *= 0.2f * parent->focus_active_t;
                     Render_Shape *shape = draw_rectangle(parent->calculated_rectangle, color, 0.0f, 0.0f, 0.0f);
                     memory_copy(shape->radies, parent->corner_radies, sizeof(shape->radies));
                 }
 
-                if (parent->flags & UI_BoxFlag_Clickable && parent->focus_active_t > 0.01f && !(parent->flags & UI_BoxFlag_DisableFocusBorder)) {
+                if (parent->flags & UI_BoxFlag_Clickable && parent->focus_hot_t > 0.01f && !(parent->flags & UI_BoxFlag_DisableFocusBorder)) {
                     V4F32 color = color_from_theme(ThemeColor_Focus);
-                    color.a *= parent->focus_active_t;
+                    color.a *= parent->focus_hot_t;
                     Render_Shape *shape = draw_rectangle(parent->calculated_rectangle, color, 0.0f, 1.0f, 1.0f);
                     memory_copy(shape->radies, parent->corner_radies, sizeof(shape->radies));
                 }
