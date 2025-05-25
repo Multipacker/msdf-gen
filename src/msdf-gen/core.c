@@ -1502,9 +1502,11 @@ internal Void update(Void) {
                 ui_width(ui_size_fill())
                 ui_height(ui_size_pixels(height, 1.0f)) {
                     for (S64 i = top_row; i < bottom_row; ++i) {
-                        ui_focus_hot_push(i == active_index ? UI_Focus_Active : UI_Focus_Inactive);
-                        ui_focus_active_push(i == active_index ? UI_Focus_Active : UI_Focus_Inactive);
+                        ui_focus_push(i == active_index ? UI_Focus_Active : UI_Focus_Inactive);
                         ui_palette_push(palette_from_code(i % 2 == 0 ? PaletteCode_Button : PaletteCode_SecondaryButton));
+
+                        B32 is_focus_hot    = ui_is_focus_hot();
+                        B32 is_focus_active = ui_is_focus_active();
 
                         ui_hover_cursor_next(Gfx_Cursor_Hand);
                         ui_layout_axis_next(Axis2_X);
@@ -1555,7 +1557,7 @@ internal Void update(Void) {
                         }
                         UI_Input command_button_input = ui_input_from_box(command_button_box);
 
-                        if (line_input.flags & UI_InputFlag_Commit || command_button_input.flags & UI_InputFlag_Clicked) {
+                        if ((is_focus_hot && line_input.flags & UI_InputFlag_Commit) || command_button_input.flags & UI_InputFlag_Clicked) {
                             push_command(commands[i].command);
                             state->show_command_lister = 0;
                             buffer_size = 0;
@@ -1566,8 +1568,7 @@ internal Void update(Void) {
                         }
 
                         ui_palette_pop();
-                        ui_focus_hot_pop();
-                        ui_focus_active_pop();
+                        ui_focus_pop();
                     }
 
                     for (UI_Event *event = 0; ui_next_event(&event);) {

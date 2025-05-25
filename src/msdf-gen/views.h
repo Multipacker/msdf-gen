@@ -1,14 +1,8 @@
 #ifndef VIEWS_H
 #define VIEWS_H
 
-PANEL_BUILD_FUNCTION(view_glyph_list);
-PANEL_BUILD_FUNCTION(view_glyph);
-PANEL_BUILD_FUNCTION(view_stats);
-PANEL_BUILD_FUNCTION(view_theme);
-PANEL_BUILD_FUNCTION(view_test);
-
 #define TABS \
-    X(Null,        "",                  0)               \
+    X(Null,        "",                  view_null)       \
     X(GlyphList,   "Glyph list",        view_glyph_list) \
     X(GlyphView,   "Glyph view",        view_glyph)      \
     X(RenderStats, "Render statistics", view_stats)      \
@@ -20,6 +14,10 @@ typedef enum {
     TABS
     Tab_COUNT,
 } TabKind;
+#undef X
+
+#define X(name, display_name, build) PANEL_BUILD_FUNCTION(build);
+TABS
 #undef X
 
 #define X(name, display_name, build) { str8_literal_compile(#name), str8_literal_compile(display_name), build, },

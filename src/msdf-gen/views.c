@@ -80,6 +80,9 @@ internal U32 codepoint_from_map_index(TTF_CodepointMap map, S64 index) {
     return result;
 }
 
+PANEL_BUILD_FUNCTION(view_null) {
+}
+
 // TODO(simon): Implement better handling of resizing.
 PANEL_BUILD_FUNCTION(view_glyph_list) {
     prof_function_begin();
