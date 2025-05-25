@@ -174,6 +174,7 @@ internal Void msdf_cache_update(Void) {
                 V2F32 adjustment = v2f32_scale(v2f32_subtract(work.raster.max, work.raster.min), 0.5f * scale);
 
                 result->advance_pt = work.raster.advance_width;
+                result->left_side_bearing_pt = work.raster.left_side_bearing;
                 result->rectangle_pt = r2f32(
                     work.raster.min.x - adjustment.x,
                     work.raster.min.y - adjustment.y,

@@ -179,6 +179,8 @@ struct TTF_Font {
 
     U16 glyph_count;
 
+    TTF_FWord ascent;
+    TTF_FWord descent;
     U16 funits_per_em;
     U16 lowest_rec_ppem;
 

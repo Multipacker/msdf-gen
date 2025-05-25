@@ -1152,6 +1152,8 @@ internal TTF_Font *ttf_load(Arena *arena, Str8 font_path) {
 
         if (good) {
             long_horizontal_metrics_count = num_of_long_hor_metrics;
+            font->ascent  = ascent;
+            font->descent = descent;
         }
     }
 

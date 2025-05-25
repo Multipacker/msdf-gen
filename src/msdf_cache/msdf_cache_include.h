@@ -10,6 +10,7 @@ struct MSDFCache_Glyph {
 
     R2F32 rectangle_pt;
     F32   advance_pt;
+    F32   left_side_bearing_pt;
     R2F32 uv;
     Render_Texture texture;
 
