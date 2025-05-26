@@ -222,7 +222,7 @@ internal UI_Input ui_line_edit(U8 *buffer, U64 *buffer_size, U64 buffer_capacity
     if (is_auto_focus_hot) {
         ui_focus_hot_push(UI_Focus_Active);
     }
-    if (is_auto_focus_active ) {
+    if (is_auto_focus_active) {
         ui_focus_active_push(UI_Focus_Active);
     }
 
@@ -446,7 +446,7 @@ internal UI_Input ui_line_edit(U8 *buffer, U64 *buffer_size, U64 buffer_capacity
     if (is_auto_focus_hot) {
         ui_focus_hot_pop();
     }
-    if (is_auto_focus_active ) {
+    if (is_auto_focus_active) {
         ui_focus_active_pop();
     }
 
@@ -475,7 +475,7 @@ internal UI_Input ui_slider(F32 min, F32 *value, F32 max, UI_Key key) {
     if (is_auto_focus_hot) {
         ui_focus_hot_push(UI_Focus_Active);
     }
-    if (is_auto_focus_active ) {
+    if (is_auto_focus_active) {
         ui_focus_active_push(UI_Focus_Active);
     }
 
@@ -577,7 +577,7 @@ internal UI_Input ui_slider(F32 min, F32 *value, F32 max, UI_Key key) {
     if (is_auto_focus_hot) {
         ui_focus_hot_pop();
     }
-    if (is_auto_focus_active ) {
+    if (is_auto_focus_active) {
         ui_focus_active_pop();
     }
 
