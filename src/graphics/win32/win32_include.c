@@ -18,7 +18,7 @@ internal LRESULT CALLBACK win32_window_proc(HWND hwnd, UINT message, WPARAM wpar
     LRESULT result = 0;
 
     if (win32_event_arena) {
-        Gfx_Event *event = arena_push_struct_zero(win32_event_arena, Gfx_Event);
+        Gfx_Event *event = arena_push_struct(win32_event_arena, Gfx_Event);
 
         switch (message) {
             case WM_CLOSE: case WM_QUIT: case WM_DESTROY: {
@@ -123,7 +123,7 @@ internal LRESULT CALLBACK win32_window_proc(HWND hwnd, UINT message, WPARAM wpar
                 B32 is_c1_control = (0x80 <= codepoint && codepoint <= 0x9F);
 
                 if (!is_c0_control && !is_c1_control) {
-                    U8 *buffer = arena_push_array_zero(win32_event_arena, U8, 4);
+                    U8 *buffer = arena_push_array(win32_event_arena, U8, 4);
                     U64 length = string_encode_utf8(buffer, codepoint);
 
                     event->kind = Gfx_EventKind_Text;

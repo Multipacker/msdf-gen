@@ -16,7 +16,7 @@ internal Win32_Resource *win32_resource_create(Void) {
     if (result) {
         sll_stack_pop(win32_resource_freelist);
     } else {
-        result = arena_push_struct_zero(win32_resource_arena, Win32_Resource);
+        result = arena_push_struct(win32_resource_arena, Win32_Resource);
     }
     memory_zero_struct(result);
 

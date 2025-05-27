@@ -100,7 +100,7 @@ typedef enum {
 } Gfx_Key;
 #undef X
 
-#define X(name, display_name) str8_literal(display_name),
+#define X(name, display_name) str8_literal_compile(display_name),
 global Str8 gfx_name_from_key[] = {
     GFX_KEYS
 };
