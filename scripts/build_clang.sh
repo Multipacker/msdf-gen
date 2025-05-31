@@ -108,7 +108,12 @@ fi
 
 mkdir -p build
 
-#clang $compiler_flags $linker_flags src/msdf-gen/main.c -o build/msdf-gen
-clang $compiler_flags $linker_flags src/ui_test/main.c -o build/ui_test
+# TODO(simon): Use fewer and more specialized linking flags.
+clang $compiler_flags $linker_flags src/meta/main.c -o build/meta
+
+build/meta
+
+clang $compiler_flags $linker_flags src/msdf-gen/main.c -o build/msdf-gen
+#clang $compiler_flags $linker_flags src/ui_test/main.c -o build/ui_test
 #clang $compiler_flags $linker_flags src/msdf-gen/test.c -o build/test
 #clang $compiler_flags $linker_flags src/points/main.c -o build/points
