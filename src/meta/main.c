@@ -111,6 +111,40 @@ struct Elf64_Symbol {
     U64        size;          // st_size
 };
 
+
+
+typedef struct Symbol Symbol;
+struct Symbol {
+    Symbol *next;
+    Symbol *previous;
+
+    // NOTE(simon): Specified data.
+    Str8       name;
+    U16        section_index;
+    Elf64_Addr value;
+    U64        size;
+
+    // NOTE(simon): Computed data.
+    U32 name_index;
+};
+
+typedef struct Builder Builder;
+struct Builder {
+    Symbol *first_symbol;
+    Symbol *last_symbol;
+    U64 symbol_count;
+};
+
+internal Symbol *create_symbol(Arena *arena, Builder *builder, Str8 name) {
+    Symbol *symbol = arena_push_struct(arena, Symbol);
+    symbol->name = name;
+
+    dll_push_back(builder->first_symbol, builder->last_symbol, symbol);
+    ++builder->symbol_count;
+
+    return symbol;
+}
+
 internal S32 os_run(Str8List arguments) {
     /*
      * NOTE(simon):
@@ -133,28 +167,45 @@ internal S32 os_run(Str8List arguments) {
 
 
 
-    // NOTE(simon): Symbols
-    U64 symbol_count = 3;
-    Elf64_Symbol *symbols = arena_push_array(arena, Elf64_Symbol, symbol_count);
-    Str8 symbol_names = str8_literal("\0test_size\0test_data\0");
+    Builder builder = { 0 };
 
-    Elf64_Symbol *undefined_symbol = &symbols[0];
-
-    Elf64_Symbol *size_symbol = &symbols[1];
-    size_symbol->name          = 1; // test_size
-    size_symbol->info          = ELF_SYMBOL_INFO_FROM_BINDING_TYPE(ELF_SYMBOL_BINDING_GLOBAL, ELF_SYMBOL_TYPE_OBJECT);
-    size_symbol->other         = ELF_SYMBOL_VISIBILITY_DEFAULT;
+    Symbol *size_symbol = create_symbol(arena, &builder, str8_literal("test_size"));
     size_symbol->section_index = 1; // .data
     size_symbol->value         = 0; // Start of .data
     size_symbol->size          = sizeof(test_size);
 
-    Elf64_Symbol *data_symbol = &symbols[2];
-    data_symbol->name          = 11; // test_data
-    data_symbol->info          = ELF_SYMBOL_INFO_FROM_BINDING_TYPE(ELF_SYMBOL_BINDING_GLOBAL, ELF_SYMBOL_TYPE_OBJECT);
-    data_symbol->other         = ELF_SYMBOL_VISIBILITY_DEFAULT;
+    Symbol *data_symbol = create_symbol(arena, &builder, str8_literal("test_data"));
     data_symbol->section_index = 1; // .data
     data_symbol->value         = sizeof(test_size); // After test_data in .data
     data_symbol->size          = sizeof(test_data);
+
+
+
+    // NOTE(simon): Symbols
+    U64 elf_symbol_count = 1 + builder.symbol_count;
+    Elf64_Symbol *elf_symbols = arena_push_array(arena, Elf64_Symbol, elf_symbol_count);
+
+    U32 symbol_name_buffer_size = 1;
+    for (Symbol *symbol = builder.first_symbol; symbol; symbol = symbol->next) {
+        symbol->name_index = symbol_name_buffer_size;
+        symbol_name_buffer_size += symbol->name.size + 1;
+    }
+
+    U8 *symbol_name_buffer = arena_push_array(arena, U8, symbol_name_buffer_size);
+    U64 elf_symbol_index = 1;
+    for (Symbol *symbol = builder.first_symbol; symbol; symbol = symbol->next) {
+        memory_copy(&symbol_name_buffer[symbol->name_index], symbol->name.data, symbol->name.size);
+
+        Elf64_Symbol *elf_symbol = &elf_symbols[elf_symbol_index];
+        elf_symbol->name          = symbol->name_index;
+        elf_symbol->info          = ELF_SYMBOL_INFO_FROM_BINDING_TYPE(ELF_SYMBOL_BINDING_GLOBAL, ELF_SYMBOL_TYPE_OBJECT);
+        elf_symbol->other         = ELF_SYMBOL_VISIBILITY_DEFAULT;
+        elf_symbol->section_index = symbol->section_index;
+        elf_symbol->value         = symbol->value;
+        elf_symbol->size          = symbol->size;
+
+        ++elf_symbol_index;
+    }
 
 
 
@@ -170,7 +221,7 @@ internal S32 os_run(Str8List arguments) {
     data_section_header->name          = 1; // .data
     data_section_header->type          = ELF_SECTION_HEADER_TYPE_PROGRAM_BITS;
     data_section_header->flags         = ELF_SECTION_HEADER_FLAG_WRITE | ELF_SECTION_HEADER_FLAG_ALLOCATE;
-    data_section_header->offset        = sizeof(Elf64_Header) + section_count * sizeof(Elf64_SectionHeader) + symbol_count * sizeof(Elf64_Symbol) + section_names.size + symbol_names.size + 2;
+    data_section_header->offset        = sizeof(Elf64_Header) + section_count * sizeof(Elf64_SectionHeader) + elf_symbol_count * sizeof(Elf64_Symbol) + section_names.size + symbol_name_buffer_size;
     data_section_header->size          = sizeof(test_size) + sizeof(test_data);
     data_section_header->address_align = u64_max(8, 1);
 
@@ -178,7 +229,7 @@ internal S32 os_run(Str8List arguments) {
     symbol_table_section_header->name          = 7; // .symtab
     symbol_table_section_header->type          = ELF_SECTION_HEADER_TYPE_SYMBOL_TABLE;
     symbol_table_section_header->offset        = sizeof(Elf64_Header) + section_count * sizeof(Elf64_SectionHeader);
-    symbol_table_section_header->size          = symbol_count * sizeof(Elf64_Symbol);
+    symbol_table_section_header->size          = elf_symbol_count * sizeof(Elf64_Symbol);
     symbol_table_section_header->link          = 4; // .strtab
     symbol_table_section_header->info          = 1; // Last local symbol index + 1, sh_info
     symbol_table_section_header->address_align = _Alignof(Elf64_Symbol);
@@ -187,15 +238,15 @@ internal S32 os_run(Str8List arguments) {
     Elf64_SectionHeader *section_header_string_table_section_header = &sections[3];
     section_header_string_table_section_header->name          = 15; // .shstrtab
     section_header_string_table_section_header->type          = ELF_SECTION_HEADER_TYPE_STRING_TABLE;
-    section_header_string_table_section_header->offset        = sizeof(Elf64_Header) + section_count * sizeof(Elf64_SectionHeader) + symbol_count * sizeof(Elf64_Symbol);
+    section_header_string_table_section_header->offset        = sizeof(Elf64_Header) + section_count * sizeof(Elf64_SectionHeader) + elf_symbol_count * sizeof(Elf64_Symbol);
     section_header_string_table_section_header->size          = section_names.size;
     section_header_string_table_section_header->address_align = 1;
 
     Elf64_SectionHeader *string_table_section_header = &sections[4];
     string_table_section_header->name          = 25; // .strtab
     string_table_section_header->type          = ELF_SECTION_HEADER_TYPE_STRING_TABLE;
-    string_table_section_header->offset        = sizeof(Elf64_Header) + section_count * sizeof(Elf64_SectionHeader) + symbol_count * sizeof(Elf64_Symbol) + section_names.size;
-    string_table_section_header->size          = symbol_names.size;
+    string_table_section_header->offset        = sizeof(Elf64_Header) + section_count * sizeof(Elf64_SectionHeader) + elf_symbol_count * sizeof(Elf64_Symbol) + section_names.size;
+    string_table_section_header->size          = symbol_name_buffer_size;
     string_table_section_header->address_align = 1;
 
 
@@ -223,11 +274,9 @@ internal S32 os_run(Str8List arguments) {
     Str8List output = { 0 };
     str8_list_push(arena, &output, str8((U8 *) &header, sizeof(header)));
     str8_list_push(arena, &output, str8((U8 *) sections, section_count * sizeof(Elf64_SectionHeader)));
-    str8_list_push(arena, &output, str8((U8 *) symbols, symbol_count * sizeof(Elf64_Symbol)));
+    str8_list_push(arena, &output, str8((U8 *) elf_symbols, elf_symbol_count * sizeof(Elf64_Symbol)));
     str8_list_push(arena, &output, section_names);
-    str8_list_push(arena, &output, symbol_names);
-    U8 padding[2] = {};
-    str8_list_push(arena, &output, str8(padding, sizeof(padding)));
+    str8_list_push(arena, &output, str8(symbol_name_buffer, symbol_name_buffer_size));
     str8_list_push(arena, &output, str8((U8 *) &test_size, sizeof(test_size)));
     str8_list_push(arena, &output, str8(test_data, sizeof(test_data)));
 
