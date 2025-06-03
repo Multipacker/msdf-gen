@@ -119,13 +119,14 @@ struct Symbol {
     Symbol *previous;
 
     // NOTE(simon): Specified data.
-    Str8       name;
-    U16        section_index;
-    Elf64_Addr value;
-    U64        size;
+    Str8 name;
+    Str8 section_name;
+    Str8 data;
+    U64  align;
 
     // NOTE(simon): Computed data.
     U32 name_index;
+    U64 offset;
 };
 
 typedef struct Section Section;
@@ -134,19 +135,19 @@ struct Section {
     Section *previous;
 
     // NOTE(simon): Specified data.
-    Str8 name;
-    U32  type;
-    U64  flags;
-    U64  address;
-    Str8 data;
+    Str8     name;
+    U32      type;
+    U64      flags;
+    U64      address;
+    Str8List data;
     // TODO(simon): Maybe it would be better to have this be a pointer to the
     // section. Specifically for the symbol table, what if we have multiple
     // string tables? Is that even possible? If so, which one do we use? Do
     // they have different names.
-    Str8 link_name;
-    U32  info;
-    U64  address_align;
-    U64  entry_size;
+    Str8     link_name;
+    U32      info;
+    U64      address_align;
+    U64      entry_size;
 
     // NOTE(simon): Computed data.
     U32 name_index;
@@ -199,17 +200,6 @@ internal U64 section_index_from_name(Builder *builder, Str8 name) {
 }
 
 internal S32 os_run(Str8List arguments) {
-    /*
-     * NOTE(simon):
-     * Symbols need:
-     * * name
-     * * section name
-     * * data
-     * * data alignment
-     * * type (function, object)
-     * * visibility?
-     */
-
     Arena *arena = arena_create();
 
     // NOTE(simon): Test data
@@ -224,31 +214,49 @@ internal S32 os_run(Str8List arguments) {
 
     // NOTE(simon): Symbols
     Symbol *size_symbol = create_symbol(arena, &builder, str8_literal("test_size"));
-    size_symbol->section_index = 1; // .data
-    size_symbol->value         = 0; // Start of .data
-    size_symbol->size          = sizeof(test_size);
+    size_symbol->section_name = str8_literal(".data");
+    size_symbol->data         = str8((U8 *) &test_size, sizeof(test_size));
+    size_symbol->align        = 8;
 
     Symbol *data_symbol = create_symbol(arena, &builder, str8_literal("test_data"));
-    data_symbol->section_index = 1; // .data
-    data_symbol->value         = sizeof(test_size); // After test_data in .data
-    data_symbol->size          = sizeof(test_data);
+    data_symbol->section_name = str8_literal(".data");
+    data_symbol->data         = str8(test_data, sizeof(test_data));
+    data_symbol->align        = 1;
 
 
 
     // NOTE(simon): Sections
-    U64 data_buffer_size = sizeof(test_size) + sizeof(test_data);
-    U8 *data_buffer = arena_push_array(arena, U8, data_buffer_size);
-    memory_copy(&data_buffer[0], &test_size, sizeof(test_size));
-    memory_copy(&data_buffer[sizeof(test_size)], test_data, sizeof(test_data));
-
     Section *data_section = create_section(arena, &builder, str8_literal(".data"));
-    data_section->type          = ELF_SECTION_HEADER_TYPE_PROGRAM_BITS;
-    data_section->flags         = ELF_SECTION_HEADER_FLAG_WRITE | ELF_SECTION_HEADER_FLAG_ALLOCATE;
-    data_section->data          = str8(data_buffer, data_buffer_size);
-    data_section->address_align = u64_max(8, 1);
+    data_section->type  = ELF_SECTION_HEADER_TYPE_PROGRAM_BITS;
+    data_section->flags = ELF_SECTION_HEADER_FLAG_WRITE | ELF_SECTION_HEADER_FLAG_ALLOCATE;
 
 
 
+
+
+
+    // NOTE(simon): Layout symbols.
+    for (Section *section = builder.first_section; section; section = section->next) {
+        U64 offset = 0;
+        for (Symbol *symbol = builder.first_symbol; symbol; symbol = symbol->next) {
+            if (str8_equal(section->name, symbol->section_name)) {
+                U64 aligned_offset = u64_round_up_to_power_of_2(offset, symbol->align);
+
+                // NOTE(simon): Padding for alignment.
+                if (offset != aligned_offset) {
+                    U8 *padding = arena_push_array(arena, U8, aligned_offset - offset);
+                    str8_list_push(arena, &section->data, str8(padding, aligned_offset - offset));
+                }
+
+                symbol->offset = aligned_offset;
+
+                str8_list_push(arena, &section->data, symbol->data);
+                section->address_align = u64_max(section->address_align, symbol->align);
+
+                offset = aligned_offset + symbol->data.size;
+            }
+        }
+    }
 
 
 
@@ -266,7 +274,7 @@ internal S32 os_run(Str8List arguments) {
     for (Symbol *symbol = builder.first_symbol; symbol; symbol = symbol->next) {
         memory_copy(&symbol_name_buffer[symbol->name_index], symbol->name.data, symbol->name.size);
     }
-    string_table_section->data = str8(symbol_name_buffer, symbol_name_buffer_size);
+    str8_list_push(arena, &string_table_section->data, str8(symbol_name_buffer, symbol_name_buffer_size));
 
 
 
@@ -279,20 +287,20 @@ internal S32 os_run(Str8List arguments) {
         elf_symbol->name          = symbol->name_index;
         elf_symbol->info          = ELF_SYMBOL_INFO_FROM_BINDING_TYPE(ELF_SYMBOL_BINDING_GLOBAL, ELF_SYMBOL_TYPE_OBJECT);
         elf_symbol->other         = ELF_SYMBOL_VISIBILITY_DEFAULT;
-        elf_symbol->section_index = symbol->section_index;
-        elf_symbol->value         = symbol->value;
-        elf_symbol->size          = symbol->size;
+        elf_symbol->section_index = (U16) section_index_from_name(&builder, symbol->section_name);;
+        elf_symbol->value         = symbol->offset;
+        elf_symbol->size          = symbol->data.size;
 
         ++elf_symbol_index;
     }
 
     Section *symbol_table_section = create_section(arena, &builder, str8_literal(".symtab"));
     symbol_table_section->type          = ELF_SECTION_HEADER_TYPE_SYMBOL_TABLE;
-    symbol_table_section->data          = str8((U8 *) elf_symbols, elf_symbol_count * sizeof(Elf64_Symbol));
     symbol_table_section->link_name     = str8_literal(".strtab");
     symbol_table_section->info          = 1; // Last local symbol index + 1
     symbol_table_section->address_align = _Alignof(Elf64_Symbol);
     symbol_table_section->entry_size    = sizeof(Elf64_Symbol);
+    str8_list_push(arena, &symbol_table_section->data, str8((U8 *) elf_symbols, elf_symbol_count * sizeof(Elf64_Symbol)));
 
 
 
@@ -311,7 +319,7 @@ internal S32 os_run(Str8List arguments) {
     for (Section *section = builder.first_section; section; section = section->next) {
         memory_copy(&section_name_buffer[section->name_index], section->name.data, section->name.size);
     }
-    section_header_string_table_section->data = str8(section_name_buffer, section_name_buffer_size);
+    str8_list_push(arena, &section_header_string_table_section->data, str8(section_name_buffer, section_name_buffer_size));
 
 
 
@@ -320,7 +328,7 @@ internal S32 os_run(Str8List arguments) {
         U64 total_offset = sizeof(Elf64_Header) + (1 + builder.section_count) * sizeof(Elf64_SectionHeader);
         for (Section *section = builder.first_section; section; section = section->next) {
             section->offset = total_offset;
-            total_offset += section->data.size;
+            total_offset += section->data.total_size;
         }
     }
 
@@ -337,7 +345,7 @@ internal S32 os_run(Str8List arguments) {
         elf_section->flags         = section->flags;
         elf_section->address       = section->address;
         elf_section->offset        = section->offset;
-        elf_section->size          = section->data.size;
+        elf_section->size          = section->data.total_size;
         elf_section->link          = (U32) section_index_from_name(&builder, section->link_name);
         elf_section->info          = section->info;
         elf_section->address_align = section->address_align;
@@ -375,7 +383,9 @@ internal S32 os_run(Str8List arguments) {
     str8_list_push(arena, &output, str8((U8 *) &header, sizeof(header)));
     str8_list_push(arena, &output, str8((U8 *) elf_sections, elf_section_count * sizeof(Elf64_SectionHeader)));
     for (Section *section = builder.first_section; section; section = section->next) {
-        str8_list_push(arena, &output, section->data);
+        for (Str8Node *data = section->data.first; data; data = data->next) {
+            str8_list_push(arena, &output, data->string);
+        }
     }
 
     os_file_write(str8_literal("test_elf.o"), output);
