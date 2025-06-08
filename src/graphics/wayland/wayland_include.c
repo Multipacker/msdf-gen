@@ -1138,9 +1138,8 @@ internal Void wayland_registry_global_remove(Void *data, struct wl_registry *reg
 
 
 internal Void gfx_create(Str8 title, U32 width, U32 height) {
-    gfx_linux_init();
-
     Arena_Temporary scratch = arena_get_scratch(0, 0);
+
     Wayland_State *state = &global_wayland_state;
     state->arena = arena_create();
     state->selection_source_arena = arena_create();

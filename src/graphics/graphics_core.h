@@ -139,15 +139,6 @@ typedef enum {
     Gfx_Cursor_COUNT,
 } Gfx_Cursor;
 
-typedef enum {
-    Gfx_Font_Default,
-    Gfx_Font_Proportional,
-    Gfx_Font_Monospace,
-    Gfx_Font_SansSerif,
-    Gfx_Font_Serif,
-    Gfx_Font_COUNT,
-} Gfx_Font;
-
 internal Void          gfx_create(Str8 title, U32 width, U32 height);
 internal V2U32         gfx_get_window_client_area(Void);
 internal Void          gfx_send_wakeup_event(Void);
@@ -168,8 +159,5 @@ internal Void          gfx_set_maximized(B32 maximized);
 // NOTE(simon): Clipboard
 internal Void gfx_set_clipboard_text(Str8 text);
 internal Str8 gfx_get_clipboard_text(Arena *arena);
-
-// NOTE(simon): System fonts
-internal Str8 gfx_font_path(Arena *arena, Gfx_Font font);
 
 #endif // GRAPHICS_CORE_H

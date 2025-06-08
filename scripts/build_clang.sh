@@ -40,7 +40,7 @@ if [ -v error_limit ]; then
     errors+="-ferror-limit=5 "
 fi
 
-base_libraries="-lm -lpthread -lfontconfig"
+base_libraries="-lm -lpthread"
 wayland_libraries="-lwayland-client -lwayland-egl -lwayland-cursor -lEGL -lxkbcommon"
 x11_libraries="-lxcb -lxcb-cursor -lxcb-xkb -lxkbcommon-x11 -lEGL -lxkbcommon"
 render_libraries="build/opengl.o"

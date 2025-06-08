@@ -365,7 +365,7 @@ internal Void ui_begin(UI_EventList *events, F32 dt) {
     ui_height_push(ui_size_pixels(0.0f, 0.0f));
     ui_layout_axis_push(Axis2_X);
     ui_extra_box_flags_push(0);
-    ui_font_push(gfx_font_path(ui_frame_arena(), Gfx_Font_Default));
+    ui_font_push(str8_literal("data/NotoSans-Regular.ttf"));
     ui_font_size_push(14);
     ui_text_align_push(UI_TextAlign_Left);
     ui_text_padding_push(v2f32(0.0f, 0.0f));

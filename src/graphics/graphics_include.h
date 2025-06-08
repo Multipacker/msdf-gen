@@ -4,7 +4,6 @@
 #include "graphics_core.h"
 
 #if OS_LINUX
-#  include "linux/linux_include.h"
 #  if LINUX_WAYLAND
 #    include "wayland/wayland_include.h"
 #  elif LINUX_X11
