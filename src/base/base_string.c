@@ -160,6 +160,19 @@ internal Void str8_list_push(Arena *arena, Str8List *list, Str8 string) {
     str8_list_push_explicit(list, string, node);
 }
 
+internal Void str8_list_push_format(Arena *arena, Str8List *list, CStr format, ...) {
+    va_list arguments;
+    va_start(arguments, format);
+    Str8 string = str8_format_list(arena, format, arguments);
+    str8_list_push(arena, list, string);
+    va_end(arguments);
+}
+
+internal Void str8_list_push_format_list(Arena *arena, Str8List *list, CStr format, va_list arguments) {
+    Str8 string = str8_format_list(arena, format, arguments);
+    str8_list_push(arena, list, string);
+}
+
 internal Str8 str8_join(Arena *arena, Str8List *list) {
     U64 size = list->total_size;
     U8 *data = arena_push_array_no_zero(arena, U8, size);

@@ -82,6 +82,8 @@ internal B32 str8_equal(Str8 a, Str8 b);
 internal Void str8_list_append(Arena *arena, Str8List *list, Str8List others);
 internal Void str8_list_push_explicit(Str8List *list, Str8 string, Str8Node *node);
 internal Void str8_list_push(Arena *arena, Str8List *list, Str8 string);
+internal Void str8_list_push_format(Arena *arena, Str8List *list, CStr format, ...);
+internal Void str8_list_push_format_list(Arena *arena, Str8List *list, CStr format, va_list arguments);
 internal Str8 str8_join(Arena *arena, Str8List *list);
 
 // NOTE(simon): Formatting.
