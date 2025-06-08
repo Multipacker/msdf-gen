@@ -22,10 +22,6 @@ struct Token {
     TokenKind  kind;
     Str8       string;
     TokenFlags flags;
-    U64        start_line;
-    U64        start_column;
-    U64        end_line;
-    U64        end_column;
 };
 
 typedef struct TokenChunk TokenChunk;
@@ -49,6 +45,9 @@ struct TokenArray {
     Token *tokens;
     U64    count;
 };
+
+internal V2U64 location_from_source_pointer(Str8 source, U8 *location);
+internal V2U64 location_from_source_token(Str8 source, Token token);
 
 internal TokenArray tokens_from_string(Arena *arena, Str8 name, Str8 source);
 
