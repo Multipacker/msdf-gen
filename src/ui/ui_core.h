@@ -557,7 +557,7 @@ internal B32 ui_is_animating_from_context(UI_Context *ui);
 #define ui_fixed_position_auto_pop()     (ui_fixed_x_auto_pop(), ui_fixed_y_auto_pop())
 #define ui_fixed_position_top()          v2f32(ui_fixed_x_top(), ui_fixed_y_top())
 
-#define ui_font_push(font) ui_font_stack_push(&global_ui_state->font_stack, font_cache_font_from_path(font), false)
+#define ui_font_push(font) ui_font_stack_push(&global_ui_state->font_stack, font, false)
 #define ui_font_pop()      ui_font_stack_pop(&global_ui_state->font_stack)
 #define ui_font(font)      defer_loop(ui_font_push(font), ui_font_pop())
 #define ui_font_next(font) ui_font_stack_push(&global_ui_state->font_stack, font, true)

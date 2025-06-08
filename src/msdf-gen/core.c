@@ -1,3 +1,7 @@
+#include "generated.h"
+
+embed_file(msdf_gen_default_font, "/data/NotoSans-Regular.ttf");
+
 // NOTE(simon): Tabs
 internal Tab *tab_create(State *state, Str8 name) {
     U64 generation = 0;
@@ -1276,7 +1280,8 @@ internal Void update(Void) {
 
         ui_palette_push(palette_from_code(PaletteCode_Base));
 
-        // NOTE(simon): state->font_size points * dpi pixels per inch / 72 points per inch
+        FontCache_Font *default_font = font_cache_font_from_static_data(&msdf_gen_default_font);
+        ui_font_push(default_font);
         ui_font_size_push((U32) (state->font_size * gfx_dpi() / 72.0f));
 
         ui_height_push(ui_size_ems(1.5f, 1.0f));
