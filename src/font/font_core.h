@@ -10,7 +10,7 @@ struct Font_Metrics {
     U32 units_per_em;
 };
 
-internal Font_Raster *raster_load(Arena *arena, Str8 path);
+internal Font_Raster *raster_load(Arena *arena, Str8 data);
 internal Font_Metrics raster_get_font_metrics(Font_Raster *font);
 internal MSDF_RasterResult raster_generate(Arena *arena, Font_Raster *font, U32 codepoint, U32 size);
 

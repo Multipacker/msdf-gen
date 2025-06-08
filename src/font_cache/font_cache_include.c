@@ -178,7 +178,9 @@ internal FontCache_Font *font_cache_font_from_path(Str8 path) {
         result = arena_push_struct(state->arena, FontCache_Font);
 
         result->path = str8_copy(state->arena, path);
-        result->font = raster_load(state->arena, path);
+        Str8 data = { 0 };
+        os_file_read(state->arena, path, &data);
+        result->font = raster_load(state->arena, data);
 
         Font_Metrics metrics = raster_get_font_metrics(result->font);
 

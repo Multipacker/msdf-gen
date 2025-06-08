@@ -15,14 +15,11 @@ struct Font_Raster {
     B32 initialized;
 };
 
-internal Font_Raster *raster_load(Arena *arena, Str8 path) {
+internal Font_Raster *raster_load(Arena *arena, Str8 data) {
     Font_Raster *result = arena_push_struct(arena, Font_Raster);
 
-    Str8 buffer = { 0 };
-    if (os_file_read(arena, path, &buffer)) {
-        int loaded = stbtt_InitFont(&result->font_info, buffer.data, stbtt_GetFontOffsetForIndex(buffer.data, 0));
-        result->initialized = loaded != 0;
-    }
+    int loaded = stbtt_InitFont(&result->font_info, data.data, stbtt_GetFontOffsetForIndex(data.data, 0));
+    result->initialized = loaded != 0;
 
     return result;
 }
