@@ -115,28 +115,13 @@ internal Str8 str8_substring(Str8 string, U64 start, U64 size) {
     return result;
 }
 
-// TODO: Unicode implementation
 internal B32 str8_equal(Str8 a, Str8 b) {
     if (a.size != b.size) {
         return false;
     }
 
-    U8 *a_ptr = a.data;
-    U8 *b_ptr = b.data;
-    U8 *a_opl = a.data + a.size;
-    U8 *b_opl = b.data + b.size;
-    while (a_ptr < a_opl && b_ptr < b_opl) {
-        StringDecode a_decode = string_decode_utf8(a_ptr, (U64) (a_opl - a_ptr));
-        StringDecode b_decode = string_decode_utf8(b_ptr, (U64) (b_opl - b_ptr));
-        a_ptr += a_decode.size;
-        b_ptr += b_decode.size;
-
-        if (a_decode.codepoint != b_decode.codepoint) {
-            return false;
-        }
-    }
-
-    return true;
+    B32 result = memory_equal(a.data, b.data, a.size);
+    return result;
 }
 
 
