@@ -3,3 +3,4 @@
 /.vimrc
 /msdf.config
 **/*.generated.*
+**/generated.*
