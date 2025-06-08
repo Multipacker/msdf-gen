@@ -26,7 +26,7 @@ struct FontCache_Font {
     FontCache_Font *hash_next;
     FontCache_Font *hash_previous;
 
-    Str8         path;
+    U64          hash;
     Font_Raster *font;
     F32          ascent;
     F32          descent;

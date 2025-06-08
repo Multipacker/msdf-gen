@@ -3,6 +3,7 @@
 // TODO(simon): Cleanup
 
 global FontCache_State global_font_cache_state;
+global FontCache_Font  global_font_cache_null_font;
 
 internal FontCache_Atlas *font_cache_atlas_create(Arena *arena, V2U32 size) {
     FontCache_Atlas *atlas = arena_push_struct(arena, FontCache_Atlas);
@@ -167,7 +168,7 @@ internal FontCache_Font *font_cache_font_from_path(Str8 path) {
     U64 hash = str8_hash(path);
     FontCache_FontList *fonts = &state->font_table[hash % state->font_table_size];
     for (FontCache_Font *font = fonts->first; font; font = font->hash_next) {
-        if (str8_equal(path, font->path)) {
+        if (font->hash == hash) {
             result = font;
             break;
         }
@@ -177,10 +178,46 @@ internal FontCache_Font *font_cache_font_from_path(Str8 path) {
     if (!result) {
         result = arena_push_struct(state->arena, FontCache_Font);
 
-        result->path = str8_copy(state->arena, path);
+        result->hash = hash;
         Str8 data = { 0 };
         os_file_read(state->arena, path, &data);
         result->font = raster_load(state->arena, data);
+
+        Font_Metrics metrics = raster_get_font_metrics(result->font);
+
+        result->ascent       = (F32) metrics.ascent;
+        result->descent      = (F32) metrics.descent;
+        result->units_per_em = (F32) metrics.units_per_em;
+
+        dll_insert_next_previous_zero(fonts->first, fonts->last, fonts->last, result, hash_next, hash_previous, 0);
+    }
+
+    prof_function_end();
+    return result;
+}
+
+internal FontCache_Font *font_cache_font_from_static_data(Str8 *data) {
+    prof_function_begin();
+    FontCache_State *state = &global_font_cache_state;
+
+    FontCache_Font *result = 0;
+
+    // NOTE(simon): Lookup the font from the path.
+    U64 hash = u64_hash(integer_from_pointer(data));
+    FontCache_FontList *fonts = &state->font_table[hash % state->font_table_size];
+    for (FontCache_Font *font = fonts->first; font; font = font->hash_next) {
+        if (font->hash == hash) {
+            result = font;
+            break;
+        }
+    }
+
+    // NOTE(simon): Load the font if it doesn't exist yet.
+    if (!result) {
+        result = arena_push_struct(state->arena, FontCache_Font);
+
+        result->hash = hash;
+        result->font = raster_load(state->arena, *data);
 
         Font_Metrics metrics = raster_get_font_metrics(result->font);
 
@@ -232,7 +269,7 @@ internal FontCache_Text font_cache_text(Arena *arena, FontCache_Font *font, Str8
     result.descent = f32_ceil(font->descent * (F32) size / font->units_per_em);
     result.size.height = f32_ceil(result.ascent - result.descent);
 
-    U64 font_hash = hash_combine(str8_hash(font->path), u64_hash(size));
+    U64 font_hash = hash_combine(font->hash, u64_hash(size));
     U8 *ptr = text.data;
     U8 *opl = text.data + text.size;
     while (ptr < opl) {
