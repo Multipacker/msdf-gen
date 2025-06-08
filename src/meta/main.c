@@ -200,7 +200,15 @@ internal S32 os_run(Str8List arguments) {
             dll_push_back(first_layer, last_layer, layer);
         }
 
-        Str8 embed_file       = str8_format(arena, "%.*s/%.*s", str8_expand(directory), str8_expand(embed->file));
+        Str8 embed_file = { 0 };
+        if (embed->file.size >= 1 && embed->file.data[0] == '/') {
+            // NOTE(simon): Path is relative to project directory.
+            embed_file = str8_format(arena, "%.*s%.*s", str8_expand(project_path), str8_expand(embed->file));
+        } else {
+            // NOTE(simon): Path is relative to the file it is referenced from.
+            embed_file = str8_format(arena, "%.*s/%.*s", str8_expand(directory), str8_expand(embed->file));
+        }
+
         Str8 data_symbol_name = str8_format(arena, "%.*s_data", str8_expand(embed->identifier));
         Str8 contents = { 0 };
         os_file_read(arena, embed_file, &contents);
