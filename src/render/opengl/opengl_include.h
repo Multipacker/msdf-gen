@@ -31,6 +31,7 @@ struct OpenGL_Context {
 };
 
 typedef struct {
+    Str8 name;
     Str8 source;
     GLenum kind;
 } OpenGL_ShaderSpecification;
@@ -41,7 +42,7 @@ typedef struct {
 } OpenGL_Result;
 
 // NOTE(simon): Shaders compilation helpers.
-internal OpenGL_Result opengl_create_shader(Arena *arena, Str8 path, GLenum shader_type);
+internal OpenGL_Result opengl_create_shader(Arena *arena, OpenGL_ShaderSpecification shader);
 internal OpenGL_Result opengl_create_program(Arena *arena, OpenGL_ShaderSpecification *shaders, U32 shader_count);
 
 // NOTE(simon): Vertex attribute helpers.

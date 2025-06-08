@@ -40,14 +40,15 @@ if [ -v error_limit ]; then
     errors+="-ferror-limit=5 "
 fi
 
-wayland_libraries=" -lwayland-client -lwayland-egl -lwayland-cursor -lEGL -lxkbcommon"
+base_libraries="-lm -lpthread -lfontconfig"
+wayland_libraries="-lwayland-client -lwayland-egl -lwayland-cursor -lEGL -lxkbcommon"
 x11_libraries="-lxcb -lxcb-cursor -lxcb-xkb -lxkbcommon-x11 -lEGL -lxkbcommon"
-common_libraries="-lm -lpthread -lfontconfig"
+render_libraries="build/opengl.o"
 
 # Choose libraries
 if [ -v wayland ]; then
     echo "Wayland backend"
-    libraries="${common_libraries} ${wayland_libraries}"
+    graphics_libraries="${wayland_libraries}"
     defines="-DLINUX_WAYLAND=1"
 
     wayland-scanner client-header < /usr/share/wayland-protocols/stable/xdg-shell/xdg-shell.xml > src/graphics/wayland/wayland_xdg_shell.generated.h
@@ -60,12 +61,12 @@ if [ -v wayland ]; then
     wayland-scanner private-code  < /usr/share/wayland-protocols/unstable/xdg-decoration/xdg-decoration-unstable-v1.xml > src/graphics/wayland/wayland_xdg_decoration.generated.c
 elif [ -v x11 ]; then
     echo "X11 backend"
-    libraries="${common_libraries} ${x11_libraries}"
+    graphics_libraries="${x11_libraries}"
     defines="-DLINUX_X11=1"
 fi
 
 common_compiler_flags="-I. ${errors} ${defines}"
-common_linker_flags="${libraries}"
+common_linker_flags=""
 
 # Debug flags
 debug_compiler_flags="${common_compiler_flags} -g -DENABLE_ASSERT=1 -DDEBUG_BUILD=1"
@@ -108,12 +109,11 @@ fi
 
 mkdir -p build
 
-# TODO(simon): Use fewer and more specialized linking flags.
-clang $compiler_flags $linker_flags src/meta/main.c -o build/meta
+clang $compiler_flags $linker_flags $base_libraries src/meta/main.c -o build/meta
 
 build/meta
 
-clang $compiler_flags $linker_flags src/msdf-gen/main.c -o build/msdf-gen
-#clang $compiler_flags $linker_flags src/ui_test/main.c -o build/ui_test
-#clang $compiler_flags $linker_flags src/msdf-gen/test.c -o build/test
-#clang $compiler_flags $linker_flags src/points/main.c -o build/points
+clang $compiler_flags $linker_flags $base_libraries $graphics_libraries $render_libraries src/msdf-gen/main.c -o build/msdf-gen
+#clang $compiler_flags $linker_flags $base_libraries $graphics_libraries $render_libraries src/ui_test/main.c -o build/ui_test
+#clang $compiler_flags $linker_flags $base_libraries $graphics_libraries $render_libraries src/msdf-gen/test.c -o build/test
+#clang $compiler_flags $linker_flags $base_libraries $graphics_libraries $render_libraries src/points/main.c -o build/points
