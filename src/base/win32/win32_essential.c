@@ -339,7 +339,7 @@ internal Void os_sleep_milliseconds(U64 time) {
 
 
 internal Void os_get_entropy(Void *data, U64 size) {
-    // TODO: Implement
+    BCryptGenRandom(0, data, size, BCRYPT_USE_SYSTEM_PREFERRED_RNG);
 }
 
 

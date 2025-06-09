@@ -7,6 +7,7 @@
 #pragma warning(push, 0)
 #include <Windows.h>
 #include <Shlobj.h>
+#include <bcrypt.h>
 #pragma warning(pop)
 
 typedef struct {
