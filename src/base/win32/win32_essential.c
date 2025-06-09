@@ -196,17 +196,20 @@ internal B32 os_file_delete_directory(Str8 path) {
 
 
 // NOTE(simon): File iteration.
-internal Void os_file_iterator_initialize(OS_FileIterator *iterator, Str8 path) {
-    Arena_Temporary scratch = arena_get_scratch(0, 0);
-    Win32_FileIterator *win32_iterator = (Win32_FileIterator *) iterator;
+internal OS_FileIterator *os_file_iterator_begin(Arena *arena, Str8 path) {
+    Arena_Temporary scratch = arena_get_scratch(&arena, 1);
 
-    Str8 path_with_wildcard = str8_concatenate(scratch.arena, path, str8_literal("\\*"));
-    CStr16 path_cstr16 = cstr16_from_str8(scratch.arena, path_with_wildcard);
+    Str8   path_with_wildcard = str8_concatenate(scratch.arena, path, str8_literal("\\*"));
+    CStr16 path_cstr16        = cstr16_from_str8(scratch.arena, path_with_wildcard);
+
+    Win32_FileIterator *win32_iterator = (Win32_FileIterator *) arena_push_struct(arena, OS_FileIterator);
     win32_iterator->handle = FindFirstFileExW((WCHAR *) path_cstr16, FindExInfoBasic, &win32_iterator->find_data, FindExSearchNameMatch, 0, FIND_FIRST_EX_LARGE_FETCH);
+
     arena_end_temporary(scratch);
+    return (OS_FileIterator *) win32_iterator;
 }
 
-internal B32 os_file_iterator_next(Arena *arena, OS_FileIterator *iterator, Str8 *name_out, FileProperties *properties_out) {
+internal B32 os_file_iterator_next(Arena *arena, OS_FileIterator *iterator, OS_FileInfo *info) {
     Win32_FileIterator *win32_iterator = (Win32_FileIterator *) iterator;
 
     B32 result = false;
@@ -220,11 +223,11 @@ internal B32 os_file_iterator_next(Arena *arena, OS_FileIterator *iterator, Str8
             B32 is_dotdot = (file_name[0] == '.' && file_name[1] == '.' && file_name[2] == 0);
 
             if (!is_dot && !is_dotdot) {
-                *name_out = str8_from_str16(arena, str16_cstr16(file_name));
-                properties_out->size = (U64) win32_iterator->find_data.nFileSizeHigh << 32 | (U64) win32_iterator->find_data.nFileSizeLow;
+                info->name = str8_from_str16(arena, str16_cstr16(file_name));
+                info->properties.size = (U64) win32_iterator->find_data.nFileSizeHigh << 32 | (U64) win32_iterator->find_data.nFileSizeLow;
                 // TODO(simon): Creation time and modification time.
                 if (attributes & FILE_ATTRIBUTE_DIRECTORY) {
-                    properties_out->flags |= FILE_PROPERTY_FLAGS_IS_FOLDER;
+                    info->properties.flags |= FILE_PROPERTY_FLAGS_IS_FOLDER;
                 }
 
                 result = true;

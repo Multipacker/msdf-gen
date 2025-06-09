@@ -241,17 +241,19 @@ internal B32 os_file_delete_directory(Str8 path) {
     return success;
 }
 
-internal Void os_file_iterator_initialize(OS_FileIterator *iterator, Str8 path) {
-    memory_zero_struct(iterator);
-    Linux_FileIterator *linux_iterator = (Linux_FileIterator *) iterator;
+internal OS_FileIterator *os_file_iterator_begin(Arena *arena, Str8 path) {
+    Arena_Temporary scratch = arena_get_scratch(&arena, 1);
 
-    Arena_Temporary scratch = arena_get_scratch(0, 0);
     CStr path_c = cstr_from_str8(scratch.arena, path);
+
+    Linux_FileIterator *linux_iterator = (Linux_FileIterator *) arena_push_struct(arena, OS_FileIterator);
     linux_iterator->file_descriptor = open(path_c, O_RDONLY | O_DIRECTORY);
+
     arena_end_temporary(scratch);
+    return (OS_FileIterator *) linux_iterator;
 }
 
-internal B32 os_file_iterator_next(Arena *arena, OS_FileIterator *iterator, Str8 *name_out, FileProperties *properties_out) {
+internal B32 os_file_iterator_next(Arena *arena, OS_FileIterator *iterator, OS_FileInfo *info) {
     B32 result = false;
 
     Linux_FileIterator *linux_iterator = (Linux_FileIterator *) iterator;
@@ -314,12 +316,12 @@ internal B32 os_file_iterator_next(Arena *arena, OS_FileIterator *iterator, Str8
             B32 is_dotdot = (header->name[0] == '.' && header->name[1] == '.' && header->name[2] == 0);
 
             if (!is_dot && !is_dotdot) {
-                *name_out = str8_copy_cstr(arena, (U8 *) header->name);
+                info->name = str8_copy_cstr(arena, (U8 *) header->name);
                 struct stat metadata = { 0 };
                 if (fstatat(linux_iterator->file_descriptor, header->name, &metadata, 0) != -1) {
-                    linux_file_properties_from_stat(properties_out, &metadata);
+                    linux_file_properties_from_stat(&info->properties, &metadata);
                 } else {
-                    memory_zero_struct(properties_out);
+                    memory_zero_struct(&info->properties);
                 }
                 result = true;
                 break;

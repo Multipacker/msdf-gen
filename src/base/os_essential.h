@@ -30,6 +30,12 @@ struct OS_ConditionVariable {
     U64 u64[1];
 };
 
+typedef struct OS_FileInfo OS_FileInfo;
+struct OS_FileInfo {
+    Str8           name;
+    FileProperties properties;
+};
+
 // NOTE(simon): Memory.
 internal Void *os_memory_reserve(U64 size);
 internal Void  os_memory_commit(Void *pointer, U64 size);
@@ -50,9 +56,9 @@ internal B32 os_file_make_directory(Str8 path);
 internal B32 os_file_delete_directory(Str8 path);
 
 // NOTE(simon): File iteration.
-internal Void os_file_iterator_initialize(OS_FileIterator *iterator, Str8 path);
-internal B32  os_file_iterator_next(Arena *arena, OS_FileIterator *iterator, Str8 *name_out, FileProperties *properties_out);
-internal Void os_file_iterator_end(OS_FileIterator *iterator);
+internal OS_FileIterator *os_file_iterator_begin(Arena *arena, Str8 path);
+internal B32              os_file_iterator_next(Arena *arena, OS_FileIterator *iterator, OS_FileInfo *info);
+internal Void             os_file_iterator_end(OS_FileIterator *iterator);
 
 internal Str8 os_current_directory(Arena *arena);
 internal Str8 os_file_path(Arena *arena, OS_SystemPath path);

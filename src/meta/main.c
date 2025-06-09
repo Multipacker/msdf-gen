@@ -98,14 +98,11 @@ internal S32 os_run(Str8List arguments) {
             Str8Node *directory = directories;
             sll_stack_pop(directories);
 
-            OS_FileIterator file_iterator = { 0 };
-            os_file_iterator_initialize(&file_iterator, directory->string);
-            Str8 local_name = { 0 };
-            FileProperties properties = { 0 };
-            while (os_file_iterator_next(scratch.arena, &file_iterator, &local_name, &properties)) {
-                Str8 name = str8_format(scratch.arena, "%.*s/%.*s", str8_expand(directory->string), str8_expand(local_name));
+            OS_FileIterator *file_iterator = os_file_iterator_begin(scratch.arena, directory->string);
+            for (OS_FileInfo info = { 0 }; os_file_iterator_next(scratch.arena, file_iterator, &info); ) {
+                Str8 name = str8_format(scratch.arena, "%.*s/%.*s", str8_expand(directory->string), str8_expand(info.name));
 
-                if (properties.flags & FILE_PROPERTY_FLAGS_IS_FOLDER) {
+                if (info.properties.flags & FILE_PROPERTY_FLAGS_IS_FOLDER) {
                     Str8Node *new_directory = arena_push_struct(scratch.arena, Str8Node);
                     new_directory->string = name;
                     sll_stack_push(directories, new_directory);
@@ -113,7 +110,7 @@ internal S32 os_run(Str8List arguments) {
                     str8_list_push(arena, &files, str8_copy(arena, name));
                 }
             }
-            os_file_iterator_end(&file_iterator);
+            os_file_iterator_end(file_iterator);
         }
 
         arena_end_temporary(scratch);
