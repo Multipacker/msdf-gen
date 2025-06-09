@@ -337,31 +337,35 @@ internal Void os_file_iterator_end(OS_FileIterator *iterator) {
     }
 }
 
+
+
+internal Str8 os_current_directory(Arena *arena) {
+    Arena_Temporary scratch = arena_get_scratch(&arena, 1);
+
+    U64 buffer_size = 256;
+    U8 *buffer = arena_push_array_no_zero(scratch.arena, U8, buffer_size);
+
+    while (!getcwd((CStr) buffer, buffer_size)) {
+        if (errno == ERANGE) {
+            arena_end_temporary(scratch);
+            scratch = arena_begin_temporary(scratch.arena);
+
+            buffer_size *= 2;
+            buffer       = arena_push_array_no_zero(scratch.arena, U8, buffer_size);
+        } else {
+            // TODO: Handle error
+        }
+    }
+
+    Str8 result = str8_copy_cstr(arena, buffer);
+    arena_end_temporary(scratch);
+    return result;
+}
+
 internal Str8 os_file_path(Arena *arena, OS_SystemPath path) {
     Str8 result = { 0 };
 
     switch (path) {
-        case OS_SYSTEM_PATH_CURRENT_DIRECTORY: {
-            Arena_Temporary scratch = arena_get_scratch(&arena, 1);
-
-            U64 buffer_size = 256;
-            U8 *buffer = arena_push_array_no_zero(scratch.arena, U8, buffer_size);
-
-            while (!getcwd((CStr) buffer, buffer_size)) {
-                if (errno == ERANGE) {
-                    arena_end_temporary(scratch);
-                    scratch = arena_begin_temporary(scratch.arena);
-
-                    buffer_size *= 2;
-                    buffer       = arena_push_array_no_zero(scratch.arena, U8, buffer_size);
-                } else {
-                    // TODO: Handle error
-                }
-            }
-
-            result = str8_copy_cstr(arena, buffer);
-            arena_end_temporary(scratch);
-        } break;
         case OS_SYSTEM_PATH_BINARY: {
             Arena_Temporary scratch = arena_get_scratch(&arena, 1);
 

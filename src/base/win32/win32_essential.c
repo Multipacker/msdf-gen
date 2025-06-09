@@ -59,6 +59,7 @@ internal SYSTEMTIME win32_system_time_from_date_time(DateTime date_time) {
 
 
 
+// NOTE(simon): Memory.
 internal Void *os_memory_reserve(U64 size) {
     Void *result = VirtualAlloc(0, size, MEM_RESERVE, PAGE_READWRITE);
     return(result);
@@ -77,6 +78,8 @@ internal Void os_memory_release(Void *pointer, U64 size) {
 }
 
 
+
+// NOTE(simon): Files.
 internal B32 os_file_read(Arena *arena, Str8 file_name, Str8 *result) {
     B32 success = true;
     Arena_Temporary scratch = arena_get_scratch(&arena, 1);
@@ -192,6 +195,7 @@ internal B32 os_file_delete_directory(Str8 path) {
 
 
 
+// NOTE(simon): File iteration.
 internal Void os_file_iterator_initialize(OS_FileIterator *iterator, Str8 path) {
     Arena_Temporary scratch = arena_get_scratch(0, 0);
     Win32_FileIterator *win32_iterator = (Win32_FileIterator *) iterator;
@@ -251,18 +255,22 @@ internal Void os_file_iterator_end(OS_FileIterator *iterator) {
 
 
 
+internal Str8 os_current_directory(Arena *arena) {
+    Arena_Temporary scratch = arena_get_scratch(&arena, 1);
+
+    DWORD length = GetCurrentDirectoryW(0, 0);
+    U16 *buffer = arena_push_array(scratch.arena, U16, length + 1);
+    GetCurrentDirectoryW(length + 1, (WCHAR *) buffer);
+    Str8 result = str8_from_str16(arena, str16(buffer, length));
+
+    arena_end_temporary(scratch);
+    return result;
+}
+
 internal Str8 os_file_path(Arena *arena, OS_SystemPath path) {
     Str8 result = { 0 };
 
     switch (path) {
-        case OS_SYSTEM_PATH_CURRENT_DIRECTORY: {
-            Arena_Temporary scratch = arena_get_scratch(&arena, 1);
-            DWORD length = GetCurrentDirectoryW(0, 0);
-            U16 *buffer = arena_push_array(scratch.arena, U16, length + 1);
-            GetCurrentDirectoryW(length + 1, (WCHAR *) buffer);
-            result = str8_from_str16(arena, str16(buffer, length));
-            arena_end_temporary(scratch);
-        } break;
         case OS_SYSTEM_PATH_BINARY: {
             // TODO(simon): Handle insufficient buffer size.
             Arena_Temporary scratch = arena_get_scratch(&arena, 1);
@@ -293,6 +301,15 @@ internal Str8 os_file_path(Arena *arena, OS_SystemPath path) {
     return result;
 }
 
+
+
+// NOTE(simon): Time
+internal U64 os_now_nanoseconds(Void) {
+    LARGE_INTEGER counter = { 0 };
+    QueryPerformanceCounter(&counter);
+    // TODO: Implement
+    return 0;
+}
 
 internal DateTime os_now_universal_time(Void) {
     SYSTEMTIME system_time = { 0 };
@@ -325,17 +342,10 @@ internal DateTime os_universal_time_from_local(DateTime *date_time) {
     return result;
 }
 
-
-internal U64 os_now_nanoseconds(Void) {
-    LARGE_INTEGER counter = { 0 };
-    QueryPerformanceCounter(&counter);
-    // TODO: Implement
-    return 0;
-}
-
 internal Void os_sleep_milliseconds(U64 time) {
     Sleep(time);
 }
+
 
 
 internal Void os_get_entropy(Void *data, U64 size) {
@@ -393,6 +403,7 @@ internal Void os_exit(S32 exit_code) {
 
 
 
+// NOTE(simon): Threads
 // TODO(simon): There might be a race condition if you run the following code:
 //     OS_Thread thread = os_thread_start(entry_point, data);
 //     os_thread_detach(thread);
@@ -442,6 +453,7 @@ internal Void os_thread_detach(OS_Thread handle) {
 
 
 
+// NOTE(simon): Mutexes.
 internal OS_Mutex os_mutex_create(Void) {
     Win32_Resource *resource = win32_resource_create();
     InitializeCriticalSection(&resource->mutex);
@@ -468,6 +480,7 @@ internal Void os_mutex_unlock(OS_Mutex handle) {
 
 
 
+// NOTE(simon): Condition variables.
 internal OS_ConditionVariable os_condition_variable_create(Void) {
     Win32_Resource *resource = win32_resource_create();
     InitializeConditionVariable(&resource->condition_variable);
@@ -504,6 +517,7 @@ internal Void os_condition_variable_wait(OS_ConditionVariable condition_variable
         //SleepConditionVariableCS(&condition_variable->condition_variable, &mutex->mutex, ...);
     }
 }
+
 
 
 int wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int nShowCmd) {
