@@ -9,6 +9,13 @@
 #include <Shlobj.h>
 #pragma warning(pop)
 
+typedef struct {
+    HANDLE handle;
+    WIN32_FIND_DATAW find_data;
+    B32 done;
+} Win32_FileIterator;
+static_assert(sizeof(Win32_FileIterator) <= sizeof(OS_FileIterator));
+
 typedef struct Win32_Resource Win32_Resource;
 struct Win32_Resource {
     Win32_Resource *next;

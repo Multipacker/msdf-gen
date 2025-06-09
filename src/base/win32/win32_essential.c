@@ -140,18 +140,64 @@ internal B32 os_file_delete_directory(Str8 path) {
 }
 
 
+
 internal Void os_file_iterator_initialize(OS_FileIterator *iterator, Str8 path) {
-    // TODO: Implement
+    Arena_Temporary scratch = arena_get_scratch(0, 0);
+    Win32_FileIterator *win32_iterator = (Win32_FileIterator *) iterator;
+
+    Str8 path_with_wildcard = str8_concatenate(scratch.arena, path, str8_literal("\\*"));
+    CStr16 path_cstr16 = cstr16_from_str8(scratch.arena, path_with_wildcard);
+    win32_iterator->handle = FindFirstFileExW((WCHAR *) path_cstr16, FindExInfoBasic, &win32_iterator->find_data, FindExSearchNameMatch, 0, FIND_FIRST_EX_LARGE_FETCH);
+    arena_end_temporary(scratch);
 }
 
 internal B32 os_file_iterator_next(Arena *arena, OS_FileIterator *iterator, Str8 *name_out, FileProperties *properties_out) {
-    // TODO: Implement
-    return false;
+    Win32_FileIterator *win32_iterator = (Win32_FileIterator *) iterator;
+
+    B32 result = false;
+
+    if (!win32_iterator->done && win32_iterator->handle != INVALID_HANDLE_VALUE) {
+        do {
+            WCHAR *file_name = win32_iterator->find_data.cFileName;
+            DWORD attributes = win32_iterator->find_data.dwFileAttributes;
+
+            B32 is_dot    = (file_name[0] == '.' && file_name[1] == 0);
+            B32 is_dotdot = (file_name[0] == '.' && file_name[1] == '.' && file_name[2] == 0);
+
+            if (!is_dot && !is_dotdot) {
+                *name_out = str8_from_str16(arena, str16_cstr16(file_name));
+                properties_out->size = (U64) win32_iterator->find_data.nFileSizeHigh << 32 | (U64) win32_iterator->find_data.nFileSizeLow;
+                // TODO(simon): Creation time and modification time.
+                if (attributes & FILE_ATTRIBUTE_DIRECTORY) {
+                    properties_out->flags |= FILE_PROPERTY_FLAGS_IS_FOLDER;
+                }
+
+                result = true;
+
+                if (!FindNextFileW(win32_iterator->handle, &win32_iterator->find_data)) {
+                    win32_iterator->done = true;
+                }
+
+                break;
+            }
+        } while (FindNextFileW(win32_iterator->handle, &win32_iterator->find_data));
+    }
+
+    if (!result) {
+        win32_iterator->done = true;
+    }
+
+    return result;
 }
 
 internal Void os_file_iterator_end(OS_FileIterator *iterator) {
-    // TODO: Implement
+    Win32_FileIterator *win32_iterator = (Win32_FileIterator *) iterator;
+    HANDLE zero_handle = { 0 };
+    if (!memory_equal(&win32_iterator->handle, &zero_handle, sizeof(zero_handle))) {
+        FindClose(win32_iterator->handle);
+    }
 }
+
 
 
 internal Str8 os_file_path(Arena *arena, OS_SystemPath path) {
