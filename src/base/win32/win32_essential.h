@@ -6,6 +6,7 @@
 
 #pragma warning(push, 0)
 #include <Windows.h>
+#include <Shlobj.h>
 #pragma warning(pop)
 
 typedef struct Win32_Resource Win32_Resource;

@@ -155,8 +155,45 @@ internal Void os_file_iterator_end(OS_FileIterator *iterator) {
 
 
 internal Str8 os_file_path(Arena *arena, OS_SystemPath path) {
-    // TODO: Implement
-    return (Str8) { 0 };
+    Str8 result = { 0 };
+
+    switch (path) {
+        case OS_SYSTEM_PATH_CURRENT_DIRECTORY: {
+            Arena_Temporary scratch = arena_get_scratch(&arena, 1);
+            DWORD length = GetCurrentDirectoryW(0, 0);
+            U16 *buffer = arena_push_array(scratch.arena, U16, length + 1);
+            GetCurrentDirectoryW(length + 1, (WCHAR *) buffer);
+            result = str8_from_str16(arena, str16(buffer, length));
+            arena_end_temporary(scratch);
+        } break;
+        case OS_SYSTEM_PATH_BINARY: {
+            // TODO(simon): Handle insufficient buffer size.
+            Arena_Temporary scratch = arena_get_scratch(&arena, 1);
+            DWORD size = kilobytes(32);
+            U16 *buffer = arena_push_array(scratch.arena, U16, size);
+            DWORD length = GetModuleFileNameW(0, (WCHAR *) buffer, size);
+            Str8 name = str8_from_str16(scratch.arena, str16(buffer, length));
+            Str8 name_chopped = str8_chop_last_slash(name);
+            result = str8_copy(arena, name_chopped);
+            arena_end_temporary(scratch);
+        } break;
+        case OS_SYSTEM_PATH_USER_DATA: {
+            // TODO(simon): Handle insufficient buffer size.
+            Arena_Temporary scratch = arena_get_scratch(&arena, 1);
+            DWORD size = kilobytes(32);
+            U16 *buffer = arena_push_array(scratch.arena, U16, size);
+            if (SUCCEEDED(SHGetFolderPathW(0, CSIDL_APPDATA, 0, 0, (WCHAR *) buffer))) {
+                result = str8_from_str16(arena, str16_cstr16(buffer));
+            }
+            arena_end_temporary(scratch);
+        } break;
+        case OS_SYSTEM_PATH_TEMPORARY_DATA: {
+        } break;
+        case OS_SYSTEM_PATH_COUNT: {
+        } break;
+    }
+
+    return result;
 }
 
 

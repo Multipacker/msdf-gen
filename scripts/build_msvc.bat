@@ -23,7 +23,7 @@ rem Common flags
 
 set disabled_warnings=-wd4201 -wd4152 -wd4100 -wd4189 -wd4101 -wd4310 -wd4061 -wd4820 -wd4191 -wd5045 -wd4711 -wd4710 -wd4242 -wd4244 -wd4668
 
-set libs=User32.lib Opengl32.lib Gdi32.lib
+set libs=User32.lib Opengl32.lib Gdi32.lib Shell32.lib
 set common_compiler_flags=-nologo -FC -Wall -MP -WX %disabled_warnings% -I.. -diagnostics:caret -diagnostics:color
 set common_linker_flags=%libs% -incremental:no
 
