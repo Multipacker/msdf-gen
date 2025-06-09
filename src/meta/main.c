@@ -81,7 +81,7 @@ internal S32 os_run(Str8List arguments) {
     Arena *arena = arena_create();
 
     Str8 binary_path  = os_file_path(arena, OS_SYSTEM_PATH_BINARY);
-    Str8 project_path = str8_prefix(binary_path, str8_last_index_of(binary_path, '/'));
+    Str8 project_path = str8_chop_last_slash(binary_path);
     Str8 code_path    = str8_format(arena, "%.*s/src", str8_expand(project_path));
 
     // NOTE(simon): Collect files.
@@ -178,7 +178,7 @@ internal S32 os_run(Str8List arguments) {
     Meta_Layer *last_layer = 0;
 
     for (FileEmbed *embed = first_embed; embed; embed = embed->next) {
-        Str8 directory = str8_prefix(embed->source_file, str8_last_index_of(embed->source_file, '/'));
+        Str8 directory = str8_chop_last_slash(embed->source_file);
 
         Meta_Layer *layer = 0;
         for (Meta_Layer *old_layer = first_layer; old_layer; old_layer = old_layer->next) {
@@ -224,7 +224,7 @@ internal S32 os_run(Str8List arguments) {
 
     // NOTE(simon): Write layers.
     for (Meta_Layer *layer = first_layer; layer; layer = layer->next) {
-        Str8 layer_name  = str8_skip(layer->path, str8_last_index_of(layer->path, '/') + 1);
+        Str8 layer_name  = str8_skip_last_slash(layer->path);
         Str8 object_path = str8_format(arena, "build/%.*s.o",     str8_expand(layer_name));
         Str8 header_path = str8_format(arena, "%.*s/generated.h", str8_expand(layer->path));
 
