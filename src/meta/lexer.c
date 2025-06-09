@@ -284,7 +284,7 @@ internal TokenArray tokens_from_string(Arena *arena, Str8 name, Str8 source) {
 
                     // NOTE(simon): Floats.
                     if (!is_dot && ptr < opl && *ptr == '.') {
-                        token.kind == Token_FloatLiteral;
+                        token.kind = Token_FloatLiteral;
                         ++ptr;
 
                         while (ptr < opl && '0' <= *ptr && *ptr <= '9') {
@@ -294,7 +294,7 @@ internal TokenArray tokens_from_string(Arena *arena, Str8 name, Str8 source) {
 
                     // NOTE(simon): Exponents.
                     if (!(is_dot && ptr - start == 1) && ptr < opl && *ptr == 'e') {
-                        token.kind == Token_FloatLiteral;
+                        token.kind = Token_FloatLiteral;
                         ++ptr;
 
                         if (ptr < opl && (*ptr == '+' || *ptr == '-')) {
@@ -308,7 +308,7 @@ internal TokenArray tokens_from_string(Arena *arena, Str8 name, Str8 source) {
 
                     // NOTE(simon): It was the '.' operator.
                     if (is_dot && ptr - start == 1) {
-                        token.kind == Token_Symbol;
+                        token.kind = Token_Symbol;
                     }
                 } else if (('a' <= *ptr && *ptr <= 'z') || ('A' <= *ptr && *ptr <= 'Z') || *ptr == '_') {
                     ++ptr;
