@@ -32,6 +32,33 @@ internal Void win32_resource_destroy(Win32_Resource *resource) {
 
 
 
+
+internal DateTime win32_date_time_from_system_time(SYSTEMTIME system_time) {
+    DateTime result = { 0 };
+    result.millisecond = system_time.wMilliseconds;
+    result.second      = system_time.wSecond;
+    result.minute      = system_time.wMinute;
+    result.hour        = system_time.wHour;
+    result.day         = system_time.wDay - 1;
+    result.month       = system_time.wMonth - 1;
+    result.year        = system_time.wYear - 1601;
+    return result;
+}
+
+internal SYSTEMTIME win32_system_time_from_date_time(DateTime date_time) {
+    SYSTEMTIME result = { 0 };
+    result.wMilliseconds = date_time.millisecond;
+    result.wSecond       = date_time.second;
+    result.wMinute       = date_time.minute;
+    result.wHour         = date_time.hour;
+    result.wDay          = 1 + date_time.day;
+    result.wMonth        = 1 + date_time.month;
+    result.wYear         = 1601 + date_time.year;
+    return result;
+}
+
+
+
 internal Void *os_memory_reserve(U64 size) {
     Void *result = VirtualAlloc(0, size, MEM_RESERVE, PAGE_READWRITE);
     return(result);
@@ -268,18 +295,34 @@ internal Str8 os_file_path(Arena *arena, OS_SystemPath path) {
 
 
 internal DateTime os_now_universal_time(Void) {
-    // TODO: Implement
-    return (DateTime) { 0 };
+    SYSTEMTIME system_time = { 0 };
+    GetSystemTime(&system_time);
+    DateTime result = win32_date_time_from_system_time(system_time);
+    return result;
 }
 
 internal DateTime os_local_time_from_universal(DateTime *date_time) {
-    // TODO: Implement
-    return (DateTime) { 0 };
+    SYSTEMTIME system_time = win32_system_time_from_date_time(*date_time);
+    FILETIME file_time = { 0 };
+    SystemTimeToFileTime(&system_time, &file_time);
+    FILETIME file_time_local = { 0 };
+    FileTimeToLocalFileTime(&file_time, &file_time_local);
+    SYSTEMTIME system_time_local = { 0 };
+    FileTimeToSystemTime(&file_time_local, &system_time_local);
+    DateTime result = win32_date_time_from_system_time(system_time_local);
+    return result;
 }
 
 internal DateTime os_universal_time_from_local(DateTime *date_time) {
-    // TODO: Implement
-    return (DateTime) { 0 };
+    SYSTEMTIME system_time_local = win32_system_time_from_date_time(*date_time);
+    FILETIME file_time_local = { 0 };
+    SystemTimeToFileTime(&system_time_local, &file_time_local);
+    FILETIME file_time = { 0 };
+    LocalFileTimeToFileTime(&file_time_local, &file_time);
+    SYSTEMTIME system_time = { 0 };
+    FileTimeToSystemTime(&file_time, &system_time);
+    DateTime result = win32_date_time_from_system_time(system_time);
+    return result;
 }
 
 
@@ -291,7 +334,7 @@ internal U64 os_now_nanoseconds(Void) {
 }
 
 internal Void os_sleep_milliseconds(U64 time) {
-    // TODO: Implement
+    Sleep(time);
 }
 
 
@@ -301,6 +344,7 @@ internal Void os_get_entropy(Void *data, U64 size) {
 
 
 internal B32 os_console_run(Str8 program, Str8List arguments) {
+    // TODO(simon): Implement
     return false;
 }
 
