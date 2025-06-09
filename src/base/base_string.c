@@ -52,8 +52,17 @@ internal Str8 str8_copy_cstr(Arena *arena, U8 *data) {
     return result;
 }
 
+
+
+internal Str16 str16(U16 *data, U64 size) {
+    Str16 result = { 0 };
+    result.data = data;
+    result.size = size;
+    return result;
+}
+
 internal Str16 str16_cstr16(CStr16 data) {
-    Str16 result;
+    Str16 result = { 0 };
     result.data = (U16 *) data;
     result.size = 0;
 
@@ -63,6 +72,8 @@ internal Str16 str16_cstr16(CStr16 data) {
 
     return result;
 }
+
+
 
 internal Str8 str8_prefix(Str8 string, U64 size) {
     U64 clamped_size = u64_min(size, string.size);
@@ -114,6 +125,47 @@ internal Str8 str8_substring(Str8 string, U64 start, U64 size) {
 
     return result;
 }
+
+
+
+internal Str8 str8_skip_last_slash(Str8 string) {
+    U8 *ptr = string.data + string.size - 1;
+    for (; string.data <= ptr; --ptr) {
+        if (*ptr == '/' || *ptr == '\\') {
+            break;
+        }
+    }
+
+    Str8 result = { 0 };
+
+    if (ptr >= string.data) {
+        ++ptr;
+        result.size = (U64) (string.data + string.size - ptr);
+        result.data = ptr;
+    }
+
+    return result;
+}
+
+internal Str8 str8_chop_last_slash(Str8 string) {
+    U8 *ptr = string.data + string.size - 1;
+    for (; string.data <= ptr; --ptr) {
+        if (*ptr == '/' || *ptr == '\\') {
+            break;
+        }
+    }
+
+    Str8 result = { 0 };
+
+    if (ptr >= string.data) {
+        result.data = string.data;
+        result.size = (U64) (ptr - string.data);
+    }
+
+    return result;
+}
+
+
 
 internal B32 str8_equal(Str8 a, Str8 b) {
     if (a.size != b.size) {
@@ -443,7 +495,7 @@ internal Str16 str16_from_str8(Arena *arena, Str8 string) {
     return result;
 }
 
-internal Str8  str8_from_str16(Arena *arena, Str16 string) {
+internal Str8 str8_from_str16(Arena *arena, Str16 string) {
     U64 allocated_size = 3 * string.size;
     U8 *memory = arena_push_array_no_zero(arena, U8, allocated_size);
 

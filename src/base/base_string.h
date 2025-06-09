@@ -64,6 +64,7 @@ internal Str8 str8_copy(Arena *arena, Str8 string);
 internal Str8 str8_cstr(CStr data);
 internal Str8 str8_copy_cstr(Arena *arena, U8 *data);
 
+internal Str16 str16(U16 *data, U64 size);
 internal Str16 str16_cstr16(CStr16 data);
 
 #define str8_literal(literal) ((Str8) { .data = (U8 *) (literal), .size = sizeof(literal) - 1, })
@@ -75,6 +76,9 @@ internal Str8 str8_postfix(Str8 string, U64 size);
 internal Str8 str8_skip(Str8 string, U64 size);
 internal Str8 str8_chop(Str8 string, U64 size);
 internal Str8 str8_substring(Str8 string, U64 start, U64 size);
+
+internal Str8 str8_skip_last_slash(Str8 string);
+internal Str8 str8_chop_last_slash(Str8 string);
 
 internal B32 str8_equal(Str8 a, Str8 b);
 
