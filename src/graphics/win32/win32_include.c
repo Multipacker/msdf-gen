@@ -53,14 +53,22 @@ internal LRESULT CALLBACK win32_window_proc(HWND hwnd, UINT message, WPARAM wpar
             case WM_MOUSEWHEEL: {
                 event->kind = Gfx_EventKind_Scroll;
                 event->scroll.y = (F32) ((S16) GET_WHEEL_DELTA_WPARAM(wparam) / WHEEL_DELTA);
-                event->position.x = LOWORD(lparam);
-                event->position.y = HIWORD(lparam);
+                POINT point = { 0 };
+                point.x = (S32) (S16) LOWORD(lparam);
+                point.y = (S32) (S16) HIWORD(lparam);
+                ScreenToClient(state->hwnd, &point);
+                event->position.x = (F32) point.x;
+                event->position.y = (F32) point.y;
             } break;
             case WM_MOUSEHWHEEL: {
                 event->kind = Gfx_EventKind_Scroll;
                 event->scroll.x = (F32) ((S16) GET_WHEEL_DELTA_WPARAM(wparam) / WHEEL_DELTA);
-                event->position.x = LOWORD(lparam);
-                event->position.y = HIWORD(lparam);
+                POINT point = { 0 };
+                point.x = (S32) (S16) LOWORD(lparam);
+                point.y = (S32) (S16) HIWORD(lparam);
+                ScreenToClient(state->hwnd, &point);
+                event->position.x = (F32) point.x;
+                event->position.y = (F32) point.y;
             } break;
             case WM_LBUTTONUP: case WM_LBUTTONDOWN:
             case WM_MBUTTONUP: case WM_MBUTTONDOWN:
@@ -94,8 +102,8 @@ internal LRESULT CALLBACK win32_window_proc(HWND hwnd, UINT message, WPARAM wpar
                 event->key = buttons[button];
                 event->key_modifiers |= (GetAsyncKeyState(VK_SHIFT)   & 0x8000) ? Gfx_KeyModifier_Shift   : 0;
                 event->key_modifiers |= (GetAsyncKeyState(VK_CONTROL) & 0x8000) ? Gfx_KeyModifier_Control : 0;
-                event->position.x = LOWORD(lparam);
-                event->position.y = HIWORD(lparam);
+                event->position.x = (F32) (S16) LOWORD(lparam);
+                event->position.y = (F32) (S16) HIWORD(lparam);
 
                 // NOTE(simon): Determine whether or not the mouse captured.
                 global_gfx_win32_state.buttons_pressed &= ~(1 << button);
