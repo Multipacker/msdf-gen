@@ -106,7 +106,31 @@ internal B32 os_file_read(Arena *arena, Str8 file_name, Str8 *result) {
 }
 
 internal B32 os_file_write(Str8 file_name, Str8List data) {
-    // TODO: Implement
+    Arena_Temporary scratch = arena_get_scratch(0, 0);
+    CStr16 file_name_cstr16 = cstr16_from_str8(scratch.arena, file_name);
+    // TODO(simon): Do we care about security attributes?
+    HANDLE handle = CreateFileW((WCHAR *) file_name_cstr16, GENERIC_WRITE, 0, 0, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0);
+
+    if (handle != INVALID_HANDLE_VALUE) {
+        for (Str8Node *node = data.first; node; node = node->next) {
+            U8 *ptr = node->string.data;
+            U8 *opl = node->string.data + node->string.size;
+            while (ptr < opl) {
+                U64 bytes_left = (U64) (opl - ptr);
+                DWORD write_size = u64_min(bytes_left, megabytes(1));
+                DWORD bytes_written = 0;
+                BOOL success = WriteFile(handle, ptr, write_size, &bytes_written, 0);
+                if (success == 0) {
+                    break;
+                }
+
+                ptr += bytes_written;
+            }
+        }
+
+        CloseHandle(handle);
+    }
+    arena_end_temporary(scratch);
     return false;
 }
 
