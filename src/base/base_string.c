@@ -223,6 +223,17 @@ internal Str8 str8_join(Arena *arena, Str8List *list) {
     return str8(data, size);
 }
 
+
+
+internal Str8 str8_concatenate(Arena *arena, Str8 a, Str8 b) {
+    U64 size = a.size + b.size;
+    U8 *memory = arena_push_array_no_zero(arena, U8, size);
+    memory_copy(&memory[0],      a.data, a.size);
+    memory_copy(&memory[a.size], b.data, b.size);
+    Str8 result = str8(memory, size);
+    return result;
+}
+
 internal Str8 str8_format(Arena *arena, CStr format, ...) {
     va_list arguments;
     va_start(arguments, format);
@@ -247,6 +258,8 @@ internal Str8 str8_format_list(Arena *arena, CStr format, va_list arguments) {
     va_end(format_arguments);
     return result;
 }
+
+
 
 internal Str8List str8_split_by_codepoints(Arena *arena, Str8 string, Str8 codepoints) {
     Str8List result = { 0 };

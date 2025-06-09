@@ -91,6 +91,7 @@ internal Void str8_list_push_format_list(Arena *arena, Str8List *list, CStr form
 internal Str8 str8_join(Arena *arena, Str8List *list);
 
 // NOTE(simon): Formatting.
+internal Str8 str8_concatenate(Arena *arena, Str8 a, Str8 b);
 internal Str8 str8_format(Arena *arena, CStr format, ...);
 internal Str8 str8_format_list(Arena *arena, CStr format, va_list arguments);
 

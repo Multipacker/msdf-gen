@@ -203,7 +203,7 @@ internal S32 os_run(Str8List arguments) {
         Str8 embed_file = { 0 };
         if (embed->file.size >= 1 && embed->file.data[0] == '/') {
             // NOTE(simon): Path is relative to project directory.
-            embed_file = str8_format(arena, "%.*s%.*s", str8_expand(project_path), str8_expand(embed->file));
+            embed_file = str8_concatenate(arena, project_path, embed->file);
         } else {
             // NOTE(simon): Path is relative to the file it is referenced from.
             embed_file = str8_format(arena, "%.*s/%.*s", str8_expand(directory), str8_expand(embed->file));
