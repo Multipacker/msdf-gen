@@ -3,7 +3,7 @@
 
 typedef struct OS_FileIterator OS_FileIterator;
 struct OS_FileIterator {
-    U8 data[512];
+    U8 data[700];
 };
 
 typedef enum {
