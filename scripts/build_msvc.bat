@@ -28,7 +28,7 @@ set common_compiler_flags=-nologo -FC -Wall -MP -WX %disabled_warnings% -I.. -di
 set common_linker_flags=%libs% -incremental:no
 
 rem Debug flags
-set debug_compiler_flags=%common_compiler_flags% -RTC1 -MTd -Zi -Od -DCONSOLE=1 -DDEBUG_BUILD=1
+set debug_compiler_flags=%common_compiler_flags% -RTC1 -MTd -Zi -DCONSOLE=1 -DENABLE_ASSERT=1 -DDEBUG_BUILD=1
 set debug_linker_flags=%common_linker_flags%
 
 rem Release flags

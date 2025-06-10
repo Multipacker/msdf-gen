@@ -128,7 +128,12 @@
 
 #if ENABLE_ASSERT
 # define assert(expression) macro_statement( if (!(expression)) { assert_break(); } )
-# define static_assert(expression) _Static_assert(expression, "")
+# if COMPILER_CL
+#  include <crtdbg.h>
+#  define static_assert(expression) _STATIC_ASSERT(expression)
+# else
+#  define static_assert(expression) _Static_assert(expression, "")
+# endif
 #else
 # define assert(expression) ((Void) (expression))
 # define static_assert(expression)
