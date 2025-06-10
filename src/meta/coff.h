@@ -2,7 +2,10 @@
 #define COFF_H
 
 typedef enum {
+    // IMAGE_FILE_MACHINE_UNKNOWN
     Coff_HeaderMachine_Unknown = 0x00,
+    // IMAGE_FILE_MACHINE_AMD64
+    Coff_HeaderMachine_X64     = 0x8664,
 } Coff_HeaderMachine;
 
 typedef struct Coff_Header Coff_Header;

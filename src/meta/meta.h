@@ -6,9 +6,9 @@ struct Meta_Layer {
     Meta_Layer *next;
     Meta_Layer *previous;
 
-    Str8       path;
-    Str8List   header_lines;
-    Elf_Object object;
+    Str8     path;
+    Str8List header_lines;
+    Object   object;
 };
 
 #endif // META_H

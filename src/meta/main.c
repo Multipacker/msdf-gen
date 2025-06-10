@@ -88,7 +88,6 @@ internal S32 os_run(Str8List arguments) {
     Str8 project_path = str8_chop_last_slash(binary_path);
     Str8 code_path    = str8_format(arena, "%.*s/src", str8_expand(project_path));
 
-#if 0
     // NOTE(simon): Collect files.
     Str8List files = { 0 };
     {
@@ -196,8 +195,8 @@ internal S32 os_run(Str8List arguments) {
             str8_list_push(arena, &layer->header_lines, str8_literal("#undef embed_file\n"));
             str8_list_push(arena, &layer->header_lines, str8_literal("#define embed_file(...)\n"));
 
-            Elf_Section *data_section = elf_create_section(arena, &layer->object, str8_literal(".data"), Elf_SectionHeaderType_ProgramBits);
-            data_section->flags = Elf_SectionHeaderFlag_Write | Elf_SectionHeaderFlag_Allocate;
+            Object_Section *data_section = object_add_section(arena, &layer->object, str8_literal(".data"));
+            data_section->flags = Object_SectionFlag_Write;
 
             dll_push_back(first_layer, last_layer, layer);
         }
@@ -215,13 +214,13 @@ internal S32 os_run(Str8List arguments) {
         Str8 contents = { 0 };
         os_file_read(arena, embed_file, &contents);
 
-        Elf_Symbol *data_symbol   = elf_create_symbol(arena, &layer->object, data_symbol_name);
+        Object_Symbol *data_symbol = object_add_symbol(arena, &layer->object, data_symbol_name);
         data_symbol->section_name = str8_literal(".data");
         data_symbol->data         = contents;
         data_symbol->align        = 1;
 
         str8_list_push_format(arena, &layer->header_lines, "extern U8 %.*s[%lu];\n", str8_expand(data_symbol_name), contents.size);
-        str8_list_push_format(arena, &layer->header_lines, "global Str8 %.*s = (Str8) { %.*s, %lu, };\n", str8_expand(embed->identifier), str8_expand(data_symbol_name), contents.size);
+        str8_list_push_format(arena, &layer->header_lines, "global Str8 %.*s = { %.*s, %lu, };\n", str8_expand(embed->identifier), str8_expand(data_symbol_name), contents.size);
     }
 
     // NOTE(simon): Write layers.
@@ -231,31 +230,9 @@ internal S32 os_run(Str8List arguments) {
         Str8 header_path = str8_format(arena, "%.*s/generated.h", str8_expand(layer->path));
 
         os_file_write(header_path, layer->header_lines);
-        Str8List output = elf_generate(arena, &layer->object);
+        Str8List output = coff_binary_from_object(arena, layer->object);
         os_file_write(object_path, output);
     }
-#endif
-
-    U64 test_size = 10;
-    U8 test_data[10] = { 0, 10, 20, 30, 40, 50, 60, 70, 80, 90, };
-
-    Object object = { 0 };
-
-    Object_Section *section = object_add_section(arena, &object, str8_literal(".data"));
-    section->flags = Object_SectionFlag_Write;
-
-    Object_Symbol *test_size_symbol = object_add_symbol(arena, &object, str8_literal("test_size"));
-    test_size_symbol->section_name = section->name;
-    test_size_symbol->data = str8((U8 *) &test_size, sizeof(test_size));
-    test_size_symbol->align = 8;
-
-    Object_Symbol *test_data_symbol = object_add_symbol(arena, &object, str8_literal("test_data"));
-    test_data_symbol->section_name = section->name;
-    test_data_symbol->data = str8(test_data, sizeof(test_data));
-    test_data_symbol->align = 1;
-
-    Str8List output = coff_binary_from_object(arena, object);
-    os_file_write(str8_literal("test_coff.obj"), output);
 
     arena_destroy(arena);
     return 0;

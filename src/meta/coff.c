@@ -107,7 +107,7 @@ internal Str8List coff_binary_from_object(Arena *arena, Object object) {
 
     // NOTE(simon): Build header.
     Coff_Header *header = arena_push_struct(arena, Coff_Header);
-    header->machine             = Coff_HeaderMachine_Unknown;
+    header->machine             = Coff_HeaderMachine_X64;
     header->section_count       = (U16) object.section_count;
     header->time_date_stamp     = 0; // TODO(simon): Maybe set an actual timestamp?
     header->symbol_table_offset = (U32) (sizeof(Coff_Header) + object.section_count * sizeof(Coff_Section));
