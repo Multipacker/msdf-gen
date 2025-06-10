@@ -178,6 +178,7 @@ internal U8 u8_rotate_right(U8 x, U8 amount);
 internal U8 u8_rotate_left(U8 x, U8 amount);
 internal U8 u8_ceil_to_power_of_2(U8 x);
 internal U8 u8_reverse(U8 x);
+internal U8 u8_count_trailing_zeros(U8 x);
 
 internal U16 u16_min(U16 a, U16 b);
 internal U16 u16_max(U16 a, U16 b);
@@ -190,6 +191,7 @@ internal U16 u16_rotate_left(U16 x, U16 amount);
 internal U16 u16_ceil_to_power_of_2(U16 x);
 internal U16 u16_reverse(U16 x);
 internal U16 u16_big_to_local_endian(U16 x);
+internal U16 u16_count_trailing_zeros(U16 x);
 
 internal U32 u32_min(U32 a, U32 b);
 internal U32 u32_max(U32 a, U32 b);
@@ -202,6 +204,7 @@ internal U32 u32_rotate_left(U32 x, U32 amount);
 internal U32 u32_ceil_to_power_of_2(U32 x);
 internal U32 u32_reverse(U32 x);
 internal U32 u32_big_to_local_endian(U32 x);
+internal U32 u32_count_trailing_zeros(U32 x);
 
 internal U64 u64_min(U64 a, U64 b);
 internal U64 u64_max(U64 a, U64 b);
@@ -214,6 +217,7 @@ internal U64 u64_rotate_left(U64 x, U64 amount);
 internal U64 u64_ceil_to_power_of_2(U64 x);
 internal U64 u64_reverse(U64 x);
 internal U64 u64_big_to_local_endian(U64 x);
+internal U64 u64_count_trailing_zeros(U64 x);
 
 internal S8 s8_min(S8 a, S8 B);
 internal S8 s8_max(S8 a, S8 B);

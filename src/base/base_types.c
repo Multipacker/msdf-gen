@@ -1,6 +1,7 @@
 #if COMPILER_CL
 #  include <math.h>
 #  include <stdlib.h>
+#  include <intrin.h>
 #endif
 
 internal U8 u8_min(U8 a, U8 b) {
@@ -57,6 +58,16 @@ internal U8 u8_reverse(U8 x) {
     x = (U8) (((x >> 2) & 0x33) | ((x & 0x33) << 2));
     x = (U8) (((x >> 4) & 0x0F) | ((x & 0x0F) << 4));
     return x;
+}
+
+internal U8 u8_count_trailing_zeros(U8 x) {
+#if COMPILER_CL
+    unsigned long result = 0;
+    _BitScanForward(&result, x);
+    return (U8) result;
+#else
+    return __builtin_ctz(x);
+#endif
 }
 
 
@@ -127,6 +138,16 @@ internal U16 u16_big_to_local_endian(U16 x) {
     return __builtin_bswap16(x);
 #else
 # error Your compiler does not have an implementation of u16_big_to_local_endian
+#endif
+}
+
+internal U16 u16_count_trailing_zeros(U16 x) {
+#if COMPILER_CL
+    unsigned long result = 0;
+    _BitScanForward(&result, x);
+    return (U16) result;
+#else
+    return __builtin_ctz(x);
 #endif
 }
 
@@ -204,6 +225,16 @@ internal U32 u32_big_to_local_endian(U32 x) {
 #endif
 }
 
+internal U32 u32_count_trailing_zeros(U32 x) {
+#if COMPILER_CL
+    unsigned long result = 0;
+    _BitScanForward(&result, x);
+    return (U32) result;
+#else
+    return __builtin_ctz(x);
+#endif
+}
+
 
 
 internal U64 u64_min(U64 a, U64 b) {
@@ -278,6 +309,16 @@ internal U64 u64_big_to_local_endian(U64 x) {
     return __builtin_bswap64(x);
 #else
 # error Your compiler does not have an implementation of u64_big_to_local_endian.
+#endif
+}
+
+internal U64 u64_count_trailing_zeros(U64 x) {
+#if COMPILER_CL
+    unsigned long result = 0;
+    _BitScanForward64(&result, x);
+    return (U32) result;
+#else
+    return __builtin_ctzl(x);
 #endif
 }
 
