@@ -1,11 +1,15 @@
 #include "src/base/base_include.h"
 #include "src/base/base_include.c"
 
+#include "object.h"
 #include "elf.h"
+#include "coff.h"
 #include "lexer.h"
 #include "meta.h"
 
+#include "object.c"
 #include "elf.c"
+#include "coff.c"
 #include "lexer.c"
 
 internal Token *parser_next(Token **ptr, Token *opl) {
@@ -84,6 +88,7 @@ internal S32 os_run(Str8List arguments) {
     Str8 project_path = str8_chop_last_slash(binary_path);
     Str8 code_path    = str8_format(arena, "%.*s/src", str8_expand(project_path));
 
+#if 0
     // NOTE(simon): Collect files.
     Str8List files = { 0 };
     {
@@ -229,6 +234,28 @@ internal S32 os_run(Str8List arguments) {
         Str8List output = elf_generate(arena, &layer->object);
         os_file_write(object_path, output);
     }
+#endif
+
+    U64 test_size = 10;
+    U8 test_data[10] = { 0, 10, 20, 30, 40, 50, 60, 70, 80, 90, };
+
+    Object object = { 0 };
+
+    Object_Section *section = object_add_section(arena, &object, str8_literal(".data"));
+    section->flags = Object_SectionFlag_Write;
+
+    Object_Symbol *test_size_symbol = object_add_symbol(arena, &object, str8_literal("test_size"));
+    test_size_symbol->section_name = section->name;
+    test_size_symbol->data = str8((U8 *) &test_size, sizeof(test_size));
+    test_size_symbol->align = 8;
+
+    Object_Symbol *test_data_symbol = object_add_symbol(arena, &object, str8_literal("test_data"));
+    test_data_symbol->section_name = section->name;
+    test_data_symbol->data = str8(test_data, sizeof(test_data));
+    test_data_symbol->align = 1;
+
+    Str8List output = coff_binary_from_object(arena, object);
+    os_file_write(str8_literal("test_coff.obj"), output);
 
     arena_destroy(arena);
     return 0;
