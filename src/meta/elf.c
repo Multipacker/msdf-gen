@@ -89,7 +89,7 @@ internal Str8List elf_binary_from_object(Arena *arena, Object object) {
 
     // NOTE(simon): Build symbols.
     Elf64_Symbol *elf_symbols = arena_push_array(arena, Elf64_Symbol, symbol_count);
-    for (U64 i = 0; i < symbol_count; ++i) {
+    for (U64 i = 1; i < symbol_count; ++i) {
         Object_Symbol *symbol     = &symbols[i];
         Elf64_Symbol  *elf_symbol = &elf_symbols[i];
 
@@ -101,9 +101,6 @@ internal Str8List elf_binary_from_object(Arena *arena, Object object) {
         elf_symbol->size          = symbol->data.size;
     }
 
-    // NOTE(simon): Clear null symbol.
-    memory_zero_struct(&elf_symbols[0]);
-
     // NOTE(simon): Attach data to extra sections.
     str8_list_push(scratch.arena, &section_data[Section_SectionStringTable], str8(section_string_table, section_string_table_size));
     str8_list_push(scratch.arena, &section_data[Section_SymbolTable],        str8((U8 *) elf_symbols, symbol_count * sizeof(Elf64_Symbol)));
@@ -113,7 +110,7 @@ internal Str8List elf_binary_from_object(Arena *arena, Object object) {
     // NOTE(simon): Build sections.
     Elf64_SectionHeader *elf_sections = arena_push_array(arena, Elf64_SectionHeader, section_count);
     U64 section_data_offset = sizeof(Elf64_Header) + section_count * sizeof(Elf64_SectionHeader);
-    for (U64 i = 0; i < section_count; ++i) {
+    for (U64 i = 1; i < section_count; ++i) {
         Object_Section      *section     = &sections[i];
         Elf64_SectionHeader *elf_section = &elf_sections[i];
 
@@ -132,7 +129,6 @@ internal Str8List elf_binary_from_object(Arena *arena, Object object) {
     }
 
     // NOTE(simon): Set data for extra sections.
-    elf_sections[Section_Null].type               = Elf_SectionHeaderType_Null;
     elf_sections[Section_SectionStringTable].type = Elf_SectionHeaderType_StringTable;
     elf_sections[Section_SymbolTable].type        = Elf_SectionHeaderType_SymbolTable;
     elf_sections[Section_SymbolTable].entry_size  = sizeof(Elf64_Symbol);
