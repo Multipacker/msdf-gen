@@ -230,7 +230,7 @@ internal S32 os_run(Str8List arguments) {
         Str8 header_path = str8_format(arena, "%.*s/generated.h", str8_expand(layer->path));
 
         os_file_write(header_path, layer->header_lines);
-        Str8List output = coff_binary_from_object(arena, layer->object);
+        Str8List output = platform_binary_from_object(arena, layer->object);
         os_file_write(object_path, output);
     }
 

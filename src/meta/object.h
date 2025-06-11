@@ -40,4 +40,12 @@ struct Object {
 internal Object_Section *object_add_section(Arena *arena, Object *object, Str8 name);
 internal Object_Symbol  *object_add_symbol(Arena *arena, Object *object, Str8 name);
 
+#if OS_LINUX
+# define platform_binary_from_object(arena, object) elf_binary_from_object(arena, object)
+#elif OS_WINDOWS
+# define platform_binary_from_object(arena, object) coff_binary_from_object(arena, object)
+#else
+# error Object file generation is not implemented for you platform
+#endif
+
 #endif // OBJECT_H
