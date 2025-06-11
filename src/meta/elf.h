@@ -139,65 +139,6 @@ struct Elf64_Symbol {
     U64        size;          // st_size
 };
 
-
-
-typedef struct Elf_Symbol Elf_Symbol;
-struct Elf_Symbol {
-    Elf_Symbol *next;
-    Elf_Symbol *previous;
-
-    // NOTE(simon): Specified data.
-    Str8 name;
-    Str8 section_name;
-    Str8 data;
-    U64  align;
-
-    // NOTE(simon): Computed data.
-    U32 name_index;
-    U64 offset;
-};
-
-typedef struct Elf_Section Elf_Section;
-struct Elf_Section {
-    Elf_Section *next;
-    Elf_Section *previous;
-
-    // NOTE(simon): Specified data.
-    Str8     name;
-    U32      type;
-    U64      flags;
-    U64      address;
-    Str8List data;
-    // TODO(simon): Maybe it would be better to have this be a pointer to the
-    // section. Specifically for the symbol table, what if we have multiple
-    // string tables? Is that even possible? If so, which one do we use? Do
-    // they have different names.
-    Str8     link_name;
-    U32      info;
-    U64      address_align;
-    U64      entry_size;
-
-    // NOTE(simon): Computed data.
-    U32 name_index;
-    U64 offset;
-};
-
-typedef struct Elf_Object Elf_Object;
-struct Elf_Object {
-    Elf_Symbol *first_symbol;
-    Elf_Symbol *last_symbol;
-    U64 symbol_count;
-
-    Elf_Section *first_section;
-    Elf_Section *last_section;
-    U64 section_count;
-};
-
-internal Elf_Symbol  *elf_create_symbol(Arena *arena, Elf_Object *object, Str8 name);
-internal Elf_Section *elf_create_section(Arena *arena, Elf_Object *object, Str8 name, Elf_SectionHeaderType type);
-
-internal U64 elf_section_index_from_name(Elf_Object *object, Str8 name);
-
-internal Str8List elf_generate(Arena *arena, Elf_Object *object);
+internal Str8List elf_binary_from_object(Arena *arena, Object object);
 
 #endif // ELF_H

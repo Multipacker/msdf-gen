@@ -13,7 +13,6 @@ internal Str8List coff_binary_from_object(Arena *arena, Object object) {
 
     // NOTE(simon): Layout symbol data.
     Str8List *section_data       = arena_push_array(scratch.arena, Str8List, object.section_count);
-    U32 *section_align           = arena_push_array(scratch.arena, U32, object.section_count);
     U32 *section_alignments      = arena_push_array(scratch.arena, U32, object.section_count);
     S16 *symbol_section_indicies = arena_push_array(scratch.arena, S16, object.symbol_count);
     U32 *symbol_data_offsets     = arena_push_array(scratch.arena, U32, object.symbol_count);
@@ -35,7 +34,7 @@ internal Str8List coff_binary_from_object(Arena *arena, Object object) {
             // NOTE(simon): Generate padding.
             U64 alignment = section_data[section_index].total_size & (symbol->align - 1);
             U64 padding_size = symbol->align - alignment;
-            if (padding_size) {
+            if (alignment && padding_size) {
                 U8 *padding_bytes = arena_push_array(arena, U8, padding_size);
                 str8_list_push(scratch.arena, &section_data[section_index], str8(padding_bytes, padding_size));
             }

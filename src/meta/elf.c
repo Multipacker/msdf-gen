@@ -1,145 +1,146 @@
-internal Elf_Symbol *elf_create_symbol(Arena *arena, Elf_Object *object, Str8 name) {
-    Elf_Symbol *symbol = arena_push_struct(arena, Elf_Symbol);
-    symbol->name = name;
+internal Str8List elf_binary_from_object(Arena *arena, Object object) {
+    Arena_Temporary scratch = arena_get_scratch(&arena, 1);
 
-    dll_push_back(object->first_symbol, object->last_symbol, symbol);
-    ++object->symbol_count;
+    enum {
+        Section_Null,
+        Section_SectionStringTable,
+        Section_SymbolTable,
+        Section_SymbolStringTable,
+        Section_COUNT,
+    };
 
-    return symbol;
-}
-
-internal Elf_Section *elf_create_section(Arena *arena, Elf_Object *object, Str8 name, Elf_SectionHeaderType type) {
-    Elf_Section *section = arena_push_struct(arena, Elf_Section);
-    section->name = name;
-    section->type = type;
-
-    dll_push_back(object->first_section, object->last_section, section);
-    ++object->section_count;
-
-    return section;
-}
-
-internal U64 elf_section_index_from_name(Elf_Object *object, Str8 name) {
-    U64 result = 0;
-
-    U64 index = 1;
-    for (Elf_Section *section = object->first_section; section; section = section->next, ++index) {
-        if (str8_equal(section->name, name)) {
-            result = index;
-            break;
-        }
+    // NOTE(simon): Flatten sections and symbols.
+    U32 symbol_count = 1 + (U32) object.symbol_count;
+    Object_Symbol *symbols = arena_push_array(scratch.arena, Object_Symbol, symbol_count);
+    for (Object_Symbol *symbol = object.first_symbol, *ptr = &symbols[1]; symbol; symbol = symbol->next, ++ptr) {
+        *ptr = *symbol;
+    }
+    U32 section_count = Section_COUNT + (U32) object.section_count;
+    Object_Section *sections = arena_push_array(scratch.arena, Object_Section, section_count);
+    for (Object_Section *section = object.first_section, *ptr = &sections[4]; section; section = section->next, ++ptr) {
+        *ptr = *section;
     }
 
-    return result;
-}
+    // NOTE(simon): Set names for extra sections.
+    sections[Section_SectionStringTable].name  = str8_literal(".shstrtab");
+    sections[Section_SymbolTable].name         = str8_literal(".symtab");
+    sections[Section_SymbolStringTable].name   = str8_literal(".strtab");
 
-internal Str8List elf_generate(Arena *arena, Elf_Object *object) {
-    // NOTE(simon): Layout symbols.
-    for (Elf_Section *section = object->first_section; section; section = section->next) {
-        U64 offset = 0;
-        for (Elf_Symbol *symbol = object->first_symbol; symbol; symbol = symbol->next) {
-            if (str8_equal(section->name, symbol->section_name)) {
-                U64 aligned_offset = u64_round_up_to_power_of_2(offset, symbol->align);
+    // NOTE(simon): Layout symbol data.
+    Str8List *section_data       = arena_push_array(scratch.arena, Str8List, section_count);
+    U32 *section_alignments      = arena_push_array(scratch.arena, U32, section_count);
+    U16 *symbol_section_indicies = arena_push_array(scratch.arena, U16, symbol_count);
+    U64 *symbol_data_offsets     = arena_push_array(scratch.arena, U64, symbol_count);
+    for (U64 symbol_index = 0; symbol_index < symbol_count; ++symbol_index) {
+        Object_Symbol *symbol = &symbols[symbol_index];
 
-                // NOTE(simon): Padding for alignment.
-                if (offset != aligned_offset) {
-                    U8 *padding = arena_push_array(arena, U8, aligned_offset - offset);
-                    str8_list_push(arena, &section->data, str8(padding, aligned_offset - offset));
-                }
-
-                symbol->offset = aligned_offset;
-
-                str8_list_push(arena, &section->data, symbol->data);
-                section->address_align = u64_max(section->address_align, symbol->align);
-
-                offset = aligned_offset + symbol->data.size;
+        // NOTE(simon): Find section.
+        U64 section_index = 0;
+        for (; section_index < section_count; ++section_index) {
+            if (str8_equal(sections[section_index].name, symbol->section_name)) {
+                break;
             }
         }
-    }
 
-    // NOTE(simon): Create symbol string table.
-    Elf_Section *string_table_section = elf_create_section(arena, object, str8_literal(".strtab"), Elf_SectionHeaderType_StringTable);
-    string_table_section->address_align = 1;
+        if (section_index < section_count) {
+            symbol_section_indicies[symbol_index] = (U16) section_index;
+            section_alignments[section_index] = u32_max(section_alignments[section_index], symbol->align);
 
-    U32 symbol_name_buffer_size = 1;
-    for (Elf_Symbol *symbol = object->first_symbol; symbol; symbol = symbol->next) {
-        symbol->name_index = symbol_name_buffer_size;
-        symbol_name_buffer_size += symbol->name.size + 1;
-    }
-    U8 *symbol_name_buffer = arena_push_array(arena, U8, symbol_name_buffer_size);
-    for (Elf_Symbol *symbol = object->first_symbol; symbol; symbol = symbol->next) {
-        memory_copy(&symbol_name_buffer[symbol->name_index], symbol->name.data, symbol->name.size);
-    }
-    str8_list_push(arena, &string_table_section->data, str8(symbol_name_buffer, symbol_name_buffer_size));
+            // NOTE(simon): Generate padding.
+            U64 alignment = section_data[section_index].total_size & (symbol->align - 1);
+            U64 padding_size = symbol->align - alignment;
+            if (alignment && padding_size) {
+                U8 *padding_bytes = arena_push_array(arena, U8, padding_size);
+                str8_list_push(scratch.arena, &section_data[section_index], str8(padding_bytes, padding_size));
+            }
 
-    // NOTE(simon): Create symbols.
-    U64 elf_symbol_count = 1 + object->symbol_count;
-    Elf64_Symbol *elf_symbols = arena_push_array(arena, Elf64_Symbol, elf_symbol_count);
-    U64 elf_symbol_index = 1;
-    for (Elf_Symbol *symbol = object->first_symbol; symbol; symbol = symbol->next) {
-        Elf64_Symbol *elf_symbol = &elf_symbols[elf_symbol_index];
-        elf_symbol->name          = symbol->name_index;
-        elf_symbol->info          = ELF_SYMBOL_INFO_FROM_BINDING_TYPE(Elf_SymbolBinding_Global, Elf_SymbolType_Object);
-        elf_symbol->other         = Elf_SymbolVisibility_Default;
-        elf_symbol->section_index = (U16) elf_section_index_from_name(object, symbol->section_name);;
-        elf_symbol->value         = symbol->offset;
-        elf_symbol->size          = symbol->data.size;
-
-        ++elf_symbol_index;
-    }
-
-    Elf_Section *symbol_table_section = elf_create_section(arena, object, str8_literal(".symtab"), Elf_SectionHeaderType_SymbolTable);
-    symbol_table_section->link_name     = str8_literal(".strtab");
-    symbol_table_section->info          = 1; // Last local symbol index + 1
-    symbol_table_section->address_align = _Alignof(Elf64_Symbol);
-    symbol_table_section->entry_size    = sizeof(Elf64_Symbol);
-    str8_list_push(arena, &symbol_table_section->data, str8((U8 *) elf_symbols, elf_symbol_count * sizeof(Elf64_Symbol)));
-
-    // NOTE(simon): Compute section string table.
-    Elf_Section *section_header_string_table_section = elf_create_section(arena, object, str8_literal(".shstrtab"), Elf_SectionHeaderType_StringTable);
-    section_header_string_table_section->address_align = 1;
-
-    U32 section_name_buffer_size = 1;
-    for (Elf_Section *section = object->first_section; section; section = section->next) {
-        section->name_index = section_name_buffer_size;
-        section_name_buffer_size += section->name.size + 1;
-    }
-    U8 *section_name_buffer = arena_push_array(arena, U8, section_name_buffer_size);
-    for (Elf_Section *section = object->first_section; section; section = section->next) {
-        memory_copy(&section_name_buffer[section->name_index], section->name.data, section->name.size);
-    }
-    str8_list_push(arena, &section_header_string_table_section->data, str8(section_name_buffer, section_name_buffer_size));
-
-    // NOTE(simon): Layout section content.
-    {
-        U64 total_offset = sizeof(Elf64_Header) + (1 + object->section_count) * sizeof(Elf64_SectionHeader);
-        for (Elf_Section *section = object->first_section; section; section = section->next) {
-            section->offset = total_offset;
-            total_offset += section->data.total_size;
+            symbol_data_offsets[symbol_index] = section_data[section_index].total_size;
+            str8_list_push(scratch.arena, &section_data[section_index], symbol->data);
+        } else if (symbol->name.size != 0) {
+            log_error_format("Symbol '%.*s' refers to nonexistent section '%.*s'.\n", str8_expand(symbol->name), str8_expand(symbol->section_name));
         }
     }
 
-    // NOTE(simon): Create sections.
-    U64 elf_section_count = 1 + object->section_count;
-    Elf64_SectionHeader *elf_sections = arena_push_array(arena, Elf64_SectionHeader, elf_section_count);
-    U64 elf_section_index = 1;
-    for (Elf_Section *section = object->first_section; section; section = section->next) {
-        Elf64_SectionHeader *elf_section = &elf_sections[elf_section_index];
-        elf_section->name          = section->name_index;
-        elf_section->type          = section->type;
-        elf_section->flags         = section->flags;
-        elf_section->address       = section->address;
-        elf_section->offset        = section->offset;
-        elf_section->size          = section->data.total_size;
-        elf_section->link          = (U32) elf_section_index_from_name(object, section->link_name);
-        elf_section->info          = section->info;
-        elf_section->address_align = section->address_align;
-        elf_section->entry_size    = section->entry_size;
-
-        ++elf_section_index;
+    // NOTE(simon): Build symbol names.
+    U32 *symbol_name_offsets = arena_push_array_no_zero(scratch.arena, U32, symbol_count);
+    U64 symbol_string_table_size = 0;
+    for (U64 i = 0; i < symbol_count; ++i) {
+        symbol_name_offsets[i] = (U32) symbol_string_table_size;
+        symbol_string_table_size += symbols[i].name.size + 1;
+    }
+    U8 *symbol_string_table = arena_push_array_no_zero(arena, U8, symbol_string_table_size);
+    for (U64 i = 0; i < symbol_count; ++i) {
+        memory_copy(&symbol_string_table[symbol_name_offsets[i]], symbols[i].name.data, symbols[i].name.size);
+        symbol_string_table[symbol_name_offsets[i] + symbols[i].name.size] = 0;
     }
 
-    // NOTE(simon): Header
+    // NOTE(simon): Build section names.
+    U32 *section_name_offsets = arena_push_array_no_zero(scratch.arena, U32, section_count);
+    U64 section_string_table_size = 0;
+    for (U64 i = 0; i < section_count; ++i) {
+        section_name_offsets[i] = (U32) section_string_table_size;
+        section_string_table_size += sections[i].name.size + 1;
+    }
+    U8 *section_string_table = arena_push_array_no_zero(arena, U8, section_string_table_size);
+    for (U64 i = 0; i < section_count; ++i) {
+        memory_copy(&section_string_table[section_name_offsets[i]], sections[i].name.data, sections[i].name.size);
+        section_string_table[section_name_offsets[i] + sections[i].name.size] = 0;
+    }
+
+    // NOTE(simon): Build symbols.
+    Elf64_Symbol *elf_symbols = arena_push_array(arena, Elf64_Symbol, symbol_count);
+    for (U64 i = 0; i < symbol_count; ++i) {
+        Object_Symbol *symbol     = &symbols[i];
+        Elf64_Symbol  *elf_symbol = &elf_symbols[i];
+
+        elf_symbol->name          = symbol_name_offsets[i];
+        elf_symbol->info          = ELF_SYMBOL_INFO_FROM_BINDING_TYPE(Elf_SymbolBinding_Global, Elf_SymbolType_Object);
+        elf_symbol->other         = Elf_SymbolVisibility_Default;
+        elf_symbol->section_index = symbol_section_indicies[i];
+        elf_symbol->value         = symbol_data_offsets[i];
+        elf_symbol->size          = symbol->data.size;
+    }
+
+    // NOTE(simon): Clear null symbol.
+    memory_zero_struct(&elf_symbols[0]);
+
+    // NOTE(simon): Attach data to extra sections.
+    str8_list_push(scratch.arena, &section_data[Section_SectionStringTable], str8(section_string_table, section_string_table_size));
+    str8_list_push(scratch.arena, &section_data[Section_SymbolTable],        str8((U8 *) elf_symbols, symbol_count * sizeof(Elf64_Symbol)));
+    section_alignments[Section_SymbolTable] = _Alignof(Elf64_Symbol);
+    str8_list_push(scratch.arena, &section_data[Section_SymbolStringTable],  str8(symbol_string_table, symbol_string_table_size));
+
+    // NOTE(simon): Build sections.
+    Elf64_SectionHeader *elf_sections = arena_push_array(arena, Elf64_SectionHeader, section_count);
+    U64 section_data_offset = sizeof(Elf64_Header) + section_count * sizeof(Elf64_SectionHeader);
+    for (U64 i = 0; i < section_count; ++i) {
+        Object_Section      *section     = &sections[i];
+        Elf64_SectionHeader *elf_section = &elf_sections[i];
+
+        elf_section->name          = section_name_offsets[i];
+        elf_section->type          = Elf_SectionHeaderType_ProgramBits;
+        elf_section->flags         = Elf_SectionHeaderFlag_Allocate;
+        elf_section->offset        = section_data_offset;
+        elf_section->size          = section_data[i].total_size;
+        elf_section->address_align = section_alignments[i];
+
+        if (section->flags & Object_SectionFlag_Write) {
+            elf_section->flags |= Elf_SectionHeaderFlag_Write;
+        }
+
+        section_data_offset += section_data[i].total_size;
+    }
+
+    // NOTE(simon): Set data for extra sections.
+    elf_sections[Section_Null].type               = Elf_SectionHeaderType_Null;
+    elf_sections[Section_SectionStringTable].type = Elf_SectionHeaderType_StringTable;
+    elf_sections[Section_SymbolTable].type        = Elf_SectionHeaderType_SymbolTable;
+    elf_sections[Section_SymbolTable].entry_size  = sizeof(Elf64_Symbol);
+    elf_sections[Section_SymbolTable].link        = Section_SymbolStringTable;
+    elf_sections[Section_SymbolTable].info        = 1; // NOTE(simon): Last local symbol index + 1.
+    elf_sections[Section_SymbolStringTable].type  = Elf_SectionHeaderType_StringTable;
+
+    // NOTE(simon): Build header.
     Elf64_Header *header = arena_push_struct(arena, Elf64_Header);
     header->identification[Elf_HeaderIdentification_Magic0]     = 0x7F;
     header->identification[Elf_HeaderIdentification_Magic1]     = 'E';
@@ -156,18 +157,19 @@ internal Str8List elf_generate(Arena *arena, Elf_Object *object) {
     header->section_header_offset       = sizeof(Elf64_Header);
     header->header_size                 = sizeof(Elf64_Header);
     header->section_header_entry_size   = sizeof(Elf64_SectionHeader);
-    header->section_header_count        = (U16) elf_section_count;
-    header->section_header_string_index = (U16) elf_section_index_from_name(object, str8_literal(".shstrtab"));
+    header->section_header_count        = (U16) section_count;
+    header->section_header_string_index = Section_SectionStringTable;
 
-    // NOTE(simon): Output
+    // NOTE(simon): Build output.
     Str8List output = { 0 };
     str8_list_push(arena, &output, str8((U8 *) header, sizeof(*header)));
-    str8_list_push(arena, &output, str8((U8 *) elf_sections, elf_section_count * sizeof(Elf64_SectionHeader)));
-    for (Elf_Section *section = object->first_section; section; section = section->next) {
-        for (Str8Node *data = section->data.first; data; data = data->next) {
-            str8_list_push(arena, &output, data->string);
+    str8_list_push(arena, &output, str8((U8 *) elf_sections, section_count * sizeof(Elf64_SectionHeader)));
+    for (U64 i = 0; i < section_count; ++i) {
+        for (Str8Node *node = section_data[i].first; node; node = node->next) {
+            str8_list_push(arena, &output, node->string);
         }
     }
 
+    arena_end_temporary(scratch);
     return output;
 }
