@@ -9,7 +9,7 @@ struct Object_Symbol {
     Str8 name;
     Str8 section_name;
     Str8 data;
-    U64  align;
+    U32  align;
 };
 
 typedef enum {

@@ -16,14 +16,13 @@ struct Coff_Header {
     U16 characteristics;      // Characteristics
 };
 
-typedef enum {
-    // IMAGE_SCN_CNT_INITIALIZED_DATA
-    Coff_SectionFlag_InitializedData = 1 << 6,
-    // IMAGE_SCN_CNT_READ
-    Coff_SectionFlag_Read            = 1 << 30,
-    // IMAGE_SCN_CNT_WRITE
-    Coff_SectionFlag_Write           = 1 << 31,
-} Coff_SectionFlags;
+typedef U32 Coff_SectionFlags;
+// IMAGE_SCN_CNT_INITIALIZED_DATA
+#define Coff_SectionFlag_InitializedData (1U << 6)
+// IMAGE_SCN_CNT_READ
+#define Coff_SectionFlag_Read            (1U << 30)
+// IMAGE_SCN_CNT_WRITE
+#define Coff_SectionFlag_Write           (1U << 31)
 
 
 typedef struct Coff_Section Coff_Section;

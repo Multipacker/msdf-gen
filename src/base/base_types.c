@@ -66,7 +66,7 @@ internal U8 u8_count_trailing_zeros(U8 x) {
     _BitScanForward(&result, x);
     return (U8) result;
 #else
-    return __builtin_ctz(x);
+    return (U8) __builtin_ctz(x);
 #endif
 }
 
@@ -147,7 +147,7 @@ internal U16 u16_count_trailing_zeros(U16 x) {
     _BitScanForward(&result, x);
     return (U16) result;
 #else
-    return __builtin_ctz(x);
+    return (U16) __builtin_ctz(x);
 #endif
 }
 
@@ -231,7 +231,7 @@ internal U32 u32_count_trailing_zeros(U32 x) {
     _BitScanForward(&result, x);
     return (U32) result;
 #else
-    return __builtin_ctz(x);
+    return (U32) __builtin_ctz(x);
 #endif
 }
 
@@ -318,7 +318,7 @@ internal U64 u64_count_trailing_zeros(U64 x) {
     _BitScanForward64(&result, x);
     return (U32) result;
 #else
-    return __builtin_ctzl(x);
+    return (U64) __builtin_ctzl(x);
 #endif
 }
 

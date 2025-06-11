@@ -29,7 +29,7 @@ internal Str8List coff_binary_from_object(Arena *arena, Object object) {
         }
 
         if (section_index < object.section_count) {
-            symbol_section_indicies[symbol_index] = 1 + section_index; // NOTE(simon): 1 based indexing.
+            symbol_section_indicies[symbol_index] = 1 + (S16) section_index; // NOTE(simon): 1 based indexing.
             section_alignments[section_index] = u32_max(section_alignments[section_index], symbol->align);
 
             // NOTE(simon): Generate padding.
@@ -40,7 +40,7 @@ internal Str8List coff_binary_from_object(Arena *arena, Object object) {
                 str8_list_push(scratch.arena, &section_data[section_index], str8(padding_bytes, padding_size));
             }
 
-            symbol_data_offsets[symbol_index] = section_data[section_index].total_size;
+            symbol_data_offsets[symbol_index] = (U32) section_data[section_index].total_size;
             str8_list_push(scratch.arena, &section_data[section_index], symbol->data);
         } else {
             log_error_format("Symbol '%.*s' refers to nonexistent section '%.*s'.\n", str8_expand(symbol->name), str8_expand(symbol->section_name));
@@ -96,7 +96,7 @@ internal Str8List coff_binary_from_object(Arena *arena, Object object) {
             alignment = 1 + u32_count_trailing_zeros(section_alignments[i]);
         }
 
-        coff_section->raw_data_size   = section_data[i].total_size;
+        coff_section->raw_data_size   = (U32) section_data[i].total_size;
         coff_section->raw_data_offset = section_data_offset;
         coff_section->characteristics = Coff_SectionFlag_InitializedData | (alignment << 20) | Coff_SectionFlag_Read;
         if (section->flags & Object_SectionFlag_Write) {
@@ -109,10 +109,10 @@ internal Str8List coff_binary_from_object(Arena *arena, Object object) {
     // NOTE(simon): Build header.
     Coff_Header *header = arena_push_struct(arena, Coff_Header);
     header->machine             = Coff_HeaderMachine_Unknown;
-    header->section_count       = object.section_count;
+    header->section_count       = (U16) object.section_count;
     header->time_date_stamp     = 0; // TODO(simon): Maybe set an actual timestamp?
     header->symbol_table_offset = (U32) (sizeof(Coff_Header) + object.section_count * sizeof(Coff_Section));
-    header->symbol_count        = object.symbol_count;
+    header->symbol_count        = (U32) object.symbol_count;
     header->characteristics     = 0; // TODO(simon): We might care about IMAGE_FILE_DEBUG_STRIPPED (0x0800)
 
     // NOTE(simon): Build output.
