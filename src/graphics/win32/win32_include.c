@@ -4,6 +4,7 @@ global Gfx_EventList win32_event_list;
 typedef struct Gfx_Win32State Gfx_Win32State;
 struct Gfx_Win32State {
     HWND hwnd;
+    F32  dpi;
     HDC  hdc;
     U32 buttons_pressed;
     VoidFunction *update;
@@ -12,6 +13,24 @@ struct Gfx_Win32State {
 };
 
 global Gfx_Win32State global_gfx_win32_state;
+
+
+
+// NOTE(simon): Modern Windows APIs that could be missing from older SDKs, so
+// we have to load them dynamically.
+#define WIN32_DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2 ((Void *) -4)
+#define WIN32_PROCESS_PER_MONITOR_DPI_AWARE 2
+#define WIN32_MDT_EFFECTIVE_DPI 0
+
+typedef HRESULT Win32_SetProcessDpiAwareness(int);
+typedef HRESULT Win32_GetDpiForMonitor(HMONITOR hmonitor, int dpiType, UINT *dpiX, UINT *dpiY);
+typedef BOOL    Win32_SetProcessDpiAwarenessContext(Void *value);
+typedef UINT    Win32_GetDpiForWindow(HWND hwnd);
+
+global Win32_GetDpiForMonitor *win32_get_dpi_for_monitor = 0;
+global Win32_GetDpiForWindow  *win32_get_dpi_for_window  = 0;
+
+
 
 internal LRESULT CALLBACK win32_window_proc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam) {
     Gfx_Win32State *state = &global_gfx_win32_state;
@@ -49,6 +68,20 @@ internal LRESULT CALLBACK win32_window_proc(HWND hwnd, UINT message, WPARAM wpar
                 } else {
                     result = DefWindowProc(hwnd, message, wparam, lparam);
                 }
+            } break;
+            case WM_DPICHANGED: {
+                state->dpi = (F32) LOWORD(wparam);
+
+                RECT *new_window = (RECT *) lparam;
+                SetWindowPos(
+                    state->hwnd,
+                    0,
+                    new_window->left,
+                    new_window->top,
+                    new_window->right - new_window->left,
+                    new_window->bottom - new_window->top,
+                    SWP_NOZORDER | SWP_NOACTIVATE
+                );
             } break;
             case WM_MOUSEWHEEL: {
                 event->kind = Gfx_EventKind_Scroll;
@@ -177,6 +210,36 @@ internal Void gfx_create(Str8 title, U32 width, U32 height) {
 
     state->graphics_thread = GetCurrentThreadId();
 
+    // NOTE(simon): Set Windows 10 DPI awareness.
+    Win32_SetProcessDpiAwarenessContext *set_process_dpi_awareness_context = 0;
+    HMODULE user32_module = LoadLibraryA("user32.dll");
+    if (user32_module) {
+        set_process_dpi_awareness_context = (Win32_SetProcessDpiAwarenessContext *) GetProcAddress(user32_module, "SetProcessDpiAwarenessContext");
+        win32_get_dpi_for_window = (Win32_GetDpiForWindow *) GetProcAddress(user32_module, "GetDpiForWindow");
+        FreeLibrary(user32_module);
+    }
+    if (set_process_dpi_awareness_context) {
+        set_process_dpi_awareness_context(WIN32_DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
+    } else {
+        // NOTE(simon): Fallback to Windows 8.1 DPI awareness.
+        HMODULE shcore_module = LoadLibraryA("shcore.dll");
+        Win32_SetProcessDpiAwareness *set_process_dpi_awareness = 0;
+        if (shcore_module) {
+            set_process_dpi_awareness = (Win32_SetProcessDpiAwareness *) GetProcAddress(shcore_module, "SetProcessDpiAwareness");
+            win32_get_dpi_for_monitor = (Win32_GetDpiForMonitor *) GetProcAddress(shcore_module, "GetDpiForMonitor");
+
+            // NOTE(simon): Don't free the library, we will need
+            // win32_get_dpi_for_monitor throughout the rest of the program
+            // execution.
+        }
+
+        if (set_process_dpi_awareness) {
+            set_process_dpi_awareness(WIN32_PROCESS_PER_MONITOR_DPI_AWARE);
+        } else {
+            // TODO(simon): Fallback to Windows Vista DPI awareness.
+        }
+    }
+
     HINSTANCE instance = GetModuleHandle(0);
     CStr16 class_name = cstr16_from_str8(scratch.arena, str8_literal("ApplicationWindowClasssName"));
     WNDCLASS window_class = { 0 };
@@ -197,6 +260,21 @@ internal Void gfx_create(Str8 title, U32 width, U32 height) {
         );
 
         if (state->hwnd) {
+            if (win32_get_dpi_for_window) {
+                // NOTE(simon): Windows 10 DPI awareness.
+                state->dpi = win32_get_dpi_for_window(state->hwnd);
+            } else if (win32_get_dpi_for_monitor) {
+                // NOTE(simon): Windows 8.1 DPI awareness.
+                HMONITOR monitor = MonitorFromWindow(state->hwnd, MONITOR_DEFAULTTONEAREST);
+                UINT dpi_x = 0;
+                UINT dpi_y = 0;
+                win32_get_dpi_for_monitor(monitor, WIN32_MDT_EFFECTIVE_DPI, &dpi_x, &dpi_y);
+                state->dpi = dpi_x;
+            } else {
+                // NOTE(simon): No HiDPI awareness.
+                state->dpi = USER_DEFAULT_SCREEN_DPI;
+            }
+
             DragAcceptFiles(state->hwnd, true);
             state->hdc = GetDC(state->hwnd);
             ShowWindow(state->hwnd, SW_SHOW);
@@ -295,8 +373,8 @@ internal Void gfx_set_update_function(VoidFunction *update) {
 }
 
 internal F32 gfx_dpi(Void) {
-    // TODO(simon): Implement this correctly.
-    F32 dpi = USER_DEFAULT_SCREEN_DPI;
+    Gfx_Win32State *state = &global_gfx_win32_state;
+    F32 dpi = state->dpi;
     return dpi;
 }
 
