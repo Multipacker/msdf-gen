@@ -138,6 +138,24 @@ internal LRESULT CALLBACK win32_window_proc(HWND hwnd, UINT message, WPARAM wpar
                     event->text = str8(buffer, length);
                 }
             } break;
+            case WM_DROPFILES: {
+                HDROP drop = (HDROP) wparam;
+                POINT drop_point = { 0 };
+                DragQueryPoint(drop, &drop_point);
+                U64 file_count = DragQueryFileW(drop, 0xFFFFFFFF, 0, 0);
+                for (U64 i = 0; i < file_count; ++i) {
+                    U64 name_size = DragQueryFileW(drop, i, 0, 0) + 1;
+                    U16 *name_buffer = arena_push_array(win32_event_arena, U16, name_size);
+                    DragQueryFileW(drop, i, name_buffer, name_size);
+
+                    Gfx_Event *drop_event = arena_push_struct(win32_event_arena, Gfx_Event);
+                    drop_event->kind = Gfx_EventKind_FileDrop;
+                    drop_event->position = v2f32((F32) drop_point.x, (F32) drop_point.y);
+                    drop_event->path = str8_from_str16(win32_event_arena, str16(name_buffer, name_size - 1));
+                    dll_push_back(win32_event_list.first, win32_event_list.last, drop_event);
+                }
+                DragFinish(drop);
+            } break;
             default: {
                 result = DefWindowProc(hwnd, message, wparam, lparam);
             } break;
@@ -179,6 +197,7 @@ internal Void gfx_create(Str8 title, U32 width, U32 height) {
         );
 
         if (state->hwnd) {
+            DragAcceptFiles(state->hwnd, true);
             state->hdc = GetDC(state->hwnd);
             ShowWindow(state->hwnd, SW_SHOW);
         } else {

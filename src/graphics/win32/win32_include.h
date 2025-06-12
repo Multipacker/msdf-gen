@@ -6,6 +6,7 @@
 
 #pragma warning(push, 0)
 #include <windows.h>
+#include <shellapi.h>
 #pragma warning(pop)
 
 global Gfx_Key win32_key_table[128] = {
