@@ -1,33 +1,29 @@
-global Arena    *win32_permanent_arena;
-global Str8List win32_argument_list;
-global HANDLE   win32_standard_output = INVALID_HANDLE_VALUE;
-
-global Arena *win32_resource_arena;
-global Win32_Resource *volatile win32_resource_freelist;
-global CRITICAL_SECTION win32_resource_mutex;
-
-
+global Win32_State win32_state;
 
 internal Win32_Resource *win32_resource_create(Void) {
-    Win32_Resource *result = 0;
-    EnterCriticalSection(&win32_resource_mutex);
+    Win32_State *state = &win32_state;
 
-    result = win32_resource_freelist;
+    Win32_Resource *result = 0;
+    EnterCriticalSection(&state->resource_mutex);
+
+    result = state->resource_freelist;
     if (result) {
-        sll_stack_pop(win32_resource_freelist);
+        sll_stack_pop(state->resource_freelist);
     } else {
-        result = arena_push_struct(win32_resource_arena, Win32_Resource);
+        result = arena_push_struct(state->permanent_arena, Win32_Resource);
     }
     memory_zero_struct(result);
 
-    LeaveCriticalSection(&win32_resource_mutex);
+    LeaveCriticalSection(&state->resource_mutex);
     return result;
 }
 
 internal Void win32_resource_destroy(Win32_Resource *resource) {
-    EnterCriticalSection(&win32_resource_mutex);
-    sll_stack_push(win32_resource_freelist, resource);
-    LeaveCriticalSection(&win32_resource_mutex);
+    Win32_State *state = &win32_state;
+
+    EnterCriticalSection(&state->resource_mutex);
+    sll_stack_push(state->resource_freelist, resource);
+    LeaveCriticalSection(&state->resource_mutex);
 }
 
 
@@ -310,8 +306,8 @@ internal Str8 os_file_path(Arena *arena, OS_SystemPath path) {
 internal U64 os_now_nanoseconds(Void) {
     LARGE_INTEGER counter = { 0 };
     QueryPerformanceCounter(&counter);
-    // TODO: Implement
-    return 0;
+    U64 result = counter.QuadPart * 1e9 / win32_state.performance_frequency;
+    return result;
 }
 
 internal DateTime os_now_universal_time(Void) {
@@ -362,14 +358,15 @@ internal B32 os_console_run(Str8 program, Str8List arguments) {
 }
 
 internal Void os_console_print(Str8 string) {
+    Win32_State *state = &win32_state;
     Arena_Temporary scratch = arena_get_scratch(0, 0);
 
-    if (win32_standard_output == INVALID_HANDLE_VALUE) {
+    if (state->standard_output == INVALID_HANDLE_VALUE) {
         // NOTE: In case we are a graphical application that wants to output
         // text. If we already have a console, this will fail.
         AllocConsole();
 
-        win32_standard_output = GetStdHandle(STD_OUTPUT_HANDLE);
+        state->standard_output = GetStdHandle(STD_OUTPUT_HANDLE);
     }
 
     Str16 str16 = str16_from_str8(scratch.arena, string);
@@ -378,7 +375,7 @@ internal Void os_console_print(Str8 string) {
         DWORD characters_written = 0;
 
         BOOL success = WriteConsole(
-            win32_standard_output,
+            state->standard_output,
             &str16.data[offset],
             str16.size - offset,
             &characters_written,
@@ -526,17 +523,25 @@ internal Void os_condition_variable_wait(OS_ConditionVariable condition_variable
 int wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int nShowCmd) {
     arena_init_scratch();
 
-    win32_permanent_arena = arena_create();
+    Win32_State *state = &win32_state;
+
+    // NOTE(simon): Get performance counter frequency.
+    LARGE_INTEGER frequency = { 0 };
+    QueryPerformanceFrequency(&frequency);
+    state->performance_frequency = frequency.QuadPart;
+
+    state->standard_output = INVALID_HANDLE_VALUE;
+
+    state->permanent_arena = arena_create();
 
     for (int i = 0; i < __argc; ++i) {
-        Str8 argument = str8_from_str16(win32_permanent_arena, str16_cstr16(__wargv[i]));
-        str8_list_push(win32_permanent_arena, &win32_argument_list, argument);
+        Str8 argument = str8_from_str16(state->permanent_arena, str16_cstr16(__wargv[i]));
+        str8_list_push(state->permanent_arena, &state->argument_list, argument);
     }
 
-    win32_resource_arena = arena_create();
-    InitializeCriticalSection(&win32_resource_mutex);
+    InitializeCriticalSection(&state->resource_mutex);
 
-    S32 exit_code = os_run(win32_argument_list);
+    S32 exit_code = os_run(state->argument_list);
 
     arena_destroy_scratch();
 

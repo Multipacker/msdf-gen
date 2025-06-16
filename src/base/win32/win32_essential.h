@@ -32,4 +32,17 @@ struct Win32_Resource {
     };
 };
 
+typedef struct Win32_State Win32_State;
+struct Win32_State {
+    Arena *permanent_arena;
+
+    Str8List argument_list;
+    S64 performance_frequency;
+
+    HANDLE standard_output;
+
+    Win32_Resource *volatile resource_freelist;
+    CRITICAL_SECTION         resource_mutex;
+};
+
 #endif // WIN32_ESSENTIAL_H
