@@ -5,14 +5,10 @@ embed_file(opengl_fragment_shader, "shader.frag");
 
 #include <stdio.h>
 
-#if OS_WINDOWS
-#  include "win32_opengl.c"
-#elif OS_LINUX
-#  if LINUX_WAYLAND
-#    include "wayland_opengl.c"
-#  elif LINUX_X11
-#    include "x11_opengl.c"
-#  endif
+#if LINUX_WAYLAND
+#  include "wayland_opengl.c"
+#elif LINUX_X11
+#  include "x11_opengl.c"
 #endif
 
 global OpenGL_Context global_opengl_context;

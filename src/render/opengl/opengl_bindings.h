@@ -71,31 +71,16 @@
 #define GL_DEBUG_OUTPUT_SYNCHRONOUS       0x8242
 #define GL_FRAMEBUFFER_SRGB               0x8DB9
 
-typedef char         GLchar;
-typedef float        GLfloat;
-typedef int          GLint;
-typedef intptr_t     GLintptr;
-typedef int          GLsizei;
-typedef unsigned int GLbitfield;
-typedef unsigned int GLboolean;
-typedef unsigned int GLenum;
-typedef unsigned int GLuint;
-
-#if OS_WINDOWS && ARCH_X64
-typedef signed long long int GLsizeiptr;
-#else
+typedef char            GLchar;
+typedef float           GLfloat;
+typedef int             GLint;
+typedef intptr_t        GLintptr;
+typedef int             GLsizei;
+typedef unsigned int    GLbitfield;
+typedef unsigned int    GLboolean;
+typedef unsigned int    GLenum;
+typedef unsigned int    GLuint;
 typedef signed long int GLsizeiptr;
-#endif
-
-#if OS_LINUX
-typedef Void (*PFNGLCLEARCOLORPROC)(GLfloat red, GLfloat green, GLfloat blue, GLfloat alpha);
-typedef Void (*PFNGLCLEARPROC)(GLbitfield mask);
-typedef Void (*PFNGLDISABLEPROC)(GLenum cap);
-typedef Void (*PFNGLENABLEPROC)(GLenum cap);
-typedef Void (*PFNGLPIXELSTOREI)(GLenum pname, GLint param);
-typedef Void (*PFNGLSCISSORPROC)(GLint x, GLint y, GLsizei width, GLsizei height);
-typedef Void (*PFNGLVIEWPORTPROC)(GLint x, GLint y, GLsizei width, GLsizei height);
-#endif
 
 typedef Void   (GLDEBUGPROC)(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar *message, const void *userParam);
 
@@ -108,6 +93,8 @@ typedef Void      (*PFNGLBINDSAMPLERPROC)(GLuint unit, GLuint sampler);
 typedef Void      (*PFNGLBINDTEXTUREUNITPROC)(GLuint unit, GLuint texture);
 typedef Void      (*PFNGLBINDVERTEXARRAYPROC)(GLuint array);
 typedef Void      (*PFNGLBLENDFUNCSEPARATEPROC)(GLenum srcRGB, GLenum dstRGB, GLenum srcAlpha, GLenum dstAlpha);
+typedef Void      (*PFNGLCLEARCOLORPROC)(GLfloat red, GLfloat green, GLfloat blue, GLfloat alpha);
+typedef Void      (*PFNGLCLEARPROC)(GLbitfield mask);
 typedef Void      (*PFNGLCOMPILESHADERPROC)(GLuint shader);
 typedef Void      (*PFNGLCREATEBUFFERSPROC)(GLsizei n, GLuint *buffers);
 typedef Void      (*PFNGLCREATESAMPLERSPROC)(GLsizei n, GLuint *samplers);
@@ -119,7 +106,9 @@ typedef Void      (*PFNGLDELETEPROGRAMPROC)(GLuint program);
 typedef Void      (*PFNGLDELETESHADERPROC)(GLuint shader);
 typedef Void      (*PFNGLDELETETEXTURESPROC)(GLsizei n, const GLuint *textures);
 typedef Void      (*PFNGLDETACHSHADERPROC)(GLuint program, GLuint shader);
+typedef Void      (*PFNGLDISABLEPROC)(GLenum cap);
 typedef Void      (*PFNGLDRAWARRAYSINSTANCEDBASEINSTANCEPROC)(GLenum mode, GLint first, GLsizei count, GLsizei instancecount, GLuint baseinstance);
+typedef Void      (*PFNGLENABLEPROC)(GLenum cap);
 typedef Void      (*PFNGLENABLEVERTEXARRAYATTRIBPROC)(GLuint vaobj, GLuint index);
 typedef Void      (*PFNGLGETPROGRAMINFOLOGPROC)(GLuint program, GLsizei maxLength, GLsizei *length, GLchar *infoLog);
 typedef Void      (*PFNGLGETPROGRAMIVPROC)(GLuint program, GLenum pname, GLint *params);
@@ -128,11 +117,13 @@ typedef Void      (*PFNGLGETSHADERIVPROC)(GLuint shader, GLenum pname, GLint *pa
 typedef Void      (*PFNGLLINKPROGRAMPROC)(GLuint program);
 typedef Void      (*PFNGLNAMEDBUFFERDATAPROC)(GLuint buffer, GLsizeiptr size, const Void *data, GLenum usage);
 typedef Void      (*PFNGLNAMEDBUFFERSUBDATAPROC)(GLuint buffer, GLintptr offset, GLsizeiptr size, const Void *data);
+typedef Void      (*PFNGLPIXELSTOREI)(GLenum pname, GLint param);
 typedef Void      (*PFNGLPROGRAMUNIFORM1IPROC)(GLuint program, GLint location, GLint v0);
 typedef Void      (*PFNGLPROGRAMUNIFORM1IVPROC)(GLuint program, GLint location, GLsizei count, const GLint *value);
 typedef Void      (*PFNGLPROGRAMUNIFORMMATRIX3FVPROC)(GLuint program, GLint location, GLsizei count, GLboolean transpose, const GLfloat *value);
 typedef Void      (*PFNGLPROGRAMUNIFORMMATRIX4FVPROC)(GLuint program, GLint location, GLsizei count, GLboolean transpose, const GLfloat *value);
 typedef Void      (*PFNGLSAMPLERPARAMETERIPROC)(GLuint sampler, GLenum pname, GLint param);
+typedef Void      (*PFNGLSCISSORPROC)(GLint x, GLint y, GLsizei width, GLsizei height);
 typedef Void      (*PFNGLSHADERSOURCEPROC)(GLuint shader, GLsizei count, const GLchar **string, const GLint *length);
 typedef Void      (*PFNGLTEXTURESTORAGE2DPROC)(GLuint texture, GLsizei levels, GLenum internalformat, GLsizei width, GLsizei height);
 typedef Void      (*PFNGLTEXTURESUBIMAGE2DPROC)(GLuint texture, GLint level, GLint xoffset, GLint yoffset, GLsizei width, GLsizei height, GLenum format, GLenum type, const Void *pixels);
@@ -142,16 +133,8 @@ typedef Void      (*PFNGLVERTEXARRAYATTRIBFORMATPROC)(GLuint vaobj, GLuint attri
 typedef Void      (*PFNGLVERTEXARRAYATTRIBIFORMATPROC)(GLuint vaobj, GLuint attribindex, GLint size, GLenum type, GLuint relativeoffset);
 typedef Void      (*PFNGLVERTEXARRAYBINDINGDIVISORPROC)(GLuint vaobj, GLuint bindingindex, GLuint divisor);
 typedef Void      (*PFNGLVERTEXARRAYVERTEXBUFFERPROC)(GLuint vaobj, GLuint bindingindex, GLuint buffer, GLintptr offset, GLsizei stride);
+typedef Void      (*PFNGLVIEWPORTPROC)(GLint x, GLint y, GLsizei width, GLsizei height);
 typedef Void     *(*PFNGLMAPNAMEDBUFFER)(GLuint buffer, GLenum access);
-
-#define GL_LINUX_FUNCTIONS(X) \
-X(PFNGLCLEARCOLORPROC,                glClearColor)                \
-X(PFNGLCLEARPROC,                     glClear)                     \
-X(PFNGLDISABLEPROC,                   glDisable)                   \
-X(PFNGLENABLEPROC,                    glEnable)                    \
-X(PFNGLPIXELSTOREI,                   glPixelStorei)               \
-X(PFNGLSCISSORPROC,                   glScissor)                   \
-X(PFNGLVIEWPORTPROC,                  glViewport)
 
 #define GL_FUNCTIONS(X)                                                        \
 X(PFNGLATTACHSHADERPROC,                    glAttachShader)                    \
@@ -159,6 +142,8 @@ X(PFNGLBINDSAMPLERPROC,                     glBindSampler)                     \
 X(PFNGLBINDTEXTUREUNITPROC,                 glBindTextureUnit)                 \
 X(PFNGLBINDVERTEXARRAYPROC,                 glBindVertexArray)                 \
 X(PFNGLBLENDFUNCSEPARATEPROC,               glBlendFuncSeparate)               \
+X(PFNGLCLEARCOLORPROC,                      glClearColor)                      \
+X(PFNGLCLEARPROC,                           glClear)                           \
 X(PFNGLCOMPILESHADERPROC,                   glCompileShader)                   \
 X(PFNGLCREATEBUFFERSPROC,                   glCreateBuffers)                   \
 X(PFNGLCREATEPROGRAMPROC,                   glCreateProgram)                   \
@@ -172,7 +157,9 @@ X(PFNGLDELETEPROGRAMPROC,                   glDeleteProgram)                   \
 X(PFNGLDELETESHADERPROC,                    glDeleteShader)                    \
 X(PFNGLDELETETEXTURESPROC,                  glDeleteTextures)                  \
 X(PFNGLDETACHSHADERPROC,                    glDetachShader)                    \
+X(PFNGLDISABLEPROC,                         glDisable)                         \
 X(PFNGLDRAWARRAYSINSTANCEDBASEINSTANCEPROC, glDrawArraysInstancedBaseInstance) \
+X(PFNGLENABLEPROC,                          glEnable)                          \
 X(PFNGLENABLEVERTEXARRAYATTRIBPROC,         glEnableVertexArrayAttrib)         \
 X(PFNGLGETPROGRAMINFOLOGPROC,               glGetProgramInfoLog)               \
 X(PFNGLGETPROGRAMIVPROC,                    glGetProgramiv)                    \
@@ -183,11 +170,13 @@ X(PFNGLLINKPROGRAMPROC,                     glLinkProgram)                     \
 X(PFNGLMAPNAMEDBUFFER,                      glMapNamedBuffer)                  \
 X(PFNGLNAMEDBUFFERDATAPROC,                 glNamedBufferData)                 \
 X(PFNGLNAMEDBUFFERSUBDATAPROC,              glNamedBufferSubData)              \
+X(PFNGLPIXELSTOREI,                         glPixelStorei)                     \
 X(PFNGLPROGRAMUNIFORM1IPROC,                glProgramUniform1i)                \
 X(PFNGLPROGRAMUNIFORM1IVPROC,               glProgramUniform1iv)               \
 X(PFNGLPROGRAMUNIFORMMATRIX3FVPROC,         glProgramUniformMatrix3fv)         \
 X(PFNGLPROGRAMUNIFORMMATRIX4FVPROC,         glProgramUniformMatrix4fv)         \
 X(PFNGLSAMPLERPARAMETERIPROC,               glSamplerParameteri)               \
+X(PFNGLSCISSORPROC,                         glScissor)                         \
 X(PFNGLSHADERSOURCEPROC,                    glShaderSource)                    \
 X(PFNGLTEXTURESTORAGE2DPROC,                glTextureStorage2D)                \
 X(PFNGLTEXTURESUBIMAGE2DPROC,               glTextureSubImage2D)               \
@@ -197,23 +186,10 @@ X(PFNGLVERTEXARRAYATTRIBBINDINGPROC,        glVertexArrayAttribBinding)        \
 X(PFNGLVERTEXARRAYATTRIBFORMATPROC,         glVertexArrayAttribFormat)         \
 X(PFNGLVERTEXARRAYATTRIBIFORMATPROC,        glVertexArrayAttribIFormat)        \
 X(PFNGLVERTEXARRAYBINDINGDIVISORPROC,       glVertexArrayBindingDivisor)       \
-X(PFNGLVERTEXARRAYVERTEXBUFFERPROC,         glVertexArrayVertexBuffer)
+X(PFNGLVERTEXARRAYVERTEXBUFFERPROC,         glVertexArrayVertexBuffer)         \
+X(PFNGLVIEWPORTPROC,                        glViewport)
 
 #define X(type, name) global type name;
-
-#if OS_LINUX
-GL_LINUX_FUNCTIONS(X)
-#else
-void glBlendFunc(GLenum sfactor, GLenum dfactor);
-void glClear(GLbitfield mask);
-void glClearColor(GLfloat red, GLfloat green, GLfloat blue, GLfloat alpha);
-void glDisable(GLenum cap);
-void glEnable(GLenum cap);
-void glScissor(GLint x, GLint y, GLsizei width, GLsizei height);
-void glViewport(GLint x, GLint y, GLsizei width, GLsizei height);
-void glPixelStorei(GLenum pname, GLint param);
-#endif
-
 GL_FUNCTIONS(X)
 #undef X
 

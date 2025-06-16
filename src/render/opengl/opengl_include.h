@@ -3,14 +3,10 @@
 
 #include "opengl_bindings.h"
 
-#if OS_WINDOWS
-#  include "win32_opengl.h"
-#elif OS_LINUX
-#  if LINUX_WAYLAND
-#    include "wayland_opengl.h"
-#  elif LINUX_X11
-#    include "x11_opengl.h"
-#  endif
+#if LINUX_WAYLAND
+#  include "wayland_opengl.h"
+#elif LINUX_X11
+#  include "x11_opengl.h"
 #endif
 
 typedef struct OpenGL_Context OpenGL_Context;
