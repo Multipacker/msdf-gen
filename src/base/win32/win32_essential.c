@@ -162,31 +162,80 @@ internal B32 os_file_write(Str8 file_name, Str8List data) {
 
 
 internal FileProperties os_file_properties(Str8 file_name) {
-    // TODO: Implement
-    return (FileProperties) { 0 };
+    Arena_Temporary scratch = arena_get_scratch(0, 0);
+
+    CStr16 cstr16_file_name = cstr16_from_str8(scratch.arena, file_name);
+    HANDLE file = CreateFileW(
+        cstr16_file_name,
+        GENERIC_READ,
+        FILE_SHARE_READ,
+        0,
+        OPEN_EXISTING,
+        FILE_ATTRIBUTE_NORMAL,
+        0
+    );
+
+    FileProperties result = { 0 };
+
+    if (file != INVALID_HANDLE_VALUE) {
+        BY_HANDLE_FILE_INFORMATION information = { 0 };
+        GetFileInformationByHandle(file, &information);
+        if (information.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
+            result.flags |= FILE_PROPERTY_FLAGS_IS_FOLDER;
+        }
+        result.size = (U64) information.nFileSizeHigh << 32 | (U64) information.nFileSizeLow;
+
+        SYSTEMTIME system_create_time = { 0 };
+        FileTimeToSystemTime(&information.ftCreationTime, &system_create_time);
+        DateTime create_time = win32_date_time_from_system_time(system_create_time);
+        result.create_time = dense_time_from_date_time(&create_time);
+
+        SYSTEMTIME system_modify_time = { 0 };
+        FileTimeToSystemTime(&information.ftLastWriteTime, &system_modify_time);
+        DateTime modify_time = win32_date_time_from_system_time(system_modify_time);
+        result.modify_time = dense_time_from_date_time(&modify_time);
+
+        CloseHandle(file);
+    }
+
+    arena_end_temporary(scratch);
+    return result;
 }
 
-
 internal B32 os_file_delete(Str8 file_name) {
-    // TODO: Implement
-    return false;
+    Arena_Temporary scratch = arena_get_scratch(0, 0);
+    CStr16 file_name_cstr16 = cstr16_from_str8(scratch.arena, file_name);
+    B32 result = DeleteFileW(file_name_cstr16);
+    arena_end_temporary(scratch);
+    return result;
 }
 
 // Moves the file if neccessary and replaces existing files.
+// NOTE(simon): This doens't replace existing files.
 internal B32 os_file_rename(Str8 old_name, Str8 new_name) {
-    // TODO: Implement
-    return false;
+    Arena_Temporary scratch = arena_get_scratch(0, 0);
+    CStr16 old_name_cstr16 = cstr16_from_str8(scratch.arena, old_name);
+    CStr16 new_name_cstr16 = cstr16_from_str8(scratch.arena, new_name);
+    B32 result = MoveFileW(old_name_cstr16, new_name_cstr16);
+    arena_end_temporary(scratch);
+    return result;
 }
 
 internal B32 os_file_make_directory(Str8 path) {
-    // TODO: Implement
-    return false;
+    Arena_Temporary scratch = arena_get_scratch(0, 0);
+    CStr16 path_cstr16 = cstr16_from_str8(scratch.arena, path);
+    B32 result = CreateDirectoryW(path_cstr16, 0);
+    arena_end_temporary(scratch);
+    return result;
 }
 
 // The directory must be empty.
 internal B32 os_file_delete_directory(Str8 path) {
-    // TODO: Implement
-    return false;
+    Arena_Temporary scratch = arena_get_scratch(0, 0);
+    CStr16 path_cstr16 = cstr16_from_str8(scratch.arena, path);
+    B32 result = RemoveDirectoryW(path_cstr16);
+    arena_end_temporary(scratch);
+    return result;
 }
 
 
