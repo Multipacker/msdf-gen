@@ -327,8 +327,6 @@ internal V2U32 gfx_get_window_client_area(Void) {
 }
 
 internal Void gfx_swap_buffers(Void) {
-    Gfx_Win32State *state = &global_gfx_win32_state;
-    SwapBuffers(state->hdc);
 }
 
 internal Void gfx_set_cursor(Gfx_Cursor cursor) {

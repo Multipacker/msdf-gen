@@ -23,7 +23,7 @@ if not "%release%" == "1" if not "%profile%" == "1" set debug=1
 
 set disabled_warnings=-wd4201 -wd4152 -wd4100 -wd4189 -wd4101 -wd4310 -wd4061 -wd4820 -wd4191 -wd5045 -wd4711 -wd4710 -wd4242 -wd4244 -wd4668
 
-set libs=User32.lib Opengl32.lib Gdi32.lib Shell32.lib Bcrypt.lib Shell32.lib
+set libs=User32.lib Opengl32.lib Gdi32.lib Shell32.lib Bcrypt.lib Shell32.lib D3D11.lib d3dcompiler.lib
 set common_compiler_flags=-nologo -FC -Wall -MP -WX %disabled_warnings% -I.. -diagnostics:caret -diagnostics:color
 set common_linker_flags=%libs% -incremental:no
 
@@ -35,7 +35,7 @@ set debug_linker_flags=%common_linker_flags%
 set release_compiler_flags=%common_compiler_flags% -MT -O2 -Oi -EHsc -GS- -DRELEASE_BUILD=1
 set release_linker_flags=%common_linker_flags% -fixed -opt:icf -opt:ref -subsystem:windows libvcruntime.lib
 
-set render_libraries=opengl.o
+set render_libraries=d3d11.o
 
 :: Choose options
 if "%debug%" == "1" (
