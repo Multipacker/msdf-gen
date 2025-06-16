@@ -45,4 +45,8 @@ struct Win32_State {
     CRITICAL_SECTION         resource_mutex;
 };
 
+// NOTE(simon): Helpers for converting between date formats.
+internal DateTime   win32_date_time_from_system_time(SYSTEMTIME system_time);
+internal SYSTEMTIME win32_system_time_from_date_time(DateTime date_time);
+
 #endif // WIN32_ESSENTIAL_H

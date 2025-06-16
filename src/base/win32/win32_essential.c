@@ -29,6 +29,7 @@ internal Void win32_resource_destroy(Win32_Resource *resource) {
 
 
 
+// NOTE(simon): Helpers for converting between date formats.
 internal DateTime win32_date_time_from_system_time(SYSTEMTIME system_time) {
     DateTime result = { 0 };
     result.millisecond = system_time.wMilliseconds;
@@ -37,7 +38,7 @@ internal DateTime win32_date_time_from_system_time(SYSTEMTIME system_time) {
     result.hour        = system_time.wHour;
     result.day         = system_time.wDay - 1;
     result.month       = system_time.wMonth - 1;
-    result.year        = system_time.wYear - 1601;
+    result.year        = system_time.wYear;
     return result;
 }
 
@@ -49,7 +50,7 @@ internal SYSTEMTIME win32_system_time_from_date_time(DateTime date_time) {
     result.wHour         = date_time.hour;
     result.wDay          = 1 + date_time.day;
     result.wMonth        = 1 + date_time.month;
-    result.wYear         = 1601 + date_time.year;
+    result.wYear         = date_time.year;
     return result;
 }
 
@@ -81,7 +82,7 @@ internal B32 os_file_read(Arena *arena, Str8 file_name, Str8 *result) {
     Arena_Temporary scratch = arena_get_scratch(&arena, 1);
 
     CStr16 cstr16_file_name = cstr16_from_str8(scratch.arena, file_name);
-    HANDLE file = CreateFile(
+    HANDLE file = CreateFileW(
         cstr16_file_name,
         GENERIC_READ,
         FILE_SHARE_READ,
@@ -134,7 +135,6 @@ internal B32 os_file_read(Arena *arena, Str8 file_name, Str8 *result) {
 internal B32 os_file_write(Str8 file_name, Str8List data) {
     Arena_Temporary scratch = arena_get_scratch(0, 0);
     CStr16 file_name_cstr16 = cstr16_from_str8(scratch.arena, file_name);
-    // TODO(simon): Do we care about security attributes?
     HANDLE handle = CreateFileW((WCHAR *) file_name_cstr16, GENERIC_WRITE, 0, 0, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0);
 
     if (handle != INVALID_HANDLE_VALUE) {
@@ -268,28 +268,25 @@ internal Str8 os_current_directory(Arena *arena) {
 
 internal Str8 os_file_path(Arena *arena, OS_SystemPath path) {
     Str8 result = { 0 };
+    Arena_Temporary scratch = arena_get_scratch(&arena, 1);
 
     switch (path) {
         case OS_SYSTEM_PATH_BINARY: {
             // TODO(simon): Handle insufficient buffer size.
-            Arena_Temporary scratch = arena_get_scratch(&arena, 1);
             DWORD size = kilobytes(32);
             U16 *buffer = arena_push_array(scratch.arena, U16, size);
             DWORD length = GetModuleFileNameW(0, (WCHAR *) buffer, size);
             Str8 name = str8_from_str16(scratch.arena, str16(buffer, length));
             Str8 name_chopped = str8_chop_last_slash(name);
             result = str8_copy(arena, name_chopped);
-            arena_end_temporary(scratch);
         } break;
         case OS_SYSTEM_PATH_USER_DATA: {
             // TODO(simon): Handle insufficient buffer size.
-            Arena_Temporary scratch = arena_get_scratch(&arena, 1);
             DWORD size = kilobytes(32);
             U16 *buffer = arena_push_array(scratch.arena, U16, size);
             if (SUCCEEDED(SHGetFolderPathW(0, CSIDL_APPDATA, 0, 0, (WCHAR *) buffer))) {
                 result = str8_from_str16(arena, str16_cstr16(buffer));
             }
-            arena_end_temporary(scratch);
         } break;
         case OS_SYSTEM_PATH_TEMPORARY_DATA: {
         } break;
@@ -297,6 +294,7 @@ internal Str8 os_file_path(Arena *arena, OS_SystemPath path) {
         } break;
     }
 
+    arena_end_temporary(scratch);
     return result;
 }
 
@@ -352,6 +350,7 @@ internal Void os_get_entropy(Void *data, U64 size) {
 }
 
 
+
 internal B32 os_console_run(Str8 program, Str8List arguments) {
     // TODO(simon): Implement
     return false;
@@ -391,6 +390,7 @@ internal Void os_console_print(Str8 string) {
 
     arena_end_temporary(scratch);
 }
+
 
 
 internal Void os_restart_self(Void) {
