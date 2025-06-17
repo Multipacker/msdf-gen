@@ -57,12 +57,12 @@ internal LRESULT CALLBACK win32_window_proc(HWND hwnd, UINT message, WPARAM wpar
         Gfx_Win32Window *window        = win32_window_from_hwnd(hwnd);
         Gfx_Window       window_handle = win32_handle_from_window(window);
 
-        Gfx_Event *event = arena_push_struct(win32_event_arena, Gfx_Event);
-        event->window = window_handle;
-
         switch (message) {
             case WM_CLOSE: case WM_QUIT: case WM_DESTROY: {
+                Gfx_Event *event = arena_push_struct(win32_event_arena, Gfx_Event);
                 event->kind = Gfx_EventKind_Quit;
+                event->window = window_handle;
+                dll_push_back(win32_event_list.first, win32_event_list.last, event);
             } break;
             case WM_SIZE:
             case WM_PAINT: {
@@ -105,6 +105,7 @@ internal LRESULT CALLBACK win32_window_proc(HWND hwnd, UINT message, WPARAM wpar
                 );
             } break;
             case WM_MOUSEWHEEL: {
+                Gfx_Event *event = arena_push_struct(win32_event_arena, Gfx_Event);
                 event->kind = Gfx_EventKind_Scroll;
                 event->scroll.y = (F32) ((S16) GET_WHEEL_DELTA_WPARAM(wparam) / WHEEL_DELTA);
                 POINT point = { 0 };
@@ -113,8 +114,11 @@ internal LRESULT CALLBACK win32_window_proc(HWND hwnd, UINT message, WPARAM wpar
                 ScreenToClient(hwnd, &point);
                 event->position.x = (F32) point.x;
                 event->position.y = (F32) point.y;
+                event->window = window_handle;
+                dll_push_back(win32_event_list.first, win32_event_list.last, event);
             } break;
             case WM_MOUSEHWHEEL: {
+                Gfx_Event *event = arena_push_struct(win32_event_arena, Gfx_Event);
                 event->kind = Gfx_EventKind_Scroll;
                 event->scroll.x = (F32) ((S16) GET_WHEEL_DELTA_WPARAM(wparam) / WHEEL_DELTA);
                 POINT point = { 0 };
@@ -123,6 +127,8 @@ internal LRESULT CALLBACK win32_window_proc(HWND hwnd, UINT message, WPARAM wpar
                 ScreenToClient(hwnd, &point);
                 event->position.x = (F32) point.x;
                 event->position.y = (F32) point.y;
+                event->window = window_handle;
+                dll_push_back(win32_event_list.first, win32_event_list.last, event);
             } break;
             case WM_LBUTTONUP: case WM_LBUTTONDOWN:
             case WM_MBUTTONUP: case WM_MBUTTONDOWN:
@@ -152,12 +158,15 @@ internal LRESULT CALLBACK win32_window_proc(HWND hwnd, UINT message, WPARAM wpar
                     Gfx_Key_MouseMiddle,
                 };
 
+                Gfx_Event *event = arena_push_struct(win32_event_arena, Gfx_Event);
                 event->kind = pressed ? Gfx_EventKind_KeyPress : Gfx_EventKind_KeyRelease;
                 event->key = buttons[button];
                 event->key_modifiers |= (GetAsyncKeyState(VK_SHIFT)   & 0x8000) ? Gfx_KeyModifier_Shift   : 0;
                 event->key_modifiers |= (GetAsyncKeyState(VK_CONTROL) & 0x8000) ? Gfx_KeyModifier_Control : 0;
                 event->position.x = (F32) (S16) LOWORD(lparam);
                 event->position.y = (F32) (S16) HIWORD(lparam);
+                event->window = window_handle;
+                dll_push_back(win32_event_list.first, win32_event_list.last, event);
 
                 // NOTE(simon): Determine whether or not the mouse captured.
                 window->buttons_pressed &= ~(1 << button);
@@ -173,10 +182,13 @@ internal LRESULT CALLBACK win32_window_proc(HWND hwnd, UINT message, WPARAM wpar
                 B32 is_up   = lparam & (1 << 31);
 
                 if (win32_key_table[vk_code] != 0) {
+                    Gfx_Event *event = arena_push_struct(win32_event_arena, Gfx_Event);
                     event->kind = is_up ? Gfx_EventKind_KeyRelease : Gfx_EventKind_KeyPress;
                     event->key = win32_key_table[vk_code];
                     event->key_modifiers |= (GetAsyncKeyState(VK_SHIFT)   & 0x8000) ? Gfx_KeyModifier_Shift   : 0;
                     event->key_modifiers |= (GetAsyncKeyState(VK_CONTROL) & 0x8000) ? Gfx_KeyModifier_Control : 0;
+                    event->window = window_handle;
+                    dll_push_back(win32_event_list.first, win32_event_list.last, event);
                 }
             } break;
             case WM_CHAR: {
@@ -188,8 +200,11 @@ internal LRESULT CALLBACK win32_window_proc(HWND hwnd, UINT message, WPARAM wpar
                     U8 *buffer = arena_push_array(win32_event_arena, U8, 4);
                     U64 length = string_encode_utf8(buffer, codepoint);
 
+                    Gfx_Event *event = arena_push_struct(win32_event_arena, Gfx_Event);
                     event->kind = Gfx_EventKind_Text;
                     event->text = str8(buffer, length);
+                    event->window = window_handle;
+                    dll_push_back(win32_event_list.first, win32_event_list.last, event);
                 }
             } break;
             case WM_DROPFILES: {
@@ -213,10 +228,6 @@ internal LRESULT CALLBACK win32_window_proc(HWND hwnd, UINT message, WPARAM wpar
             default: {
                 result = DefWindowProc(hwnd, message, wparam, lparam);
             } break;
-        }
-
-        if (event->kind != Gfx_EventKind_Null) {
-            dll_push_back(win32_event_list.first, win32_event_list.last, event);
         }
     } else {
         result = DefWindowProc(hwnd, message, wparam, lparam);
