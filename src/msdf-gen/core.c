@@ -2611,5 +2611,8 @@ internal Void update(Void) {
     }
 
     ++state->frame_index;
+
+    msdf_cache_update();
+
     prof_frame_done();
 }

@@ -400,7 +400,6 @@ internal S32 os_run(Str8List arguments) {
 
     while (state->running) {
         update();
-        msdf_cache_update();
     }
 
     return 0;
