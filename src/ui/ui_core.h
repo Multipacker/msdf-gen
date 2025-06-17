@@ -438,7 +438,7 @@ internal UI_Size ui_size_aspect_ratio(F32 ratio, F32 strictness);
 
 internal UI_Context *ui_create(Void);
 
-internal Void ui_begin(UI_EventList *ui_events, F32 dt);
+internal Void ui_begin(Gfx_Window window, UI_EventList *ui_events, F32 dt);
 internal Void ui_end(Void);
 
 internal UI_BoxIterator ui_box_iterator_depth_first_pre_order(UI_Box *box);

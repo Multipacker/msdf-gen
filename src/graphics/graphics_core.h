@@ -106,11 +106,17 @@ global Str8 gfx_name_from_key[] = {
 };
 #undef X
 
+typedef struct Gfx_Window Gfx_Window;
+struct Gfx_Window {
+    U64 u64[1];
+};
+
 typedef struct Gfx_Event Gfx_Event;
 struct Gfx_Event {
     Gfx_Event *next;
     Gfx_Event *previous;
 
+    Gfx_Window      window;
     Gfx_EventKind   kind;
     Gfx_Key         key;
     Gfx_KeyModifier key_modifiers;
@@ -139,22 +145,28 @@ typedef enum {
     Gfx_Cursor_COUNT,
 } Gfx_Cursor;
 
-internal Void          gfx_create(Str8 title, U32 width, U32 height);
-internal V2U32         gfx_get_window_client_area(Void);
+internal Void gfx_init(Void);
+
+// NOTE(simon): Events.
 internal Void          gfx_send_wakeup_event(Void);
 internal Gfx_EventList gfx_get_events(Arena *arena, B32 wait);
-internal V2F32         gfx_get_mouse_position(Void);
-internal Void          gfx_swap_buffers(Void);
-internal Void          gfx_set_cursor(Gfx_Cursor cursor);
 internal Void          gfx_set_update_function(VoidFunction *update);
-internal F32           gfx_dpi(Void);
-internal Void          gfx_clear_custom_title_bar_data(Void);
-internal Void          gfx_set_custom_title_bar_height(F32 height);
-internal Void          gfx_push_cusomt_title_bar_client_area(R2F32 rectangle);
-internal B32           gfx_has_os_title_bar(Void);
-internal Void          gfx_minimize(Void);
-internal B32           gfx_is_maximized(Void);
-internal Void          gfx_set_maximized(B32 maximized);
+
+internal Void gfx_set_cursor(Gfx_Cursor cursor);
+
+// NOTE(simon): Windows.
+internal Gfx_Window gfx_window_create(Str8 title, U32 width, U32 height);
+internal Void       gfx_window_close(Gfx_Window handle);
+internal V2U32      gfx_client_area_from_window(Gfx_Window handle);
+internal V2F32      gfx_mouse_position_from_window(Gfx_Window handle);
+internal F32        gfx_dpi_from_window(Gfx_Window window);
+internal Void       gfx_window_clear_custom_title_bar_data(Gfx_Window handle);
+internal Void       gfx_window_set_custom_title_bar_height(Gfx_Window handle, F32 height);
+internal Void       gfx_window_push_cusomt_title_bar_client_area(Gfx_Window handle, R2F32 rectangle);
+internal B32        gfx_window_has_os_title_bar(Gfx_Window handle);
+internal Void       gfx_window_minimize(Gfx_Window handle);
+internal B32        gfx_window_is_maximized(Gfx_Window handle);
+internal Void       gfx_window_set_maximized(Gfx_Window handle, B32 maximized);
 
 // NOTE(simon): Clipboard
 internal Void gfx_set_clipboard_text(Str8 text);

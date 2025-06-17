@@ -337,9 +337,11 @@ internal S32 os_run(Str8List arguments) {
     state->ttf_arena = arena_create();
     state->ttf_font = &ttf_font_nil;
 
-    gfx_create(str8_literal("MSDF-gen"), 1280, 720);
+    gfx_init();
     render_init();
-    render_create();
+
+    state->window = gfx_window_create(str8_literal("MSDF-gen"), 1280, 720);
+    render_create(state->window);
     font_cache_create();
     gfx_set_update_function(update);
     msdf_cache_create(32, gfx_send_wakeup_event);

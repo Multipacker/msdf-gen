@@ -82,4 +82,35 @@ global Gfx_Key win32_key_table[128] = {
     [VK_MBUTTON] = Gfx_Key_MouseMiddle,
 };
 
+typedef struct Gfx_Win32Window Gfx_Win32Window;
+struct Gfx_Win32Window {
+    Gfx_Win32Window *next;
+    Gfx_Win32Window *previous;
+
+    HWND hwnd;
+    F32  dpi;
+    HDC  hdc;
+    U32  buttons_pressed;
+};
+
+typedef struct Gfx_Win32State Gfx_Win32State;
+struct Gfx_Win32State {
+    Arena *permanent_arena;
+
+    HINSTANCE     instance;
+    WNDCLASS      window_class;
+    VoidFunction *update;
+    DWORD         graphics_thread;
+    HCURSOR       cursor;
+
+    Gfx_Win32Window *window_freelist;
+    Gfx_Win32Window *first_window;
+    Gfx_Win32Window *last_window;
+};
+
+// NOTE(simon): Helpers for converting to and from handles.
+internal Gfx_Window       win32_handle_from_window(Gfx_Win32Window *window);
+internal Gfx_Win32Window *win32_window_from_handle(Gfx_Window handle);
+internal Gfx_Win32Window *win32_window_from_hwnd(HWND hwnd);
+
 #endif // WIN32_GRAPHICS_INCLUDE_H

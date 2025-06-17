@@ -1,18 +1,7 @@
 global Arena        *win32_event_arena;
 global Gfx_EventList win32_event_list;
 
-typedef struct Gfx_Win32State Gfx_Win32State;
-struct Gfx_Win32State {
-    HWND hwnd;
-    F32  dpi;
-    HDC  hdc;
-    U32 buttons_pressed;
-    VoidFunction *update;
-    DWORD graphics_thread;
-    HCURSOR cursor;
-};
-
-global Gfx_Win32State global_gfx_win32_state;
+global Gfx_Win32State gfx_win32_state;
 
 
 
@@ -32,12 +21,44 @@ global Win32_GetDpiForWindow  *win32_get_dpi_for_window  = 0;
 
 
 
+// NOTE(simon): Helpers for converting to and from handles.
+internal Gfx_Window win32_handle_from_window(Gfx_Win32Window *window) {
+    Gfx_Window result = { 0 };
+    result.u64[0] = integer_from_pointer(window);
+    return result;
+}
+
+internal Gfx_Win32Window *win32_window_from_handle(Gfx_Window handle) {
+    Gfx_Win32Window *result = (Gfx_Win32Window *) pointer_from_integer(handle.u64[0]);
+    return result;
+}
+
+internal Gfx_Win32Window *win32_window_from_hwnd(HWND hwnd) {
+    Gfx_Win32State *state = &gfx_win32_state;
+
+    Gfx_Win32Window *result = 0;
+    for (Gfx_Win32Window *window = state->first_window; window; window = window->next) {
+        if (window->hwnd == hwnd) {
+            result = window;
+            break;
+        }
+    }
+
+    return result;
+}
+
+
+
 internal LRESULT CALLBACK win32_window_proc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam) {
-    Gfx_Win32State *state = &global_gfx_win32_state;
+    Gfx_Win32State *state = &gfx_win32_state;
     LRESULT result = 0;
 
     if (win32_event_arena) {
+        Gfx_Win32Window *window        = win32_window_from_hwnd(hwnd);
+        Gfx_Window       window_handle = win32_handle_from_window(window);
+
         Gfx_Event *event = arena_push_struct(win32_event_arena, Gfx_Event);
+        event->window = window_handle;
 
         switch (message) {
             case WM_CLOSE: case WM_QUIT: case WM_DESTROY: {
@@ -54,7 +75,7 @@ internal LRESULT CALLBACK win32_window_proc(HWND hwnd, UINT message, WPARAM wpar
             } break;
             case WM_SETCURSOR: {
                 RECT rect = { 0 };
-                GetClientRect(state->hwnd, &rect);
+                GetClientRect(hwnd, &rect);
                 R2F32 window_rectangle = r2f32(
                     (F32) rect.left,
                     (F32) rect.top,
@@ -62,7 +83,7 @@ internal LRESULT CALLBACK win32_window_proc(HWND hwnd, UINT message, WPARAM wpar
                     (F32) rect.bottom
                 );
 
-                V2F32 mouse = gfx_get_mouse_position();
+                V2F32 mouse = gfx_mouse_position_from_window(window_handle);
                 if (r2f32_contains_v2f32(window_rectangle, mouse)) {
                     SetCursor(state->cursor);
                 } else {
@@ -70,11 +91,11 @@ internal LRESULT CALLBACK win32_window_proc(HWND hwnd, UINT message, WPARAM wpar
                 }
             } break;
             case WM_DPICHANGED: {
-                state->dpi = (F32) LOWORD(wparam);
+                window->dpi = (F32) LOWORD(wparam);
 
                 RECT *new_window = (RECT *) lparam;
                 SetWindowPos(
-                    state->hwnd,
+                    hwnd,
                     0,
                     new_window->left,
                     new_window->top,
@@ -89,7 +110,7 @@ internal LRESULT CALLBACK win32_window_proc(HWND hwnd, UINT message, WPARAM wpar
                 POINT point = { 0 };
                 point.x = (S32) (S16) LOWORD(lparam);
                 point.y = (S32) (S16) HIWORD(lparam);
-                ScreenToClient(state->hwnd, &point);
+                ScreenToClient(hwnd, &point);
                 event->position.x = (F32) point.x;
                 event->position.y = (F32) point.y;
             } break;
@@ -99,7 +120,7 @@ internal LRESULT CALLBACK win32_window_proc(HWND hwnd, UINT message, WPARAM wpar
                 POINT point = { 0 };
                 point.x = (S32) (S16) LOWORD(lparam);
                 point.y = (S32) (S16) HIWORD(lparam);
-                ScreenToClient(state->hwnd, &point);
+                ScreenToClient(hwnd, &point);
                 event->position.x = (F32) point.x;
                 event->position.y = (F32) point.y;
             } break;
@@ -139,9 +160,9 @@ internal LRESULT CALLBACK win32_window_proc(HWND hwnd, UINT message, WPARAM wpar
                 event->position.y = (F32) (S16) HIWORD(lparam);
 
                 // NOTE(simon): Determine whether or not the mouse captured.
-                global_gfx_win32_state.buttons_pressed &= ~(1 << button);
-                global_gfx_win32_state.buttons_pressed |= pressed << button;
-                if (global_gfx_win32_state.buttons_pressed) {
+                window->buttons_pressed &= ~(1 << button);
+                window->buttons_pressed |= pressed << button;
+                if (window->buttons_pressed) {
                     SetCapture(hwnd);
                 } else {
                     ReleaseCapture();
@@ -204,9 +225,10 @@ internal LRESULT CALLBACK win32_window_proc(HWND hwnd, UINT message, WPARAM wpar
     return result;
 }
 
-internal Void gfx_create(Str8 title, U32 width, U32 height) {
-    Gfx_Win32State *state = &global_gfx_win32_state;
-    Arena_Temporary scratch = arena_get_scratch(0, 0);
+internal Void gfx_init(Void) {
+    Gfx_Win32State *state = &gfx_win32_state;
+
+    state->permanent_arena = arena_create();
 
     state->graphics_thread = GetCurrentThreadId();
 
@@ -240,56 +262,20 @@ internal Void gfx_create(Str8 title, U32 width, U32 height) {
         }
     }
 
-    HINSTANCE instance = GetModuleHandle(0);
-    CStr16 class_name = cstr16_from_str8(scratch.arena, str8_literal("ApplicationWindowClasssName"));
-    WNDCLASS window_class = { 0 };
-    window_class.lpfnWndProc = win32_window_proc;
-    window_class.hInstance = instance;
-    window_class.lpszClassName = class_name;
-    window_class.hCursor = LoadCursor(0, IDC_ARROW);
-
-    ATOM register_class_result = RegisterClass(&window_class);
-    if (register_class_result) {
-        CStr16 cstr16_title = cstr16_from_str8(scratch.arena, title);
-        state->hwnd = CreateWindow(
-            window_class.lpszClassName, cstr16_title,
-            WS_OVERLAPPEDWINDOW | WS_SIZEBOX,
-            CW_USEDEFAULT, CW_USEDEFAULT,
-            width, height,
-            0, 0, instance, 0
-        );
-
-        if (state->hwnd) {
-            if (win32_get_dpi_for_window) {
-                // NOTE(simon): Windows 10 DPI awareness.
-                state->dpi = win32_get_dpi_for_window(state->hwnd);
-            } else if (win32_get_dpi_for_monitor) {
-                // NOTE(simon): Windows 8.1 DPI awareness.
-                HMONITOR monitor = MonitorFromWindow(state->hwnd, MONITOR_DEFAULTTONEAREST);
-                UINT dpi_x = 0;
-                UINT dpi_y = 0;
-                win32_get_dpi_for_monitor(monitor, WIN32_MDT_EFFECTIVE_DPI, &dpi_x, &dpi_y);
-                state->dpi = dpi_x;
-            } else {
-                // NOTE(simon): No HiDPI awareness.
-                state->dpi = USER_DEFAULT_SCREEN_DPI;
-            }
-
-            DragAcceptFiles(state->hwnd, true);
-            state->hdc = GetDC(state->hwnd);
-            ShowWindow(state->hwnd, SW_SHOW);
-        } else {
-            // TODO: Error
-        }
-    } else {
-        // TODO: Error
-    }
-
-    arena_end_temporary(scratch);
+    state->instance = GetModuleHandle(0);
+    CStr16 class_name = cstr16_from_str8(state->permanent_arena, str8_literal("ApplicationWindowClasssName"));
+    state->window_class.lpfnWndProc   = win32_window_proc;
+    state->window_class.hInstance     = state->instance;
+    state->window_class.lpszClassName = class_name;
+    state->window_class.hCursor       = LoadCursor(0, IDC_ARROW);
+    ATOM register_class_result = RegisterClass(&state->window_class);
 }
 
+
+
+// NOTE(simon): Events.
 internal Void gfx_send_wakeup_event(Void) {
-    Gfx_Win32State *state = &global_gfx_win32_state;
+    Gfx_Win32State *state = &gfx_win32_state;
     PostThreadMessage(state->graphics_thread, WM_USER, 0, 0);
 }
 
@@ -309,28 +295,14 @@ internal Gfx_EventList gfx_get_events(Arena *arena, B32 wait) {
     return win32_event_list;
 }
 
-internal V2F32 gfx_get_mouse_position(Void) {
-    Gfx_Win32State *state = &global_gfx_win32_state;
-    POINT point = { 0 };
-    GetCursorPos(&point);
-    ScreenToClient(state->hwnd, &point);
-    V2F32 result = v2f32((F32) point.x, (F32) point.y);
-    return result;
+internal Void gfx_set_update_function(VoidFunction *update) {
+    gfx_win32_state.update = update;
 }
 
-internal V2U32 gfx_get_window_client_area(Void) {
-    Gfx_Win32State *state = &global_gfx_win32_state;
-    RECT rect = { 0 };
-    GetClientRect(state->hwnd, &rect);
-    V2U32 result = v2u32(rect.right - rect.left, rect.bottom - rect.top);
-    return result;
-}
 
-internal Void gfx_swap_buffers(Void) {
-}
 
 internal Void gfx_set_cursor(Gfx_Cursor cursor) {
-    Gfx_Win32State *state = &global_gfx_win32_state;
+    Gfx_Win32State *state = &gfx_win32_state;
     HCURSOR selected_cursor = 0;
 
 #define win32_cursor_list(X) \
@@ -366,46 +338,138 @@ internal Void gfx_set_cursor(Gfx_Cursor cursor) {
     }
 }
 
-internal Void gfx_set_update_function(VoidFunction *update) {
-    global_gfx_win32_state.update = update;
+
+
+
+// NOTE(simon): Windows.
+internal Gfx_Window gfx_window_create(Str8 title, U32 width, U32 height) {
+    Gfx_Win32State *state = &gfx_win32_state;
+    Arena_Temporary scratch = arena_get_scratch(0, 0);
+
+    Gfx_Win32Window *window = state->window_freelist;
+    if (window) {
+        sll_stack_pop(state->window_freelist);
+        memory_zero_struct(window);
+    } else {
+        window = arena_push_struct(state->permanent_arena, Gfx_Win32Window);
+    }
+    dll_push_back(state->first_window, state->last_window, window);
+
+    CStr16 cstr16_title = cstr16_from_str8(scratch.arena, title);
+    window->hwnd = CreateWindow(
+        state->window_class.lpszClassName, cstr16_title,
+        WS_OVERLAPPEDWINDOW | WS_SIZEBOX,
+        CW_USEDEFAULT, CW_USEDEFAULT,
+        width, height,
+        0, 0, state->instance, 0
+    );
+
+    if (window->hwnd) {
+        if (win32_get_dpi_for_window) {
+            // NOTE(simon): Windows 10 DPI awareness.
+            window->dpi = win32_get_dpi_for_window(window->hwnd);
+        } else if (win32_get_dpi_for_monitor) {
+            // NOTE(simon): Windows 8.1 DPI awareness.
+            HMONITOR monitor = MonitorFromWindow(window->hwnd, MONITOR_DEFAULTTONEAREST);
+            UINT dpi_x = 0;
+            UINT dpi_y = 0;
+            win32_get_dpi_for_monitor(monitor, WIN32_MDT_EFFECTIVE_DPI, &dpi_x, &dpi_y);
+            window->dpi = dpi_x;
+        } else {
+            // NOTE(simon): No HiDPI awareness.
+            window->dpi = USER_DEFAULT_SCREEN_DPI;
+        }
+
+        DragAcceptFiles(window->hwnd, true);
+        window->hdc = GetDC(window->hwnd);
+        ShowWindow(window->hwnd, SW_SHOW);
+    } else {
+        // TODO: Error
+    }
+
+    arena_end_temporary(scratch);
+    Gfx_Window result = win32_handle_from_window(window);
+    return result;
 }
 
-internal F32 gfx_dpi(Void) {
-    Gfx_Win32State *state = &global_gfx_win32_state;
-    F32 dpi = state->dpi;
+internal Void gfx_window_close(Gfx_Window handle) {
+    Gfx_Win32State  *state  = &gfx_win32_state;
+    Gfx_Win32Window *window = win32_window_from_handle(handle);
+
+    if (window) {
+        ReleaseDC(window->hwnd, window->hdc);
+        DestroyWindow(window->hwnd);
+        dll_remove(state->first_window, state->last_window, window);
+        sll_stack_push(state->window_freelist, window);
+    }
+}
+
+internal V2U32 gfx_client_area_from_window(Gfx_Window handle) {
+    Gfx_Win32Window *window = win32_window_from_handle(handle);
+
+    RECT rect = { 0 };
+    if (window) {
+        GetClientRect(window->hwnd, &rect);
+    }
+    V2U32 result = v2u32(rect.right - rect.left, rect.bottom - rect.top);
+
+    return result;
+}
+
+internal V2F32 gfx_mouse_position_from_window(Gfx_Window handle) {
+    Gfx_Win32Window *window = win32_window_from_handle(handle);
+
+    POINT point = { 0 };
+    if (window) {
+        GetCursorPos(&point);
+        ScreenToClient(window->hwnd, &point);
+    }
+    V2F32 result = v2f32((F32) point.x, (F32) point.y);
+
+    return result;
+}
+
+internal F32 gfx_dpi_from_window(Gfx_Window handle) {
+    Gfx_Win32Window *window = win32_window_from_handle(handle);
+
+    F32 dpi = 0;
+    if (window) {
+        dpi = window->dpi;
+    }
+
     return dpi;
 }
 
-internal Void gfx_clear_custom_title_bar_data(Void) {
+internal Void gfx_window_clear_custom_title_bar_data(Gfx_Window handle) {
 }
 
-internal Void gfx_set_custom_title_bar_height(F32 height) {
+internal Void gfx_window_set_custom_title_bar_height(Gfx_Window handle, F32 height) {
 }
 
-internal Void gfx_push_cusomt_title_bar_client_area(R2F32 rectangle) {
+internal Void gfx_window_push_cusomt_title_bar_client_area(Gfx_Window handle, R2F32 rectangle) {
 }
 
-internal B32 gfx_has_os_title_bar(Void) {
+internal B32 gfx_window_has_os_title_bar(Gfx_Window handle) {
     B32 result = true;
     return result;
 }
 
-internal Void gfx_minimize(Void) {
+internal Void gfx_window_minimize(Gfx_Window handle) {
 }
 
-internal B32 gfx_is_maximized(Void) {
+internal B32 gfx_window_is_maximized(Gfx_Window handle) {
     B32 result = false;
     return result;
 }
 
-internal Void gfx_set_maximized(B32 maximized) {
+internal Void gfx_window_set_maximized(Gfx_Window handle, B32 maximized) {
 }
 
 
 
 // NOTE(simon): Clipboard
 internal Void gfx_set_clipboard_text(Str8 text) {
-    Gfx_Win32State *state = &global_gfx_win32_state;
+    Gfx_Win32State *state = &gfx_win32_state;
     Arena_Temporary scratch = arena_get_scratch(0, 0);
 
     Str16 str16 = str16_from_str8(scratch.arena, text);

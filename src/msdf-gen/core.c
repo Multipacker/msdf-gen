@@ -1266,7 +1266,7 @@ internal Void update(Void) {
     state->palettes[PaletteCode_DropSiteOverlay].border     = state->theme.drop_site_overlay;
     state->palettes[PaletteCode_DropSiteOverlay].text       = state->theme.text;
 
-    V2U32 client_area = gfx_get_window_client_area();
+    V2U32 client_area = gfx_client_area_from_window(state->window);
     render_begin(client_area);
     draw_begin_frame();
     Draw_List *draw_list = draw_list_create();
@@ -1276,19 +1276,19 @@ internal Void update(Void) {
     {
         prof_zone_begin(prof_ui_build, "ui build");
         ui_select_state(state->ui);
-        ui_begin(&ui_events, 1.0f / 60.0f);
+        ui_begin(state->window, &ui_events, 1.0f / 60.0f);
 
         ui_palette_push(palette_from_code(PaletteCode_Base));
 
         FontCache_Font *default_font = font_cache_font_from_static_data(&msdf_gen_default_font);
         ui_font_push(default_font);
-        ui_font_size_push((U32) (state->font_size * gfx_dpi() / 72.0f));
+        ui_font_size_push((U32) (state->font_size * gfx_dpi_from_window(state->window) / 72.0f));
 
         ui_height_push(ui_size_ems(1.5f, 1.0f));
 
         R2F32 root_rectangle    = r2f32(0.0f, 0.0f, (F32) client_area.x, (F32) client_area.y);
         R2F32 top_bar_rectangle = { 0 };
-        if (!gfx_has_os_title_bar()) {
+        if (!gfx_window_has_os_title_bar(state->window)) {
             top_bar_rectangle = r2f32(root_rectangle.min.x, root_rectangle.min.y, root_rectangle.max.x, root_rectangle.min.y + ui_height_top().value);
         }
         R2F32 content_rectangle = r2f32(root_rectangle.min.x, top_bar_rectangle.max.y, root_rectangle.max.x, root_rectangle.max.y);
@@ -1722,9 +1722,9 @@ internal Void update(Void) {
         }
 
         // NOTE(simon): Build title bar if needed.
-        if (!gfx_has_os_title_bar()) {
-            gfx_clear_custom_title_bar_data();
-            gfx_set_custom_title_bar_height(top_bar_rectangle.max.y);
+        if (!gfx_window_has_os_title_bar(state->window)) {
+            gfx_window_clear_custom_title_bar_data(state->window);
+            gfx_window_set_custom_title_bar_height(state->window, top_bar_rectangle.max.y);
 
             V2F32 top_bar_size = r2f32_size(top_bar_rectangle);
             ui_fixed_position_next(top_bar_rectangle.min);
@@ -1761,18 +1761,18 @@ internal Void update(Void) {
                     UI_Input close_input    = ui_button(str8_literal("X##close"));
 
                     if (minimize_input.flags & UI_InputFlag_Clicked) {
-                        gfx_minimize();
+                        gfx_window_minimize(state->window);
                     }
                     if (maximize_input.flags & UI_InputFlag_Clicked) {
-                        gfx_set_maximized(!gfx_is_maximized());
+                        gfx_window_set_maximized(state->window, !gfx_window_is_maximized(state->window));
                     }
                     if (close_input.flags & UI_InputFlag_Clicked) {
                         push_command(Command_Quit);
                     }
 
-                    gfx_push_cusomt_title_bar_client_area(minimize_input.box->calculated_rectangle);
-                    gfx_push_cusomt_title_bar_client_area(maximize_input.box->calculated_rectangle);
-                    gfx_push_cusomt_title_bar_client_area(close_input.box->calculated_rectangle);
+                    gfx_window_push_cusomt_title_bar_client_area(state->window, minimize_input.box->calculated_rectangle);
+                    gfx_window_push_cusomt_title_bar_client_area(state->window, maximize_input.box->calculated_rectangle);
+                    gfx_window_push_cusomt_title_bar_client_area(state->window, close_input.box->calculated_rectangle);
                 }
             }
 

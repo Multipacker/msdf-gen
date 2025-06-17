@@ -320,7 +320,7 @@ internal UI_Context *ui_create(Void) {
 
 
 
-internal Void ui_begin(UI_EventList *events, F32 dt) {
+internal Void ui_begin(Gfx_Window window, UI_EventList *events, F32 dt) {
     prof_function_begin();
 
     UI_Context *ui = global_ui_state;
@@ -347,7 +347,7 @@ internal Void ui_begin(UI_EventList *events, F32 dt) {
     memory_zero_struct(&ui->focus_hot_stack);
     memory_zero_struct(&ui->focus_active_stack);
 
-    ui->mouse = gfx_get_mouse_position();
+    ui->mouse = gfx_mouse_position_from_window(window);
     ui->events = events;
     ui->dt = dt;
     ui->fast_rate = 1.0f - f32_pow(2, -ui->dt / (1.0f / 60.0f));
@@ -488,7 +488,7 @@ internal Void ui_begin(UI_EventList *events, F32 dt) {
 
     // NOTE(simon): Build root
     {
-        V2U32 window_size = gfx_get_window_client_area();
+        V2U32 window_size = gfx_client_area_from_window(window);
         ui_width_next(ui_size_pixels((F32) window_size.width, 1.0f));
         ui_height_next(ui_size_pixels((F32) window_size.height, 1.0f));
         ui->root = ui_create_box(0);

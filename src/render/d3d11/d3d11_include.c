@@ -297,11 +297,12 @@ internal B32 render_init(Void) {
     return false;
 }
 
-internal Void render_create(Void) {
+internal Void render_create(Gfx_Window handle) {
     D3D11_State *d3d11_state = &global_d3d11_state;
-    Gfx_Win32State *gfx_state = &global_gfx_win32_state;
+    Gfx_Win32State *gfx_state = &gfx_win32_state;
 
-    HWND hwnd = gfx_state->hwnd;
+    Gfx_Win32Window *window = win32_window_from_handle(handle);
+    HWND hwnd = window->hwnd;
 
     // NOTE(simon): Create swap chain.
     DXGI_SWAP_CHAIN_DESC1 swap_chain_description = { 0 };
