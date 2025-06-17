@@ -72,7 +72,7 @@ draw_define_stack_implementation(M3F32, m3f32, M3F32)
 draw_define_stack_implementation(Filtering, filtering, Render_Filtering)
 
 internal Void draw_begin_frame(Void);
-internal Void draw_submit_list(Draw_List *list);
+internal Void draw_submit_list(Gfx_Window graphics_window, Render_Window render_window, Draw_List *list);
 
 internal Render_Shape *draw_rectangle(R2F32 rectangle, V4F32 color, F32 radius, F32 thickness, F32 softness);
 internal Render_Shape *draw_texture(R2F32 rectangle, R2F32 source, Render_Texture texture, V4F32 color, F32 radius, F32 thickness, F32 softness, Render_ShapeFlags flags);

@@ -75,14 +75,22 @@ struct Render_Stats {
     U64 batch_count;
 };
 
+typedef struct Render_Window Render_Window;
+struct Render_Window {
+    U64 u64[1];
+};
+
 internal Render_Shape *render_shape_list_push(Arena *arena, Render_ShapeList *shapes);
 
 internal B32  render_init(Void);
-internal Void render_create(Gfx_Window handle);
-
-internal Void render_begin(V2U32 resolution);
-internal Void render_submit(Render_BatchList batches);
+internal Void render_begin(Void);
 internal Void render_end(Void);
+
+internal Render_Window render_create(Gfx_Window handle);
+internal Void          render_destroy(Gfx_Window graphics_handle, Render_Window render_handle);
+internal Void          render_window_begin(Gfx_Window graphics_handle, Render_Window render_handle);
+internal Void          render_window_submit(Gfx_Window graphics_handle, Render_Window render_handle, Render_BatchList batches);
+internal Void          render_window_end(Gfx_Window graphics_handle, Render_Window render_handle);
 
 // NOTE(simon): Texture API
 internal Render_Texture render_texture_null(Void);

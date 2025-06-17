@@ -21,6 +21,17 @@ internal Render_Texture d3d11_handle_from_texture(D3D11_Texture2D *texture) {
     return result;
 }
 
+internal D3D11_Window *d3d11_window_from_handle(Render_Window handle) {
+    D3D11_Window *result = (D3D11_Window *) pointer_from_integer(handle.u64[0]);
+    return result;
+}
+
+internal Render_Window d3d11_handle_from_window(D3D11_Window *window) {
+    Render_Window result = { 0 };
+    result.u64[0] = integer_from_pointer(window);
+    return result;
+}
+
 
 
 internal Render_Texture render_texture_null(Void) {
@@ -297,12 +308,28 @@ internal B32 render_init(Void) {
     return false;
 }
 
-internal Void render_create(Gfx_Window handle) {
+internal Void render_begin(Void) {
+}
+
+internal Void render_end(Void) {
+}
+
+
+
+internal Render_Window render_create(Gfx_Window graphics_handle) {
     D3D11_State *d3d11_state = &global_d3d11_state;
     Gfx_Win32State *gfx_state = &gfx_win32_state;
 
-    Gfx_Win32Window *window = win32_window_from_handle(handle);
-    HWND hwnd = window->hwnd;
+    Gfx_Win32Window *graphics_window = win32_window_from_handle(graphics_handle);
+    HWND hwnd = graphics_window->hwnd;
+
+    D3D11_Window *render_window = d3d11_state->window_freelist;
+    if (render_window) {
+        sll_stack_pop(d3d11_state->window_freelist);
+        memory_zero_struct(render_window);
+    } else {
+        render_window = arena_push_struct(d3d11_state->permanent_arena, D3D11_Window);
+    }
 
     // NOTE(simon): Create swap chain.
     DXGI_SWAP_CHAIN_DESC1 swap_chain_description = { 0 };
@@ -325,7 +352,7 @@ internal Void render_create(Gfx_Window handle) {
         &swap_chain_description,
         0,
         0,
-        &d3d11_state->swap_chain
+        &render_window->swap_chain
     );
 
     if (FAILED(error)) {
@@ -333,28 +360,43 @@ internal Void render_create(Gfx_Window handle) {
         os_exit(1);
     }
 
-    IDXGISwapChain_GetBuffer(d3d11_state->swap_chain, 0, &IID_ID3D11Texture2D, (Void **) &d3d11_state->framebuffer);
-    ID3D11Device_CreateRenderTargetView(d3d11_state->device, (ID3D11Resource *) d3d11_state->framebuffer, 0, &d3d11_state->framebuffer_render_target_view);
+    IDXGISwapChain_GetBuffer(render_window->swap_chain, 0, &IID_ID3D11Texture2D, (Void **) &render_window->framebuffer);
+    ID3D11Device_CreateRenderTargetView(d3d11_state->device, (ID3D11Resource *) render_window->framebuffer, 0, &render_window->framebuffer_render_target_view);
+
+    Render_Window result = d3d11_handle_from_window(render_window);
+    return result;
 }
 
-internal Void render_begin(V2U32 resolution) {
+internal Void render_destroy(Gfx_Window graphics_handle, Render_Window render_handle) {
     D3D11_State *state = &global_d3d11_state;
+    D3D11_Window *render_window = d3d11_window_from_handle(render_handle);
+    ID3D11RenderTargetView_Release(render_window->framebuffer_render_target_view);
+    ID3D11Texture2D_Release(render_window->framebuffer);
+    IDXGISwapChain1_Release(render_window->swap_chain);
+    sll_stack_push(state->window_freelist, render_window);
+}
+
+internal Void render_window_begin(Gfx_Window graphics_handle, Render_Window render_handle) {
+    D3D11_State *state = &global_d3d11_state;
+    D3D11_Window *render_window = d3d11_window_from_handle(render_handle);
+
+    V2U32 resolution = gfx_client_area_from_window(graphics_handle);
 
     // NOTE(simon): Resolution change.
-    if (resolution.x != state->resolution.x || resolution.y != state->resolution.y) {
-        state->resolution = resolution;
+    if (resolution.x != render_window->resolution.x || resolution.y != render_window->resolution.y) {
+        render_window->resolution = resolution;
 
         // NOTE(simon): Resize swap chain and framebuffer.
-        ID3D11RenderTargetView_Release(state->framebuffer_render_target_view);
-        ID3D11Texture2D_Release(state->framebuffer);
-        IDXGISwapChain_ResizeBuffers(state->swap_chain, 0, 0, 0, DXGI_FORMAT_UNKNOWN, 0);
-        IDXGISwapChain_GetBuffer(state->swap_chain, 0, &IID_ID3D11Texture2D, (Void **) &state->framebuffer);
-        ID3D11Device_CreateRenderTargetView(state->device, (ID3D11Resource *) state->framebuffer, 0, &state->framebuffer_render_target_view);
+        ID3D11RenderTargetView_Release(render_window->framebuffer_render_target_view);
+        ID3D11Texture2D_Release(render_window->framebuffer);
+        IDXGISwapChain_ResizeBuffers(render_window->swap_chain, 0, 0, 0, DXGI_FORMAT_UNKNOWN, 0);
+        IDXGISwapChain_GetBuffer(render_window->swap_chain, 0, &IID_ID3D11Texture2D, (Void **) &render_window->framebuffer);
+        ID3D11Device_CreateRenderTargetView(state->device, (ID3D11Resource *) render_window->framebuffer, 0, &render_window->framebuffer_render_target_view);
     }
 
     // NOTE(simon): Clear framebuffer.
     V4F32 clear_color = v4f32(0, 0, 0, 0);
-    ID3D11DeviceContext_ClearRenderTargetView(state->device_context, state->framebuffer_render_target_view, clear_color.values);
+    ID3D11DeviceContext_ClearRenderTargetView(state->device_context, render_window->framebuffer_render_target_view, clear_color.values);
 
     // NOTE(simon): Set up graphics pipeline.
     ID3D11DeviceContext_IASetPrimitiveTopology(state->device_context, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
@@ -365,22 +407,22 @@ internal Void render_begin(V2U32 resolution) {
     D3D11_VIEWPORT viewport = { 0 };
     viewport.TopLeftX = 0;
     viewport.TopLeftY = 0;
-    viewport.Width = resolution.x;
-    viewport.Height = resolution.y;
+    viewport.Width    = resolution.x;
+    viewport.Height   = resolution.y;
     viewport.MinDepth = 0.0f;
     viewport.MaxDepth = 1.0f;
     ID3D11DeviceContext_RSSetViewports(state->device_context, 1, &viewport);
     ID3D11DeviceContext_RSSetState(state->device_context, (ID3D11RasterizerState *) state->rasterizer_state);
 
     ID3D11DeviceContext_PSSetShader(state->device_context, state->pixel_shader, 0, 0);
-    D3D11_Texture2D *texture = d3d11_texture_from_handle(state->texture);
 
-    ID3D11DeviceContext_OMSetRenderTargets(state->device_context, 1, &state->framebuffer_render_target_view, 0);
+    ID3D11DeviceContext_OMSetRenderTargets(state->device_context, 1, &render_window->framebuffer_render_target_view, 0);
     ID3D11DeviceContext_OMSetBlendState(state->device_context, state->blend_state, 0, 0xFFFFFFFF);
 }
 
-internal Void render_submit(Render_BatchList batches) {
+internal Void render_window_submit(Gfx_Window graphics_handle, Render_Window render_handle, Render_BatchList batches) {
     D3D11_State *state = &global_d3d11_state;
+    D3D11_Window *render_window = d3d11_window_from_handle(render_handle);
 
     U64 shape_count = 0;
     for (Render_Batch *batch = batches.first; batch; batch = batch->next) {
@@ -419,7 +461,7 @@ internal Void render_submit(Render_BatchList batches) {
     for (Render_Batch *batch = batches.first; batch; batch = batch->next) {
         // NOTE(simon): Set constant buffer.
         D3D11_ConstantBuffer constant_data = { 0 };
-        constant_data.resolution = v2f32(state->resolution.x, state->resolution.y);
+        constant_data.resolution = v2f32(render_window->resolution.x, render_window->resolution.y);
         constant_data.transform[0] = v4f32(batch->transform.m[0][0], batch->transform.m[0][1], batch->transform.m[0][2], 0);
         constant_data.transform[1] = v4f32(batch->transform.m[1][0], batch->transform.m[1][1], batch->transform.m[1][2], 0);
         constant_data.transform[2] = v4f32(batch->transform.m[2][0], batch->transform.m[2][1], batch->transform.m[2][2], 0);
@@ -457,9 +499,11 @@ internal Void render_submit(Render_BatchList batches) {
     ID3D11Buffer_Release(vertex_buffer);
 }
 
-internal Void render_end(Void) {
+internal Void render_window_end(Gfx_Window graphics_handle, Render_Window render_handle) {
     D3D11_State *state = &global_d3d11_state;
-    HRESULT error = IDXGISwapChain_Present(state->swap_chain, 1, 0);
+    D3D11_Window *render_window = d3d11_window_from_handle(render_handle);
+
+    HRESULT error = IDXGISwapChain_Present(render_window->swap_chain, 1, 0);
     if (FAILED(error)) {
         // TODO(simon): Inform the user that we could not present the swap chain.
         os_exit(1);

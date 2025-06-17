@@ -341,7 +341,8 @@ internal S32 os_run(Str8List arguments) {
     render_init();
 
     state->window = gfx_window_create(str8_literal("MSDF-gen"), 1280, 720);
-    render_create(state->window);
+    state->render = render_create(state->window);
+
     font_cache_create();
     gfx_set_update_function(update);
     msdf_cache_create(32, gfx_send_wakeup_event);

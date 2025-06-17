@@ -11,8 +11,8 @@ internal Void draw_begin_frame(Void) {
     prof_function_end();
 }
 
-internal Void draw_submit_list(Draw_List *list) {
-    render_submit(list->batches);
+internal Void draw_submit_list(Gfx_Window graphics_window, Render_Window render_window, Draw_List *list) {
+    render_window_submit(graphics_window, render_window, list->batches);
 }
 
 

@@ -1267,7 +1267,8 @@ internal Void update(Void) {
     state->palettes[PaletteCode_DropSiteOverlay].text       = state->theme.text;
 
     V2U32 client_area = gfx_client_area_from_window(state->window);
-    render_begin(client_area);
+    render_begin();
+    render_window_begin(state->window, state->render);
     draw_begin_frame();
     Draw_List *draw_list = draw_list_create();
     draw_list_push(draw_list);
@@ -2567,7 +2568,8 @@ internal Void update(Void) {
 
         prof_zone_end(prof_draw_ui);
     }
-    draw_submit_list(draw_list);
+    draw_submit_list(state->window, state->render, draw_list);
+    render_window_end(state->window, state->render);
     render_end();
 
     // NOTE(simon): Animate theme

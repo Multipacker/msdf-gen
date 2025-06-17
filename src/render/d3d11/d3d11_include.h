@@ -25,6 +25,16 @@ struct D3D11_Texture2D {
     ID3D11ShaderResourceView *shader_resource_view;
 };
 
+typedef struct D3D11_Window D3D11_Window;
+struct D3D11_Window {
+    D3D11_Window *next;
+
+    V2U32                   resolution;
+    IDXGISwapChain1        *swap_chain;
+    ID3D11Texture2D        *framebuffer;
+    ID3D11RenderTargetView *framebuffer_render_target_view;
+};
+
 typedef struct D3D11_State D3D11_State;
 struct D3D11_State {
     Arena                *permanent_arena;
@@ -47,14 +57,7 @@ struct D3D11_State {
 
     // NOTE(simon): Resources
     D3D11_Texture2D *texture_freelist;
-
-    Render_Texture texture;
-
-    // NOTE(simon): Per window resources.
-    V2U32                   resolution;
-    IDXGISwapChain1        *swap_chain;
-    ID3D11Texture2D        *framebuffer;
-    ID3D11RenderTargetView *framebuffer_render_target_view;
+    D3D11_Window    *window_freelist;
 };
 
 #endif // D3D11_INCLUDE_H

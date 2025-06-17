@@ -274,7 +274,8 @@ struct State {
     Arena *frame_arenas[2];
     U64 frame_index;
 
-    Gfx_Window window;
+    Gfx_Window    window;
+    Render_Window render;
 
     UI_Context *ui;
 
