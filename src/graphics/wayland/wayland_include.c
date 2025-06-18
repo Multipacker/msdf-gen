@@ -1137,7 +1137,11 @@ internal Void wayland_registry_global_remove(Void *data, struct wl_registry *reg
 
 
 
-internal Void gfx_create(Str8 title, U32 width, U32 height) {
+internal Void gfx_init(Void) {
+    Str8 title = str8_literal("MSDF-gen");
+    U32 width = 1280;
+    U32 height = 720;
+
     Arena_Temporary scratch = arena_get_scratch(0, 0);
 
     Wayland_State *state = &global_wayland_state;
@@ -1189,7 +1193,15 @@ internal Void gfx_create(Str8 title, U32 width, U32 height) {
     arena_end_temporary(scratch);
 }
 
-internal V2U32 gfx_get_window_client_area(Void) {
+internal Gfx_Window gfx_window_create(Str8 title, U32 width, U32 height) {
+    Gfx_Window result = { 0 };
+    return result;
+}
+
+internal Void gfx_window_close(Gfx_Window handle) {
+}
+
+internal V2U32 gfx_client_area_from_window(Gfx_Window handle) {
     Wayland_State *state = &global_wayland_state;
 
     V2U32 result = v2u32(
@@ -1267,7 +1279,7 @@ internal Gfx_EventList gfx_get_events(Arena *arena, B32 wait) {
     return events;
 }
 
-internal V2F32 gfx_get_mouse_position(Void) {
+internal V2F32 gfx_mouse_position_from_window(Gfx_Window handle) {
     Wayland_State *state = &global_wayland_state;
     V2F32 result = state->pointer_position;
     return result;
@@ -1314,13 +1326,13 @@ internal Void gfx_set_update_function(VoidFunction *update) {
     state->update = update;
 }
 
-internal F32 gfx_dpi(Void) {
+internal F32 gfx_dpi_from_window(Gfx_Window window) {
     Wayland_State *state = &global_wayland_state;
     F32 dpi = (F32) (96.0 * state->surface->scale);
     return dpi;
 }
 
-internal Void gfx_clear_custom_title_bar_data(Void) {
+internal Void gfx_window_clear_custom_title_bar_data(Gfx_Window handle) {
     Wayland_State *state = &global_wayland_state;
     arena_reset(state->title_bar_arena);
     state->title_bar_height = 0.0f;
@@ -1328,36 +1340,36 @@ internal Void gfx_clear_custom_title_bar_data(Void) {
     state->last_client_area = 0;
 }
 
-internal Void gfx_set_custom_title_bar_height(F32 height) {
+internal Void gfx_window_set_custom_title_bar_height(Gfx_Window handle, F32 height) {
     Wayland_State *state = &global_wayland_state;
     state->title_bar_height = height;
 }
 
-internal Void gfx_push_cusomt_title_bar_client_area(R2F32 rectangle) {
+internal Void gfx_window_push_cusomt_title_bar_client_area(Gfx_Window handle, R2F32 rectangle) {
     Wayland_State *state = &global_wayland_state;
     Wayland_TitleBarClientArea *client_area = arena_push_struct(state->title_bar_arena, Wayland_TitleBarClientArea);
     client_area->rectangle = rectangle;
     sll_queue_push(state->first_client_area, state->last_client_area, client_area);
 }
 
-internal B32 gfx_has_os_title_bar(Void) {
+internal B32 gfx_window_has_os_title_bar(Gfx_Window handle) {
     Wayland_State *state = &global_wayland_state;
     B32 result = state->has_server_side_decorations;
     return result;
 }
 
-internal Void gfx_minimize(Void) {
+internal Void gfx_window_minimize(Gfx_Window handle) {
     Wayland_State *state = &global_wayland_state;
     xdg_toplevel_set_minimized(state->xdg_toplevel);
 }
 
-internal B32 gfx_is_maximized(Void) {
+internal B32 gfx_window_is_maximized(Gfx_Window handle) {
     Wayland_State *state = &global_wayland_state;
     B32 result = state->is_maximized;
     return result;
 }
 
-internal Void gfx_set_maximized(B32 maximized) {
+internal Void gfx_window_set_maximized(Gfx_Window handle, B32 maximized) {
     Wayland_State *state = &global_wayland_state;
     if (maximized) {
         xdg_toplevel_set_maximized(state->xdg_toplevel);
