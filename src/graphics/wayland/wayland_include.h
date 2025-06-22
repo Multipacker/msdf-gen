@@ -56,6 +56,8 @@ struct Wayland_Surface {
     struct wp_viewport *viewport;
     struct wp_fractional_scale_v1 *fractional_scale;
 
+    S32 width;
+    S32 height;
     F64 scale;
     Wayland_OutputNode *first_output;
     Wayland_OutputNode *last_output;
@@ -82,6 +84,26 @@ typedef struct Wayland_TitleBarClientArea Wayland_TitleBarClientArea;
 struct Wayland_TitleBarClientArea {
     Wayland_TitleBarClientArea *next;
     R2F32 rectangle;
+};
+
+// TODO(simon): Track configuration of windows
+typedef struct Wayland_Window Wayland_Window;
+struct Wayland_Window {
+    Wayland_Window *next;
+    Wayland_Window *previous;
+
+    Wayland_Surface     *surface;
+    struct xdg_surface  *xdg_surface;
+    struct xdg_toplevel *xdg_toplevel;
+    struct zxdg_toplevel_decoration_v1 *xdg_toplevel_decoration;
+    B32 is_maximized;
+
+    // NOTE(simon): Custom title bars.
+    Arena *title_bar_arena;
+    B32 has_server_side_decorations;
+    F32 title_bar_height;
+    Wayland_TitleBarClientArea *first_client_area;
+    Wayland_TitleBarClientArea *last_client_area;
 };
 
 typedef struct Wayland_State Wayland_State;
@@ -117,6 +139,8 @@ struct Wayland_State {
     V2F32 pointer_position;
     U32 pointer_enter_serial;
     Gfx_Cursor pointer_cursor;
+    Wayland_Window *pointer_window;
+    Wayland_Window *keyboard_window;
 
     // NOTE(simon): Per seat keyboard state.
     struct wl_keyboard *keyboard;
@@ -139,33 +163,23 @@ struct Wayland_State {
     U32    selection_source_serial;
     Wayland_DataOffer *drag_and_drop_offer;
     V2F32              drag_and_drop_position;
+    Wayland_Window *data_device_window;
 
-    // NOTE(simon): Outputs
+    // NOTE(simon): Outputs.
     Wayland_Output *output_freelist;
     Wayland_Output *first_output;
     Wayland_Output *last_output;
     Wayland_OutputNode *output_node_freelist;
 
-    // NOTE(simon): Per window state.
-    // TODO(simon): Track configuration of windows
-    S32 width;
-    S32 height;
-    Wayland_Surface     *surface;
-    struct xdg_surface  *xdg_surface;
-    struct xdg_toplevel *xdg_toplevel;
-    struct zxdg_toplevel_decoration_v1 *xdg_toplevel_decoration;
-    B32 has_server_side_decorations;
-    B32 is_maximized;
-    F32 title_bar_height;
-    U32 xdg_surface_configure_serial;
-    U32 xdg_surface_last_configure_serial;
-    VoidFunction *swap_buffers;
+    // NOTE(simon): Windows.
+    Wayland_Window *first_window;
+    Wayland_Window *last_window;
+    Wayland_Window *window_freelist;
     VoidFunction *update;
+
+    // NOTE(simon): Events.
     Arena        *event_arena;
     Gfx_EventList events;
-    Arena *title_bar_arena;
-    Wayland_TitleBarClientArea *first_client_area;
-    Wayland_TitleBarClientArea *last_client_area;
 };
 
 // NOTE(simon): Forward declaration of all event listeners.

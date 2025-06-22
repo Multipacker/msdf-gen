@@ -263,12 +263,64 @@ internal Void render_texture_update(Render_Texture texture, V2U32 position, V2U3
 }
 
 internal B32 render_init(Void) {
-    OpenGL_Context *result = &global_opengl_context;
+    OpenGL_Context *state = &global_opengl_context;
+    state->arena = arena_create();
 
     opengl_backend_init();
 
-    Arena *arena = arena_create();
-    result->arena = arena;
+    glDebugMessageCallback(&opengl_debug_output, NULL);
+    glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
+    glEnable(GL_FRAMEBUFFER_SRGB);
+
+    glCreateSamplers(array_count(state->samplers), state->samplers);
+
+    glSamplerParameteri(state->samplers[Render_Filtering_Nearest], GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glSamplerParameteri(state->samplers[Render_Filtering_Nearest], GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glSamplerParameteri(state->samplers[Render_Filtering_Nearest], GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glSamplerParameteri(state->samplers[Render_Filtering_Nearest], GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+    glSamplerParameteri(state->samplers[Render_Filtering_Linear], GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glSamplerParameteri(state->samplers[Render_Filtering_Linear], GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glSamplerParameteri(state->samplers[Render_Filtering_Linear], GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glSamplerParameteri(state->samplers[Render_Filtering_Linear], GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+    OpenGL_ShaderSpecification shaders[] = {
+        { str8_literal("shader.vert"), opengl_vertex_shader,   GL_VERTEX_SHADER,    },
+        { str8_literal("shader.frag"), opengl_fragment_shader, GL_FRAGMENT_SHADER,  },
+    };
+    OpenGL_Result program = opengl_create_program(state->arena, shaders, array_count(shaders));
+    if (program.errors.node_count) {
+        os_console_print(str8_join(state->arena, &program.errors));
+    }
+
+    state->program = program.handle;
+
+    state->uniform_projection_location = glGetUniformLocation(state->program, "uniform_projection");
+    state->uniform_sampler_location    = glGetUniformLocation(state->program, "uniform_sampler");
+    state->uniform_transform_location  = glGetUniformLocation(state->program, "uniform_transform");
+
+    glCreateVertexArrays(1, &state->vao);
+
+    opengl_vertex_array_instance_attribute_float(state->vao,   0, 4, GL_FLOAT,        GL_FALSE, (GLuint) member_offset(Render_Shape, position),  0);
+    opengl_vertex_array_instance_attribute_float(state->vao,   1, 4, GL_FLOAT,        GL_FALSE, (GLuint) member_offset(Render_Shape, colors[0]), 0);
+    opengl_vertex_array_instance_attribute_float(state->vao,   2, 4, GL_FLOAT,        GL_FALSE, (GLuint) member_offset(Render_Shape, colors[1]), 0);
+    opengl_vertex_array_instance_attribute_float(state->vao,   3, 4, GL_FLOAT,        GL_FALSE, (GLuint) member_offset(Render_Shape, colors[2]), 0);
+    opengl_vertex_array_instance_attribute_float(state->vao,   4, 4, GL_FLOAT,        GL_FALSE, (GLuint) member_offset(Render_Shape, colors[3]), 0);
+    opengl_vertex_array_instance_attribute_float(state->vao,   5, 4, GL_FLOAT,        GL_FALSE, (GLuint) member_offset(Render_Shape, source),    0);
+    opengl_vertex_array_instance_attribute_integer(state->vao, 6, 1, GL_UNSIGNED_INT,           (GLuint) member_offset(Render_Shape, flags),     0);
+    opengl_vertex_array_instance_attribute_float(state->vao,   7, 1, GL_FLOAT,        GL_FALSE, (GLuint) member_offset(Render_Shape, thickness), 0);
+    opengl_vertex_array_instance_attribute_float(state->vao,   8, 1, GL_FLOAT,        GL_FALSE, (GLuint) member_offset(Render_Shape, softness),  0);
+    opengl_vertex_array_instance_attribute_float(state->vao,   9, 4, GL_FLOAT,        GL_FALSE, (GLuint) member_offset(Render_Shape, radies),    0);
+
+    glCreateBuffers(1, &state->vbo);
+    glVertexArrayVertexBuffer(state->vao, 0, state->vbo, 0, sizeof(Render_Shape));
+
+    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+    glUseProgram(state->program);
+    glBindVertexArray(state->vao);
+    glEnable(GL_BLEND);
+    glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE);
+    glEnable(GL_SCISSOR_TEST);
 
     return false;
 }
@@ -277,84 +329,29 @@ internal B32 render_init(Void) {
 
 internal Void render_begin(Void) {
 }
+
 internal Void render_end(Void) {
 }
 
 
 
 internal Render_Window render_create(Gfx_Window handle) {
-    OpenGL_Context *opengl_state = &global_opengl_context;
-
-    opengl_backend_create();
-
-    glDebugMessageCallback(&opengl_debug_output, NULL);
-    glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
-    glEnable(GL_FRAMEBUFFER_SRGB);
-
-    glCreateSamplers(array_count(opengl_state->samplers), opengl_state->samplers);
-
-    glSamplerParameteri(opengl_state->samplers[Render_Filtering_Nearest], GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glSamplerParameteri(opengl_state->samplers[Render_Filtering_Nearest], GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glSamplerParameteri(opengl_state->samplers[Render_Filtering_Nearest], GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glSamplerParameteri(opengl_state->samplers[Render_Filtering_Nearest], GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-
-    glSamplerParameteri(opengl_state->samplers[Render_Filtering_Linear], GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glSamplerParameteri(opengl_state->samplers[Render_Filtering_Linear], GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glSamplerParameteri(opengl_state->samplers[Render_Filtering_Linear], GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glSamplerParameteri(opengl_state->samplers[Render_Filtering_Linear], GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-
-    OpenGL_ShaderSpecification shaders[] = {
-        { str8_literal("shader.vert"), opengl_vertex_shader,   GL_VERTEX_SHADER,    },
-        { str8_literal("shader.frag"), opengl_fragment_shader, GL_FRAGMENT_SHADER,  },
-    };
-    OpenGL_Result program = opengl_create_program(opengl_state->arena, shaders, array_count(shaders));
-    if (program.errors.node_count) {
-        os_console_print(str8_join(opengl_state->arena, &program.errors));
-    }
-
-    opengl_state->program = program.handle;
-
-    opengl_state->uniform_projection_location = glGetUniformLocation(opengl_state->program, "uniform_projection");
-    opengl_state->uniform_sampler_location    = glGetUniformLocation(opengl_state->program, "uniform_sampler");
-    opengl_state->uniform_transform_location  = glGetUniformLocation(opengl_state->program, "uniform_transform");
-
-    glCreateVertexArrays(1, &opengl_state->vao);
-
-    opengl_vertex_array_instance_attribute_float(opengl_state->vao,   0, 4, GL_FLOAT,        GL_FALSE, (GLuint) member_offset(Render_Shape, position),  0);
-    opengl_vertex_array_instance_attribute_float(opengl_state->vao,   1, 4, GL_FLOAT,        GL_FALSE, (GLuint) member_offset(Render_Shape, colors[0]), 0);
-    opengl_vertex_array_instance_attribute_float(opengl_state->vao,   2, 4, GL_FLOAT,        GL_FALSE, (GLuint) member_offset(Render_Shape, colors[1]), 0);
-    opengl_vertex_array_instance_attribute_float(opengl_state->vao,   3, 4, GL_FLOAT,        GL_FALSE, (GLuint) member_offset(Render_Shape, colors[2]), 0);
-    opengl_vertex_array_instance_attribute_float(opengl_state->vao,   4, 4, GL_FLOAT,        GL_FALSE, (GLuint) member_offset(Render_Shape, colors[3]), 0);
-    opengl_vertex_array_instance_attribute_float(opengl_state->vao,   5, 4, GL_FLOAT,        GL_FALSE, (GLuint) member_offset(Render_Shape, source),    0);
-    opengl_vertex_array_instance_attribute_integer(opengl_state->vao, 6, 1, GL_UNSIGNED_INT,           (GLuint) member_offset(Render_Shape, flags),     0);
-    opengl_vertex_array_instance_attribute_float(opengl_state->vao,   7, 1, GL_FLOAT,        GL_FALSE, (GLuint) member_offset(Render_Shape, thickness), 0);
-    opengl_vertex_array_instance_attribute_float(opengl_state->vao,   8, 1, GL_FLOAT,        GL_FALSE, (GLuint) member_offset(Render_Shape, softness),  0);
-    opengl_vertex_array_instance_attribute_float(opengl_state->vao,   9, 4, GL_FLOAT,        GL_FALSE, (GLuint) member_offset(Render_Shape, radies),    0);
-
-    glCreateBuffers(1, &opengl_state->vbo);
-    glVertexArrayVertexBuffer(opengl_state->vao, 0, opengl_state->vbo, 0, sizeof(Render_Shape));
-
-    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-    glUseProgram(opengl_state->program);
-    glBindVertexArray(opengl_state->vao);
-    glEnable(GL_BLEND);
-    glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE);
-    glEnable(GL_SCISSOR_TEST);
-
-    Render_Window result = { 0 };
+    Render_Window result = opengl_backend_create(handle);
     return result;
 }
 
 internal Void render_destroy(Gfx_Window graphics_handle, Render_Window render_handle) {
+    opengl_backend_destroy(graphics_handle, render_handle);
 }
 
 internal Void render_window_begin(Gfx_Window graphics_handle, Render_Window render_handle) {
     prof_function_begin();
     OpenGL_Context *gfx = &global_opengl_context;
 
-    V2U32 resolution = gfx_client_area_from_window(graphics_handle);
+    opengl_window_resize(graphics_handle, render_handle);
+    opengl_window_select(graphics_handle, render_handle);
 
-    opengl_resize(resolution);
+    V2U32 resolution = gfx_client_area_from_window(graphics_handle);
     gfx->resolution = resolution;
 
     glViewport(0, 0, (GLsizei) resolution.width, (GLsizei) resolution.height);
@@ -438,7 +435,7 @@ internal Void render_window_submit(Gfx_Window graphics_handle, Render_Window ren
 internal Void render_window_end(Gfx_Window graphics_handle, Render_Window render_handle) {
     OpenGL_Context *gfx = &global_opengl_context;
 
-    gfx_swap_buffers();
+    opengl_swap_buffers(graphics_handle, render_handle);
 
     gfx->previous_stats = gfx->current_stats;
     memory_zero_struct(&gfx->current_stats);

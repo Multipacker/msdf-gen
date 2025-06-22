@@ -48,6 +48,6 @@ internal Void opengl_vertex_array_instance_attribute_integer(GLuint vaobj, GLuin
 // NOTE(simon): Texture helpers
 internal GLuint opengl_texture_id_from_texture(Render_Texture texture);
 
-internal Void opengl_resize(V2U32 resolution);
+internal Void opengl_resize(Render_Window handle, V2U32 resolution);
 
 #endif // OPENGL_INCLUDE_H

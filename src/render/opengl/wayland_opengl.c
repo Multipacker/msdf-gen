@@ -1,17 +1,25 @@
 global Wayland_OpenGLState global_wayland_opengl_state;
 
+internal Render_Window opengl_handle_from_window(OpenGL_Window *window) {
+    Render_Window handle = { 0 };
+    handle.u64[0] = integer_from_pointer(window);
+    return handle;
+}
+
+internal OpenGL_Window *opengl_window_from_handle(Render_Window handle) {
+    OpenGL_Window *window = (OpenGL_Window *) pointer_from_integer(handle.u64[0]);
+    return window;
+}
+
 internal B32 opengl_backend_init(Void) {
     Wayland_State *wayland_state = &global_wayland_state;
     Wayland_OpenGLState *opengl_state = &global_wayland_opengl_state;
+    Arena_Temporary scratch = arena_get_scratch(0, 0);
+
+    opengl_state->permanent_arena = arena_create();
 
     // NOTE(simon): Get display.
-    PFNEGLGETPLATFORMDISPLAYEXTPROC eglGetPlatformDisplayEXT = (PFNEGLGETPLATFORMDISPLAYEXTPROC) eglGetProcAddress("eglGetPlatformDisplayEXT");
-
-    const EGLint attributes[] = {
-        EGL_NONE,
-    };
-
-    opengl_state->display = eglGetPlatformDisplayEXT(EGL_PLATFORM_WAYLAND_EXT, wayland_state->display, attributes);
+    opengl_state->display = eglGetDisplay((EGLNativeDisplayType) wayland_state->display);
     if (opengl_state->display == EGL_NO_DISPLAY) {
         // TODO(simon): Inform user.
         os_exit(1);
@@ -46,15 +54,7 @@ internal B32 opengl_backend_init(Void) {
         os_exit(1);
     }
 
-    return true;
-}
-
-internal Void opengl_backend_create(Void) {
-    Arena_Temporary scratch = arena_get_scratch(0, 0);
-    Wayland_State *wayland_state = &global_wayland_state;
-    Wayland_OpenGLState *opengl_state = &global_wayland_opengl_state;
-
-    // NOTE(simon): Find config.
+    // NOTE(simon): Gather configs.
     EGLint config_attributes[] = {
         EGL_SURFACE_TYPE,      EGL_WINDOW_BIT,
         EGL_CONFORMANT,        EGL_OPENGL_BIT,
@@ -69,12 +69,12 @@ internal Void opengl_backend_create(Void) {
         EGL_STENCIL_SIZE,      8,
         EGL_NONE,
     };
-
     EGLint available_config_count = 0;
     eglChooseConfig(opengl_state->display, config_attributes, 0, 0, &available_config_count);
     EGLConfig *available_configs = arena_push_array(scratch.arena, EGLConfig, (U64) available_config_count);
     eglChooseConfig(opengl_state->display, config_attributes, available_configs, available_config_count, &available_config_count);
 
+    // NOTE(simon): Choose config.
     for (EGLint i = 0; i < available_config_count; ++i) {
         EGLConfig config = available_configs[i];
 
@@ -84,41 +84,85 @@ internal Void opengl_backend_create(Void) {
         }
     }
 
-    opengl_state->window = wl_egl_window_create(wayland_state->surface->surface, wayland_state->width, wayland_state->height);
-
-    const EGLAttrib surface_attributes[] = {
-        EGL_GL_COLORSPACE, EGL_GL_COLORSPACE_SRGB,
-        EGL_NONE,
-    };
-
-    opengl_state->surface = eglCreatePlatformWindowSurface(opengl_state->display, opengl_state->config, opengl_state->window, surface_attributes);
-
-    if (opengl_state->surface == EGL_NO_SURFACE) {
-        // TODO(simon): Inform user.
-        os_exit(1);
-    }
-
-    eglMakeCurrent(opengl_state->display, opengl_state->surface, opengl_state->surface, opengl_state->context);
+    eglMakeCurrent(opengl_state->display, EGL_NO_SURFACE, EGL_NO_SURFACE, opengl_state->context);
 
 #define X(type, name) name = (type) eglGetProcAddress(#name); assert(name);
     GL_FUNCTIONS(X)
 #undef X
 
-    eglSwapInterval(opengl_state->display, 1);
-    wayland_state->swap_buffers = wayland_opengl_swap_buffers;
+    // NOTE(simon): This doesn't automatically get set if our first
+    // eglMakeCurrent doesn't have a default framebuffer.
+    glDrawBuffer(GL_BACK);
+
     arena_end_temporary(scratch);
+    return true;
 }
 
-internal Void wayland_opengl_swap_buffers(Void) {
-    Wayland_State *wayland_state = &global_wayland_state;
+internal Render_Window opengl_backend_create(Gfx_Window handle) {
     Wayland_OpenGLState *opengl_state = &global_wayland_opengl_state;
-    eglSwapBuffers(opengl_state->display, opengl_state->surface);
-}
+    Wayland_Window *graphics_window = wayland_window_from_handle(handle);
 
-internal Void opengl_resize(V2U32 resolution) {
-    Wayland_OpenGLState *opengl_state = &global_wayland_opengl_state;
-    if (opengl_state->resolution.width != resolution.width || opengl_state->resolution.height != resolution.height) {
-        opengl_state->resolution = resolution;
-        wl_egl_window_resize(opengl_state->window, (S32) resolution.width, (S32) resolution.height, 0, 0);
+    OpenGL_Window *render_window = opengl_state->window_freelist;
+    if (render_window) {
+        sll_stack_pop(opengl_state->window_freelist);
+        memory_zero_struct(render_window);
+    } else {
+        render_window = arena_push_struct(opengl_state->permanent_arena, OpenGL_Window);
     }
+
+    render_window->window = wl_egl_window_create(graphics_window->surface->surface, graphics_window->surface->width, graphics_window->surface->height);
+
+    const EGLint surface_attributes[] = {
+        EGL_GL_COLORSPACE, EGL_GL_COLORSPACE_SRGB,
+        EGL_NONE,
+    };
+
+    render_window->surface = eglCreateWindowSurface(opengl_state->display, opengl_state->config, (EGLNativeWindowType) render_window->window, surface_attributes);
+
+    if (render_window->surface == EGL_NO_SURFACE) {
+        // TODO(simon): Inform user.
+        os_exit(1);
+    }
+
+    eglSwapInterval(opengl_state->display, 1);
+
+    Render_Window result = opengl_handle_from_window(render_window);
+    return result;
+}
+
+internal Void opengl_backend_destroy(Gfx_Window graphics_handle, Render_Window render_handle) {
+    Wayland_OpenGLState *opengl_state = &global_wayland_opengl_state;
+    OpenGL_Window *render_window = opengl_window_from_handle(render_handle);
+
+    eglMakeCurrent(opengl_state->display, EGL_NO_SURFACE, EGL_NO_SURFACE, opengl_state->context);
+    eglDestroySurface(opengl_state->display, render_window->surface);
+    wl_egl_window_destroy(render_window->window);
+
+    sll_stack_push(opengl_state->window_freelist, render_window);
+}
+
+internal Void opengl_window_resize(Gfx_Window graphics_handle, Render_Window render_handle) {
+    Wayland_OpenGLState *opengl_state = &global_wayland_opengl_state;
+    OpenGL_Window *render_window = opengl_window_from_handle(render_handle);
+
+    V2U32 resolution = gfx_client_area_from_window(graphics_handle);
+
+    if (render_window->resolution.width != resolution.width || render_window->resolution.height != resolution.height) {
+        render_window->resolution = resolution;
+        wl_egl_window_resize(render_window->window, (S32) resolution.width, (S32) resolution.height, 0, 0);
+    }
+}
+
+internal Void opengl_window_select(Gfx_Window graphics_handle, Render_Window render_handle) {
+    Wayland_OpenGLState *opengl_state = &global_wayland_opengl_state;
+    OpenGL_Window *render_window = opengl_window_from_handle(render_handle);
+
+    eglMakeCurrent(opengl_state->display, render_window->surface, render_window->surface, opengl_state->context);
+}
+
+internal Void opengl_swap_buffers(Gfx_Window graphics_handle, Render_Window render_handle) {
+    Wayland_OpenGLState *state = &global_wayland_opengl_state;
+    OpenGL_Window *render_window = opengl_window_from_handle(render_handle);
+
+    eglSwapBuffers(state->display, render_window->surface);
 }

@@ -100,6 +100,33 @@ internal Uri uri_from_string(Str8 string) {
 
 
 
+internal Gfx_Window wayland_handle_from_window(Wayland_Window *window) {
+    Gfx_Window result = { 0 };
+    result.u64[0] = integer_from_pointer(window);
+    return result;
+}
+
+internal Wayland_Window *wayland_window_from_handle(Gfx_Window handle) {
+    Wayland_Window *window = (Wayland_Window *) pointer_from_integer(handle.u64[0]);
+    return window;
+}
+
+internal Wayland_Window *wayland_window_from_surface(struct wl_surface *surface) {
+    Wayland_State *state = &global_wayland_state;
+
+    Wayland_Window *result = 0;
+    for (Wayland_Window *window = state->first_window; window; window = window->next) {
+        if (window->surface->surface == surface) {
+            result = window;
+            break;
+        }
+    }
+
+    return result;
+}
+
+
+
 internal Void wayland_update_cursor(Void) {
     Wayland_State *state = &global_wayland_state;
 
@@ -112,6 +139,7 @@ internal Void wayland_update_cursor(Void) {
         theme = theme->next;
     }
 
+    // NOTE(simon): Load cursor theme at the requested scale.
     if (!theme) {
         theme = arena_push_struct(state->arena, Wayland_CursorTheme);
         theme->scale = state->pointer_surface->scale;
@@ -119,6 +147,7 @@ internal Void wayland_update_cursor(Void) {
         dll_push_back(state->first_cursor_theme, state->last_cursor_theme, theme);
     }
 
+    // NOTEE(simon): Load the requested cursor.
     if (!theme->cursors[state->pointer_cursor]) {
         CStr names[] = {
             [Gfx_Cursor_Pointer]  = "default",
@@ -142,28 +171,32 @@ internal Void wayland_update_cursor(Void) {
     }
 
     if (theme->cursors[state->pointer_cursor]) {
-        wl_surface_attach(state->pointer_surface->surface, theme->cursors[state->pointer_cursor], 0, 0);
-        wl_surface_damage_buffer(state->pointer_surface->surface, 0, 0, S32_MAX, S32_MAX);
+        // NOTE(simon): Update surface size.
+        state->pointer_surface->width  = (S32) f64_ceil(theme->sizes[state->pointer_cursor].width  / state->pointer_surface->scale);
+        state->pointer_surface->height = (S32) f64_ceil(theme->sizes[state->pointer_cursor].height / state->pointer_surface->scale);
 
-        if (state->pointer_surface->viewport && state->pointer_surface->fractional_scale) {
+        // NOTE(simon): Update viewport if we are using fractional scaling.
+        if (state->pointer_surface->fractional_scale) {
             wp_viewport_set_source(
                 state->pointer_surface->viewport,
                 wl_fixed_from_int(0),
                 wl_fixed_from_int(0),
-                wl_fixed_from_double((F64) theme->sizes[state->pointer_cursor].width),
-                wl_fixed_from_double((F64) theme->sizes[state->pointer_cursor].height)
+                wl_fixed_from_double((F64) state->pointer_surface->width  * state->pointer_surface->scale),
+                wl_fixed_from_double((F64) state->pointer_surface->height * state->pointer_surface->scale)
             );
             wp_viewport_set_destination(
                 state->pointer_surface->viewport,
-                (S32) f64_ceil(theme->sizes[state->pointer_cursor].width  / state->pointer_surface->scale),
-                (S32) f64_ceil(theme->sizes[state->pointer_cursor].height / state->pointer_surface->scale)
+                state->pointer_surface->width,
+                state->pointer_surface->height
             );
-            wl_surface_set_buffer_scale(state->pointer_surface->surface, 1);
-        } else {
-            wl_surface_set_buffer_scale(state->pointer_surface->surface, (S32) f64_ceil(state->pointer_surface->scale));
         }
 
+        // NOTE(simon): Update surface contents.
+        wl_surface_attach(state->pointer_surface->surface, theme->cursors[state->pointer_cursor], 0, 0);
+        wl_surface_damage_buffer(state->pointer_surface->surface, 0, 0, S32_MAX, S32_MAX);
         wl_surface_commit(state->pointer_surface->surface);
+
+        // NOTE(simon): Update the cursor.
         wl_pointer_set_cursor(
             state->pointer,
             state->pointer_enter_serial,
@@ -199,6 +232,7 @@ internal Void wayland_update_selection_serial(U32 serial) {
 
 internal Void wayland_handle_key(U32 key, U32 key_state) {
     Wayland_State *state = &global_wayland_state;
+    Wayland_Window *window = state->keyboard_window;
 
     if (key_state == WL_KEYBOARD_KEY_STATE_PRESSED) {
         U32 codepoint = xkb_state_key_get_utf32(state->xkb_state, key);
@@ -211,6 +245,7 @@ internal Void wayland_handle_key(U32 key, U32 key_state) {
             event->kind = Gfx_EventKind_Text;
             event->text.data = arena_push_array_no_zero(state->event_arena, U8, 4);
             event->text.size = string_encode_utf8(event->text.data, codepoint);
+            event->window    = wayland_handle_from_window(window);
             dll_push_back(state->events.first, state->events.last, event);
         }
     }
@@ -220,76 +255,76 @@ internal Void wayland_handle_key(U32 key, U32 key_state) {
     for (int i = 0; i < keysym_count; ++i) {
         Gfx_Key event_key = Gfx_Key_Null;
         switch (keysyms[i]) {
-            case XKB_KEY_BackSpace:  event_key = Gfx_Key_Backspace; break;
-            case XKB_KEY_Tab:        event_key = Gfx_Key_Tab;       break;
-            case XKB_KEY_Return:     event_key = Gfx_Key_Return;    break;
-            case XKB_KEY_Escape:     event_key = Gfx_Key_Escape;    break;
-            case XKB_KEY_Delete:     event_key = Gfx_Key_Delete;    break;
-            case XKB_KEY_F1:         event_key = Gfx_Key_F1;        break;
-            case XKB_KEY_F2:         event_key = Gfx_Key_F2;        break;
-            case XKB_KEY_F3:         event_key = Gfx_Key_F3;        break;
-            case XKB_KEY_F4:         event_key = Gfx_Key_F4;        break;
-            case XKB_KEY_F5:         event_key = Gfx_Key_F5;        break;
-            case XKB_KEY_F6:         event_key = Gfx_Key_F6;        break;
-            case XKB_KEY_F7:         event_key = Gfx_Key_F7;        break;
-            case XKB_KEY_F8:         event_key = Gfx_Key_F8;        break;
-            case XKB_KEY_F9:         event_key = Gfx_Key_F9;        break;
-            case XKB_KEY_F10:        event_key = Gfx_Key_F10;       break;
-            case XKB_KEY_F11:        event_key = Gfx_Key_F11;       break;
-            case XKB_KEY_F12:        event_key = Gfx_Key_F12;       break;
-            case XKB_KEY_Shift_L:    event_key = Gfx_Key_Shift;     break;
-            case XKB_KEY_Shift_R:    event_key = Gfx_Key_Shift;     break;
-            case XKB_KEY_Control_L:  event_key = Gfx_Key_Control;   break;
-            case XKB_KEY_Control_R:  event_key = Gfx_Key_Control;   break;
-            case XKB_KEY_Meta_L:     event_key = Gfx_Key_OS;        break;
-            case XKB_KEY_Meta_R:     event_key = Gfx_Key_OS;        break;
-            case XKB_KEY_Alt_L:      event_key = Gfx_Key_Alt;       break;
-            case XKB_KEY_Alt_R:      event_key = Gfx_Key_Alt;       break;
-            case XKB_KEY_space:      event_key = Gfx_Key_Space;     break;
-            case XKB_KEY_0:          event_key = Gfx_Key_0;         break;
-            case XKB_KEY_1:          event_key = Gfx_Key_1;         break;
-            case XKB_KEY_2:          event_key = Gfx_Key_2;         break;
-            case XKB_KEY_3:          event_key = Gfx_Key_3;         break;
-            case XKB_KEY_4:          event_key = Gfx_Key_4;         break;
-            case XKB_KEY_5:          event_key = Gfx_Key_5;         break;
-            case XKB_KEY_6:          event_key = Gfx_Key_6;         break;
-            case XKB_KEY_7:          event_key = Gfx_Key_7;         break;
-            case XKB_KEY_8:          event_key = Gfx_Key_8;         break;
-            case XKB_KEY_9:          event_key = Gfx_Key_9;         break;
-            case XKB_KEY_a:          event_key = Gfx_Key_A;         break;
-            case XKB_KEY_b:          event_key = Gfx_Key_B;         break;
-            case XKB_KEY_c:          event_key = Gfx_Key_C;         break;
-            case XKB_KEY_d:          event_key = Gfx_Key_D;         break;
-            case XKB_KEY_e:          event_key = Gfx_Key_E;         break;
-            case XKB_KEY_f:          event_key = Gfx_Key_F;         break;
-            case XKB_KEY_g:          event_key = Gfx_Key_G;         break;
-            case XKB_KEY_h:          event_key = Gfx_Key_H;         break;
-            case XKB_KEY_i:          event_key = Gfx_Key_I;         break;
-            case XKB_KEY_j:          event_key = Gfx_Key_J;         break;
-            case XKB_KEY_k:          event_key = Gfx_Key_K;         break;
-            case XKB_KEY_l:          event_key = Gfx_Key_L;         break;
-            case XKB_KEY_m:          event_key = Gfx_Key_M;         break;
-            case XKB_KEY_n:          event_key = Gfx_Key_N;         break;
-            case XKB_KEY_o:          event_key = Gfx_Key_O;         break;
-            case XKB_KEY_p:          event_key = Gfx_Key_P;         break;
-            case XKB_KEY_q:          event_key = Gfx_Key_Q;         break;
-            case XKB_KEY_r:          event_key = Gfx_Key_R;         break;
-            case XKB_KEY_s:          event_key = Gfx_Key_S;         break;
-            case XKB_KEY_t:          event_key = Gfx_Key_T;         break;
-            case XKB_KEY_u:          event_key = Gfx_Key_U;         break;
-            case XKB_KEY_v:          event_key = Gfx_Key_V;         break;
-            case XKB_KEY_w:          event_key = Gfx_Key_W;         break;
-            case XKB_KEY_x:          event_key = Gfx_Key_X;         break;
-            case XKB_KEY_y:          event_key = Gfx_Key_Y;         break;
-            case XKB_KEY_z:          event_key = Gfx_Key_Z;         break;
-            case XKB_KEY_Home:       event_key = Gfx_Key_Home;      break;
-            case XKB_KEY_Left:       event_key = Gfx_Key_Left;      break;
-            case XKB_KEY_Up:         event_key = Gfx_Key_Up;        break;
-            case XKB_KEY_Right:      event_key = Gfx_Key_Right;     break;
-            case XKB_KEY_Down:       event_key = Gfx_Key_Down;      break;
-            case XKB_KEY_Prior:      event_key = Gfx_Key_PageUp;    break;
-            case XKB_KEY_Next:       event_key = Gfx_Key_PageDown;  break;
-            case XKB_KEY_End:        event_key = Gfx_Key_End;       break;
+            case XKB_KEY_BackSpace: event_key = Gfx_Key_Backspace; break;
+            case XKB_KEY_Tab:       event_key = Gfx_Key_Tab;       break;
+            case XKB_KEY_Return:    event_key = Gfx_Key_Return;    break;
+            case XKB_KEY_Escape:    event_key = Gfx_Key_Escape;    break;
+            case XKB_KEY_Delete:    event_key = Gfx_Key_Delete;    break;
+            case XKB_KEY_F1:        event_key = Gfx_Key_F1;        break;
+            case XKB_KEY_F2:        event_key = Gfx_Key_F2;        break;
+            case XKB_KEY_F3:        event_key = Gfx_Key_F3;        break;
+            case XKB_KEY_F4:        event_key = Gfx_Key_F4;        break;
+            case XKB_KEY_F5:        event_key = Gfx_Key_F5;        break;
+            case XKB_KEY_F6:        event_key = Gfx_Key_F6;        break;
+            case XKB_KEY_F7:        event_key = Gfx_Key_F7;        break;
+            case XKB_KEY_F8:        event_key = Gfx_Key_F8;        break;
+            case XKB_KEY_F9:        event_key = Gfx_Key_F9;        break;
+            case XKB_KEY_F10:       event_key = Gfx_Key_F10;       break;
+            case XKB_KEY_F11:       event_key = Gfx_Key_F11;       break;
+            case XKB_KEY_F12:       event_key = Gfx_Key_F12;       break;
+            case XKB_KEY_Shift_L:   event_key = Gfx_Key_Shift;     break;
+            case XKB_KEY_Shift_R:   event_key = Gfx_Key_Shift;     break;
+            case XKB_KEY_Control_L: event_key = Gfx_Key_Control;   break;
+            case XKB_KEY_Control_R: event_key = Gfx_Key_Control;   break;
+            case XKB_KEY_Meta_L:    event_key = Gfx_Key_OS;        break;
+            case XKB_KEY_Meta_R:    event_key = Gfx_Key_OS;        break;
+            case XKB_KEY_Alt_L:     event_key = Gfx_Key_Alt;       break;
+            case XKB_KEY_Alt_R:     event_key = Gfx_Key_Alt;       break;
+            case XKB_KEY_space:     event_key = Gfx_Key_Space;     break;
+            case XKB_KEY_0:         event_key = Gfx_Key_0;         break;
+            case XKB_KEY_1:         event_key = Gfx_Key_1;         break;
+            case XKB_KEY_2:         event_key = Gfx_Key_2;         break;
+            case XKB_KEY_3:         event_key = Gfx_Key_3;         break;
+            case XKB_KEY_4:         event_key = Gfx_Key_4;         break;
+            case XKB_KEY_5:         event_key = Gfx_Key_5;         break;
+            case XKB_KEY_6:         event_key = Gfx_Key_6;         break;
+            case XKB_KEY_7:         event_key = Gfx_Key_7;         break;
+            case XKB_KEY_8:         event_key = Gfx_Key_8;         break;
+            case XKB_KEY_9:         event_key = Gfx_Key_9;         break;
+            case XKB_KEY_a:         event_key = Gfx_Key_A;         break;
+            case XKB_KEY_b:         event_key = Gfx_Key_B;         break;
+            case XKB_KEY_c:         event_key = Gfx_Key_C;         break;
+            case XKB_KEY_d:         event_key = Gfx_Key_D;         break;
+            case XKB_KEY_e:         event_key = Gfx_Key_E;         break;
+            case XKB_KEY_f:         event_key = Gfx_Key_F;         break;
+            case XKB_KEY_g:         event_key = Gfx_Key_G;         break;
+            case XKB_KEY_h:         event_key = Gfx_Key_H;         break;
+            case XKB_KEY_i:         event_key = Gfx_Key_I;         break;
+            case XKB_KEY_j:         event_key = Gfx_Key_J;         break;
+            case XKB_KEY_k:         event_key = Gfx_Key_K;         break;
+            case XKB_KEY_l:         event_key = Gfx_Key_L;         break;
+            case XKB_KEY_m:         event_key = Gfx_Key_M;         break;
+            case XKB_KEY_n:         event_key = Gfx_Key_N;         break;
+            case XKB_KEY_o:         event_key = Gfx_Key_O;         break;
+            case XKB_KEY_p:         event_key = Gfx_Key_P;         break;
+            case XKB_KEY_q:         event_key = Gfx_Key_Q;         break;
+            case XKB_KEY_r:         event_key = Gfx_Key_R;         break;
+            case XKB_KEY_s:         event_key = Gfx_Key_S;         break;
+            case XKB_KEY_t:         event_key = Gfx_Key_T;         break;
+            case XKB_KEY_u:         event_key = Gfx_Key_U;         break;
+            case XKB_KEY_v:         event_key = Gfx_Key_V;         break;
+            case XKB_KEY_w:         event_key = Gfx_Key_W;         break;
+            case XKB_KEY_x:         event_key = Gfx_Key_X;         break;
+            case XKB_KEY_y:         event_key = Gfx_Key_Y;         break;
+            case XKB_KEY_z:         event_key = Gfx_Key_Z;         break;
+            case XKB_KEY_Home:      event_key = Gfx_Key_Home;      break;
+            case XKB_KEY_Left:      event_key = Gfx_Key_Left;      break;
+            case XKB_KEY_Up:        event_key = Gfx_Key_Up;        break;
+            case XKB_KEY_Right:     event_key = Gfx_Key_Right;     break;
+            case XKB_KEY_Down:      event_key = Gfx_Key_Down;      break;
+            case XKB_KEY_Prior:     event_key = Gfx_Key_PageUp;    break;
+            case XKB_KEY_Next:      event_key = Gfx_Key_PageDown;  break;
+            case XKB_KEY_End:       event_key = Gfx_Key_End;       break;
         }
 
         if (event_key != Gfx_Key_Null) {
@@ -298,6 +333,7 @@ internal Void wayland_handle_key(U32 key, U32 key_state) {
             event->key  = event_key;
             event->key_modifiers |= (xkb_state_mod_name_is_active(state->xkb_state, XKB_MOD_NAME_SHIFT, XKB_STATE_MODS_EFFECTIVE) > 0 ? Gfx_KeyModifier_Shift   : 0);
             event->key_modifiers |= (xkb_state_mod_name_is_active(state->xkb_state, XKB_MOD_NAME_CTRL,  XKB_STATE_MODS_EFFECTIVE) > 0 ? Gfx_KeyModifier_Control : 0);
+            event->window = wayland_handle_from_window(window);
             dll_push_back(state->events.first, state->events.last, event);
         }
     }
@@ -309,7 +345,10 @@ internal Void wayland_update_surface_scale(Wayland_Surface *surface) {
         scale = s32_max(scale, node->output->scale);
     }
 
-    if (wl_surface_get_version(surface->surface) != 6 && !(surface->viewport && surface->fractional_scale)) {
+    // NOTE(simon): From version 6 of surfaces, we use the scale provided by
+    // wayland_surface_preferred_buffer_scale.
+    if (wl_surface_get_version(surface->surface) < 6 && !(surface->fractional_scale)) {
+        wl_surface_set_buffer_scale(surface->surface, scale);
         surface->scale = (F64) scale;
     }
 }
@@ -329,6 +368,7 @@ internal Wayland_Surface *wayland_surface_create(Void) {
     wl_surface_add_listener(surface->surface, &wayland_surface_listener, surface);
     surface->scale = 1.0;
 
+    // NOTE(simon): Setup fractional scaling if available.
     if (state->viewporter && state->fractional_scale_manager) {
         surface->viewport         = wp_viewporter_get_viewport(state->viewporter, surface->surface);
         surface->fractional_scale = wp_fractional_scale_manager_v1_get_fractional_scale(state->fractional_scale_manager, surface->surface);
@@ -343,10 +383,17 @@ internal Wayland_Surface *wayland_surface_create(Void) {
 internal Void wayland_surface_destroy(Wayland_Surface *surface) {
     Wayland_State *state = &global_wayland_state;
 
+    // NOTE(simon): Remove all references to outputs.
     for (Wayland_OutputNode *node = surface->first_output, *next = 0; node; node = next) {
         next = node->next;
         dll_remove(surface->first_output, surface->last_output, node);
         sll_stack_push(state->output_node_freelist, node);
+    }
+
+    // NONTE(simon): Release resources for fractional scaling.
+    if (surface->fractional_scale) {
+        wp_fractional_scale_v1_destroy(surface->fractional_scale);
+        wp_viewport_destroy(surface->viewport);
     }
 
     wl_surface_destroy(surface->surface);
@@ -434,11 +481,13 @@ internal Void wayland_xdg_wm_base_ping(Void *data, struct xdg_wm_base *xdg_wm_ba
 // NOTE(simon): Pointer events
 internal Void wayland_pointer_enter(Void *data, struct wl_pointer *pointer, U32 serial, struct wl_surface *surface, wl_fixed_t surface_x, wl_fixed_t surface_y) {
     Wayland_State *state = &global_wayland_state;
-    state->pointer_enter_serial = serial;
+    Wayland_Window *window = wayland_window_from_surface(surface);
 
+    state->pointer_enter_serial = serial;
+    state->pointer_window = window;
     state->pointer_position = v2f32(
-        (F32) (wl_fixed_to_double(surface_x) * state->surface->scale),
-        (F32) (wl_fixed_to_double(surface_y) * state->surface->scale)
+        (F32) (wl_fixed_to_double(surface_x) * window->surface->scale),
+        (F32) (wl_fixed_to_double(surface_y) * window->surface->scale)
     );
 
     wayland_update_cursor();
@@ -447,25 +496,32 @@ internal Void wayland_pointer_enter(Void *data, struct wl_pointer *pointer, U32 
 
 internal Void wayland_pointer_leave(Void *data, struct wl_pointer *pointer, U32 serial, struct wl_surface *surface) {
     Wayland_State *state = &global_wayland_state;
+
+    state->pointer_window = 0;
+
     wayland_update_selection_serial(serial);
 }
 
 internal Void wayland_pointer_motion(Void *data, struct wl_pointer *pointer, U32 time, wl_fixed_t surface_x, wl_fixed_t surface_y) {
     Wayland_State *state = &global_wayland_state;
+    Wayland_Window *window = state->pointer_window;
 
     state->pointer_position = v2f32(
-        (F32) (wl_fixed_to_double(surface_x) * state->surface->scale),
-        (F32) (wl_fixed_to_double(surface_y) * state->surface->scale)
+        (F32) (wl_fixed_to_double(surface_x) * window->surface->scale),
+        (F32) (wl_fixed_to_double(surface_y) * window->surface->scale)
     );
 
     Gfx_Event *event = arena_push_struct(state->event_arena, Gfx_Event);
-    event->kind = Gfx_EventKind_MouseMove;
+    event->kind     = Gfx_EventKind_MouseMove;
     event->position = state->pointer_position;
+    event->window   = wayland_handle_from_window(window);
     dll_push_back(state->events.first, state->events.last, event);
 }
 
 internal Void wayland_pointer_button(Void *data, struct wl_pointer *pointer, U32 serial, U32 time, U32 button, U32 button_state) {
     Wayland_State *state = &global_wayland_state;
+    Wayland_Window *window = state->pointer_window;
+
     wayland_update_selection_serial(serial);
 
     Gfx_EventKind kind = Gfx_EventKind_Null;
@@ -484,10 +540,10 @@ internal Void wayland_pointer_button(Void *data, struct wl_pointer *pointer, U32
     // NOTE(simon): Determine if we are interacting with the title bar or with
     // the client area.
     B32 client_interaction = true;
-    if (state->pointer_position.y < state->title_bar_height) {
+    if (state->pointer_position.y < window->title_bar_height) {
         client_interaction = false;
     }
-    for (Wayland_TitleBarClientArea *area = state->first_client_area; area; area = area->next) {
+    for (Wayland_TitleBarClientArea *area = window->first_client_area; area; area = area->next) {
         if (r2f32_contains_v2f32(area->rectangle, state->pointer_position)) {
             client_interaction = true;
             break;
@@ -502,14 +558,15 @@ internal Void wayland_pointer_button(Void *data, struct wl_pointer *pointer, U32
             event->kind     = kind;
             event->key      = key;
             event->position = state->pointer_position;
+            event->window   = wayland_handle_from_window(window);
             dll_push_back(state->events.first, state->events.last, event);
         }
     } else {
         if (kind == Gfx_EventKind_KeyPress && key == Gfx_Key_MouseLeft) {
-            xdg_toplevel_move(state->xdg_toplevel, state->seat, serial);
+            xdg_toplevel_move(window->xdg_toplevel, state->seat, serial);
         } else if (kind == Gfx_EventKind_KeyPress && key == Gfx_Key_MouseRight) {
             xdg_toplevel_show_window_menu(
-                state->xdg_toplevel,
+                window->xdg_toplevel,
                 state->seat,
                 serial,
                 (S32) f32_round(state->pointer_position.x),
@@ -530,6 +587,7 @@ internal Void wayland_pointer_axis(Void *data, struct wl_pointer *pointer, U32 t
 
 internal Void wayland_pointer_frame(Void *data, struct wl_pointer *pointer) {
     Wayland_State *state = &global_wayland_state;
+    Wayland_Window *window = state->pointer_window;
 
     // NOTE(simon): Prefer discrete events of continuous events for scrolling.
     // We will get both kinds of events within one input frame, and we don't
@@ -539,6 +597,7 @@ internal Void wayland_pointer_frame(Void *data, struct wl_pointer *pointer) {
         event->kind     = Gfx_EventKind_Scroll;
         event->scroll   = state->pointer_axis_discrete;
         event->position = state->pointer_position;
+        event->window   = wayland_handle_from_window(window);
         dll_push_back(state->events.first, state->events.last, event);
 
         memory_zero_struct(&state->pointer_axis);
@@ -550,6 +609,7 @@ internal Void wayland_pointer_frame(Void *data, struct wl_pointer *pointer) {
         event->kind     = Gfx_EventKind_Scroll;
         event->scroll   = state->pointer_axis;
         event->position = state->pointer_position;
+        event->window   = wayland_handle_from_window(window);
         dll_push_back(state->events.first, state->events.last, event);
 
         memory_zero_struct(&state->pointer_axis);
@@ -605,11 +665,16 @@ internal Void wayland_keyboard_keymap(Void *data, struct wl_keyboard *keyboard, 
 
 internal Void wayland_keyboard_enter(Void *data, struct wl_keyboard *keyboard, U32 serial, struct wl_surface *surface, struct wl_array *keys) {
     Wayland_State *state = &global_wayland_state;
+    Wayland_Window *window = wayland_window_from_surface(surface);
+
+    state->keyboard_window = window;
+
     wayland_update_selection_serial(serial);
 }
 
 internal Void wayland_keyboard_leave(Void *data, struct wl_keyboard *keyboard, U32 serial, struct wl_surface *surface) {
     Wayland_State *state = &global_wayland_state;
+    state->keyboard_window = 0;
     wayland_update_selection_serial(serial);
     state->last_key = 0;
     struct itimerspec timer = { 0 };
@@ -678,6 +743,7 @@ internal Void wayland_seat_capabilities(Void *data, struct wl_seat *seat, U32 ca
         wl_pointer_release(state->pointer);
         state->pointer_surface = 0;
         state->pointer = 0;
+        state->pointer_window = 0;
     }
 
     if (removed_capabilities & WL_SEAT_CAPABILITY_KEYBOARD) {
@@ -687,6 +753,7 @@ internal Void wayland_seat_capabilities(Void *data, struct wl_seat *seat, U32 ca
         state->keyboard = 0;
         state->xkb_keymap = 0;
         state->xkb_state = 0;
+        state->keyboard_window = 0;
     }
 
     if (added_capabilities & WL_SEAT_CAPABILITY_POINTER) {
@@ -753,6 +820,7 @@ internal Void wayland_data_device_data_offer(Void *data, struct wl_data_device *
 
 internal Void wayland_data_device_enter(Void *data, struct wl_data_device *data_device, U32 serial, struct wl_surface *surface, wl_fixed_t x, wl_fixed_t y, struct wl_data_offer *id) {
     Wayland_State *state = &global_wayland_state;
+    Wayland_Window *window = wayland_window_from_surface(surface);
 
     // NOTE(simon): Replace any previous drag-and-drop operation.
     if (state->drag_and_drop_offer) {
@@ -775,10 +843,12 @@ internal Void wayland_data_device_enter(Void *data, struct wl_data_device *data_
         wl_data_offer_set_actions(id, WL_DATA_DEVICE_MANAGER_DND_ACTION_COPY, WL_DATA_DEVICE_MANAGER_DND_ACTION_COPY);
         wl_data_offer_accept(id, serial, "text/uri-list");
         state->drag_and_drop_position = v2f32(
-            (F32) (wl_fixed_to_double(x) * state->surface->scale),
-            (F32) (wl_fixed_to_double(y) * state->surface->scale)
+            (F32) (wl_fixed_to_double(x) * window->surface->scale),
+            (F32) (wl_fixed_to_double(y) * window->surface->scale)
         );
     }
+
+    state->data_device_window = window;
 }
 
 internal Void wayland_data_device_leave(Void *data, struct wl_data_device *data_device) {
@@ -788,19 +858,24 @@ internal Void wayland_data_device_leave(Void *data, struct wl_data_device *data_
         wayland_data_offer_destroy(state->drag_and_drop_offer);
         state->drag_and_drop_offer = 0;
     }
+
+    state->data_device_window = 0;
 }
 
 internal Void wayland_data_device_motion(Void *data, struct wl_data_device *data_device, U32 time, wl_fixed_t x, wl_fixed_t y) {
     Wayland_State *state = &global_wayland_state;
 
+    Wayland_Window *window = state->data_device_window;
+
     state->drag_and_drop_position = v2f32(
-        (F32) (wl_fixed_to_double(x) * state->surface->scale),
-        (F32) (wl_fixed_to_double(y) * state->surface->scale)
+        (F32) (wl_fixed_to_double(x) * window->surface->scale),
+        (F32) (wl_fixed_to_double(y) * window->surface->scale)
     );
 }
 
 internal Void wayland_data_device_drop(Void *data, struct wl_data_device *data_device) {
     Wayland_State *state = &global_wayland_state;
+    Wayland_Window *window = state->data_device_window;
     Arena_Temporary scratch = arena_get_scratch(0, 0);
 
     if (state->drag_and_drop_offer && state->drag_and_drop_offer->mime_types & Wayland_MimeType_TextUriList) {
@@ -826,6 +901,7 @@ internal Void wayland_data_device_drop(Void *data, struct wl_data_device *data_d
                 event->kind     = Gfx_EventKind_FileDrop;
                 event->position = state->drag_and_drop_position;
                 event->path     = str8_copy(state->event_arena, uri.path);
+                event->window   = wayland_handle_from_window(window);
                 dll_push_back(state->events.first, state->events.last, event);
             }
         }
@@ -917,8 +993,10 @@ internal Void wayland_data_source_action(Void *data, struct wl_data_source *data
 // NOTE(simon): XDG surface events.
 internal Void wayland_xdg_surface_configure(Void *data, struct xdg_surface *xdg_surface, U32 serial) {
     Wayland_State *state = &global_wayland_state;
+    Wayland_Window *window = (Wayland_Window *) data;
 
-    state->xdg_surface_configure_serial = serial;
+    xdg_surface_ack_configure(window->xdg_surface, serial);
+
     if (state->update) {
         state->update();
     }
@@ -927,30 +1005,48 @@ internal Void wayland_xdg_surface_configure(Void *data, struct xdg_surface *xdg_
 
 
 // NOTE(simon): XDG toplevel events.
-internal Void wayland_xdg_toplevel_configure(Void *data, struct xdg_toplevel *xgd_toplevel, S32 width, S32 height, struct wl_array *states) {
+internal Void wayland_xdg_toplevel_configure(Void *data, struct xdg_toplevel *xdg_toplevel, S32 width, S32 height, struct wl_array *states) {
     Wayland_State *state = &global_wayland_state;
+    Wayland_Window *window = (Wayland_Window *) data;
 
+    // NOTE(simon): Update the size if we are requested to, otherwise keep our
+    // current size.
     if (width != 0 && height != 0) {
-        state->width = width;
-        state->height = height;
+        window->surface->width  = width;
+        window->surface->height = height;
+    }
+
+    // NOTE(simon): Update viewport if we are using fractional scaling.
+    if (window->surface->fractional_scale) {
+        wp_viewport_set_source(
+            window->surface->viewport,
+            wl_fixed_from_int(0),
+            wl_fixed_from_int(0),
+            wl_fixed_from_double((F64) window->surface->width  * window->surface->scale),
+            wl_fixed_from_double((F64) window->surface->height * window->surface->scale)
+        );
+        wp_viewport_set_destination(window->surface->viewport, window->surface->width, window->surface->height);
     }
 
     // NOTE(simon): Reset all state for the window.
-    state->is_maximized = false;
+    window->is_maximized = false;
 
     // NOTE(simon): Acquire new state for window.
     U32 *toplevel_state = 0;
     wl_array_for_each(toplevel_state, states) {
         if (*toplevel_state == XDG_TOPLEVEL_STATE_MAXIMIZED) {
-            state->is_maximized = true;
+            window->is_maximized = true;
         }
     }
 }
 
 internal Void wayland_xdg_toplevel_close(Void *data, struct xdg_toplevel *xdg_toplevel) {
     Wayland_State *state = &global_wayland_state;
+    Wayland_Window *window = (Wayland_Window *) data;
+
     Gfx_Event *event = arena_push_struct(state->event_arena, Gfx_Event);
     event->kind = Gfx_EventKind_Quit;
+    event->window = wayland_handle_from_window(window);
     dll_push_back(state->events.first, state->events.last, event);
 }
 
@@ -958,7 +1054,8 @@ internal Void wayland_xdg_toplevel_close(Void *data, struct xdg_toplevel *xdg_to
 // NOTE(simon): XDG toplevel decoration events.
 internal Void wayland_xdg_toplevel_decoration_configure(Void *data, struct zxdg_toplevel_decoration_v1 *xdg_toplevel_decoration, U32 mode) {
     Wayland_State *state = &global_wayland_state;
-    state->has_server_side_decorations = mode == ZXDG_TOPLEVEL_DECORATION_V1_MODE_SERVER_SIDE;
+    Wayland_Window *window = (Wayland_Window *) data;
+    window->has_server_side_decorations = mode == ZXDG_TOPLEVEL_DECORATION_V1_MODE_SERVER_SIDE;
 }
 
 
@@ -1048,11 +1145,11 @@ internal Void wayland_surface_leave(Void *data, struct wl_surface *wl_surface, s
 internal Void wayland_surface_preferred_buffer_scale(Void *data, struct wl_surface *wl_surface, S32 factor) {
     Wayland_Surface *surface = (Wayland_Surface *) data;
 
-    if (!(surface->viewport && surface->fractional_scale)) {
+    if (!surface->fractional_scale) {
+        wl_surface_set_buffer_scale(surface->surface, factor);
         surface->scale = (S32) factor;
     }
 
-    wayland_update_surface_scale(surface);
     wayland_update_cursor();
     gfx_send_wakeup_event();
 }
@@ -1066,6 +1163,15 @@ internal Void wayland_surface_preferred_buffer_transform(Void *data, struct wl_s
 internal Void wayland_fractional_scale_preferred_scale(Void *data, struct wp_fractional_scale_v1 *fractional_scale, U32 scale) {
     Wayland_Surface *surface = (Wayland_Surface *) data;
     surface->scale = (F64) scale / 120.0;
+
+    // NOTE(simon): Update viewport.
+    wp_viewport_set_source(
+        surface->viewport,
+        wl_fixed_from_int(0),
+        wl_fixed_from_int(0),
+        wl_fixed_from_double((F64) surface->width  * surface->scale),
+        wl_fixed_from_double((F64) surface->height * surface->scale)
+    );
 
     wayland_update_cursor();
     gfx_send_wakeup_event();
@@ -1138,78 +1244,44 @@ internal Void wayland_registry_global_remove(Void *data, struct wl_registry *reg
 
 
 internal Void gfx_init(Void) {
-    Str8 title = str8_literal("MSDF-gen");
-    U32 width = 1280;
-    U32 height = 720;
-
-    Arena_Temporary scratch = arena_get_scratch(0, 0);
-
     Wayland_State *state = &global_wayland_state;
     state->arena = arena_create();
     state->selection_source_arena = arena_create();
 
+    // NOTE(simon): Create XKB context.
+    state->xkb_context = xkb_context_new(XKB_CONTEXT_NO_FLAGS);
+
+    // NOTE(simon): Connect to the display and listen for initial list of globals.
     state->display = wl_display_connect(0);
     struct wl_registry *registry = wl_display_get_registry(state->display);
     wl_registry_add_listener(registry, &wayland_registry_listener, 0);
-
-    state->xkb_context = xkb_context_new(XKB_CONTEXT_NO_FLAGS);
-
     wl_display_roundtrip(state->display);
 
-    if (state->data_device_manager && state->seat) {
-        state->data_device = wl_data_device_manager_get_data_device(state->data_device_manager, state->seat);
-        wl_data_device_add_listener(state->data_device, &wayland_data_device_listener, 0);
+    // NOTE(simon): Exit if we don't have the required globals.
+    if (!(state->compositor && state->data_device_manager && state->shm && state->xdg_wm_base && state->seat)) {
+        // TODO(simon): Inform the user.
+        os_exit(1);
     }
 
+    // NOTE(simon): Set up data device for the seat.
+    state->data_device = wl_data_device_manager_get_data_device(state->data_device_manager, state->seat);
+    wl_data_device_add_listener(state->data_device, &wayland_data_device_listener, 0);
+
+    // NOTE(simon): Get the cursor theme.
     state->cursor_theme_name = getenv("XCURSOR_THEME");
     if (!state->cursor_theme_name) {
         state->cursor_theme_name = "default";
     }
 
+    // NOTE(simon): Get the cursor size.
     char *cursor_theme_size_string = getenv("XCURSOR_SIZE");
     if (!cursor_theme_size_string) {
         cursor_theme_size_string = "24";
     }
     state->cursor_theme_size = u64_from_str8(str8_cstr(cursor_theme_size_string)).value;
-
-    state->width = (S32) width;
-    state->height = (S32) height;
-    state->surface = wayland_surface_create();
-    state->event_arena = arena_create();
-    state->title_bar_arena = arena_create_reserve(kilobytes(1));
-    state->xdg_surface = xdg_wm_base_get_xdg_surface(state->xdg_wm_base, state->surface->surface);
-    xdg_surface_add_listener(state->xdg_surface, &wayland_xdg_surface_listener, 0);
-    state->xdg_toplevel = xdg_surface_get_toplevel(state->xdg_surface);
-    xdg_toplevel_add_listener(state->xdg_toplevel, &wayland_xdg_toplevel_listener, 0);
-    CStr title_cstr = cstr_from_str8(scratch.arena, title);
-    xdg_toplevel_set_title(state->xdg_toplevel, title_cstr);
-    if (state->xdg_decoration_manager) {
-        state->xdg_toplevel_decoration = zxdg_decoration_manager_v1_get_toplevel_decoration(state->xdg_decoration_manager, state->xdg_toplevel);
-        zxdg_toplevel_decoration_v1_add_listener(state->xdg_toplevel_decoration, &wayland_xdg_toplevel_decoration_listener, 0);
-        zxdg_toplevel_decoration_v1_set_mode(state->xdg_toplevel_decoration, ZXDG_TOPLEVEL_DECORATION_V1_MODE_SERVER_SIDE);
-    }
-    wl_surface_commit(state->surface->surface);
-
-    arena_end_temporary(scratch);
 }
 
-internal Gfx_Window gfx_window_create(Str8 title, U32 width, U32 height) {
-    Gfx_Window result = { 0 };
-    return result;
-}
 
-internal Void gfx_window_close(Gfx_Window handle) {
-}
-
-internal V2U32 gfx_client_area_from_window(Gfx_Window handle) {
-    Wayland_State *state = &global_wayland_state;
-
-    V2U32 result = v2u32(
-        (U32) f64_ceil((F64) state->width  * state->surface->scale),
-        (U32) f64_ceil((F64) state->height * state->surface->scale)
-    );
-    return result;
-}
 
 internal Void gfx_send_wakeup_event(Void) {
     Wayland_State *state = &global_wayland_state;
@@ -1221,6 +1293,8 @@ internal Void gfx_send_wakeup_event(Void) {
 internal Gfx_EventList gfx_get_events(Arena *arena, B32 wait) {
     prof_function_begin();
     Wayland_State *state = &global_wayland_state;
+
+    state->event_arena = arena;
 
     // TODO(simon): Error handling
     do {
@@ -1261,56 +1335,21 @@ internal Gfx_EventList gfx_get_events(Arena *arena, B32 wait) {
         }
     } while (wait && !state->events.first);
 
-    // NOTE(simon): Copy events to the provided arena.
-    Gfx_EventList events = { 0 };
-    for (Gfx_Event *event = state->events.first; event; event = event->next) {
-        Gfx_Event *new_event = arena_push_struct(arena, Gfx_Event);
-        *new_event = *event;
-        new_event->text = str8_copy(arena, new_event->text);
-        new_event->path = str8_copy(arena, new_event->path);
-        dll_push_back(events.first, events.last, new_event);
-    }
-
     // NOTE(simon): Reset event state.
-    arena_reset(state->event_arena);
+    state->event_arena = 0;
+    Gfx_EventList events = state->events;
     memory_zero_struct(&state->events);
 
     prof_function_end();
     return events;
 }
 
-internal V2F32 gfx_mouse_position_from_window(Gfx_Window handle) {
+internal Void gfx_set_update_function(VoidFunction *update) {
     Wayland_State *state = &global_wayland_state;
-    V2F32 result = state->pointer_position;
-    return result;
+    state->update = update;
 }
 
-internal Void gfx_swap_buffers(Void) {
-    Wayland_State *state = &global_wayland_state;
 
-    if (state->surface->viewport && state->surface->fractional_scale) {
-        wp_viewport_set_source(
-            state->surface->viewport,
-            wl_fixed_from_int(0),
-            wl_fixed_from_int(0),
-            wl_fixed_from_double((F64) state->width  * state->surface->scale),
-            wl_fixed_from_double((F64) state->height * state->surface->scale)
-        );
-        wp_viewport_set_destination(state->surface->viewport, state->width, state->height);
-        wl_surface_set_buffer_scale(state->surface->surface, 1);
-    } else {
-        wl_surface_set_buffer_scale(state->surface->surface, (S32) f64_ceil(state->surface->scale));
-    }
-
-    if (state->xdg_surface_configure_serial != state->xdg_surface_last_configure_serial) {
-        xdg_surface_ack_configure(state->xdg_surface, state->xdg_surface_configure_serial);
-        state->xdg_surface_last_configure_serial = state->xdg_surface_configure_serial;
-    }
-
-    if (state->swap_buffers) {
-        state->swap_buffers();
-    }
-}
 
 internal Void gfx_set_cursor(Gfx_Cursor cursor) {
     Wayland_State *state = &global_wayland_state;
@@ -1321,60 +1360,176 @@ internal Void gfx_set_cursor(Gfx_Cursor cursor) {
     }
 }
 
-internal Void gfx_set_update_function(VoidFunction *update) {
+
+
+internal Gfx_Window gfx_window_create(Str8 title, U32 width, U32 height) {
     Wayland_State *state = &global_wayland_state;
-    state->update = update;
+    Arena_Temporary scratch = arena_get_scratch(0, 0);
+
+    // NOTE(simon): Allocate window.
+    Wayland_Window *window = state->window_freelist;
+    if (window) {
+        sll_stack_pop(state->window_freelist);
+        memory_zero_struct(window);
+    } else {
+        window = arena_push_struct(state->arena, Wayland_Window);
+    }
+    dll_push_back(state->first_window, state->last_window, window);
+
+    window->title_bar_arena = arena_create_reserve(kilobytes(1));
+
+    // NOTE(simon): Allocate base surface.
+    window->surface = wayland_surface_create();
+    window->surface->width  = (S32) width;
+    window->surface->height = (S32) height;
+
+    // NOTE(simon): Allocate XDG surface.
+    window->xdg_surface = xdg_wm_base_get_xdg_surface(state->xdg_wm_base, window->surface->surface);
+    xdg_surface_add_listener(window->xdg_surface, &wayland_xdg_surface_listener, window);
+
+    // NOTE(simon): Get the toplevel XDG role.
+    window->xdg_toplevel = xdg_surface_get_toplevel(window->xdg_surface);
+    xdg_toplevel_add_listener(window->xdg_toplevel, &wayland_xdg_toplevel_listener, window);
+    CStr title_cstr = cstr_from_str8(scratch.arena, title);
+    xdg_toplevel_set_title(window->xdg_toplevel, title_cstr);
+
+    // NOTE(simon): Enable server side decorations if they are availible.
+    if (state->xdg_decoration_manager) {
+        window->xdg_toplevel_decoration = zxdg_decoration_manager_v1_get_toplevel_decoration(state->xdg_decoration_manager, window->xdg_toplevel);
+        zxdg_toplevel_decoration_v1_add_listener(window->xdg_toplevel_decoration, &wayland_xdg_toplevel_decoration_listener, window);
+        zxdg_toplevel_decoration_v1_set_mode(window->xdg_toplevel_decoration, ZXDG_TOPLEVEL_DECORATION_V1_MODE_SERVER_SIDE);
+    }
+
+    // NOTE(simon): Commit all changes.
+    wl_surface_commit(window->surface->surface);
+
+    Gfx_Window result = wayland_handle_from_window(window);
+    arena_end_temporary(scratch);
+    return result;
 }
 
-internal F32 gfx_dpi_from_window(Gfx_Window window) {
+internal Void gfx_window_close(Gfx_Window handle) {
     Wayland_State *state = &global_wayland_state;
-    F32 dpi = (F32) (96.0 * state->surface->scale);
+    Wayland_Window *window = wayland_window_from_handle(handle);
+
+    arena_destroy(window->title_bar_arena);
+
+    if (window->xdg_toplevel_decoration) {
+        zxdg_toplevel_decoration_v1_destroy(window->xdg_toplevel_decoration);
+    }
+    xdg_toplevel_destroy(window->xdg_toplevel);
+    xdg_surface_destroy(window->xdg_surface);
+    wayland_surface_destroy(window->surface);
+
+    dll_remove(state->first_window, state->last_window, window);
+    sll_stack_push(state->window_freelist, window);
+}
+
+internal V2U32 gfx_client_area_from_window(Gfx_Window handle) {
+    Wayland_Window *window = wayland_window_from_handle(handle);
+
+    V2U32 result = { 0 };
+    if (window) {
+        result = v2u32(
+            (U32) f64_ceil((F64) window->surface->width  * window->surface->scale),
+            (U32) f64_ceil((F64) window->surface->height * window->surface->scale)
+        );
+    }
+    return result;
+}
+
+internal V2F32 gfx_mouse_position_from_window(Gfx_Window handle) {
+    Wayland_State *state = &global_wayland_state;
+    Wayland_Window *window = wayland_window_from_handle(handle);
+
+    // TODO(simon): Maybe we should return a point that is not inside of the window.
+    V2F32 result = { 0 };
+    if (state->pointer_window == window) {
+        result = state->pointer_position;
+    }
+
+    return result;
+}
+
+internal F32 gfx_dpi_from_window(Gfx_Window handle) {
+    Wayland_Window *window = wayland_window_from_handle(handle);
+
+    F32 dpi = 0.0f;
+    if (window) {
+        dpi = (F32) (96.0 * window->surface->scale);
+    }
+
     return dpi;
 }
 
 internal Void gfx_window_clear_custom_title_bar_data(Gfx_Window handle) {
-    Wayland_State *state = &global_wayland_state;
-    arena_reset(state->title_bar_arena);
-    state->title_bar_height = 0.0f;
-    state->first_client_area = 0;
-    state->last_client_area = 0;
+    Wayland_Window *window = wayland_window_from_handle(handle);
+
+    if (window) {
+        arena_reset(window->title_bar_arena);
+        window->title_bar_height = 0.0f;
+        window->first_client_area = 0;
+        window->last_client_area = 0;
+    }
 }
 
 internal Void gfx_window_set_custom_title_bar_height(Gfx_Window handle, F32 height) {
-    Wayland_State *state = &global_wayland_state;
-    state->title_bar_height = height;
+    Wayland_Window *window = wayland_window_from_handle(handle);
+
+    if (window) {
+        window->title_bar_height = height;
+    }
 }
 
 internal Void gfx_window_push_cusomt_title_bar_client_area(Gfx_Window handle, R2F32 rectangle) {
-    Wayland_State *state = &global_wayland_state;
-    Wayland_TitleBarClientArea *client_area = arena_push_struct(state->title_bar_arena, Wayland_TitleBarClientArea);
-    client_area->rectangle = rectangle;
-    sll_queue_push(state->first_client_area, state->last_client_area, client_area);
+    Wayland_Window *window = wayland_window_from_handle(handle);
+
+    if (window) {
+        Wayland_TitleBarClientArea *client_area = arena_push_struct(window->title_bar_arena, Wayland_TitleBarClientArea);
+        client_area->rectangle = rectangle;
+        sll_queue_push(window->first_client_area, window->last_client_area, client_area);
+    }
 }
 
 internal B32 gfx_window_has_os_title_bar(Gfx_Window handle) {
-    Wayland_State *state = &global_wayland_state;
-    B32 result = state->has_server_side_decorations;
+    Wayland_Window *window = wayland_window_from_handle(handle);
+
+    B32 result = false;
+    if (window) {
+        result = window->has_server_side_decorations;
+    }
+
     return result;
 }
 
 internal Void gfx_window_minimize(Gfx_Window handle) {
-    Wayland_State *state = &global_wayland_state;
-    xdg_toplevel_set_minimized(state->xdg_toplevel);
+    Wayland_Window *window = wayland_window_from_handle(handle);
+
+    if (window) {
+        xdg_toplevel_set_minimized(window->xdg_toplevel);
+    }
 }
 
 internal B32 gfx_window_is_maximized(Gfx_Window handle) {
-    Wayland_State *state = &global_wayland_state;
-    B32 result = state->is_maximized;
+    Wayland_Window *window = wayland_window_from_handle(handle);
+
+    B32 result = false;
+    if (window) {
+        result = window->is_maximized;
+    }
+
     return result;
 }
 
 internal Void gfx_window_set_maximized(Gfx_Window handle, B32 maximized) {
-    Wayland_State *state = &global_wayland_state;
-    if (maximized) {
-        xdg_toplevel_set_maximized(state->xdg_toplevel);
-    } else {
-        xdg_toplevel_unset_maximized(state->xdg_toplevel);
+    Wayland_Window *window = wayland_window_from_handle(handle);
+
+    if (window) {
+        if (maximized) {
+            xdg_toplevel_set_maximized(window->xdg_toplevel);
+        } else {
+            xdg_toplevel_unset_maximized(window->xdg_toplevel);
+        }
     }
 }
 
