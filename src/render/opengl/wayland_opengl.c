@@ -21,36 +21,33 @@ internal B32 opengl_backend_init(Void) {
     // NOTE(simon): Get display.
     opengl_state->display = eglGetDisplay((EGLNativeDisplayType) wayland_state->display);
     if (opengl_state->display == EGL_NO_DISPLAY) {
-        // TODO(simon): Inform user.
+        gfx_message(true, str8_literal("Failed to initialize OpenGL"), str8_literal("Could not acquire EGL display."));
         os_exit(1);
     }
 
     // NOTE(simon): Initialize.
     EGLint major = 0, minor = 0;
     if (!eglInitialize(opengl_state->display, &major, &minor)) {
-        // TODO(simon): Inform user.
+        gfx_message(true, str8_literal("Failed to initialize OpenGL"), str8_literal("Could not initialize EGL."));
         os_exit(1);
     }
 
     // NOTE(simon): Bind OpenGL API.
     if (!eglBindAPI(EGL_OPENGL_API)) {
-        // TODO(simon): Inform user.
+        gfx_message(true, str8_literal("Failed to initialize OpenGL"), str8_literal("Could not bind OpenGL API."));
         os_exit(1);
     }
 
     // NOTE(simon): Create context.
     EGLint context_attributes[] = {
-        EGL_CONTEXT_MAJOR_VERSION, 4,
-        EGL_CONTEXT_MINOR_VERSION, 5,
+        EGL_CONTEXT_MAJOR_VERSION, 3,
+        EGL_CONTEXT_MINOR_VERSION, 3,
         EGL_CONTEXT_OPENGL_PROFILE_MASK, EGL_CONTEXT_OPENGL_CORE_PROFILE_BIT,
-#if DEBUG_BUILD
-        EGL_CONTEXT_OPENGL_DEBUG, EGL_TRUE,
-#endif
         EGL_NONE,
     };
     opengl_state->context = eglCreateContext(opengl_state->display, 0, EGL_NO_CONTEXT, context_attributes);
     if (opengl_state->context == EGL_NO_CONTEXT) {
-        // TODO(simon): Inform user.
+        gfx_message(true, str8_literal("Failed to initialize OpenGL"), str8_literal("Could not create a context."));
         os_exit(1);
     }
 
@@ -120,7 +117,7 @@ internal Render_Window opengl_backend_create(Gfx_Window handle) {
     render_window->surface = eglCreateWindowSurface(opengl_state->display, opengl_state->config, (EGLNativeWindowType) render_window->window, surface_attributes);
 
     if (render_window->surface == EGL_NO_SURFACE) {
-        // TODO(simon): Inform user.
+        gfx_message(true, str8_literal("Failed to create OpenGL window"), str8_literal("Could not create a EGL window surface."));
         os_exit(1);
     }
 

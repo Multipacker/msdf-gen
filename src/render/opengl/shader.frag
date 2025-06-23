@@ -1,4 +1,4 @@
-#version 450 core
+#version 330 core
 
 #define Render_ShapeFlag_Texture   uint(1 << 0)
 #define Render_ShapeFlag_MSDF      uint(1 << 1)
@@ -7,15 +7,15 @@
 
 layout(origin_upper_left) in vec4 gl_FragCoord;
 
-in flat mat4  vert_colors;
-in      vec2  vert_source;
-in flat uint  vert_flags;
-in flat float vert_thickness;
-in flat float vert_softness;
-in flat vec4  vert_radies;
-in      vec2  vert_position;
-in flat vec2  vert_half_size;
-in      vec2  vert_uv;
+flat in mat4  vert_colors;
+     in vec2  vert_source;
+flat in uint  vert_flags;
+flat in float vert_thickness;
+flat in float vert_softness;
+flat in vec4  vert_radies;
+     in vec2  vert_position;
+flat in vec2  vert_half_size;
+     in vec2  vert_uv;
 
 out vec4 frag_color;
 
@@ -52,16 +52,16 @@ void main() {
     vec4 texture_sample = vec4(1.0);
     float alpha = 1.0f;
 
-    if ((vert_flags & Render_ShapeFlag_Texture) != 0) {
+    if ((vert_flags & Render_ShapeFlag_Texture) != 0u) {
         texture_sample = vec4(texture(uniform_sampler, vert_source / textureSize(uniform_sampler, 0)).rgb, 1.0);
     }
 
-    if ((vert_flags & Render_ShapeFlag_MSDF) != 0) {
+    if ((vert_flags & Render_ShapeFlag_MSDF) != 0u) {
         vec4 msdf_sample = texture(uniform_sampler, vert_source / textureSize(uniform_sampler, 0));
         float distance = median_of_3(msdf_sample.r, msdf_sample.g, msdf_sample.b) - 0.5;
 
         alpha *= clamp(distance / fwidth(distance) + 0.5, 0.0, 1.0);
-    } else if ((vert_flags & Render_ShapeFlag_AlphaMask) != 0) {
+    } else if ((vert_flags & Render_ShapeFlag_AlphaMask) != 0u) {
         alpha *= texture(uniform_sampler, vert_source / textureSize(uniform_sampler, 0)).r;
     } else {
         // NOTE(simon): Box with potentially rounded corners and border.

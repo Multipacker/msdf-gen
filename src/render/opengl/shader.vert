@@ -1,4 +1,4 @@
-#version 450 core
+#version 330 core
 
 #define Render_ShapeFlag_Texture   uint(1 << 0)
 #define Render_ShapeFlag_MSDF      uint(1 << 1)
@@ -6,39 +6,39 @@
 #define Render_ShapeFlag_Line      uint(1 << 3)
 
 layout(location = 0) in vec4  instance_position;
-layout(location = 1) in mat4  instance_colors;
-layout(location = 5) in vec4  instance_source;
-layout(location = 6) in uint  instance_flags;
+layout(location = 1) in vec4  instance_source;
+layout(location = 2) in mat4  instance_colors;
+layout(location = 6) in vec4  instance_radies;
 layout(location = 7) in float instance_thickness;
 layout(location = 8) in float instance_softness;
-layout(location = 9) in vec4  instance_radies;
+layout(location = 9) in uint  instance_flags;
 
-out flat mat4  vert_colors;
-out      vec2  vert_source;
-out flat uint  vert_flags;
-out flat float vert_thickness;
-out flat float vert_softness;
-out flat vec4  vert_radies;
-out      vec2  vert_position;
-out flat vec2  vert_half_size;
-out      vec2  vert_uv;
+flat out mat4  vert_colors;
+     out vec2  vert_source;
+flat out uint  vert_flags;
+flat out float vert_thickness;
+flat out float vert_softness;
+flat out vec4  vert_radies;
+     out vec2  vert_position;
+flat out vec2  vert_half_size;
+     out vec2  vert_uv;
 
 uniform mat4      uniform_projection;
 uniform sampler2D uniform_sampler;
 uniform mat3      uniform_transform;
 
-const vec2 verticies[] = {
+const vec2 verticies[] = vec2[](
     vec2(-1.0, -1.0),
     vec2(+1.0, -1.0),
     vec2(-1.0, +1.0),
     vec2(+1.0, +1.0)
-};
+);
 
 void main() {
     vec2 position = vec2(0);
     vec2 half_size = vec2(0);
 
-    if ((instance_flags & Render_ShapeFlag_Line) != 0) {
+    if ((instance_flags & Render_ShapeFlag_Line) != 0u) {
         vec2  position_p0 = instance_position.xy;
         vec2  position_p1 = instance_position.zw;
         float radius      = instance_radies[0];

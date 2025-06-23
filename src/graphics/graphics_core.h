@@ -168,6 +168,8 @@ internal Void       gfx_window_minimize(Gfx_Window handle);
 internal B32        gfx_window_is_maximized(Gfx_Window handle);
 internal Void       gfx_window_set_maximized(Gfx_Window handle, B32 maximized);
 
+internal Void gfx_message(B32 error, Str8 title, Str8 message);
+
 // NOTE(simon): Clipboard
 internal Void gfx_set_clipboard_text(Str8 text);
 internal Str8 gfx_get_clipboard_text(Arena *arena);

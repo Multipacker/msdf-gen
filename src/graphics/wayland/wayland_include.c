@@ -1535,6 +1535,18 @@ internal Void gfx_window_set_maximized(Gfx_Window handle, B32 maximized) {
 
 
 
+internal Void gfx_message(B32 error, Str8 title, Str8 message) {
+    if (error) {
+        fprintf(stderr, "\x1B[1;31mERROR: %.*s\n", str8_expand(title));
+        fprintf(stderr, "%.*s\x1B[0m\n", str8_expand(message));
+    } else {
+        fprintf(stderr, "INFO: %.*s\n", str8_expand(title));
+        fprintf(stderr, "%.*s\n", str8_expand(message));
+    }
+}
+
+
+
 // NOTE(simon): Clipboard
 internal Void gfx_set_clipboard_text(Str8 text) {
     Wayland_State *state = &global_wayland_state;

@@ -34,7 +34,8 @@ errors+="-Wno-unused-local-typedef "
 errors+="-Wno-unused-parameter "
 errors+="-Wno-unused-value "
 errors+="-Wno-unused-variable "
-errors+="-Wno-c23-extensions"
+errors+="-Wno-c23-extensions "
+errors+="-Wno-missing-field-initializers"
 
 if [ -v error_limit ]; then
     errors+="-ferror-limit=5 "

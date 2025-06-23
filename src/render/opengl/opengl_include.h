@@ -26,24 +26,9 @@ struct OpenGL_Context {
     Render_Stats     current_stats;
 };
 
-typedef struct {
-    Str8 name;
-    Str8 source;
-    GLenum kind;
-} OpenGL_ShaderSpecification;
-
-typedef struct {
-    GLuint handle;
-    Str8List errors;
-} OpenGL_Result;
-
-// NOTE(simon): Shaders compilation helpers.
-internal OpenGL_Result opengl_create_shader(Arena *arena, OpenGL_ShaderSpecification shader);
-internal OpenGL_Result opengl_create_program(Arena *arena, OpenGL_ShaderSpecification *shaders, U32 shader_count);
-
 // NOTE(simon): Vertex attribute helpers.
-internal Void opengl_vertex_array_instance_attribute_float(GLuint vaobj, GLuint attribindex, GLint size, GLenum type, GLboolean normalized, GLuint relativeoffset, GLuint bindingindex);
-internal Void opengl_vertex_array_instance_attribute_integer(GLuint vaobj, GLuint attribindex, GLint size, GLenum type, GLuint relativeoffset, GLuint bindingindex);
+internal Void opengl_vertex_array_instance_attribute_float(GLuint index, GLint components, GLenum type, GLboolean normalized, GLsizei size, U64 relativeoffset);
+internal Void opengl_vertex_array_instance_attribute_integer(GLuint index, GLint components, GLenum type, GLsizei size, U64 relativeoffset);
 
 // NOTE(simon): Texture helpers
 internal GLuint opengl_texture_id_from_texture(Render_Texture texture);
