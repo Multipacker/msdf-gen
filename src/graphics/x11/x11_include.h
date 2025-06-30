@@ -91,12 +91,22 @@ struct X11_EventNode {
     xcb_generic_event_t *event;
 };
 
+typedef struct X11_Window X11_Window;
+struct X11_Window {
+    X11_Window *next;
+    X11_Window *previous;
+
+    xcb_window_t window;
+};
+
 typedef struct X11_State X11_State;
 struct X11_State {
+    Arena                *permanent_arena;
     xcb_connection_t     *connection;
     int                   screen_index;
     xcb_screen_t         *screen;
     xcb_cursor_context_t *cursor_context;
+    xcb_window_t          clipboard_window;
 
     struct xkb_context   *xkb_context;
     struct xkb_keymap    *xkb_keymap;
@@ -104,9 +114,12 @@ struct X11_State {
     U8                    xkb_first_event;
     S32                   xkb_core_keyboard_id;
 
+
     Arena *event_arena;
     X11_EventNode *first_event;
     X11_EventNode *last_event;
+    X11_Window    *pointer_window;
+    Gfx_Cursor     cursor;
 
 #define X(name, atom_name) xcb_atom_t name##_atom;
     X11_ATOMS
@@ -115,9 +128,9 @@ struct X11_State {
     Str8 copy_text;
     Arena *copy_arena;
 
-    xcb_window_t window;
-    VoidFunction *swap_buffers;
-
+    X11_Window *first_window;
+    X11_Window *last_window;
+    X11_Window *window_freelist;
     VoidFunction *update;
 };
 

@@ -19,7 +19,7 @@
 
 /* TODO(simon):
  * * We might want to support session management from ICCCM.
- * * Verify that we follow the ICCCM efter major changes to this
+ * * Verify that we follow the ICCCM after major changes to this
  *   implementation, even though I think we do.
  * * How do we want key repeat to be exposed? Both key press and release
  *   events, or just press events?
@@ -34,229 +34,195 @@
 
 global X11_State global_x11_state;
 
-internal Void gfx_create(Str8 title, U32 width, U32 height) {
-    X11_State *state = &global_x11_state;
-    Arena_Temporary scratch = arena_get_scratch(0, 0);
 
-    state->event_arena = arena_create();
-    state->copy_arena  = arena_create();
 
-    state->connection = xcb_connect(0, &state->screen_index);
-    if (state->connection) {
-        const xcb_setup_t *setup = xcb_get_setup(state->connection);
-
-        xcb_screen_iterator_t iter = xcb_setup_roots_iterator(setup);
-        for (int i = 0; i < state->screen_index; ++i) {
-            xcb_screen_next(&iter);
-        }
-
-        state->screen = iter.data;
-
-        xcb_cursor_context_new(state->connection, state->screen, &state->cursor_context);
-
-        // NOTE(simon): Intern atoms.
-        {
-            // NOTE(simon): Send requests.
-#define X(name, atom) xcb_intern_atom_cookie_t name##_cookie = xcb_intern_atom(state->connection, false, sizeof(atom) - 1, atom);
-            X11_ATOMS
-#undef X
-
-            // NOTE(simon): Get atoms.
-#define X(name, atom_name)                                                                              \
-    xcb_intern_atom_reply_t *name##_reply = xcb_intern_atom_reply(state->connection, name##_cookie, 0); \
-    if (name##_reply) {                                                                                 \
-        state->name##_atom = name##_reply->atom;                                                        \
-        free(name##_reply);                                                                             \
-    }
-            X11_ATOMS
-#undef X
-        }
-
-        xkb_x11_setup_xkb_extension(
-            state->connection,
-            1, 0,                        // NOTE(simon): Requested version
-            XKB_X11_SETUP_XKB_EXTENSION_NO_FLAGS,
-            0, 0,                        // NOTE(simon): Activve version
-            &state->xkb_first_event, 0  // NOTE(simon): First event codes
-        );
-
-        state->xkb_context = xkb_context_new(XKB_CONTEXT_NO_FLAGS);
-        state->xkb_core_keyboard_id = xkb_x11_get_core_keyboard_device_id(state->connection);
-
-        state->xkb_keymap = xkb_x11_keymap_new_from_device(state->xkb_context, state->connection, state->xkb_core_keyboard_id, XKB_KEYMAP_COMPILE_NO_FLAGS);
-        state->xkb_state = xkb_x11_state_new_from_device(state->xkb_keymap, state->connection, state->xkb_core_keyboard_id);
-
-        // NOTE(simon): I have no idea what this functions does or what the
-        // parameters mean, it is taken straight from this example:
-        // https://github.com/xkbcommon/libxkbcommon/blob/e7570bcb78a48c0e3fb48087991a85af95943e98/tools/interactive-x11.c#L236
-        // TODO(simon): Maybe check the result of the request.
-        xcb_xkb_select_events_details_t details = { 0 };
-        details.affectNewKeyboard  = XCB_XKB_NKN_DETAIL_KEYCODES;
-        details.newKeyboardDetails = XCB_XKB_NKN_DETAIL_KEYCODES;
-        details.affectState        = XCB_XKB_STATE_PART_MODIFIER_BASE | XCB_XKB_STATE_PART_MODIFIER_LATCH | XCB_XKB_STATE_PART_MODIFIER_LOCK | XCB_XKB_STATE_PART_GROUP_BASE | XCB_XKB_STATE_PART_GROUP_LATCH | XCB_XKB_STATE_PART_GROUP_LOCK;
-        details.stateDetails       = XCB_XKB_STATE_PART_MODIFIER_BASE | XCB_XKB_STATE_PART_MODIFIER_LATCH | XCB_XKB_STATE_PART_MODIFIER_LOCK | XCB_XKB_STATE_PART_GROUP_BASE | XCB_XKB_STATE_PART_GROUP_LATCH | XCB_XKB_STATE_PART_GROUP_LOCK;
-        xcb_xkb_select_events_aux(
-            state->connection,
-            (U16) state->xkb_core_keyboard_id,
-            XCB_XKB_EVENT_TYPE_NEW_KEYBOARD_NOTIFY | XCB_XKB_EVENT_TYPE_MAP_NOTIFY | XCB_XKB_EVENT_TYPE_STATE_NOTIFY,
-            0,
-            0,
-            XCB_XKB_MAP_PART_KEY_TYPES | XCB_XKB_MAP_PART_KEY_SYMS | XCB_XKB_MAP_PART_MODIFIER_MAP | XCB_XKB_MAP_PART_EXPLICIT_COMPONENTS | XCB_XKB_MAP_PART_KEY_ACTIONS | XCB_XKB_MAP_PART_VIRTUAL_MODS | XCB_XKB_MAP_PART_VIRTUAL_MOD_MAP,
-            XCB_XKB_MAP_PART_KEY_TYPES | XCB_XKB_MAP_PART_KEY_SYMS | XCB_XKB_MAP_PART_MODIFIER_MAP | XCB_XKB_MAP_PART_EXPLICIT_COMPONENTS | XCB_XKB_MAP_PART_KEY_ACTIONS | XCB_XKB_MAP_PART_VIRTUAL_MODS | XCB_XKB_MAP_PART_VIRTUAL_MOD_MAP,
-            &details
-        );
-    }
-
-    // NOTE(simon): Create the window.
-    if (state->connection) {
-        U32 value_mask = XCB_CW_EVENT_MASK;
-        U32 value_list[] = {
-            XCB_EVENT_MASK_EXPOSURE | XCB_EVENT_MASK_BUTTON_PRESS | XCB_EVENT_MASK_BUTTON_RELEASE | XCB_EVENT_MASK_KEY_PRESS | XCB_EVENT_MASK_KEY_RELEASE | XCB_EVENT_MASK_POINTER_MOTION | XCB_EVENT_MASK_PROPERTY_CHANGE,
-        };
-
-        state->window = xcb_generate_id(state->connection);
-        xcb_create_window(
-            state->connection,
-            XCB_COPY_FROM_PARENT,
-            state->window,
-            state->screen->root,
-            0, 0,
-            (U16) width, (U16) height,
-            1,
-            XCB_WINDOW_CLASS_INPUT_OUTPUT,
-            state->screen->root_visual,
-            value_mask, value_list
-        );
-
-        xcb_change_property(
-            state->connection,
-            XCB_PROP_MODE_REPLACE,
-            state->window,
-            XCB_ATOM_WM_NAME,
-            state->utf8_string_atom,
-            8,
-            (U32) title.size,
-            title.data
-        );
-
-        xcb_change_property(
-            state->connection,
-            XCB_PROP_MODE_REPLACE,
-            state->window,
-            XCB_ATOM_WM_ICON_NAME,
-            state->utf8_string_atom,
-            8,
-            (U32) title.size,
-            title.data
-        );
-
-        X11_IcccmWmSizeHints wm_normal_hints = { 0 };
-        wm_normal_hints.flags |= X11_IcccmWmSizeHint_MinSize;
-        wm_normal_hints.min_width  = 50;
-        wm_normal_hints.min_height = 50;
-        wm_normal_hints.flags |= X11_IcccmWmSizeHint_WindowGravity;
-        wm_normal_hints.window_gravity = XCB_GRAVITY_CENTER;
-
-        xcb_change_property(
-            state->connection,
-            XCB_PROP_MODE_REPLACE,
-            state->window,
-            XCB_ATOM_WM_NORMAL_HINTS,
-            XCB_ATOM_WM_SIZE_HINTS,
-            32,
-            sizeof(X11_IcccmWmSizeHints) / sizeof(U32),
-            &wm_normal_hints
-        );
-
-        X11_IcccmWmHints wm_hints = { 0 };
-        wm_hints.flags |= X11_IcccmWmHint_Input;
-        wm_hints.input = true;
-        wm_hints.flags |= X11_IcccmWmHint_State;
-        wm_hints.initial_state = X11_IcccmWmState_Normal;
-        // NOTE(simon): We might want to use window_group if and when we have multiple windows.
-
-        xcb_change_property(
-            state->connection,
-            XCB_PROP_MODE_REPLACE,
-            state->window,
-            XCB_ATOM_WM_HINTS,
-            XCB_ATOM_WM_HINTS,
-            32,
-            sizeof(X11_IcccmWmHints) / sizeof(U32),
-            &wm_hints
-        );
-
-        // NOTE(simon): wm_instance does not follow POSIX convention, but that
-        // should be fine.
-        Str8 wm_instance = str8_format(scratch.arena, "%d", getpid());
-        Str8 wm_class = title;
-        U64 wm_class_size = wm_instance.size + 1 + wm_class.size + 1;
-        U8 *wm_class_buffer = arena_push_array(scratch.arena, U8, wm_class_size);
-        memory_copy(wm_class_buffer, wm_instance.data, wm_instance.size);
-        wm_class_buffer[wm_instance.size] = 0;
-        memory_copy(&wm_class_buffer[wm_instance.size + 1], wm_class.data, wm_class.size);
-        wm_class_buffer[wm_instance.size + 1 + wm_instance.size] = 0;
-        xcb_change_property(
-            state->connection,
-            XCB_PROP_MODE_REPLACE,
-            state->window,
-            XCB_ATOM_WM_CLASS,
-            XCB_ATOM_STRING,
-            8,
-            (U32) wm_class_size,
-            wm_class_buffer
-        );
-
-        // TODO(simon): Do we insert an empty WM_COLORMAP_WINDOWS property?
-
-        xcb_atom_t wm_protocols[] = {
-            state->wm_delete_window_atom,
-        };
-        xcb_change_property(
-            state->connection,
-            XCB_PROP_MODE_REPLACE,
-            state->window,
-            state->wm_protocols_atom,
-            XCB_ATOM_ATOM,
-            32,
-            array_count(wm_protocols),
-            wm_protocols
-        );
-
-        xcb_map_window(state->connection, state->window);
-
-        xcb_flush(state->connection);
-    }
-
-    arena_end_temporary(scratch);
+internal Gfx_Window x11_handle_from_window(X11_Window *window) {
+    Gfx_Window handle = { 0 };
+    handle.u64[0] = integer_from_pointer(window);
+    return handle;
 }
 
-internal V2U32 gfx_get_window_client_area(Void) {
+internal X11_Window *x11_window_from_handle(Gfx_Window handle) {
+    X11_Window *window = (X11_Window *) pointer_from_integer(handle.u64[0]);
+    return window;
+}
+
+internal X11_Window *x11_window_from_id(xcb_window_t id) {
     X11_State *state = &global_x11_state;
 
-    xcb_get_geometry_cookie_t cookie = xcb_get_geometry(state->connection, state->window);
-    xcb_get_geometry_reply_t *reply = xcb_get_geometry_reply(state->connection, cookie, 0);
-
-    V2U32 result = { 0 };
-    if (reply) {
-        result.x = reply->width;
-        result.y = reply->height;
-        free(reply);
+    X11_Window *result = 0;
+    for (X11_Window *window = state->first_window; window; window = window->next) {
+        if (window->window == id) {
+            result = window;
+            break;
+        }
     }
 
     return result;
 }
 
+
+
+internal Void x11_update_cursor(Void) {
+    X11_State *state = &global_x11_state;
+
+    if (!state->cursor_context) {
+        return;
+    }
+
+    if (!state->pointer_window) {
+        return;
+    }
+
+    xcb_cursor_t selected_cursor = XCB_CURSOR_NONE;
+
+    // NOTE(simon): Note that we do use some names that are listed as up for
+    // discussion, but seem to be implemented anyway.
+    // https://freedesktop.org/wiki/Specifications/cursor-spec/
+#define xcb_cursor_list(X)     \
+    X(Pointer,  "default")     \
+    X(Hand,     "pointer")     \
+    X(Beam,     "text")        \
+    X(SizeNWSE, "nwse-resize") \
+    X(SizeNESW, "nesw-resize") \
+    X(SizeWE,   "ew-resize")   \
+    X(SizeNS,   "ns-resize")   \
+    X(SizeAll,  "all-scroll")  \
+    X(Disabled, "not-allowd")
+#define xcb_load_cursor(gfx_kind, xcb_kind)                                       \
+    case Gfx_Cursor_##gfx_kind: {                                                 \
+        local xcb_cursor_t xcb_cursor = XCB_CURSOR_NONE;                          \
+        if (xcb_cursor == XCB_CURSOR_NONE) {                                      \
+            xcb_cursor = xcb_cursor_load_cursor(state->cursor_context, xcb_kind); \
+        }                                                                         \
+        selected_cursor = xcb_cursor;                                             \
+    } break;
+
+    switch (state->cursor) {
+        xcb_cursor_list(xcb_load_cursor)
+        case Gfx_Cursor_COUNT: break;
+    }
+
+    xcb_change_window_attributes(state->connection, state->pointer_window->window, XCB_CW_CURSOR, &selected_cursor);
+    xcb_flush(state->connection);
+}
+
+
+
+internal Void gfx_init(Void) {
+    X11_State *state = &global_x11_state;
+    Arena_Temporary scratch = arena_get_scratch(0, 0);
+
+    state->permanent_arena = arena_create();
+    state->event_arena     = arena_create();
+    state->copy_arena      = arena_create();
+
+    state->connection = xcb_connect(0, &state->screen_index);
+    if (!state->connection) {
+        gfx_message(true, str8_literal("Failed to initialize X11"), str8_literal("Could not connect to the X server."));
+        os_exit(1);
+    }
+
+    const xcb_setup_t *setup = xcb_get_setup(state->connection);
+
+    xcb_screen_iterator_t iter = xcb_setup_roots_iterator(setup);
+    for (int i = 0; i < state->screen_index; ++i) {
+        xcb_screen_next(&iter);
+    }
+
+    state->screen = iter.data;
+
+    // NOTE(simon): Create clipboard window
+    {
+        U32 value_mask = XCB_CW_EVENT_MASK;
+        U32 value_list[] = {
+            XCB_EVENT_MASK_PROPERTY_CHANGE,
+        };
+        state->clipboard_window = xcb_generate_id(state->connection);
+        xcb_create_window(
+            state->connection,
+            0,
+            state->clipboard_window,
+            state->screen->root,
+            0, 0,
+            1, 1,
+            0,
+            XCB_WINDOW_CLASS_INPUT_ONLY,
+            state->screen->root_visual,
+            value_mask, value_list
+        );
+    }
+
+    xcb_cursor_context_new(state->connection, state->screen, &state->cursor_context);
+
+    // NOTE(simon): Intern atoms.
+    {
+        // NOTE(simon): Send requests.
+#define X(name, atom) xcb_intern_atom_cookie_t name##_cookie = xcb_intern_atom(state->connection, false, sizeof(atom) - 1, atom);
+        X11_ATOMS
+#undef X
+
+        // NOTE(simon): Get atoms.
+#define X(name, atom_name)                                                                          \
+xcb_intern_atom_reply_t *name##_reply = xcb_intern_atom_reply(state->connection, name##_cookie, 0); \
+if (name##_reply) {                                                                                 \
+    state->name##_atom = name##_reply->atom;                                                        \
+    free(name##_reply);                                                                             \
+}
+        X11_ATOMS
+#undef X
+    }
+
+    xkb_x11_setup_xkb_extension(
+        state->connection,
+        1, 0,                        // NOTE(simon): Requested version
+        XKB_X11_SETUP_XKB_EXTENSION_NO_FLAGS,
+        0, 0,                        // NOTE(simon): Activve version
+        &state->xkb_first_event, 0  // NOTE(simon): First event codes
+    );
+
+    state->xkb_context = xkb_context_new(XKB_CONTEXT_NO_FLAGS);
+    state->xkb_core_keyboard_id = xkb_x11_get_core_keyboard_device_id(state->connection);
+
+    state->xkb_keymap = xkb_x11_keymap_new_from_device(state->xkb_context, state->connection, state->xkb_core_keyboard_id, XKB_KEYMAP_COMPILE_NO_FLAGS);
+    state->xkb_state = xkb_x11_state_new_from_device(state->xkb_keymap, state->connection, state->xkb_core_keyboard_id);
+
+    // NOTE(simon): I have no idea what this functions does or what the
+    // parameters mean, it is taken straight from this example:
+    // https://github.com/xkbcommon/libxkbcommon/blob/e7570bcb78a48c0e3fb48087991a85af95943e98/tools/interactive-x11.c#L236
+    // TODO(simon): Maybe check the result of the request.
+    xcb_xkb_select_events_details_t details = { 0 };
+    details.affectNewKeyboard  = XCB_XKB_NKN_DETAIL_KEYCODES;
+    details.newKeyboardDetails = XCB_XKB_NKN_DETAIL_KEYCODES;
+    details.affectState        = XCB_XKB_STATE_PART_MODIFIER_BASE | XCB_XKB_STATE_PART_MODIFIER_LATCH | XCB_XKB_STATE_PART_MODIFIER_LOCK | XCB_XKB_STATE_PART_GROUP_BASE | XCB_XKB_STATE_PART_GROUP_LATCH | XCB_XKB_STATE_PART_GROUP_LOCK;
+    details.stateDetails       = XCB_XKB_STATE_PART_MODIFIER_BASE | XCB_XKB_STATE_PART_MODIFIER_LATCH | XCB_XKB_STATE_PART_MODIFIER_LOCK | XCB_XKB_STATE_PART_GROUP_BASE | XCB_XKB_STATE_PART_GROUP_LATCH | XCB_XKB_STATE_PART_GROUP_LOCK;
+    xcb_xkb_select_events_aux(
+        state->connection,
+        (U16) state->xkb_core_keyboard_id,
+        XCB_XKB_EVENT_TYPE_NEW_KEYBOARD_NOTIFY | XCB_XKB_EVENT_TYPE_MAP_NOTIFY | XCB_XKB_EVENT_TYPE_STATE_NOTIFY,
+        0,
+        0,
+        XCB_XKB_MAP_PART_KEY_TYPES | XCB_XKB_MAP_PART_KEY_SYMS | XCB_XKB_MAP_PART_MODIFIER_MAP | XCB_XKB_MAP_PART_EXPLICIT_COMPONENTS | XCB_XKB_MAP_PART_KEY_ACTIONS | XCB_XKB_MAP_PART_VIRTUAL_MODS | XCB_XKB_MAP_PART_VIRTUAL_MOD_MAP,
+        XCB_XKB_MAP_PART_KEY_TYPES | XCB_XKB_MAP_PART_KEY_SYMS | XCB_XKB_MAP_PART_MODIFIER_MAP | XCB_XKB_MAP_PART_EXPLICIT_COMPONENTS | XCB_XKB_MAP_PART_KEY_ACTIONS | XCB_XKB_MAP_PART_VIRTUAL_MODS | XCB_XKB_MAP_PART_VIRTUAL_MOD_MAP,
+        &details
+    );
+
+    arena_end_temporary(scratch);
+}
+
+
+
+// NOTE(simon): Events.
 // TODO(simon): We might want to use a custom atom for this.
 internal Void gfx_send_wakeup_event(Void) {
     X11_State *state = &global_x11_state;
     xcb_client_message_event_t client_message = {
         .response_type = XCB_CLIENT_MESSAGE,
         .format = 8,
-        .window = state->window,
+        .window = state->clipboard_window,
         .type = XCB_ATOM_NONE,
     };
-    xcb_send_event(state->connection, false, state->window, 0, (const char *) &client_message);
+    xcb_send_event(state->connection, false, state->clipboard_window, 0, (const char *) &client_message);
     xcb_flush(state->connection);
 }
 
@@ -278,9 +244,18 @@ internal Gfx_EventList gfx_get_events(Arena *arena, B32 wait) {
     for (X11_EventNode *event_node = state->first_event; event_node; event_node = event_node->next) {
         U8 response_type = event_node->event->response_type & ~0x80;
         switch (response_type) {
+            case XCB_LEAVE_NOTIFY: {
+                state->pointer_window = 0;
+            } break;
+            case XCB_ENTER_NOTIFY: {
+                xcb_enter_notify_event_t *enter = (xcb_enter_notify_event_t *) event_node->event;
+                state->pointer_window = x11_window_from_id(enter->event);
+                x11_update_cursor();
+            } break;
             case XCB_BUTTON_PRESS:
             case XCB_BUTTON_RELEASE: {
                 xcb_button_press_event_t *button = (xcb_button_press_event_t *) event_node->event;
+                X11_Window *window = x11_window_from_id(button->event);
 
                 Gfx_EventKind button_action = (response_type == XCB_BUTTON_PRESS ? Gfx_EventKind_KeyPress : Gfx_EventKind_KeyRelease);
                 Gfx_EventKind scroll_action = (response_type == XCB_BUTTON_PRESS ? Gfx_EventKind_Scroll   : Gfx_EventKind_Null);
@@ -311,26 +286,32 @@ internal Gfx_EventList gfx_get_events(Arena *arena, B32 wait) {
                     button_event->scroll     = buttons[button->detail].scroll;
                     button_event->position.x = (F32) button->event_x;
                     button_event->position.y = (F32) button->event_y;
+                    button_event->window     = x11_handle_from_window(window);
                     dll_push_back(events.first, events.last, button_event);
                 }
             } break;
             case XCB_KEY_PRESS: {
                 xcb_key_press_event_t *key = (xcb_key_press_event_t *) event_node->event;
+                X11_Window *window = x11_window_from_id(key->event);
 
-                int required_length = xkb_state_key_get_utf8(state->xkb_state, key->detail, 0, 0) + 1;
-                if (required_length > 1) {
-                    CStr buffer = arena_push_array(arena, char, (U64) required_length);
-                    int length = xkb_state_key_get_utf8(state->xkb_state, key->detail, buffer, (size_t) required_length);
+                U32 codepoint = xkb_state_key_get_utf32(state->xkb_state, key->detail);
 
+                B32 is_c0_control = codepoint <= 0x1F || codepoint == 0x7F;
+                B32 is_c1_control = (0x80 <= codepoint && codepoint <= 0x9F);
+
+                if (!is_c0_control && !is_c1_control) {
                     Gfx_Event *text_event = arena_push_struct(arena, Gfx_Event);
                     text_event->kind = Gfx_EventKind_Text;
-                    text_event->text = str8((U8 *) buffer, (U64) length);
+                    text_event->text.data = arena_push_array_no_zero(arena, U8, 4);
+                    text_event->text.size = string_encode_utf8(text_event->text.data, codepoint);
+                    text_event->window = x11_handle_from_window(window);
                     dll_push_back(events.first, events.last, text_event);
                 }
             }
             // NOTE(simon): Fallthrough
             case XCB_KEY_RELEASE: {
                 xcb_key_release_event_t *key = (xcb_key_release_event_t *) event_node->event;
+                X11_Window *window = x11_window_from_id(key->event);
 
                 // NOTE(simon): Get keysyms without modifiers.
                 xkb_keysym_t *keysyms = 0;
@@ -417,16 +398,19 @@ internal Gfx_EventList gfx_get_events(Arena *arena, B32 wait) {
                         key_event->key  = event_key;
                         key_event->key_modifiers |= (key->state & XCB_MOD_MASK_SHIFT   ? Gfx_KeyModifier_Shift   : 0);
                         key_event->key_modifiers |= (key->state & XCB_MOD_MASK_CONTROL ? Gfx_KeyModifier_Control : 0);
+                        key_event->window = x11_handle_from_window(window);
                         dll_push_back(events.first, events.last, key_event);
                     }
                 }
             } break;
             case XCB_CLIENT_MESSAGE: {
                 xcb_client_message_event_t *client = (xcb_client_message_event_t *) event_node->event;
+                X11_Window *window = x11_window_from_id(client->window);
 
                 if (client->type == state->wm_protocols_atom && client->format == 32 && client->data.data32[0] == state->wm_delete_window_atom) {
                     Gfx_Event *quit_event = arena_push_struct(arena, Gfx_Event);
                     quit_event->kind = Gfx_EventKind_Quit;
+                    quit_event->window = x11_handle_from_window(window);
                     dll_push_back(events.first, events.last, quit_event);
                 }
             } break;
@@ -436,7 +420,7 @@ internal Gfx_EventList gfx_get_events(Arena *arena, B32 wait) {
                 xcb_atom_t property_atom = (request->property == XCB_ATOM_NONE ? request->target : request->property);
                 xcb_atom_t response_property_atom = XCB_ATOM_NONE;
 
-                if (property_atom != XCB_ATOM_NONE && request->selection == state->clipboard_atom && request->owner == state->window) {
+                if (property_atom != XCB_ATOM_NONE && request->selection == state->clipboard_atom && request->owner == state->clipboard_window) {
                     xcb_atom_t targets[] = {
                         state->targets_atom,
                         state->utf8_string_atom,
@@ -554,12 +538,194 @@ internal Gfx_EventList gfx_get_events(Arena *arena, B32 wait) {
     return events;
 }
 
+internal Void gfx_set_update_function(VoidFunction *update) {
+    X11_State *state = &global_x11_state;
+    state->update = update;
+}
+
+
+
+internal Void gfx_set_cursor(Gfx_Cursor cursor) {
+    X11_State *state = &global_x11_state;
+    state->cursor = cursor;
+    x11_update_cursor();
+
+}
+
+
+
+// NOTE(simon): Windows.
+internal Gfx_Window gfx_window_create(Str8 title, U32 width, U32 height) {
+    X11_State *state = &global_x11_state;
+    Arena_Temporary scratch = arena_get_scratch(0, 0);
+
+    // NOTE(simon): Allocate window.
+    X11_Window *window = state->window_freelist;
+    if (window) {
+        sll_stack_pop(state->window_freelist);
+        memory_zero_struct(window);
+    } else {
+        window = arena_push_struct(state->permanent_arena, X11_Window);
+    }
+    dll_push_back(state->first_window, state->last_window, window);
+
+    U32 value_mask = XCB_CW_EVENT_MASK;
+    U32 value_list[] = {
+        XCB_EVENT_MASK_EXPOSURE | XCB_EVENT_MASK_BUTTON_PRESS | XCB_EVENT_MASK_BUTTON_RELEASE | XCB_EVENT_MASK_KEY_PRESS | XCB_EVENT_MASK_KEY_RELEASE | XCB_EVENT_MASK_POINTER_MOTION | XCB_EVENT_MASK_LEAVE_WINDOW | XCB_EVENT_MASK_ENTER_WINDOW,
+    };
+
+    window->window = xcb_generate_id(state->connection);
+    xcb_create_window(
+        state->connection,
+        XCB_COPY_FROM_PARENT,
+        window->window,
+        state->screen->root,
+        0, 0,
+        (U16) width, (U16) height,
+        1,
+        XCB_WINDOW_CLASS_INPUT_OUTPUT,
+        state->screen->root_visual,
+        value_mask, value_list
+    );
+
+    xcb_change_property(
+        state->connection,
+        XCB_PROP_MODE_REPLACE,
+        window->window,
+        XCB_ATOM_WM_NAME,
+        state->utf8_string_atom,
+        8,
+        (U32) title.size,
+        title.data
+    );
+
+    xcb_change_property(
+        state->connection,
+        XCB_PROP_MODE_REPLACE,
+        window->window,
+        XCB_ATOM_WM_ICON_NAME,
+        state->utf8_string_atom,
+        8,
+        (U32) title.size,
+        title.data
+    );
+
+    X11_IcccmWmSizeHints wm_normal_hints = { 0 };
+    wm_normal_hints.flags |= X11_IcccmWmSizeHint_MinSize;
+    wm_normal_hints.min_width  = 50;
+    wm_normal_hints.min_height = 50;
+    wm_normal_hints.flags |= X11_IcccmWmSizeHint_WindowGravity;
+    wm_normal_hints.window_gravity = XCB_GRAVITY_CENTER;
+
+    xcb_change_property(
+        state->connection,
+        XCB_PROP_MODE_REPLACE,
+        window->window,
+        XCB_ATOM_WM_NORMAL_HINTS,
+        XCB_ATOM_WM_SIZE_HINTS,
+        32,
+        sizeof(X11_IcccmWmSizeHints) / sizeof(U32),
+        &wm_normal_hints
+    );
+
+    X11_IcccmWmHints wm_hints = { 0 };
+    wm_hints.flags |= X11_IcccmWmHint_Input;
+    wm_hints.input = true;
+    wm_hints.flags |= X11_IcccmWmHint_State;
+    wm_hints.initial_state = X11_IcccmWmState_Normal;
+    // NOTE(simon): We might want to use window_group if and when we have multiple windows.
+
+    xcb_change_property(
+        state->connection,
+        XCB_PROP_MODE_REPLACE,
+        window->window,
+        XCB_ATOM_WM_HINTS,
+        XCB_ATOM_WM_HINTS,
+        32,
+        sizeof(X11_IcccmWmHints) / sizeof(U32),
+        &wm_hints
+    );
+
+    // NOTE(simon): wm_instance does not follow POSIX convention, but that
+    // should be fine.
+    Str8 wm_instance = str8_format(scratch.arena, "%d", getpid());
+    Str8 wm_class = title;
+    U64 wm_class_size = wm_instance.size + 1 + wm_class.size + 1;
+    U8 *wm_class_buffer = arena_push_array(scratch.arena, U8, wm_class_size);
+    memory_copy(wm_class_buffer, wm_instance.data, wm_instance.size);
+    wm_class_buffer[wm_instance.size] = 0;
+    memory_copy(&wm_class_buffer[wm_instance.size + 1], wm_class.data, wm_class.size);
+    wm_class_buffer[wm_instance.size + 1 + wm_instance.size] = 0;
+    xcb_change_property(
+        state->connection,
+        XCB_PROP_MODE_REPLACE,
+        window->window,
+        XCB_ATOM_WM_CLASS,
+        XCB_ATOM_STRING,
+        8,
+        (U32) wm_class_size,
+        wm_class_buffer
+    );
+
+    // TODO(simon): Do we insert an empty WM_COLORMAP_WINDOWS property?
+
+    xcb_atom_t wm_protocols[] = {
+        state->wm_delete_window_atom,
+    };
+    xcb_change_property(
+        state->connection,
+        XCB_PROP_MODE_REPLACE,
+        window->window,
+        state->wm_protocols_atom,
+        XCB_ATOM_ATOM,
+        32,
+        array_count(wm_protocols),
+        wm_protocols
+    );
+
+    xcb_map_window(state->connection, window->window);
+
+    xcb_flush(state->connection);
+
+    arena_end_temporary(scratch);
+    Gfx_Window result = x11_handle_from_window(window);
+    return result;
+}
+
+internal Void gfx_window_close(Gfx_Window handle) {
+    X11_State *state = &global_x11_state;
+    X11_Window *window = x11_window_from_handle(handle);
+
+    // TODO(simon): Release resources.
+
+    dll_remove(state->first_window, state->last_window, window);
+    sll_stack_push(state->window_freelist, window);
+}
+
+internal V2U32 gfx_client_area_from_window(Gfx_Window handle) {
+    X11_State *state = &global_x11_state;
+    X11_Window *window = x11_window_from_handle(handle);
+
+    xcb_get_geometry_cookie_t cookie = xcb_get_geometry(state->connection, window->window);
+    xcb_get_geometry_reply_t *reply = xcb_get_geometry_reply(state->connection, cookie, 0);
+
+    V2U32 result = { 0 };
+    if (reply) {
+        result.x = reply->width;
+        result.y = reply->height;
+        free(reply);
+    }
+
+    return result;
+}
+
 // TODO(simon): This doesn't follow the specification if the mouse is outside
 // of the window, it returns last mouse position that was inside the window.
-internal V2F32 gfx_get_mouse_position(Void) {
+internal V2F32 gfx_mouse_position_from_window(Gfx_Window handle) {
     X11_State *state = &global_x11_state;
+    X11_Window *window = x11_window_from_handle(handle);
 
-    xcb_query_pointer_cookie_t cookie = xcb_query_pointer(state->connection, state->window);
+    xcb_query_pointer_cookie_t cookie = xcb_query_pointer(state->connection, window->window);
     xcb_query_pointer_reply_t *reply = xcb_query_pointer_reply(state->connection, cookie, 0);
 
     V2F32 result = { 0 };
@@ -575,85 +741,46 @@ internal V2F32 gfx_get_mouse_position(Void) {
     return result;
 }
 
-internal Void gfx_swap_buffers(Void) {
-    X11_State *state = &global_x11_state;
-    if (state->swap_buffers) {
-        state->swap_buffers();
-    }
-}
-
-internal Void gfx_set_cursor(Gfx_Cursor cursor) {
-    X11_State *state = &global_x11_state;
-    if (!state->cursor_context) {
-        return;
-    }
-
-    xcb_cursor_t selected_cursor = XCB_CURSOR_NONE;
-
-    // NOTE(simon): Note that we do use some names that are listed as up for
-    // discussion, but seem to be implemented anyway.
-    // https://freedesktop.org/wiki/Specifications/cursor-spec/
-#define xcb_cursor_list(X)     \
-    X(Pointer,  "default")     \
-    X(Hand,     "pointer")     \
-    X(Beam,     "text")        \
-    X(SizeNWSE, "nwse-resize") \
-    X(SizeNESW, "nesw-resize") \
-    X(SizeWE,   "ew-resize")   \
-    X(SizeNS,   "ns-resize")   \
-    X(SizeAll,  "all-scroll")  \
-    X(Disabled, "not-allowd")
-#define xcb_load_cursor(gfx_kind, xcb_kind)                                       \
-    case Gfx_Cursor_##gfx_kind: {                                                 \
-        local xcb_cursor_t xcb_cursor = XCB_CURSOR_NONE;                          \
-        if (xcb_cursor == XCB_CURSOR_NONE) {                                      \
-            xcb_cursor = xcb_cursor_load_cursor(state->cursor_context, xcb_kind); \
-        }                                                                         \
-        selected_cursor = xcb_cursor;                                             \
-    } break;
-
-    switch (cursor) {
-        xcb_cursor_list(xcb_load_cursor)
-        case Gfx_Cursor_COUNT: break;
-    }
-
-    xcb_change_window_attributes(state->connection, state->window, XCB_CW_CURSOR, &selected_cursor);
-    xcb_flush(state->connection);
-}
-
-internal Void gfx_set_update_function(VoidFunction *update) {
-    X11_State *state = &global_x11_state;
-    state->update = update;
-}
-
-internal F32 gfx_dpi(Void) {
+internal F32 gfx_dpi_from_window(Gfx_Window window) {
     F32 dpi = 96.0f;
     return dpi;
 }
 
-internal Void gfx_clear_custom_title_bar_data(Void) {
+internal Void gfx_window_clear_custom_title_bar_data(Gfx_Window handle) {
 }
 
-internal Void gfx_set_custom_title_bar_height(F32 height) {
+internal Void gfx_window_set_custom_title_bar_height(Gfx_Window handle, F32 height) {
 }
 
-internal Void gfx_push_cusomt_title_bar_client_area(R2F32 rectangle) {
+internal Void gfx_window_push_cusomt_title_bar_client_area(Gfx_Window handle, R2F32 rectangle) {
 }
 
-internal B32 gfx_has_os_title_bar(Void) {
+internal B32 gfx_window_has_os_title_bar(Gfx_Window handle) {
     B32 result = true;
     return result;
 }
 
-internal Void gfx_minimize(Void) {
+internal Void gfx_window_minimize(Gfx_Window handle) {
 }
 
-internal B32 gfx_is_maximized(Void) {
+internal B32 gfx_window_is_maximized(Gfx_Window handle) {
     B32 result = false;
     return result;
 }
 
-internal Void gfx_set_maximized(B32 maximized) {
+internal Void gfx_window_set_maximized(Gfx_Window handle, B32 maximized) {
+}
+
+
+
+internal Void gfx_message(B32 error, Str8 title, Str8 message) {
+    if (error) {
+        fprintf(stderr, "\x1B[1;31mERROR: %.*s\n", str8_expand(title));
+        fprintf(stderr, "%.*s\x1B[0m\n", str8_expand(message));
+    } else {
+        fprintf(stderr, "INFO: %.*s\n", str8_expand(title));
+        fprintf(stderr, "%.*s\n", str8_expand(message));
+    }
 }
 
 
@@ -665,7 +792,7 @@ internal Void gfx_set_clipboard_text(Str8 text) {
     arena_reset(state->copy_arena);
     state->copy_text = str8_copy(state->copy_arena, text);
 
-    xcb_set_selection_owner(state->connection, state->window, state->clipboard_atom, XCB_CURRENT_TIME);
+    xcb_set_selection_owner(state->connection, state->clipboard_window, state->clipboard_atom, XCB_CURRENT_TIME);
     xcb_flush(state->connection);
 }
 
@@ -689,7 +816,7 @@ internal Str8 gfx_get_clipboard_text(Arena *arena) {
 
     if (owner == XCB_WINDOW_NONE) {
         // NOTE(simon): No one owns the clipboard selection, we cannot perform the copy.
-    } else if (owner == state->window) {
+    } else if (owner == state->clipboard_window) {
         // NOTE(simon): We own the clipboard selection! Perform a cheap internal copy.
         result = str8_copy(arena, state->copy_text);
     } else {
@@ -700,11 +827,11 @@ internal Str8 gfx_get_clipboard_text(Arena *arena) {
         Arena_Temporary scratch = arena_get_scratch(&arena, 1);
 
         // NOTE(simon): Deleted so that the new contents can be put in the property.
-        xcb_delete_property(state->connection, state->window, state->clipboard_property_atom);
+        xcb_delete_property(state->connection, state->clipboard_window, state->clipboard_property_atom);
 
         xcb_convert_selection(
             state->connection,
-            state->window,
+            state->clipboard_window,
             state->clipboard_atom,
             state->utf8_string_atom,
             state->clipboard_property_atom,
@@ -746,7 +873,7 @@ internal Str8 gfx_get_clipboard_text(Arena *arena) {
                     xcb_get_property_cookie_t cookie = xcb_get_property(
                         state->connection,
                         false,
-                        state->window,
+                        state->clipboard_window,
                         state->clipboard_property_atom,
                         state->utf8_string_atom,
                         0,
@@ -767,7 +894,7 @@ internal Str8 gfx_get_clipboard_text(Arena *arena) {
                         done = true;
                     }
                     
-                    xcb_delete_property(state->connection, state->window, state->clipboard_property_atom);
+                    xcb_delete_property(state->connection, state->clipboard_window, state->clipboard_property_atom);
                     xcb_flush(state->connection);
                     free(reply);
                 }
@@ -786,7 +913,7 @@ internal Str8 gfx_get_clipboard_text(Arena *arena) {
                     xcb_get_property_cookie_t cookie = xcb_get_property(
                         state->connection,
                         true,
-                        state->window,
+                        state->clipboard_window,
                         state->clipboard_property_atom,
                         state->utf8_string_atom,
                         0,
