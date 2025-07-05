@@ -2,6 +2,23 @@
 #define GRAPHICS_CORE_H
 
 typedef enum {
+    UriFlag_HasAuthority = 1 << 0,
+    UriFlag_HasQuery     = 1 << 1,
+    UriFlag_HasFragment  = 1 << 2,
+} UriFlags;
+
+typedef struct Uri Uri;
+struct Uri {
+    UriFlags flags;
+
+    Str8 scheme;
+    Str8 authority;
+    Str8 path;
+    Str8 query;
+    Str8 fragment;
+};
+
+typedef enum {
     Gfx_EventKind_Null,
     Gfx_EventKind_Quit,
     Gfx_EventKind_KeyPress,
@@ -173,5 +190,7 @@ internal Void gfx_message(B32 error, Str8 title, Str8 message);
 // NOTE(simon): Clipboard
 internal Void gfx_set_clipboard_text(Str8 text);
 internal Str8 gfx_get_clipboard_text(Arena *arena);
+
+internal Uri uri_from_string(Str8 string);
 
 #endif // GRAPHICS_CORE_H

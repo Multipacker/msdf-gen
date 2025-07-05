@@ -28,7 +28,6 @@
  * * Implement Extended Window Manager Hints (EWMH).
  * * We sometimes crash the XWayland server, I don't really know why or how
  *   that happens. We really shouldn't though, fix it!
- * * Drag-and-drop is missing, implement it!
  * * XKB compose is missing, implement it!
  */
 
@@ -105,6 +104,21 @@ internal Void x11_update_cursor(Void) {
 
     xcb_change_window_attributes(state->connection, state->pointer_window->window, XCB_CW_CURSOR, &selected_cursor);
     xcb_flush(state->connection);
+}
+
+internal xcb_get_property_reply_t *x11_get_property(xcb_window_t window, xcb_atom_t property, xcb_atom_t type) {
+    X11_State *state = &global_x11_state;
+    xcb_get_property_cookie_t cookie = xcb_get_property(
+        state->connection,
+        false,
+        window,
+        property,
+        type,
+        0,
+        U32_MAX
+    );
+    xcb_get_property_reply_t *reply = xcb_get_property_reply(state->connection, cookie, 0);
+    return reply;
 }
 
 
@@ -251,6 +265,73 @@ internal Gfx_EventList gfx_get_events(Arena *arena, B32 wait) {
                 xcb_enter_notify_event_t *enter = (xcb_enter_notify_event_t *) event_node->event;
                 state->pointer_window = x11_window_from_id(enter->event);
                 x11_update_cursor();
+            } break;
+            case XCB_SELECTION_NOTIFY: {
+                Arena_Temporary scratch = arena_get_scratch(&arena, 1);
+                xcb_selection_notify_event_t *notify = (xcb_selection_notify_event_t *) event_node->event;
+                X11_Window *window = x11_window_from_id(notify->requestor);
+
+                if (notify->property == state->x_dnd_selection_atom && state->drag_and_drop_target == notify->requestor) {
+                    Str8 data = { 0 };
+
+                    // NOTE(simon): Get drag-and-drop data.
+                     // TODO(simon): Support for incremental copies using INCR. Probably try to reuse the code for clipboard handling.
+                    xcb_get_property_reply_t *reply = x11_get_property(window->window, state->x_dnd_selection_atom, state->drag_and_drop_type);
+                    if (reply) {
+                        Str8 raw_data = str8((U8 *) xcb_get_property_value(reply), (U64) xcb_get_property_value_length(reply));
+                        data = str8_copy(scratch.arena, raw_data);
+                        free(reply);
+                    }
+
+                    // NOTE(simon): Implementation of https://freedesktop.org/wiki/Specifications/file-uri-spec/
+                    // NOTE(simon): Iterate through lines.
+                    // TODO(simon): We might want to handle file URIs of the form `file:/<path>`
+                    for (U64 index = 0; index < data.size;) {
+                        U64 next_index = str8_find(index, str8_literal("\r\n"), data);
+                        Str8 line = str8_substring(data, index, next_index - index);
+                        index = next_index + 2;
+
+                        Uri uri = uri_from_string(line);
+
+                        // NOTE(simon): We only accept files from localhost.
+                        if (str8_equal(uri.scheme, str8_literal("file")) && (uri.authority.size == 0 || str8_equal(uri.authority, str8_literal("localhost")))) {
+                            Gfx_Event *event = arena_push_struct(state->event_arena, Gfx_Event);
+                            event->kind     = Gfx_EventKind_FileDrop;
+                            event->position = state->drag_and_drop_position;
+                            event->path     = str8_copy(state->event_arena, uri.path);
+                            event->window   = x11_handle_from_window(window);
+                            dll_push_back(events.first, events.last, event);
+                        } else {
+                            gfx_message(
+                                false,
+                                str8_literal("Could not receive drag-and-dropped URI"),
+                                str8_format(scratch.arena, "Unsupported URI %.*s", str8_expand(line))
+                            );
+                        }
+                    }
+
+                    // NOTE(simon): Notify the source that we are done with the drag-and-drop data.
+                    xcb_client_message_event_t finished_message = {
+                        .response_type  = XCB_CLIENT_MESSAGE,
+                        .format         = 32,
+                        .window         = state->drag_and_drop_source,
+                        .type           = state->x_dnd_finished_atom,
+                        .data.data32[0] = window->window,
+                        .data.data32[1] = data.size ? 0x01 : 0,
+                        .data.data32[2] = state->x_dnd_action_copy_atom,
+                    };
+                    xcb_send_event(state->connection, false, state->drag_and_drop_source, 0, (const char *) &finished_message);
+                    xcb_flush(state->connection);
+
+                    // NOTE(simon): Reset drag-and-drop state.
+                    state->drag_and_drop_source   = XCB_WINDOW_NONE;
+                    state->drag_and_drop_target   = XCB_WINDOW_NONE;
+                    state->drag_and_drop_version  = 0;
+                    state->drag_and_drop_type     = XCB_ATOM_NONE;
+                    state->drag_and_drop_position = v2f32(0.0f, 0.0f);
+                }
+
+                arena_end_temporary(scratch);
             } break;
             case XCB_BUTTON_PRESS:
             case XCB_BUTTON_RELEASE: {
@@ -412,6 +493,137 @@ internal Gfx_EventList gfx_get_events(Arena *arena, B32 wait) {
                     quit_event->kind = Gfx_EventKind_Quit;
                     quit_event->window = x11_handle_from_window(window);
                     dll_push_back(events.first, events.last, quit_event);
+                } else if (client->type == state->x_dnd_enter_atom && client->format == 32) {
+                    // TODO(simon): Should we cancel any active drag-and-drop?
+                    // How do we do it in that case? We could either send
+                    // XdndStatus indicating we won't accept, or send
+                    // XdndFinished.
+
+                    // NOTE(simon): Reset drag-and-drop state.
+                    state->drag_and_drop_source   = XCB_WINDOW_NONE;
+                    state->drag_and_drop_target   = XCB_WINDOW_NONE;
+                    state->drag_and_drop_version  = 0;
+                    state->drag_and_drop_type     = XCB_ATOM_NONE;
+                    state->drag_and_drop_position = v2f32(0.0f, 0.0f);
+
+                    U8 version = (client->data.data32[1] >> 24) & 0xFF;
+                    if (3 <= version && version <= X11_Xdnd_Version) {
+                        // NOTE(ismon): Decode parameters.
+                        state->drag_and_drop_source  = client->data.data32[0];
+                        state->drag_and_drop_target  = client->window;
+                        state->drag_and_drop_version = version;
+
+                        B32 more_than_three_data_types = (client->data.data32[1] >>  0) & 0x01;
+
+                        // NOTE(simon): Select preferred type.
+                        state->drag_and_drop_type = XCB_ATOM_NONE;
+                        if (more_than_three_data_types) {
+                            xcb_get_property_reply_t *reply = x11_get_property(state->drag_and_drop_source, state->x_dnd_type_list_atom, XCB_ATOM_ATOM);
+                            if (reply) {
+                                // TODO(simon): Copying the results this way might not be entierly correct
+                                xcb_atom_t *types      = xcb_get_property_value(reply);
+                                U64         type_count = (U64) xcb_get_property_value_length(reply) / sizeof(xcb_atom_t);
+
+                                for (U64 i = 0; i < type_count; ++i) {
+                                    if (types[i] == state->text_uri_list_atom) {
+                                        state->drag_and_drop_type = state->text_uri_list_atom;
+                                        break;
+                                    }
+                                }
+
+                                free(reply);
+                            }
+                        } else {
+                            for (U64 i = 2; i < 5; ++i) {
+                                if (client->data.data32[i] == state->text_uri_list_atom) {
+                                    state->drag_and_drop_type = state->text_uri_list_atom;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                } else if (client->type == state->x_dnd_leave_atom && client->format == 32) {
+                    // NOTE(simon): Always clear all state so that we don't become confused.
+                    state->drag_and_drop_source   = XCB_WINDOW_NONE;
+                    state->drag_and_drop_target   = XCB_WINDOW_NONE;
+                    state->drag_and_drop_version  = 0;
+                    state->drag_and_drop_type     = XCB_ATOM_NONE;
+                    state->drag_and_drop_position = v2f32(0.0f, 0.0f);
+                } else if (client->type == state->x_dnd_position_atom && client->format == 32) {
+                    if (state->drag_and_drop_target == client->window) {
+                        // NOTE(simon): Decode parameters.
+                        S16 root_x = (S16) ((client->data.data32[2] >> 16) & 0xFFFF);
+                        S16 root_y = (S16) ((client->data.data32[2] >>  0) & 0xFFFF);
+                        U32 action = client->data.data32[4];
+
+                        // NOTE(simon): Update local coordinates of drag.
+                        xcb_translate_coordinates_cookie_t cookie = xcb_translate_coordinates(
+                            state->connection,
+                            state->screen->root,
+                            state->drag_and_drop_target,
+                            root_x,
+                            root_y
+                        );
+                        xcb_translate_coordinates_reply_t *reply = xcb_translate_coordinates_reply(state->connection, cookie, 0);
+                        if (reply) {
+                            state->drag_and_drop_position = v2f32(reply->dst_x, reply->dst_y);
+                            free(reply);
+                        }
+
+                        // NOTE(simon): If we have a common supported type,
+                        // accept the drag with no rectangle. Otherwise,
+                        // decline it.
+                        xcb_client_message_event_t status_message = {
+                            .response_type  = XCB_CLIENT_MESSAGE,
+                            .format         = 32,
+                            .window         = state->drag_and_drop_source,
+                            .type           = state->x_dnd_status_atom,
+                            .data.data32[0] = state->drag_and_drop_target,
+                        };
+                        if (state->drag_and_drop_type != XCB_ATOM_NONE) {
+                            status_message.data.data32[1] = 0x01;
+                            status_message.data.data32[4] = state->x_dnd_action_copy_atom;
+                        }
+                        xcb_send_event(state->connection, false, state->drag_and_drop_source, 0, (const char *) &status_message);
+                        xcb_flush(state->connection);
+                    }
+                } else if (client->type == state->x_dnd_drop_atom && client->format == 32) {
+                    if (state->drag_and_drop_target == client->window) {
+                        // NOTE(simon): Decode parameters.
+                        xcb_timestamp_t timestamp = client->data.data32[2];
+
+                        if (state->drag_and_drop_type != XCB_ATOM_NONE) {
+                            // NOTE(simon): Convert the selection if we have a
+                            // common supported type.
+                            xcb_convert_selection(
+                                state->connection,
+                                window->window,
+                                state->x_dnd_selection_atom,
+                                state->drag_and_drop_type,
+                                state->x_dnd_selection_atom,
+                                timestamp
+                            );
+                        } else {
+                            // NOTE(simon): We could not agree on a common
+                            // supported type, inform that we won't read the data.
+                            xcb_client_message_event_t finished_message = {
+                                .response_type = XCB_CLIENT_MESSAGE,
+                                .format = 32,
+                                .window = state->drag_and_drop_source,
+                                .type = state->x_dnd_finished_atom,
+                                .data.data32[0] = window->window,
+                            };
+                            xcb_send_event(state->connection, false, state->drag_and_drop_source, 0, (const char *) &finished_message);
+                            xcb_flush(state->connection);
+
+                            // NOTE(simon): Reset drag-and-drop state.
+                            state->drag_and_drop_source   = XCB_WINDOW_NONE;
+                            state->drag_and_drop_target   = XCB_WINDOW_NONE;
+                            state->drag_and_drop_version  = 0;
+                            state->drag_and_drop_type     = XCB_ATOM_NONE;
+                            state->drag_and_drop_position = v2f32(0.0f, 0.0f);
+                        }
+                    }
                 }
             } break;
             case XCB_SELECTION_REQUEST: {
@@ -608,6 +820,18 @@ internal Gfx_Window gfx_window_create(Str8 title, U32 width, U32 height) {
         8,
         (U32) title.size,
         title.data
+    );
+
+    U32 dnd_version = X11_Xdnd_Version;
+    xcb_change_property(
+        state->connection,
+        XCB_PROP_MODE_REPLACE,
+        window->window,
+        state->x_dnd_aware_atom,
+        XCB_ATOM_ATOM,
+        32,
+        1,
+        &dnd_version
     );
 
     X11_IcccmWmSizeHints wm_normal_hints = { 0 };
@@ -870,16 +1094,7 @@ internal Str8 gfx_get_clipboard_text(Arena *arena) {
                         memory_zero_struct(&copy_parts);
                     }
 
-                    xcb_get_property_cookie_t cookie = xcb_get_property(
-                        state->connection,
-                        false,
-                        state->clipboard_window,
-                        state->clipboard_property_atom,
-                        state->utf8_string_atom,
-                        0,
-                        U32_MAX
-                    );
-                    reply = xcb_get_property_reply(state->connection, cookie, 0);
+                    reply = x11_get_property(state->clipboard_window, state->clipboard_property_atom, state->utf8_string_atom);
                 }
 
                 if (reply) {

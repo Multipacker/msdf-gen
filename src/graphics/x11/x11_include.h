@@ -6,6 +6,8 @@
 
 #include <xkbcommon/xkbcommon.h>
 
+#define X11_Xdnd_Version 5
+
 // NOTE(simon): Structures required for ICCCM.
 // https://www.x.org/releases/X11R7.6/doc/xorg-docs/specs/ICCCM/icccm.html
 typedef enum {
@@ -83,7 +85,18 @@ typedef enum {
     X(multiple,           "MULTIPLE")           \
     X(timestamp,          "TIMESTAMP")          \
     X(wm_protocols,       "WM_PROTOCOLS")       \
-    X(wm_delete_window,   "WM_DELETE_WINDOW")
+    X(wm_delete_window,   "WM_DELETE_WINDOW")   \
+    X(x_dnd_aware,        "XdndAware")          \
+    X(x_dnd_selection,    "XdndSelection")      \
+    X(x_dnd_enter,        "XdndEnter")          \
+    X(x_dnd_leave,        "XdndLeave")          \
+    X(x_dnd_type_list,    "XdndTypeList")       \
+    X(x_dnd_drop,         "XdndDrop")           \
+    X(x_dnd_finished,     "XdndFinished")       \
+    X(x_dnd_position,     "XdndPosition")       \
+    X(x_dnd_status,       "XdndStatus")         \
+    X(x_dnd_action_copy,  "XdndActionCopy")     \
+    X(text_uri_list,      "text/uri-list")
 
 typedef struct X11_EventNode X11_EventNode;
 struct X11_EventNode {
@@ -114,6 +127,12 @@ struct X11_State {
     U8                    xkb_first_event;
     S32                   xkb_core_keyboard_id;
 
+    // NOTE(simon): Drag-and-drop state.
+    xcb_window_t drag_and_drop_source;
+    xcb_window_t drag_and_drop_target;
+    U8           drag_and_drop_version;
+    xcb_atom_t   drag_and_drop_type;
+    V2F32        drag_and_drop_position;
 
     Arena *event_arena;
     X11_EventNode *first_event;

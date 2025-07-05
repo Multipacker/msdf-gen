@@ -7,6 +7,9 @@ if [ ! -v debug ] && [ ! -v release ] && [ ! -v profile ]; then
     echo "No version specified, using debug"
     debug=1
 fi
+
+# TODO(simon): Maybe use WAYLAND_DISPLAY to determine which backend to build as
+# session type could be tty in some cases.
 if [ ! -v wayland ] && [ ! -v x11 ]; then
     echo "No backend specified, choosing from XDG_SESSION_TYPE($XDG_SESSION_TYPE)"
     declare $XDG_SESSION_TYPE='1'

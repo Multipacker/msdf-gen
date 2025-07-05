@@ -1,3 +1,5 @@
+#include "graphics_core.c"
+
 #if OS_LINUX
 #  if LINUX_WAYLAND
 #    include "wayland/wayland_include.c"
