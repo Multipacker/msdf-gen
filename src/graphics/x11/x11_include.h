@@ -80,6 +80,7 @@ typedef enum {
     X(utf8_string,        "UTF8_STRING")        \
     X(clipboard,          "CLIPBOARD")          \
     X(clipboard_property, "CLIPBOARD_PROPERTY") \
+    X(resource_manager,   "RESOURCE_MANAGER")   \
     X(incremental,        "INCR")               \
     X(targets,            "TARGETS")            \
     X(multiple,           "MULTIPLE")           \
@@ -143,6 +144,8 @@ struct X11_State {
 #define X(name, atom_name) xcb_atom_t name##_atom;
     X11_ATOMS
 #undef X
+
+    F32 dpi;
 
     Str8 copy_text;
     Arena *copy_arena;

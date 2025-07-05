@@ -15,6 +15,7 @@
  * https://www.uninformativ.de/blog/postings/2017-04-02/0/POSTING-en.html
  * https://cscene.sourceforge.net/CS7/CS7-06.html
  * https://freedesktop.org/wiki/Specifications/
+ * https://www.systutorials.com/docs/linux/man/3-XrmGetStringDatabase/
  */
 
 /* TODO(simon):
@@ -185,6 +186,72 @@ if (name##_reply) {                                                             
 }
         X11_ATOMS
 #undef X
+    }
+
+    // NOTE(simon): Get DPI from root window.
+    {
+        // NOTE(simon): Default to 96 DPI.
+        state->dpi = 96.0f;
+
+        // NOTE(simon): Read RESOURCE_MANAGER property from root window.
+        Str8 resource_string = { 0 };
+        xcb_get_property_reply_t *resource_manager_reply = x11_get_property(state->screen->root, state->resource_manager_atom, XCB_ATOM_STRING);
+        if (resource_manager_reply) {
+            Str8 raw_data = str8(xcb_get_property_value(resource_manager_reply), (U64) xcb_get_property_value_length(resource_manager_reply));
+            resource_string = str8_copy(scratch.arena, raw_data);
+            free(resource_manager_reply);
+        }
+
+        // NOTE(simon): Parse resource lines, use the last occurrence of each resource name.
+        for (Str8Node *line = str8_split_by_codepoints(scratch.arena, resource_string, str8_literal("\n")).first; line; line = line->next) {
+            U8 *ptr = line->string.data;
+            U8 *opl = line->string.data + line->string.size;
+
+            // NOTE(simon): Skip blank lines.
+            if (opl - ptr == 0) {
+                continue;
+            }
+
+            // NOTE(simon): Skip comments and includes.
+            if (*ptr == '!' || *ptr == '#') {
+                continue;
+            }
+
+            // NOTE(simon): Skip whitespace.
+            while (ptr < opl && (*ptr == ' ' || *ptr == '\t')) {
+                ++ptr;
+            }
+
+            // NOTE(simon): Skip if the resource name doesn't match.
+            Str8 resource = str8_literal("Xft.dpi");
+            if (str8_equal(resource, str8_prefix(str8_range(ptr, opl), resource.size))) {
+                ptr += resource.size;
+            } else {
+                continue;
+            }
+
+            // NOTE(simon): Skip whitespace.
+            while (ptr < opl && (*ptr == ' ' || *ptr == '\t')) {
+                ++ptr;
+            }
+
+            // NOTE(simon): If we don't find a ':', the name probably didn't match, skip.
+            if (ptr < opl && *ptr == ':') {
+                ++ptr;
+            } else {
+                break;
+            }
+
+            // NOTE(simon): Skip whitespace.
+            while (ptr < opl && (*ptr == ' ' || *ptr == '\t')) {
+                ++ptr;
+            }
+
+            // NOTE(simon): Parse the value.
+            Str8 value = str8_range(ptr, opl);
+            CStr value_cstr = cstr_from_str8(scratch.arena, value);
+            state->dpi = (F32) atof(value_cstr);
+        }
     }
 
     xkb_x11_setup_xkb_extension(
@@ -966,7 +1033,8 @@ internal V2F32 gfx_mouse_position_from_window(Gfx_Window handle) {
 }
 
 internal F32 gfx_dpi_from_window(Gfx_Window window) {
-    F32 dpi = 96.0f;
+    X11_State *state = &global_x11_state;
+    F32 dpi = state->dpi;
     return dpi;
 }
 
