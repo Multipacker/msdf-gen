@@ -10,12 +10,17 @@
  * underspecified in some cases. This a mostly complete list of references
  * used:
  *
- * https://www.x.org/releases/X11R7.7/doc/xproto/x11protocol.html
- * https://www.x.org/releases/X11R7.6/doc/xorg-docs/specs/ICCCM/icccm.html
- * https://www.uninformativ.de/blog/postings/2017-04-02/0/POSTING-en.html
- * https://cscene.sourceforge.net/CS7/CS7-06.html
- * https://freedesktop.org/wiki/Specifications/
- * https://www.systutorials.com/docs/linux/man/3-XrmGetStringDatabase/
+ * Core specification of protocols:
+ *   https://www.x.org/releases/X11R7.7/doc/index.html
+ * Specification of other standards used for X:
+ *   https://freedesktop.org/wiki/Specifications/
+ * Latest version of EWMH as the above two links only take you to older
+ * versions of the specification:
+ *   https://specifications.freedesktop.org/wm-spec/1.5/
+ * Other references:
+ *   https://www.uninformativ.de/blog/postings/2017-04-02/0/POSTING-en.html
+ *   https://cscene.sourceforge.net/CS7/CS7-06.html
+ *   https://www.systutorials.com/docs/linux/man/3-XrmGetStringDatabase/
  */
 
 /* TODO(simon):
