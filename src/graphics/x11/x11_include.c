@@ -259,6 +259,18 @@ if (name##_reply) {                                                             
         }
     }
 
+    // NOTE(simon): Setup XSync
+    xcb_sync_initialize_cookie_t sync_cookie = xcb_sync_initialize(state->connection, 3, 1);
+    xcb_sync_initialize_reply_t *sync_reply = xcb_sync_initialize_reply(state->connection, sync_cookie, 0);
+    if (!sync_reply) {
+        gfx_message(true, str8_literal("Failed to initialize X11"), str8_literal("Could not initialize Xsync extension."));
+        os_exit(1);
+    }
+    if (sync_reply->major_version != 3 && sync_reply->minor_version != 1) {
+        gfx_message(true, str8_literal("Failed to initialize X11"), str8_literal("Incompatible version of Xsync extension."));
+        os_exit(1);
+    }
+
     xkb_x11_setup_xkb_extension(
         state->connection,
         1, 0,                        // NOTE(simon): Requested version
