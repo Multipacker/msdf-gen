@@ -87,10 +87,6 @@ internal B32 opengl_backend_init(Void) {
     GL_FUNCTIONS(X)
 #undef X
 
-    // NOTE(simon): This doesn't automatically get set if our first
-    // eglMakeCurrent doesn't have a default framebuffer.
-    glDrawBuffer(GL_BACK);
-
     arena_end_temporary(scratch);
     return true;
 }
@@ -155,6 +151,11 @@ internal Void opengl_window_select(Gfx_Window graphics_handle, Render_Window ren
     OpenGL_Window *render_window = opengl_window_from_handle(render_handle);
 
     eglMakeCurrent(opengl_state->display, render_window->surface, render_window->surface, opengl_state->context);
+
+    // NOTE(simon): This doesn't automatically get set if our first
+    // eglMakeCurrent doesn't have a default framebuffer. On my desktop using
+    // Xwayland, I get a black screen if I don't run this with a surface bound.
+    glDrawBuffer(GL_BACK);
 }
 
 internal Void opengl_swap_buffers(Gfx_Window graphics_handle, Render_Window render_handle) {
