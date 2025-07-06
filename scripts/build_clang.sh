@@ -46,7 +46,7 @@ fi
 
 base_libraries="-lm -lpthread"
 wayland_libraries="-lwayland-client -lwayland-egl -lwayland-cursor -lEGL -lxkbcommon"
-x11_libraries="-lxcb -lxcb-cursor -lxcb-xkb -lxkbcommon-x11 -lEGL -lxkbcommon"
+x11_libraries="-lxcb -lxcb-cursor -lxcb-sync -lxcb-xkb -lxkbcommon-x11 -lEGL -lxkbcommon"
 render_libraries="build/opengl.o"
 
 # Choose libraries

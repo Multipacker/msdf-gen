@@ -560,6 +560,10 @@ internal Gfx_EventList gfx_get_events(Arena *arena, B32 wait) {
                     quit_event->kind = Gfx_EventKind_Quit;
                     quit_event->window = x11_handle_from_window(window);
                     dll_push_back(events.first, events.last, quit_event);
+                } else if (client->type == state->wm_protocols_atom && client->format == 32 && client->data.data32[0] == state->net_wm_sync_request_atom) {
+                    // NOTE(simon): Store these for updating the counter AFTER we have repainted.
+                    window->counter_value.lo = (U32) client->data.data32[2];
+                    window->counter_value.hi = (S32) client->data.data32[3];
                 } else if (client->type == state->x_dnd_enter_atom && client->format == 32) {
                     // TODO(simon): Should we cancel any active drag-and-drop?
                     // How do we do it in that case? We could either send
@@ -958,10 +962,26 @@ internal Gfx_Window gfx_window_create(Str8 title, U32 width, U32 height) {
         wm_class_buffer
     );
 
+    // NOTE(simon): Create sync counter and attach it to the window.
+    window->counter = xcb_generate_id(state->connection);
+    xcb_sync_int64_t initial_counter_value = { 0 };
+    xcb_sync_create_counter(state->connection, window->counter, initial_counter_value);
+    xcb_change_property(
+        state->connection,
+        XCB_PROP_MODE_REPLACE,
+        window->window,
+        state->net_wm_sync_request_counter_atom,
+        XCB_ATOM_CARDINAL,
+        32,
+        1,
+        &window->counter
+    );
+
     // TODO(simon): Do we insert an empty WM_COLORMAP_WINDOWS property?
 
     xcb_atom_t wm_protocols[] = {
         state->wm_delete_window_atom,
+        state->net_wm_sync_request_atom,
     };
     xcb_change_property(
         state->connection,
@@ -1236,4 +1256,12 @@ internal Str8 gfx_get_clipboard_text(Arena *arena) {
     }
 
     return result;
+}
+
+internal Void x11_window_end_frame(Gfx_Window handle) {
+    X11_State *state = &global_x11_state;
+    X11_Window *window = x11_window_from_handle(handle);
+
+    xcb_sync_set_counter(state->connection, window->counter, window->counter_value);
+    xcb_flush(state->connection);
 }

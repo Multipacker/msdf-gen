@@ -159,4 +159,5 @@ internal Void opengl_swap_buffers(Gfx_Window graphics_handle, Render_Window rend
     X11_OpenGLState *opengl_state = &global_x11_opengl_state;
     OpenGL_Window *render_window = opengl_window_from_handle(render_handle);
     eglSwapBuffers(opengl_state->display, render_window->surface);
+    x11_window_end_frame(graphics_handle);
 }

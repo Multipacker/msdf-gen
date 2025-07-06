@@ -2,6 +2,7 @@
 #define X11_INCLUDE_H
 
 #include <xcb/xcb.h>
+#include <xcb/sync.h>
 #include <xcb/xcb_cursor.h>
 
 #include <xkbcommon/xkbcommon.h>
@@ -76,28 +77,32 @@ typedef enum {
 
 
 // NOTE(simon): Atoms that we need to intern ourselves.
-#define X11_ATOMS                               \
-    X(utf8_string,        "UTF8_STRING")        \
-    X(clipboard,          "CLIPBOARD")          \
-    X(clipboard_property, "CLIPBOARD_PROPERTY") \
-    X(resource_manager,   "RESOURCE_MANAGER")   \
-    X(incremental,        "INCR")               \
-    X(targets,            "TARGETS")            \
-    X(multiple,           "MULTIPLE")           \
-    X(timestamp,          "TIMESTAMP")          \
-    X(wm_protocols,       "WM_PROTOCOLS")       \
-    X(wm_delete_window,   "WM_DELETE_WINDOW")   \
-    X(x_dnd_aware,        "XdndAware")          \
-    X(x_dnd_selection,    "XdndSelection")      \
-    X(x_dnd_enter,        "XdndEnter")          \
-    X(x_dnd_leave,        "XdndLeave")          \
-    X(x_dnd_type_list,    "XdndTypeList")       \
-    X(x_dnd_drop,         "XdndDrop")           \
-    X(x_dnd_finished,     "XdndFinished")       \
-    X(x_dnd_position,     "XdndPosition")       \
-    X(x_dnd_status,       "XdndStatus")         \
-    X(x_dnd_action_copy,  "XdndActionCopy")     \
-    X(text_uri_list,      "text/uri-list")
+#define X11_ATOMS                                                  \
+    X(utf8_string,                 "UTF8_STRING")                  \
+    X(clipboard,                   "CLIPBOARD")                    \
+    X(clipboard_property,          "CLIPBOARD_PROPERTY")           \
+    X(resource_manager,            "RESOURCE_MANAGER")             \
+    X(incremental,                 "INCR")                         \
+    X(targets,                     "TARGETS")                      \
+    X(multiple,                    "MULTIPLE")                     \
+    X(timestamp,                   "TIMESTAMP")                    \
+    X(wm_protocols,                "WM_PROTOCOLS")                 \
+    X(wm_delete_window,            "WM_DELETE_WINDOW")             \
+    /* NOTE(simon): Drag-and-drop */                               \
+    X(text_uri_list,               "text/uri-list")                \
+    X(x_dnd_action_copy,           "XdndActionCopy")               \
+    X(x_dnd_aware,                 "XdndAware")                    \
+    X(x_dnd_drop,                  "XdndDrop")                     \
+    X(x_dnd_enter,                 "XdndEnter")                    \
+    X(x_dnd_finished,              "XdndFinished")                 \
+    X(x_dnd_leave,                 "XdndLeave")                    \
+    X(x_dnd_position,              "XdndPosition")                 \
+    X(x_dnd_selection,             "XdndSelection")                \
+    X(x_dnd_status,                "XdndStatus")                   \
+    X(x_dnd_type_list,             "XdndTypeList")                 \
+    /* NOTE(simon): Frame synching. */                             \
+    X(net_wm_sync_request,         "_NET_WM_SYNC_REQUEST")         \
+    X(net_wm_sync_request_counter, "_NET_WM_SYNC_REQUEST_COUNTER")
 
 typedef struct X11_EventNode X11_EventNode;
 struct X11_EventNode {
@@ -110,7 +115,9 @@ struct X11_Window {
     X11_Window *next;
     X11_Window *previous;
 
-    xcb_window_t window;
+    xcb_window_t       window;
+    xcb_sync_counter_t counter;
+    xcb_sync_int64_t   counter_value;
 };
 
 typedef struct X11_State X11_State;
@@ -155,5 +162,7 @@ struct X11_State {
     X11_Window *window_freelist;
     VoidFunction *update;
 };
+
+internal Void x11_window_end_frame(Gfx_Window handle);
 
 #endif // X11_INCLUDE_H

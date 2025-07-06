@@ -21,6 +21,4 @@ struct X11_OpenGLState {
     OpenGL_Window *window_freelist;
 };
 
-internal Void x11_opengl_swap_buffers(Void);
-
 #endif // X11_OPENGL_H
