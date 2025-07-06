@@ -81,7 +81,6 @@ typedef enum {
     X(utf8_string,                 "UTF8_STRING")                  \
     X(clipboard,                   "CLIPBOARD")                    \
     X(clipboard_property,          "CLIPBOARD_PROPERTY")           \
-    X(resource_manager,            "RESOURCE_MANAGER")             \
     X(incremental,                 "INCR")                         \
     X(targets,                     "TARGETS")                      \
     X(multiple,                    "MULTIPLE")                     \

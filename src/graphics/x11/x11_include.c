@@ -200,7 +200,7 @@ if (name##_reply) {                                                             
 
         // NOTE(simon): Read RESOURCE_MANAGER property from root window.
         Str8 resource_string = { 0 };
-        xcb_get_property_reply_t *resource_manager_reply = x11_get_property(state->screen->root, state->resource_manager_atom, XCB_ATOM_STRING);
+        xcb_get_property_reply_t *resource_manager_reply = x11_get_property(state->screen->root, XCB_ATOM_RESOURCE_MANAGER, XCB_ATOM_STRING);
         if (resource_manager_reply) {
             Str8 raw_data = str8(xcb_get_property_value(resource_manager_reply), (U64) xcb_get_property_value_length(resource_manager_reply));
             resource_string = str8_copy(scratch.arena, raw_data);
