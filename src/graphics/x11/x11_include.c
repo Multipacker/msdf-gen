@@ -1024,7 +1024,8 @@ internal Void gfx_window_close(Gfx_Window handle) {
     X11_State *state = &global_x11_state;
     X11_Window *window = x11_window_from_handle(handle);
 
-    // TODO(simon): Release resources.
+    xcb_destroy_window(state->connection, window->window);
+    xcb_sync_destroy_counter(state->connection, window->counter);
 
     dll_remove(state->first_window, state->last_window, window);
     sll_stack_push(state->window_freelist, window);
