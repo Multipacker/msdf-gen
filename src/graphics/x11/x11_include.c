@@ -967,7 +967,7 @@ internal Gfx_Window gfx_window_create(Str8 title, U32 width, U32 height) {
     memory_copy(wm_class_buffer, wm_instance.data, wm_instance.size);
     wm_class_buffer[wm_instance.size] = 0;
     memory_copy(&wm_class_buffer[wm_instance.size + 1], wm_class.data, wm_class.size);
-    wm_class_buffer[wm_instance.size + 1 + wm_instance.size] = 0;
+    wm_class_buffer[wm_instance.size + 1 + wm_class.size] = 0;
     xcb_change_property(
         state->connection,
         XCB_PROP_MODE_REPLACE,
