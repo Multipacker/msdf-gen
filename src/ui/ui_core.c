@@ -802,6 +802,11 @@ internal Void ui_end(Void) {
         for (U64 i = 0; i < ui->box_count; ++i) {
             UI_Box *box = box_array[i];
 
+            // NOTE(simon): Skip transient boxes.
+            if (ui_key_is_null(box->key)) {
+                continue;
+            }
+
             B32 is_hot                   = ui_keys_match(ui->hot_key, box->key);
             B32 is_active                = ui_keys_match(ui->active_key[UI_MouseButton_Left], box->key);
             B32 is_disabled              = !!(box->flags & UI_BoxFlag_Disabled);
