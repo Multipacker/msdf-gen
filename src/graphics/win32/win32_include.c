@@ -478,6 +478,20 @@ internal Void gfx_window_set_maximized(Gfx_Window handle, B32 maximized) {
 
 
 
+internal Void gfx_message(B32 error, Str8 title, Str8 message) {
+    Arena_Temporary scratch = arena_get_scratch(0, 0);
+
+    CStr16 cstr16_title   = cstr16_from_str8(scratch.arena, title);
+    CStr16 cstr16_message = cstr16_from_str8(scratch.arena, message);
+    UINT   type           = MB_OK | (error ? MB_ICONERROR : MB_ICONINFORMATION);
+
+    MessageBoxW(0, cstr16_message, cstr16_title, type);
+
+    arena_end_temporary(scratch);
+}
+
+
+
 // NOTE(simon): Clipboard
 internal Void gfx_set_clipboard_text(Str8 text) {
     Gfx_Win32State *state = &gfx_win32_state;
