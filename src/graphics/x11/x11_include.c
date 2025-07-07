@@ -127,6 +127,76 @@ internal xcb_get_property_reply_t *x11_get_property(xcb_window_t window, xcb_ato
     return reply;
 }
 
+internal Void x11_read_dpi(Void) {
+    X11_State *state = &global_x11_state;
+    Arena_Temporary scratch = arena_get_scratch(0, 0);
+
+    // NOTE(simon): Default to 96 DPI.
+    state->dpi = 96.0f;
+
+    // NOTE(simon): Read RESOURCE_MANAGER property from root window.
+    Str8 resource_string = { 0 };
+    xcb_get_property_reply_t *resource_manager_reply = x11_get_property(state->screen->root, XCB_ATOM_RESOURCE_MANAGER, XCB_ATOM_STRING);
+    if (resource_manager_reply) {
+        Str8 raw_data = str8(xcb_get_property_value(resource_manager_reply), (U64) xcb_get_property_value_length(resource_manager_reply));
+        resource_string = str8_copy(scratch.arena, raw_data);
+        free(resource_manager_reply);
+    }
+
+    // NOTE(simon): Parse resource lines, use the last occurrence of each resource name.
+    for (Str8Node *line = str8_split_by_codepoints(scratch.arena, resource_string, str8_literal("\n")).first; line; line = line->next) {
+        U8 *ptr = line->string.data;
+        U8 *opl = line->string.data + line->string.size;
+
+        // NOTE(simon): Skip blank lines.
+        if (opl - ptr == 0) {
+            continue;
+        }
+
+        // NOTE(simon): Skip comments and includes.
+        if (*ptr == '!' || *ptr == '#') {
+            continue;
+        }
+
+        // NOTE(simon): Skip whitespace.
+        while (ptr < opl && (*ptr == ' ' || *ptr == '\t')) {
+            ++ptr;
+        }
+
+        // NOTE(simon): Skip if the resource name doesn't match.
+        Str8 resource = str8_literal("Xft.dpi");
+        if (str8_equal(resource, str8_prefix(str8_range(ptr, opl), resource.size))) {
+            ptr += resource.size;
+        } else {
+            continue;
+        }
+
+        // NOTE(simon): Skip whitespace.
+        while (ptr < opl && (*ptr == ' ' || *ptr == '\t')) {
+            ++ptr;
+        }
+
+        // NOTE(simon): If we don't find a ':', the name probably didn't match, skip.
+        if (ptr < opl && *ptr == ':') {
+            ++ptr;
+        } else {
+            break;
+        }
+
+        // NOTE(simon): Skip whitespace.
+        while (ptr < opl && (*ptr == ' ' || *ptr == '\t')) {
+            ++ptr;
+        }
+
+        // NOTE(simon): Parse the value.
+        Str8 value = str8_range(ptr, opl);
+        CStr value_cstr = cstr_from_str8(scratch.arena, value);
+        state->dpi = (F32) atof(value_cstr);
+    }
+
+    arena_end_temporary(scratch);
+}
+
 
 
 internal Void gfx_init(Void) {
@@ -193,70 +263,12 @@ if (name##_reply) {                                                             
 #undef X
     }
 
-    // NOTE(simon): Get DPI from root window.
+    x11_read_dpi();
+    // NOTE(simon): Register for property updates on the root window. This will
+    // allow us to response immediately to DPI settings.
     {
-        // NOTE(simon): Default to 96 DPI.
-        state->dpi = 96.0f;
-
-        // NOTE(simon): Read RESOURCE_MANAGER property from root window.
-        Str8 resource_string = { 0 };
-        xcb_get_property_reply_t *resource_manager_reply = x11_get_property(state->screen->root, XCB_ATOM_RESOURCE_MANAGER, XCB_ATOM_STRING);
-        if (resource_manager_reply) {
-            Str8 raw_data = str8(xcb_get_property_value(resource_manager_reply), (U64) xcb_get_property_value_length(resource_manager_reply));
-            resource_string = str8_copy(scratch.arena, raw_data);
-            free(resource_manager_reply);
-        }
-
-        // NOTE(simon): Parse resource lines, use the last occurrence of each resource name.
-        for (Str8Node *line = str8_split_by_codepoints(scratch.arena, resource_string, str8_literal("\n")).first; line; line = line->next) {
-            U8 *ptr = line->string.data;
-            U8 *opl = line->string.data + line->string.size;
-
-            // NOTE(simon): Skip blank lines.
-            if (opl - ptr == 0) {
-                continue;
-            }
-
-            // NOTE(simon): Skip comments and includes.
-            if (*ptr == '!' || *ptr == '#') {
-                continue;
-            }
-
-            // NOTE(simon): Skip whitespace.
-            while (ptr < opl && (*ptr == ' ' || *ptr == '\t')) {
-                ++ptr;
-            }
-
-            // NOTE(simon): Skip if the resource name doesn't match.
-            Str8 resource = str8_literal("Xft.dpi");
-            if (str8_equal(resource, str8_prefix(str8_range(ptr, opl), resource.size))) {
-                ptr += resource.size;
-            } else {
-                continue;
-            }
-
-            // NOTE(simon): Skip whitespace.
-            while (ptr < opl && (*ptr == ' ' || *ptr == '\t')) {
-                ++ptr;
-            }
-
-            // NOTE(simon): If we don't find a ':', the name probably didn't match, skip.
-            if (ptr < opl && *ptr == ':') {
-                ++ptr;
-            } else {
-                break;
-            }
-
-            // NOTE(simon): Skip whitespace.
-            while (ptr < opl && (*ptr == ' ' || *ptr == '\t')) {
-                ++ptr;
-            }
-
-            // NOTE(simon): Parse the value.
-            Str8 value = str8_range(ptr, opl);
-            CStr value_cstr = cstr_from_str8(scratch.arena, value);
-            state->dpi = (F32) atof(value_cstr);
-        }
+        U32 root_event = XCB_EVENT_MASK_PROPERTY_CHANGE;
+        xcb_change_window_attributes(state->connection, state->screen->root, XCB_CW_EVENT_MASK, &root_event);
     }
 
     // NOTE(simon): Setup XSync
@@ -349,6 +361,13 @@ internal Gfx_EventList gfx_get_events(Arena *arena, B32 wait) {
                 xcb_enter_notify_event_t *enter = (xcb_enter_notify_event_t *) event_node->event;
                 state->pointer_window = x11_window_from_id(enter->event);
                 x11_update_cursor();
+            } break;
+            case XCB_PROPERTY_NOTIFY: {
+                xcb_property_notify_event_t *notify = (xcb_property_notify_event_t *) event_node->event;
+
+                if (notify->window == state->screen->root && notify->atom == XCB_ATOM_RESOURCE_MANAGER) {
+                    x11_read_dpi();
+                }
             } break;
             case XCB_SELECTION_NOTIFY: {
                 Arena_Temporary scratch = arena_get_scratch(&arena, 1);
