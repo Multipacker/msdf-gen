@@ -369,6 +369,22 @@ internal Gfx_EventList gfx_get_events(Arena *arena, B32 wait) {
                     x11_read_dpi();
                 }
             } break;
+            case XCB_CONFIGURE_NOTIFY: {
+                xcb_configure_notify_event_t *notify = (xcb_configure_notify_event_t *) event_node->event;
+                X11_Window *window = x11_window_from_id(notify->window);
+                window->width  = notify->width;
+                window->height = notify->height;
+            } break;
+            case XCB_EXPOSE: {
+                if (state->update) {
+                    state->update();
+                }
+
+                for (X11_Window *window = state->first_window; window; window = window->next) {
+                    xcb_sync_set_counter(state->connection, window->counter, window->counter_value);
+                }
+                xcb_flush(state->connection);
+            } break;
             case XCB_SELECTION_NOTIFY: {
                 Arena_Temporary scratch = arena_get_scratch(&arena, 1);
                 xcb_selection_notify_event_t *notify = (xcb_selection_notify_event_t *) event_node->event;
@@ -890,7 +906,7 @@ internal Gfx_Window gfx_window_create(Str8 title, U32 width, U32 height) {
 
     U32 value_mask = XCB_CW_EVENT_MASK;
     U32 value_list[] = {
-        XCB_EVENT_MASK_EXPOSURE | XCB_EVENT_MASK_BUTTON_PRESS | XCB_EVENT_MASK_BUTTON_RELEASE | XCB_EVENT_MASK_KEY_PRESS | XCB_EVENT_MASK_KEY_RELEASE | XCB_EVENT_MASK_POINTER_MOTION | XCB_EVENT_MASK_LEAVE_WINDOW | XCB_EVENT_MASK_ENTER_WINDOW,
+        XCB_EVENT_MASK_EXPOSURE | XCB_EVENT_MASK_BUTTON_PRESS | XCB_EVENT_MASK_BUTTON_RELEASE | XCB_EVENT_MASK_KEY_PRESS | XCB_EVENT_MASK_KEY_RELEASE | XCB_EVENT_MASK_POINTER_MOTION | XCB_EVENT_MASK_LEAVE_WINDOW | XCB_EVENT_MASK_ENTER_WINDOW | XCB_EVENT_MASK_STRUCTURE_NOTIFY,
     };
 
     window->window = xcb_generate_id(state->connection);
@@ -1053,17 +1069,7 @@ internal Void gfx_window_close(Gfx_Window handle) {
 internal V2U32 gfx_client_area_from_window(Gfx_Window handle) {
     X11_State *state = &global_x11_state;
     X11_Window *window = x11_window_from_handle(handle);
-
-    xcb_get_geometry_cookie_t cookie = xcb_get_geometry(state->connection, window->window);
-    xcb_get_geometry_reply_t *reply = xcb_get_geometry_reply(state->connection, cookie, 0);
-
-    V2U32 result = { 0 };
-    if (reply) {
-        result.x = reply->width;
-        result.y = reply->height;
-        free(reply);
-    }
-
+    V2U32 result = v2u32(window->width, window->height);
     return result;
 }
 
@@ -1293,12 +1299,4 @@ internal Str8 gfx_get_clipboard_text(Arena *arena) {
     }
 
     return result;
-}
-
-internal Void x11_window_end_frame(Gfx_Window handle) {
-    X11_State *state = &global_x11_state;
-    X11_Window *window = x11_window_from_handle(handle);
-
-    xcb_sync_set_counter(state->connection, window->counter, window->counter_value);
-    xcb_flush(state->connection);
 }

@@ -117,6 +117,8 @@ struct X11_Window {
     xcb_window_t       window;
     xcb_sync_counter_t counter;
     xcb_sync_int64_t   counter_value;
+    U32                width;
+    U32                height;
 };
 
 typedef struct X11_State X11_State;
@@ -161,7 +163,5 @@ struct X11_State {
     X11_Window *window_freelist;
     VoidFunction *update;
 };
-
-internal Void x11_window_end_frame(Gfx_Window handle);
 
 #endif // X11_INCLUDE_H
