@@ -1,9 +1,9 @@
 # MSDF-gen
 
 This project is meant as a reference implementation of MSDF generation, all
-code relevant for it can be found in `src/font/msdf.c` and `src/font/msdf.h`.
-Any other primitives that are used can be found in `src/base`. The Windows
-backend was hacked together rather quickly, but will be improved later.
+code relevant for it can be found in `src/font/font_msdf.c` and
+`src/font/font_msdf.h`.  Any other primitives that are used can be found in
+`src/base`.
 
 MSDFs are generated using the direct multi-channel distance field construction
 method described in [Viktor Chlumskys master's thesis][thesis]. I haven't
@@ -15,8 +15,8 @@ not satisfy:
 
 1. Contours do not overlap each other.
 2. Contours do not self-intersect.
-3. A contours winding number in isolation determines if it is adds or removes
-   area to the shape.
+3. A contours winding number in isolation determines if it adds or removes area
+   to the shape.
 
 These constraints turn out to be useful when generating MSDFs, but are annoying
 when designing fonts, so we have to convert between the two forms. This is done
@@ -40,16 +40,24 @@ contours can be sent of for MSDF generation.
 ### Windows
 
 Search for `x64 Native Tools Command Prompt for VS <year>` in the Windows Start
-Menu. Navigate to the project root and run `scripts\build_msvc.bat`. You can
-now run the program with `build\msdf-gen <TTF-file>`.
+Menu. Navigate to the project root and run `scripts\build_msvc.bat`. If you
+want a release build, append `release` before running the build script.
 
 ### Linux
 
-Make sure you have SDL2 installed.
+The program runs under both X11 and Wayland, and depending on which you want to
+run you will need different dependencies. The exact names might vary depending
+on your distro.
 
-Open a terminal and navigate to the project root. From there, run
-`scripts/build_clang.sh`. You can now run the program with `build/msdf-gen
-<TTF-file>`.
+* X11: `xcb`, `xcb-cursor`, `egl`, `xkbcomon-x11`, `xkbcommon`
+* Wayland: `wayland`, `wayland-protocols`, `egl`, `xkbcommon`
+
+You will also need clang. Navigate to the project root and run
+`scripts/build_clang.sh`. The build script will try to detect which window
+server you are currently running and will choose the backend that matches that.
+You can override this by manually specifying either `wayland` or `x11` on the
+command line when running the script. If you want a release build, append
+`release` before running the build script.
 
 ### MacOS
 
@@ -59,11 +67,20 @@ Not supported for now.
 
 ## Usage
 
-You start the program from the command line and provide it with a TTF-file to
-load. From there, it will generate an MSDF atlas with all ASCII characters from
-the font and display it. You can drag around the atlas with the left mouse
-button, and zoom in and out using the scroll wheel. Press tab to switch between
-displaying the raw texture and the MSDF render.
+Start the program. You can either double click on it or run it from the command
+line with a TTF-file to load. You can drag-and-drop TTF-files onto the program
+to load new ones. Pressing F1 gives you a command palette that lists commands
+and shortcuts.
+
+In the Glyph List you can scroll through either all glyphs that are defined in
+the font, or all of Unicode (this will just interleave the defined glyphs with
+with missing glyphs). Glyphs will be generated on demand and there is currently
+no way to export them.
+
+The Glyph View allows you to pan around and zoom-in on glyphs. You can also
+enable contour drawing, debug logs, and raw textures per glyph.
+
+The Preview allows you to type out longer pieces of text to view the result.
 
 
 
@@ -75,5 +92,3 @@ way that MSDFs are rendered, the sudden jumps in the samples will produce these
 artefacts. If the glyphs are rendered one by one, the artefacts won't show up.
 
 [thesis]: https://github.com/Chlumsky/msdfgen/files/3050967/thesis.pdf
-
-https://www.researchgate.net/publication/2880206_Distance_Field_Compression
