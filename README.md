@@ -1,5 +1,7 @@
 # MSDF-gen
 
+![Preview](./preview.png)
+
 This project is meant as a reference implementation of MSDF generation, all
 code relevant for it can be found in `src/font/font_msdf.c` and
 `src/font/font_msdf.h`.  Any other primitives that are used can be found in
