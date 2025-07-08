@@ -84,13 +84,4 @@ enable contour drawing, debug logs, and raw textures per glyph.
 
 The Preview allows you to type out longer pieces of text to view the result.
 
-
-
-## What are the weird lines between the glyphs?
-
-They are the result of texture bleeding. At the edges and corners of entries in
-the atlas, we will sample information from up to 4 different glyphs. Due to the
-way that MSDFs are rendered, the sudden jumps in the samples will produce these
-artefacts. If the glyphs are rendered one by one, the artefacts won't show up.
-
 [thesis]: https://github.com/Chlumsky/msdfgen/files/3050967/thesis.pdf
