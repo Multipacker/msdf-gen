@@ -76,8 +76,8 @@ and shortcuts.
 
 In the Glyph List you can scroll through either all glyphs that are defined in
 the font, or all of Unicode (this will just interleave the defined glyphs with
-with missing glyphs). Glyphs will be generated on demand and there is currently
-no way to export them.
+missing glyphs). Glyphs will be generated on demand and there is currently no
+way to export them.
 
 The Glyph View allows you to pan around and zoom-in on glyphs. You can also
 enable contour drawing, debug logs, and raw textures per glyph.
