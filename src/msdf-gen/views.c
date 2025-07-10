@@ -89,7 +89,7 @@ PANEL_BUILD_FUNCTION(view_glyph_list) {
 
     typedef struct {
         UI_ScrollPosition position;
-        U32 previous_codepoint;
+        S64 index;
     } ViewState;
 
     ViewState *state = tab_get_state(tab, sizeof(ViewState));
@@ -130,6 +130,8 @@ PANEL_BUILD_FUNCTION(view_glyph_list) {
     S64 top_row    = state->position.index + (S64) f32_floor(state->position.offset);
     S64 bottom_row = s64_min(top_row + (state->position.offset != 0.0f) + visible_rows, last_row);
 
+    S64 new_index = s64_min(s64_max(0, state->index), (S64) codepoint_map.codepoint_count - 1);
+
     // NOTE(simon): Scroll region
     ui_width_next(ui_size_pixels(panel_size.x, 1.0f));
     ui_height_next(ui_size_pixels(panel_size.y, 1.0f));
@@ -158,8 +160,8 @@ PANEL_BUILD_FUNCTION(view_glyph_list) {
                         *codepoint = codepoint_from_map_index(codepoint_map, index);
 
                         ui_draw_data_next(codepoint);
-                        ui_focus_hot_next(*codepoint == top_context()->codepoint ? UI_Focus_Active : UI_Focus_Inactive);
-                        ui_focus_active_next(*codepoint == top_context()->codepoint ? UI_Focus_Active : UI_Focus_Inactive);
+                        ui_focus_hot_next(index == state->index ? UI_Focus_Active : UI_Focus_Inactive);
+                        ui_focus_active_next(index == state->index ? UI_Focus_Active : UI_Focus_Inactive);
 
                         UI_Box *box = ui_create_box_from_string_format(
                             UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawBorder | UI_BoxFlag_DrawHot | UI_BoxFlag_DrawActive |
@@ -169,60 +171,57 @@ PANEL_BUILD_FUNCTION(view_glyph_list) {
 
                         UI_Input input = ui_input_from_box(box);
                         if (input.flags & UI_InputFlag_Clicked) {
+                            new_index = index;
                             push_command(Command_SelectCodepoint, .codepoint = *codepoint);
+                        } else if (input.flags & UI_InputFlag_RightClicked) {
+                            new_index = index;
+                            push_command(Command_OpenTab, .tab_specification = str8_literal("GlyphView"), .codepoint = *codepoint);
                         }
                     }
                 }
             }
 
             if (ui_is_focus_active()) {
-                S64 index = index_from_map_codepoint(codepoint_map, top_context()->codepoint);
-
                 for (UI_Event *event = 0; ui_next_event(&event);) {
-                    if (event->kind != UI_EventKind_Navigation) {
-                        continue;
+                    if (event->kind == UI_EventKind_Navigation) {
+                        S64 codepoint_delta = 0;
+                        switch (event->unit) {
+                            case UI_EventDeltaUnit_Null: {
+                            } break;
+                            case UI_EventDeltaUnit_Character: {
+                                codepoint_delta += event->delta.x;
+                                codepoint_delta += event->delta.y * codepoints_per_row;
+                            } break;
+                            case UI_EventDeltaUnit_Word: {
+                            } break;
+                            case UI_EventDeltaUnit_Line: {
+                                if (event->delta.x == -1) {
+                                    codepoint_delta += -new_index % codepoints_per_row;
+                                } else if (event->delta.x == 1) {
+                                    codepoint_delta += codepoints_per_row - 1 - new_index % codepoints_per_row;
+                                }
+                            } break;
+                            case UI_EventDeltaUnit_Page: {
+                                S64 codepoints_per_page = visible_rows * codepoints_per_row;
+                                codepoint_delta += event->delta.y * codepoints_per_page;
+                            } break;
+                            case UI_EventDeltaUnit_Whole: {
+                                if (event->delta.x == -1) {
+                                    codepoint_delta += -new_index;
+                                } else if (event->delta.x == 1) {
+                                    codepoint_delta += (S64) codepoint_map.codepoint_count - 1 - new_index;
+                                }
+                            } break;
+                            case UI_EventDeltaUnit_COUNT: {
+                            } break;
+                        }
+
+                        new_index = s64_min(s64_max(0, new_index + codepoint_delta), (S64) codepoint_map.codepoint_count - 1);
+                        ui_consume_event(event);
+                    } else if (event->kind == UI_EventKind_Accept) {
+                        U32 new_codepoint = codepoint_from_map_index(codepoint_map, new_index);
+                        push_command(Command_SelectCodepoint, .codepoint = new_codepoint);
                     }
-
-                    S64 codepoint_delta = 0;
-                    switch (event->unit) {
-                        case UI_EventDeltaUnit_Null: {
-                        } break;
-                        case UI_EventDeltaUnit_Character: {
-                            codepoint_delta += event->delta.x;
-                            codepoint_delta += event->delta.y * codepoints_per_row;
-                        } break;
-                        case UI_EventDeltaUnit_Word: {
-                        } break;
-                        case UI_EventDeltaUnit_Line: {
-                            if (event->delta.x == -1) {
-                                codepoint_delta += -index % codepoints_per_row;
-                            } else if (event->delta.x == 1) {
-                                codepoint_delta += codepoints_per_row - 1 - index % codepoints_per_row;
-                            }
-                        } break;
-                        case UI_EventDeltaUnit_Page: {
-                            S64 codepoints_per_page = visible_rows * codepoints_per_row;
-                            codepoint_delta += event->delta.y * codepoints_per_page;
-                        } break;
-                        case UI_EventDeltaUnit_Whole: {
-                            if (event->delta.x == -1) {
-                                codepoint_delta += -index;
-                            } else if (event->delta.x == 1) {
-                                codepoint_delta += (S64) codepoint_map.codepoint_count - 1 - index;
-                            }
-                        } break;
-                        case UI_EventDeltaUnit_COUNT: {
-                        } break;
-                    }
-
-                    index = s64_min(s64_max(0, index + codepoint_delta), (S64) codepoint_map.codepoint_count - 1);
-                    ui_consume_event(event);
-                }
-
-                U32 new_codepoint = codepoint_from_map_index(codepoint_map, index);
-
-                if (new_codepoint != top_context()->codepoint) {
-                    push_command(Command_SelectCodepoint, .codepoint = new_codepoint);
                 }
             }
         }
@@ -242,11 +241,10 @@ PANEL_BUILD_FUNCTION(view_glyph_list) {
     state->position.offset += (F32) scroll_delta;
 
     // NOTE(simon): Recenter if the new codepoint is out of view.
-    if (top_context()->codepoint != state->previous_codepoint) {
-        state->previous_codepoint = top_context()->codepoint;
+    if (new_index != state->index) {
+        state->index = new_index;
 
-        S64 active_index = index_from_map_codepoint(codepoint_map, top_context()->codepoint);
-        S64 active_row = active_index / codepoints_per_row;
+        S64 active_row = state->index / codepoints_per_row;
         if (!(top_row <= active_row && active_row < bottom_row)) {
             S64 target_row = active_row - visible_rows / 2;
             S64 delta = target_row - state->position.index;

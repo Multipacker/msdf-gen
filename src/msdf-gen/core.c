@@ -929,9 +929,6 @@ internal Void update(Void) {
                     if (codepoint <= 0x10FFFF) {
                         if (new_tab) {
                             new_tab->codepoint = codepoint;
-                            push_command(Command_FocusPanel, .panel = handle_from_panel(new_panel));
-                            // TODO(simon): Command for focusing a specific tab.
-                            new_panel->active_tab = handle_from_tab(new_tab);
                         } else if (new_panel) {
                             push_command(Command_OpenTab, .tab_specification = str8_literal("GlyphView"), .panel = handle_from_panel(new_panel), .codepoint = codepoint);
                         } else {
