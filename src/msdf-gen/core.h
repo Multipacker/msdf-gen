@@ -73,11 +73,41 @@ typedef struct Tab Tab;
 #define PANEL_BUILD_FUNCTION(name) Void name(Tab *tab, R2F32 panel_rectangle)
 typedef PANEL_BUILD_FUNCTION(PanelBuildFunction);
 
-typedef struct {
+typedef struct TabSpecification TabSpecification;
+struct TabSpecification {
     Str8 name;
     Str8 display_name;
     PanelBuildFunction *build;
-} TabSpecification;
+};
+
+#define TABS                                             \
+    X(Null,        "Empty",             view_null)       \
+    X(GlyphList,   "Glyph list",        view_glyph_list) \
+    X(GlyphView,   "Glyph view",        view_glyph)      \
+    X(RenderStats, "Render statistics", view_stats)      \
+    X(Theme,       "Theme",             view_theme)      \
+    X(Preview,     "Preview",           view_preview)    \
+    X(Test,        "Test",              view_test)
+
+#define X(name, ...) Tab_##name,
+typedef enum {
+    TABS
+    Tab_COUNT,
+} TabKind;
+#undef X
+
+#define X(name, display_name, build) PANEL_BUILD_FUNCTION(build);
+TABS
+#undef X
+
+#define X(name, display_name, build) { str8_literal_compile(#name), str8_literal_compile(display_name), build, },
+global TabSpecification tab_specifications[] = {
+    TABS
+};
+#undef X
+
+TabKind tab_kind_from_string(Str8 string);
+TabSpecification *tab_specification_from_string(Str8 string);
 
 typedef struct Handle Handle;
 struct Handle {
@@ -226,10 +256,10 @@ struct Tab {
     Tab *next;
     Tab *previous;
 
-    Str8 name;
-    Arena *arena;
-    Void  *view_state;
-    PanelBuildFunction *build_view;
+    Str8    name;
+    Arena  *arena;
+    Void   *view_state;
+    TabKind kind;
 
     U64 generation;
 };

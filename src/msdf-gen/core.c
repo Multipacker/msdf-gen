@@ -841,7 +841,7 @@ internal Void update(Void) {
                     if (panel) {
                         TabSpecification *tab_spec = tab_specification_from_string(command_context->tab_specification);
                         Tab *tab = tab_create(state, tab_spec->display_name);
-                        tab->build_view = tab_spec->build;
+                        tab->kind = tab_kind_from_string(command_context->tab_specification);
                         panel_insert_tab(panel, panel->tab_last, tab);
                     }
                 } break;
@@ -1693,7 +1693,7 @@ internal Void update(Void) {
         if (state->drag_state == DragState_Dragging) {
             DragTabData *data = ui_get_drag_data(DragTabData);
             Tab *tab = tab_from_handle(data->tab);
-            if (tab && tab->build_view) {
+            if (tab) {
                 ui_tooltip() {
                     ui_width_next(ui_size_ems(60.0f, 1.0f));
                     ui_height_next(ui_size_ems(40.0f, 1.0f));
@@ -1713,7 +1713,8 @@ internal Void update(Void) {
                         UI_Box *content_box = ui_create_box_from_string(UI_BoxFlag_Clip, str8_literal("###drag_preview"));
 
                         ui_parent(content_box) {
-                            tab->build_view(tab, content_box->calculated_rectangle);
+                            TabSpecification *specification = &tab_specifications[tab->kind];
+                            specification->build(tab, content_box->calculated_rectangle);
                         }
                     }
                 }
@@ -2333,8 +2334,9 @@ internal Void update(Void) {
 
                 ui_parent(content_box) {
                     Tab *tab = tab_from_handle(panel->active_tab);
-                    if (tab && tab->build_view) {
-                        tab->build_view(tab, panel_content_rectangle);
+                    if (tab) {
+                        TabSpecification *specification = &tab_specifications[tab->kind];
+                        specification->build(tab, panel_content_rectangle);
                     } else {
                         ui_width(ui_size_parent_percent(1.0f, 1.0f))
                         ui_height(ui_size_parent_percent(1.0f, 1.0f))

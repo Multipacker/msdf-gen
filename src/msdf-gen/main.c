@@ -39,7 +39,6 @@
  */
 
 #include "core.h"
-#include "views.h"
 
 #include "core.c"
 #include "views.c"
