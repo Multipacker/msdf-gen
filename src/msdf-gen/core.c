@@ -440,7 +440,7 @@ internal Void update(Void) {
             state->base_context.tab = panel_from_handle(active_panel)->active_tab;
         }
         state->base_context.panel = active_panel;
-        state->base_context.codepoint = state->selected_codepoint;
+        state->base_context.codepoint = tab_from_handle(state->base_context.tab) ? tab_from_handle(state->base_context.tab)->codepoint : 0;
         state->context_stack->next = 0;
         state->context_stack = &state->base_context;
     }
@@ -842,6 +842,7 @@ internal Void update(Void) {
                         TabSpecification *tab_spec = tab_specification_from_string(command_context->tab_specification);
                         Tab *tab = tab_create(state, tab_spec->display_name);
                         tab->kind = tab_kind_from_string(command_context->tab_specification);
+                        tab->codepoint = command_context->codepoint;
                         panel_insert_tab(panel, panel->tab_last, tab);
                     }
                 } break;
@@ -897,17 +898,45 @@ internal Void update(Void) {
 
                 } break;
                 case Command_SaveProject: {
-                    // TODO(simon): Replace this with a proper structured text format
-                    Arena_Temporary scratch = arena_get_scratch(0, 0);
-                    Str8List config = { 0 };
-                    str8_list_push(scratch.arena, &config, str8_format(scratch.arena, "codepoint: %lu\n", state->selected_codepoint));
-                    os_file_write(str8_literal("msdf.config"), config);
-                    arena_end_temporary(scratch);
                 } break;
                 case Command_SelectCodepoint: {
                     U32 codepoint = command_context->codepoint;
+
+                    Panel *new_panel = 0;
+                    Tab   *new_tab   = 0;
+
+                    for (Panel *panel = state->panel_root; panel; panel = panel_iterator_depth_first_pre_order(panel, 0).next) {
+                        if (panel->first) {
+                            continue;
+                        }
+
+                        for (Tab *tab = panel->tab_first; tab; tab = tab->next) {
+                            if (tab->kind != Tab_GlyphView) {
+                                continue;
+                            }
+
+                            if (!(new_panel && new_tab && tab_from_handle(new_panel->active_tab) == new_tab)) {
+                                new_panel = panel;
+                                new_tab   = tab;
+                            }
+                        }
+                    }
+
+                    if (!new_panel) {
+                        new_panel = panel_from_handle(state->active_panel);
+                    }
+
                     if (codepoint <= 0x10FFFF) {
-                        state->selected_codepoint = codepoint;
+                        if (new_tab) {
+                            new_tab->codepoint = codepoint;
+                            push_command(Command_FocusPanel, .panel = handle_from_panel(new_panel));
+                            // TODO(simon): Command for focusing a specific tab.
+                            new_panel->active_tab = handle_from_tab(new_tab);
+                        } else if (new_panel) {
+                            push_command(Command_OpenTab, .tab_specification = str8_literal("GlyphView"), .panel = handle_from_panel(new_panel), .codepoint = codepoint);
+                        } else {
+                            // TODO(simon): We should probably still open a tab with the codepoint.
+                        }
                     }
                 } break;
                 case Command_NextTheme: {

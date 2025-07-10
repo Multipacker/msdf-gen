@@ -288,7 +288,6 @@ PANEL_BUILD_FUNCTION(view_glyph) {
         F32 target_zoom;
         F32 zoom;
         V2F32 offset;
-        U32 codepoint;
         U64 log_index;
         B32 *is_group_visible;
         U64 hovered_group;
@@ -306,16 +305,6 @@ PANEL_BUILD_FUNCTION(view_glyph) {
         state->target_zoom = 1.0f;
         state->point_size = 0.5f;
         state->line_width = 0.3f;
-    }
-
-    // NOTE(simon): Reset panning information when a new codepoint is selected.
-    if (global_state->selected_codepoint != state->codepoint) {
-        state->zoom = 1.0f;
-        state->target_zoom = 1.0f;
-        state->offset = v2f32(0.0f, 0.0f);
-        state->log_index = 0;
-        state->is_group_visible = 0;
-        state->codepoint = global_state->selected_codepoint;
     }
 
     F32 point_size = state->point_size * (F32) ui_font_size_top();
@@ -373,7 +362,7 @@ PANEL_BUILD_FUNCTION(view_glyph) {
             state->offset = v2f32_subtract(relative_mouse, v2f32_scale(v2f32_subtract(relative_mouse, state->offset), old_zoom / state->zoom));
         }
 
-        MSDFCache_Glyph *msdf_glyph = msdf_cache_get_glyph(global_state->ttf_font, global_state->selected_codepoint);
+        MSDFCache_Glyph *msdf_glyph = msdf_cache_get_glyph(global_state->ttf_font, tab->codepoint);
         MSDF_LogEntry *log_entry = msdf_glyph->log.first;
         for (U64 i = 0; i < state->log_index; ++i) {
             log_entry = log_entry->next;
@@ -395,7 +384,7 @@ PANEL_BUILD_FUNCTION(view_glyph) {
         draw_list_scope(draw_list) {
             F32 padding = 2.0f * (F32) ui_font_size_top();
 
-            U32 glyph_index = ttf_glyph_index_from_font_codepoint(global_state->ttf_font, global_state->selected_codepoint);
+            U32 glyph_index = ttf_glyph_index_from_font_codepoint(global_state->ttf_font, tab->codepoint);
             MSDF_Glyph glyph = ttf_expand_contours_to_msdf(scratch.arena, global_state->ttf_font, glyph_index);
 
             V2F32 box_size = r2f32_size(box->calculated_rectangle);
@@ -570,7 +559,7 @@ PANEL_BUILD_FUNCTION(view_glyph) {
                         ui_label(str8_literal("Line width"));
                     }
                     ui_spacer_sized(ui_size_ems(0.5f, 1.0f));
-                    ui_label_format("Selected glyph: U+%.6X", global_state->selected_codepoint);
+                    ui_label_format("Selected glyph: U+%.6X", tab->codepoint);
                     ui_spacer_sized(ui_size_ems(0.5f, 1.0f));
                 }
             }

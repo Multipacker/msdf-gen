@@ -346,33 +346,7 @@ internal S32 os_run(Str8List arguments) {
     gfx_set_update_function(update);
     msdf_cache_create(32, gfx_send_wakeup_event);
 
-    // NOTE(simon): Load config
-    // TODO(simon): Replace this with a proper structured text format
-    {
-        Arena_Temporary scratch = arena_get_scratch(0, 0);
-        Str8 config = { 0 };
-        os_file_read(scratch.arena, str8_literal("msdf.config"), &config);
-        Str8List lines = str8_split_by_codepoints(scratch.arena, config, str8_literal("\n"));
-        for (Str8Node *line = lines.first; line; line = line->next) {
-            U64 colon_index = str8_first_index_of(line->string, ':');
-            Str8 property   = str8_prefix(line->string, colon_index);
-            Str8 value      = str8_skip(line->string, colon_index + 1);
-            while (value.size && *value.data == ' ') {
-                value = str8_skip(value, 1);
-            }
-
-            if (str8_equal(property, str8_literal("codepoint"))) {
-                U64Decode decode = u64_from_str8(value);
-                state->selected_codepoint = (U32) decode.value;
-                if (decode.size == 0) {
-                    os_console_print(str8_format(scratch.arena, "Could not parse codepoint '%.*s'\n", str8_expand(value)));
-                }
-            } else {
-                os_console_print(str8_format(scratch.arena, "Unknown property '%.*s'\n", str8_expand(property)));
-            }
-        }
-        arena_end_temporary(scratch);
-    }
+    // TODO(simon): Load config
 
     state->ui = ui_create();
     state->panel_root = panel_create(state);
