@@ -838,8 +838,15 @@ internal MSDF_Glyph ttf_expand_contours_to_msdf(Arena *arena, TTF_Font *font, U3
     TTF_Glyph raw_glyph = ttf_get_glyph_outlines(scratch.arena, font, glyph_index);
     TTF_Glyph glyph     = ttf_flatten_glyph(scratch.arena, raw_glyph);
 
-    result.min = glyph.min;
-    result.max = glyph.max;
+    // NOTE(simon): Convert to points.
+    result.min.x = glyph.min.x / font->funits_per_em;
+    result.min.y = glyph.min.y / font->funits_per_em;
+    result.max.y = glyph.max.y / font->funits_per_em;
+    result.max.x = glyph.max.x / font->funits_per_em;
+    for (S32 i = 0; i < glyph.point_count; ++i) {
+        glyph.point_coordinates[i].x /= font->funits_per_em;
+        glyph.point_coordinates[i].y /= font->funits_per_em;
+    }
 
     for (S32 contour_index = 0, point_index = 0; contour_index < glyph.contour_count; ++contour_index) {
         // FIXME(simon): Apparently there can be empty contours now? We need a
