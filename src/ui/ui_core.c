@@ -764,6 +764,28 @@ internal Void ui_end(Void) {
         ui_layout_position(ui->context_menu_root, Axis2_Y);
     }
 
+    // NOTE(simon): Move tooltip to anchor or mouse.
+    {
+        if (ui_key_is_null(ui->tooltip_anchor_key)) {
+            ui->tooltip_root->calculated_position = ui->mouse;
+        } else {
+            // TODO(simon): Think about how to anchor to boxes that are
+            // partially outside of clip regions. Currently the tooltip stays
+            // in the same place as before, which looks odd as it isn't cut off
+            // by the clip region.
+            UI_Box *anchor = ui_box_from_key(ui->tooltip_anchor_key);
+            V2F32 offset = { 0 };
+            if (anchor->calculated_size.width >= anchor->calculated_size.height) {
+                offset = v2f32(0.5f * (anchor->calculated_size.width - ui->tooltip_root->calculated_size.width), anchor->calculated_size.height);
+            } else {
+                offset = v2f32(anchor->calculated_size.width, 0.5f * (anchor->calculated_size.height - ui->tooltip_root->calculated_size.height));
+            }
+            ui->tooltip_root->calculated_position = v2f32_add(anchor->calculated_rectangle.min, offset);
+        }
+        ui_layout_position(ui->tooltip_root, Axis2_X);
+        ui_layout_position(ui->tooltip_root, Axis2_Y);
+    }
+
     // NOTE(simon): Redo layout for tooltip and context menu.
     {
         UI_Box *update_roots[] = { ui->tooltip_root, ui->context_menu_root, };
@@ -1311,8 +1333,9 @@ internal UI_Input ui_input_from_box(UI_Box *box) {
 
 
 // NOTE(simon): Tooltips
-internal Void ui_tooltip_begin(Void) {
+internal Void ui_tooltip_begin(UI_Key anchor_key) {
     UI_Context *ui = global_ui_state;
+    ui->tooltip_anchor_key = anchor_key;
     ui->is_tooltip_active = true;
     ui_parent_push(ui->tooltip_root);
 }

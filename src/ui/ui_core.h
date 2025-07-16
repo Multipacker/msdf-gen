@@ -367,6 +367,7 @@ struct UI_Context {
     Str8   drag_data;
 
     // NOTE(simon): Tooltip state.
+    UI_Key tooltip_anchor_key;
     F32 tooltip_t;
     B32 is_tooltip_active;
 
@@ -458,9 +459,9 @@ internal V2F32    ui_box_text_location(UI_Box *box);
 internal UI_Input ui_input_from_box(UI_Box *box);
 
 // NOTE(simon): Tooltips
-internal Void ui_tooltip_begin(Void);
+internal Void ui_tooltip_begin(UI_Key anchor_key);
 internal Void ui_tooltip_end(Void);
-#define ui_tooltip() defer_loop(ui_tooltip_begin(), ui_tooltip_end())
+#define ui_tooltip(anchor_key) defer_loop(ui_tooltip_begin(anchor_key), ui_tooltip_end())
 
 // NOTE(simon): Context menus
 internal Void ui_context_menu_open(UI_Key context_key, UI_Key anchor_key, V2F32 anchor_offset);

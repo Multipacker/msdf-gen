@@ -1720,7 +1720,7 @@ internal Void update(Void) {
             DragTabData *data = ui_get_drag_data(DragTabData);
             Tab *tab = tab_from_handle(data->tab);
             if (tab) {
-                ui_tooltip() {
+                ui_tooltip(global_ui_null_key) {
                     ui_width_next(ui_size_ems(60.0f, 1.0f));
                     ui_height_next(ui_size_ems(40.0f, 1.0f));
                     ui_layout_axis_next(Axis2_Y);
