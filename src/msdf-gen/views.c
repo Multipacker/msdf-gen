@@ -272,6 +272,87 @@ PANEL_BUILD_FUNCTION(view_glyph_list) {
     prof_function_end();
 }
 
+typedef enum {
+    MeasureFlag_Vertical   = 1 << 0,
+    MeasureFlag_Horizontal = 1 << 1,
+    MeasureFlag_Inward     = 1 << 2,
+} MeasureFlags;
+
+typedef struct DrawMeasure DrawMeasure;
+struct DrawMeasure {
+    MeasureFlags flags;
+};
+
+UI_BOX_DRAW_FUNCTION(draw_measure) {
+    DrawMeasure *draw_data = (DrawMeasure *) data;
+
+    R2F32 rectangle = box->calculated_rectangle;
+    V2F32 center    = r2f32_center(rectangle);
+    V2F32 half_size = v2f32_scale(r2f32_size(rectangle), 0.5f);
+    V4F32 color     = box->palette.text;
+
+    V2F32 point_offset = draw_data->flags & MeasureFlag_Inward ? v2f32_negate(half_size) : half_size;
+
+    if (draw_data->flags & MeasureFlag_Vertical) {
+        V2F32 min = v2f32(center.x, center.y - half_size.height);
+        V2F32 max = v2f32(center.x, center.y + half_size.height);
+        draw_line(min, max, color, 2, 0, 1.0f);
+
+        draw_line(max, v2f32(max.x - point_offset.width, max.y - point_offset.width), color, 2, 0, 1.0f);
+        draw_line(max, v2f32(max.x + point_offset.width, max.y - point_offset.width), color, 2, 0, 1.0f);
+
+        draw_line(min, v2f32(min.x - point_offset.width, min.y + point_offset.width), color, 2, 0, 1.0f);
+        draw_line(min, v2f32(min.x + point_offset.width, min.y + point_offset.width), color, 2, 0, 1.0f);
+    }
+
+    if (draw_data->flags & MeasureFlag_Horizontal) {
+        V2F32 min = v2f32(center.x - half_size.width, center.y);
+        V2F32 max = v2f32(center.x + half_size.width, center.y);
+        draw_line(min, max, color, 2, 0, 1.0f);
+
+        draw_line(min, v2f32(min.x + point_offset.height, min.y - point_offset.height), color, 2, 0, 1.0f);
+        draw_line(min, v2f32(min.x + point_offset.height, min.y + point_offset.height), color, 2, 0, 1.0f);
+
+        draw_line(max, v2f32(max.x - point_offset.height, max.y - point_offset.height), color, 2, 0, 1.0f);
+        draw_line(max, v2f32(max.x - point_offset.height, max.y + point_offset.height), color, 2, 0, 1.0f);
+    }
+}
+
+internal Void point_widget(V2F32 *location, M3F32 transform, F32 point_size, V4F32 color) {
+    // NOTE(simon): Build palette.
+    UI_Palette palette = ui_palette_top();
+    palette.background = color;
+    ui_palette_next(palette);
+
+    ui_corner_radius_next(point_size);
+
+    // NOTE(simon): Build location and size.
+    V2F32 transformed_location = v2f32_subtract(m3f32_multiply_v2f32(transform, *location), v2f32(point_size, point_size));
+    ui_fixed_position_next(transformed_location);
+    ui_width_next(ui_size_pixels(2.0f * point_size, 1.0f));
+    ui_height_next(ui_size_pixels(2.0f * point_size, 1.0f));
+
+    UI_Box *point_box = ui_create_box_from_string_format(UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawHot | UI_BoxFlag_DrawActive | UI_BoxFlag_Clickable, "##point_%p", location);
+
+    // NOTE(simon): Input
+    UI_Input point_input = ui_input_from_box(point_box);
+    if (point_input.flags & UI_InputFlag_Hovering) {
+        ui_tooltip(point_box->key) {
+            ui_extra_box_flags_next(UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawBorder | UI_BoxFlag_DrawDropShadow);
+
+            ui_palette(palette_from_code(PaletteCode_Button))
+            ui_width(ui_size_children_sum(1.0f))
+            ui_height(ui_size_children_sum(1.0f))
+            ui_column()
+            ui_width(ui_size_text_content(5.0f, 1.0f))
+            ui_height(ui_size_text_content(5.0f, 1.0f)) {
+                ui_label_format("X: %f", location->x);
+                ui_label_format("Y: %f", location->y);
+            }
+        }
+    }
+}
+
 PANEL_BUILD_FUNCTION(view_glyph) {
     prof_function_begin();
     Arena_Temporary scratch = arena_get_scratch(0, 0);
@@ -283,6 +364,7 @@ PANEL_BUILD_FUNCTION(view_glyph) {
         B32 render_raw;
         B32 render_nearest;
         B32 render_logs;
+        B32 render_metrics;
         F32 target_zoom;
         F32 zoom;
         V2F32 offset;
@@ -322,6 +404,270 @@ PANEL_BUILD_FUNCTION(view_glyph) {
             UI_BoxFlag_DefaultNavigationSkip,
             str8_literal("##glyph_viewer")
         );
+        ui_parent_push(box);
+
+        MSDFCache_Glyph *msdf_glyph = msdf_cache_get_glyph(global_state->ttf_font, tab->codepoint);
+        MSDF_LogEntry *log_entry = msdf_glyph->log.first;
+        for (U64 i = 0; i < state->log_index && log_entry; ++i) {
+            log_entry = log_entry->next;
+        }
+        if (!log_entry) {
+            state->log_index = 0;
+            log_entry = msdf_glyph->log.first;
+        }
+        // NOTE(simon): Group visibility state
+        if (log_entry) {
+            B32 *is_group_visible = arena_push_array_no_zero(frame_arena(), B32, log_entry->group_count);
+            if (!state->is_group_visible) {
+                for (U64 i = 0; i < log_entry->group_count; ++i) {
+                    is_group_visible[i] = true;
+                }
+            } else {
+                memory_copy(is_group_visible, state->is_group_visible, log_entry->group_count * sizeof(*is_group_visible));
+            }
+            state->is_group_visible = is_group_visible;
+        }
+
+        F32 padding = 2.0f * (F32) ui_font_size_top();
+
+        U32 glyph_index = ttf_glyph_index_from_font_codepoint(global_state->ttf_font, tab->codepoint);
+        MSDF_Glyph glyph = ttf_expand_contours_to_msdf(scratch.arena, global_state->ttf_font, glyph_index);
+
+        V2F32 box_size = r2f32_size(box->calculated_rectangle);
+        R2F32 glyph_rectangle = r2f32((F32) glyph.min.x, (F32) glyph.min.y, (F32) glyph.max.x, (F32) glyph.max.y);
+        V2F32 glyph_size = r2f32_size(glyph_rectangle);
+
+        M3F32 center_glyph = m3f32_translation(v2f32_negate(r2f32_center(glyph_rectangle)));
+        F32 scale = f32_max(0.0f, f32_min((box_size.x - 2.0f * padding) / glyph_size.x, (box_size.y - 2.0f * padding) / glyph_size.y)) / state->zoom;
+        M3F32 scale_to_box = m3f32_scale(v2f32(scale, -scale));
+        M3F32 center_box = m3f32_translation(v2f32_add(v2f32_scale(r2f32_size(box->calculated_rectangle), 0.5f), state->offset));
+
+        M3F32 transform = m3f32_multiply_m3f32(center_box, m3f32_multiply_m3f32(scale_to_box, center_glyph));
+
+        if (state->render_metrics) {
+            V2F32 origin  = m3f32_multiply_v2f32(transform, v2f32(0.0f, 0.0f));
+            V2F32 advance = m3f32_multiply_v2f32(transform, v2f32(msdf_glyph->advance_pt, 0.0f));
+
+            typedef enum {
+                Metric_Point,
+                Metric_Horizontal,
+                Metric_Vertical,
+            } MetricKind;
+            typedef struct Metric Metric;
+            struct Metric {
+                MetricKind kind;
+                V2F32      location;
+                F32        size;
+                Str8       key;
+                Str8       name;
+            };
+            Metric metrics[] = {
+                { .kind = Metric_Point,      .location = origin,                                          .key = str8_literal("##origin_point"),  .name = str8_literal("Origin"),        },
+                { .kind = Metric_Point,      .location = advance,                                         .key = str8_literal("##advance_point"), .name = str8_literal("Advance point"), },
+                { .kind = Metric_Horizontal, .location = origin,  .size = msdf_glyph->advance_pt * scale, .key = str8_literal("##advance_width"), .name = str8_literal("Advance width"), },
+                { .kind = Metric_Vertical,   .location = origin,  .size = 1.0f * scale,                   .key = str8_literal("##em"),            .name = str8_literal("em size"),       },
+            };
+
+            UI_Palette metrics_palette = { 0 };
+            metrics_palette.background = color_from_theme(ThemeColor_Outline);
+            metrics_palette.text       = color_from_theme(ThemeColor_Text);
+
+            F32 arrow_half_width = ui_size_ems(1.0f, 0.0f).value;
+
+            ui_palette(metrics_palette)
+            for (U32 i = 0; i < array_count(metrics); ++i) {
+                B32 hovered = false;
+                UI_Key tooltip_key = global_ui_null_key;
+
+                switch (metrics[i].kind) {
+                    case Metric_Point: {
+                        ui_corner_radius_next(point_size);
+                        ui_fixed_x_next(metrics[i].location.x - point_size);
+                        ui_fixed_y_next(metrics[i].location.y - point_size);
+                        ui_width_next(ui_size_pixels(2.0f * point_size, 1.0f));
+                        ui_height_next(ui_size_pixels(2.0f * point_size, 1.0f));
+                        UI_Box *metric_box = ui_create_box_from_string(UI_BoxFlag_DrawBackground | UI_BoxFlag_Clickable | UI_BoxFlag_DefaultNavigationSkip, metrics[i].key);
+
+                        hovered |= ui_input_from_box(metric_box).flags & UI_InputFlag_Hovering;
+                        tooltip_key = metric_box->key;
+                    } break;
+                    case Metric_Horizontal: {
+                        DrawMeasure *draw_data = arena_push_struct(ui_frame_arena(), DrawMeasure);
+                        draw_data->flags = MeasureFlag_Horizontal;
+                        ui_draw_function_next(draw_measure);
+                        ui_draw_data_next(draw_data);
+                        ui_fixed_x_next(metrics[i].location.x);
+                        ui_fixed_y_next(metrics[i].location.y - arrow_half_width);
+                        ui_width_next(ui_size_pixels(metrics[i].size, 1.0f));
+                        ui_height_next(ui_size_pixels(2.0f * arrow_half_width, 1.0f));
+                        UI_Box *arrow_box = ui_create_box_from_string_format(UI_BoxFlag_Clickable | UI_BoxFlag_DefaultNavigationSkip, "%.*sarrow", str8_expand(metrics[i].key));
+                        hovered |= ui_input_from_box(arrow_box).flags & UI_InputFlag_Hovering;
+
+                        ui_fixed_x_next(metrics[i].location.x + metrics[i].size - line_width);
+                        ui_fixed_y_next(0);
+                        ui_width_next(ui_size_pixels(2.0f * line_width, 1.0f));
+                        ui_height_next(ui_size_fill());
+                        UI_Box *metric_box = ui_create_box_from_string(UI_BoxFlag_DrawBackground | UI_BoxFlag_Clickable | UI_BoxFlag_DefaultNavigationSkip, metrics[i].key);
+                        hovered |= ui_input_from_box(metric_box).flags & UI_InputFlag_Hovering;
+
+                        tooltip_key = arrow_box->key;
+                    } break;
+                    case Metric_Vertical: {
+                        DrawMeasure *draw_data = arena_push_struct(ui_frame_arena(), DrawMeasure);
+                        draw_data->flags = MeasureFlag_Vertical;
+                        ui_draw_function_next(draw_measure);
+                        ui_draw_data_next(draw_data);
+                        ui_fixed_x_next(metrics[i].location.x - arrow_half_width);
+                        ui_fixed_y_next(metrics[i].location.y - metrics[i].size);
+                        ui_width_next(ui_size_pixels(2.0f * arrow_half_width, 1.0f));
+                        ui_height_next(ui_size_pixels(metrics[i].size, 1.0f));
+                        UI_Box *arrow_box = ui_create_box_from_string_format(UI_BoxFlag_Clickable | UI_BoxFlag_DefaultNavigationSkip, "%.*sarrow", str8_expand(metrics[i].key));
+                        hovered |= ui_input_from_box(arrow_box).flags & UI_InputFlag_Hovering;
+
+                        ui_fixed_x_next(0);
+                        ui_fixed_y_next(metrics[i].location.y - metrics[i].size - line_width);
+                        ui_width_next(ui_size_fill());
+                        ui_height_next(ui_size_pixels(2.0f * line_width, 1.0f));
+                        UI_Box *metric_box = ui_create_box_from_string(UI_BoxFlag_DrawBackground | UI_BoxFlag_Clickable | UI_BoxFlag_DefaultNavigationSkip, metrics[i].key);
+                        hovered |= ui_input_from_box(metric_box).flags & UI_InputFlag_Hovering;
+
+                        tooltip_key = arrow_box->key;
+                    } break;
+                }
+
+                if (hovered) {
+                    ui_tooltip(tooltip_key) {
+                        ui_width_next(ui_size_text_content(0.0f, 1.0f));
+                        ui_height_next(ui_size_text_content(0.0f, 1.0f));
+                        ui_label(metrics[i].name);
+                    }
+                }
+            }
+        }
+
+        Draw_List *draw_list = draw_list_create();
+        draw_list_scope(draw_list) {
+            V4F32 tint = box->palette.text;
+            Render_ShapeFlags flags = Render_ShapeFlag_MSDF;
+            Render_Filtering filtering = state->render_nearest ? Render_Filtering_Nearest : Render_Filtering_Linear;
+            if (state->render_raw) {
+                tint = v4f32(1.0f, 1.0f, 1.0f, 1.0f);
+                flags = Render_ShapeFlag_Texture;
+            }
+
+            V2F32 uv_size = r2f32_size(msdf_glyph->uv);
+
+            draw_filtering(filtering) {
+                V2F32 min_corner = m3f32_multiply_v2f32(transform, v2f32(glyph_rectangle.min.x - glyph_size.width  * 0.5f / uv_size.width, glyph_rectangle.min.y - glyph_size.height * 0.5f / uv_size.height));
+                V2F32 max_corner = m3f32_multiply_v2f32(transform, v2f32(glyph_rectangle.max.x + glyph_size.width  * 0.5f / uv_size.width, glyph_rectangle.max.y + glyph_size.height * 0.5f / uv_size.height));
+                draw_texture(
+                    r2f32(min_corner.x, min_corner.y, max_corner.x, max_corner.y),
+                    // NOTE(simon): Need flip vertically because outlines use the
+                    // same coordinates system as TTF-files, which is flipped
+                    // vertically.
+                    r2f32(
+                        msdf_glyph->uv.min.x,
+                        msdf_glyph->uv.max.y,
+                        msdf_glyph->uv.max.x,
+                        msdf_glyph->uv.min.y
+                    ),
+                    msdf_glyph->texture,
+                    tint,
+                    0.0f, 0.0f, 0.0f,
+                    flags
+                );
+            }
+
+            if (state->render_outline) {
+                for (MSDF_Contour *contour = glyph.first_contour; contour; contour = contour->next) {
+                    for (MSDF_Segment *segment = contour->first_segment; segment; segment = segment->next) {
+                        switch (segment->kind) {
+                            case MSDF_Segment_Null: {
+                            } break;
+                            case MSDF_Segment_Line: {
+                                draw_line(m3f32_multiply_v2f32(transform, segment->p0), m3f32_multiply_v2f32(transform, segment->p1), color_from_theme(ThemeColor_Outline), line_width, 0.0f, 1.0f);
+                            } break;
+                            case MSDF_Segment_QuadraticBezier: {
+                                draw_bezier(m3f32_multiply_v2f32(transform, segment->p0), m3f32_multiply_v2f32(transform, segment->p1), m3f32_multiply_v2f32(transform, segment->p2), color_from_theme(ThemeColor_Outline), line_width, 0.0f, 1.0f);
+                            } break;
+                            case MSDF_Segment_COUNT: {
+                            } break;
+                        }
+                    }
+                }
+            }
+
+            if (state->render_points) {
+                for (MSDF_Contour *contour = glyph.first_contour; contour; contour = contour->next) {
+                    for (MSDF_Segment *segment = contour->first_segment; segment; segment = segment->next) {
+                        switch (segment->kind) {
+                            case MSDF_Segment_Null: {
+                            } break;
+                            case MSDF_Segment_Line: {
+                                point_widget(&segment->p0, transform, point_size, color_from_theme(ThemeColor_OnCurve));
+                                point_widget(&segment->p1, transform, point_size, color_from_theme(ThemeColor_OnCurve));
+                            } break;
+                            case MSDF_Segment_QuadraticBezier: {
+                                point_widget(&segment->p0, transform, point_size, color_from_theme(ThemeColor_OnCurve));
+                                point_widget(&segment->p1, transform, point_size, color_from_theme(ThemeColor_OffCurve));
+                                point_widget(&segment->p2, transform, point_size, color_from_theme(ThemeColor_OnCurve));
+                            } break;
+                            case MSDF_Segment_COUNT: {
+                            } break;
+                        }
+                    }
+                }
+            }
+
+            if (state->render_logs && log_entry) {
+                U64 group_index = 0;
+                for (MSDF_LogGroup *group = log_entry->first_group; group; group = group->next, ++group_index) {
+                    if (!state->is_group_visible[group_index]) {
+                        continue;
+                    }
+                    for (MSDF_LogGeometry *geometry = group->first_geometry; geometry; geometry = geometry->next) {
+                        V4F32 color = geometry->color;
+
+                        if (1 + group_index == state->hovered_group) {
+                            V4F32 target = color_from_theme(ThemeColor_Hover);
+                            color.r = f32_lerp(color.r, target.r, state->hovered_t);
+                            color.g = f32_lerp(color.g, target.g, state->hovered_t);
+                            color.b = f32_lerp(color.b, target.b, state->hovered_t);
+                            color.a = f32_lerp(color.a, target.a, state->hovered_t);
+                        }
+
+                        switch (geometry->kind) {
+                            case MSDF_LogKind_Point: {
+                                point_widget(&geometry->p0, transform, point_size, color);
+                            } break;
+                            case MSDF_LogKind_Line: {
+                                draw_line(m3f32_multiply_v2f32(transform, geometry->p0), m3f32_multiply_v2f32(transform, geometry->p1), color, line_width, 0.0f, 1.0f);
+                            } break;
+                            case MSDF_LogKind_Bezier: {
+                                draw_bezier(m3f32_multiply_v2f32(transform, geometry->p0), m3f32_multiply_v2f32(transform, geometry->p1), m3f32_multiply_v2f32(transform, geometry->p2), color, line_width, 0.0f, 1.0f);
+                            } break;
+                        }
+                    }
+                }
+
+                if (state->hovered_group) {
+                    state->hovered_t += (state->hovered_target_t - state->hovered_t) * ui_animation_super_slow_rate();
+                    if (f32_abs(state->hovered_target_t - state->hovered_t) < 0.01f) {
+                        state->hovered_target_t = 1.0f - state-> hovered_target_t;
+                    }
+                    request_frame();
+                } else {
+                    state->hovered_t = 0.0f;
+                    state->hovered_target_t = 0.0f;
+                }
+            }
+
+        }
+        ui_box_set_draw_list(box, draw_list);
+
+        // NOTE(simon): Pop box
+        ui_parent_pop();
+
         UI_Input input = ui_input_from_box(box);
 
         if (input.flags & UI_InputFlag_LeftDragging) {
@@ -360,164 +706,6 @@ PANEL_BUILD_FUNCTION(view_glyph) {
             state->offset = v2f32_subtract(relative_mouse, v2f32_scale(v2f32_subtract(relative_mouse, state->offset), old_zoom / state->zoom));
         }
 
-        MSDFCache_Glyph *msdf_glyph = msdf_cache_get_glyph(global_state->ttf_font, tab->codepoint);
-        MSDF_LogEntry *log_entry = msdf_glyph->log.first;
-        for (U64 i = 0; i < state->log_index; ++i) {
-            log_entry = log_entry->next;
-        }
-        // NOTE(simon): Group visibility state
-        if (log_entry) {
-            B32 *is_group_visible = arena_push_array_no_zero(frame_arena(), B32, log_entry->group_count);
-            if (!state->is_group_visible) {
-                for (U64 i = 0; i < log_entry->group_count; ++i) {
-                    is_group_visible[i] = true;
-                }
-            } else {
-                memory_copy(is_group_visible, state->is_group_visible, log_entry->group_count * sizeof(*is_group_visible));
-            }
-            state->is_group_visible = is_group_visible;
-        }
-
-        Draw_List *draw_list = draw_list_create();
-        draw_list_scope(draw_list) {
-            F32 padding = 2.0f * (F32) ui_font_size_top();
-
-            U32 glyph_index = ttf_glyph_index_from_font_codepoint(global_state->ttf_font, tab->codepoint);
-            MSDF_Glyph glyph = ttf_expand_contours_to_msdf(scratch.arena, global_state->ttf_font, glyph_index);
-
-            V2F32 box_size = r2f32_size(box->calculated_rectangle);
-            R2F32 glyph_rectangle = r2f32((F32) glyph.min.x, (F32) glyph.min.y, (F32) glyph.max.x, (F32) glyph.max.y);
-            V2F32 glyph_size = r2f32_size(glyph_rectangle);
-
-            M3F32 center_glyph = m3f32_translation(v2f32_negate(r2f32_center(glyph_rectangle)));
-            F32 scale = f32_max(0.0f, f32_min((box_size.x - 2.0f * padding) / glyph_size.x, (box_size.y - 2.0f * padding) / glyph_size.y)) / state->zoom;
-            M3F32 scale_to_box = m3f32_scale(v2f32(scale, -scale));
-            M3F32 center_box = m3f32_translation(v2f32_add(v2f32_scale(r2f32_size(box->calculated_rectangle), 0.5f), state->offset));
-
-            M3F32 transform = m3f32_multiply_m3f32(center_box, m3f32_multiply_m3f32(scale_to_box, center_glyph));
-
-            draw_transform(transform) {
-                V4F32 tint = box->palette.text;
-                Render_ShapeFlags flags = Render_ShapeFlag_MSDF;
-                Render_Filtering filtering = state->render_nearest ? Render_Filtering_Nearest : Render_Filtering_Linear;
-                if (state->render_raw) {
-                    tint = v4f32(1.0f, 1.0f, 1.0f, 1.0f);
-                    flags = Render_ShapeFlag_Texture;
-                }
-
-                V2F32 uv_size = r2f32_size(msdf_glyph->uv);
-
-                draw_filtering(filtering) {
-                    draw_texture(
-                        r2f32(
-                            glyph_rectangle.min.x - glyph_size.width  * 0.5f / uv_size.width,
-                            glyph_rectangle.min.y - glyph_size.height * 0.5f / uv_size.height,
-                            glyph_rectangle.max.x + glyph_size.width  * 0.5f / uv_size.width,
-                            glyph_rectangle.max.y + glyph_size.height * 0.5f / uv_size.height
-                        ),
-                        // NOTE(simon): Need flip vertically because outlines use the
-                        // same coordinates system as TTF-files, which is flipped
-                        // vertically.
-                        r2f32(
-                            msdf_glyph->uv.min.x,
-                            msdf_glyph->uv.max.y,
-                            msdf_glyph->uv.max.x,
-                            msdf_glyph->uv.min.y
-                        ),
-                        msdf_glyph->texture,
-                        tint,
-                        0.0f, 0.0f, 0.0f,
-                        flags
-                    );
-                }
-
-                if (state->render_outline) {
-                    for (MSDF_Contour *contour = glyph.first_contour; contour; contour = contour->next) {
-                        for (MSDF_Segment *segment = contour->first_segment; segment; segment = segment->next) {
-                            switch (segment->kind) {
-                                case MSDF_Segment_Null: {
-                                } break;
-                                case MSDF_Segment_Line: {
-                                    draw_line(segment->p0, segment->p1, color_from_theme(ThemeColor_Outline), line_width / scale, 0.0f, 1.0f / scale);
-                                } break;
-                                case MSDF_Segment_QuadraticBezier: {
-                                    draw_bezier(segment->p0, segment->p1, segment->p2, color_from_theme(ThemeColor_Outline), line_width / scale, 0.0f, 1.0f / scale);
-                                } break;
-                                case MSDF_Segment_COUNT: {
-                                } break;
-                            }
-                        }
-                    }
-                }
-
-                if (state->render_points) {
-                    for (MSDF_Contour *contour = glyph.first_contour; contour; contour = contour->next) {
-                        for (MSDF_Segment *segment = contour->first_segment; segment; segment = segment->next) {
-                            switch (segment->kind) {
-                                case MSDF_Segment_Null: {
-                                } break;
-                                case MSDF_Segment_Line: {
-                                    draw_circle(segment->p0, point_size / scale, color_from_theme(ThemeColor_OnCurve), 0.0f, 1.0f / scale);
-                                    draw_circle(segment->p1, point_size / scale, color_from_theme(ThemeColor_OnCurve), 0.0f, 1.0f / scale);
-                                } break;
-                                case MSDF_Segment_QuadraticBezier: {
-                                    draw_circle(segment->p0, point_size / scale, color_from_theme(ThemeColor_OnCurve), 0.0f, 1.0f / scale);
-                                    draw_circle(segment->p1, point_size / scale, color_from_theme(ThemeColor_OffCurve), 0.0f, 1.0f / scale);
-                                    draw_circle(segment->p2, point_size / scale, color_from_theme(ThemeColor_OnCurve), 0.0f, 1.0f / scale);
-                                } break;
-                                case MSDF_Segment_COUNT: {
-                                } break;
-                            }
-                        }
-                    }
-                }
-
-                if (state->render_logs && log_entry) {
-                    U64 group_index = 0;
-                    for (MSDF_LogGroup *group = log_entry->first_group; group; group = group->next, ++group_index) {
-                        if (!state->is_group_visible[group_index]) {
-                            continue;
-                        }
-                        for (MSDF_LogGeometry *geometry = group->first_geometry; geometry; geometry = geometry->next) {
-                            V4F32 color = geometry->color;
-
-                            if (1 + group_index == state->hovered_group) {
-                                V4F32 target = color_from_theme(ThemeColor_Hover);
-                                color.r = f32_lerp(color.r, target.r, state->hovered_t);
-                                color.g = f32_lerp(color.g, target.g, state->hovered_t);
-                                color.b = f32_lerp(color.b, target.b, state->hovered_t);
-                                color.a = f32_lerp(color.a, target.a, state->hovered_t);
-                            }
-
-                            switch (geometry->kind) {
-                                case MSDF_LogKind_Point: {
-                                    draw_circle(geometry->p0, point_size / scale, color, 0.0f, 1.0f / scale);
-                                } break;
-                                case MSDF_LogKind_Line: {
-                                    draw_line(geometry->p0, geometry->p1, color, line_width / scale, 0.0f, 1.0f / scale);
-                                } break;
-                                case MSDF_LogKind_Bezier: {
-                                    draw_bezier(geometry->p0, geometry->p1, geometry->p2, color, line_width / scale, 0.0f, 1.0f / scale);
-                                } break;
-                            }
-                        }
-                    }
-
-                    if (state->hovered_group) {
-                        state->hovered_t += (state->hovered_target_t - state->hovered_t) * ui_animation_super_slow_rate();
-                        if (f32_abs(state->hovered_target_t - state->hovered_t) < 0.01f) {
-                            state->hovered_target_t = 1.0f - state-> hovered_target_t;
-                        }
-                        request_frame();
-                    } else {
-                        state->hovered_t = 0.0f;
-                        state->hovered_target_t = 0.0f;
-                    }
-                }
-            }
-        }
-        ui_box_set_draw_list(box, draw_list);
-
         ui_width_next(ui_size_fill());
         ui_height_next(ui_size_children_sum(1.0f));
         ui_row()
@@ -538,6 +726,8 @@ PANEL_BUILD_FUNCTION(view_glyph) {
                     ui_checkbox_b32(&state->render_nearest, str8_literal("Draw nearest"));
                     ui_spacer_sized(ui_size_ems(0.5f, 1.0f));
                     ui_checkbox_b32(&state->render_logs, str8_literal("Draw logs"));
+                    ui_spacer_sized(ui_size_ems(0.5f, 1.0f));
+                    ui_checkbox_b32(&state->render_metrics, str8_literal("Draw metrics"));
                     ui_spacer_sized(ui_size_ems(0.5f, 1.0f));
                     ui_width_next(ui_size_children_sum(1.0f));
                     ui_height_next(ui_size_children_sum(1.0f));
