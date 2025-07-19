@@ -194,6 +194,7 @@ internal Void msdf_cache_update(Void) {
                     entry->description = str8_copy(state->arena, src_entry->description);
                     for (MSDF_LogGroup *src_group = src_entry->first_group; src_group; src_group = src_group->next) {
                         MSDF_LogGroup *group = arena_push_struct(state->glyph_arena, MSDF_LogGroup);
+                        group->text = str8_copy(state->glyph_arena, src_group->text);
                         for (MSDF_LogGeometry *src_geometry = src_group->first_geometry; src_geometry; src_geometry = src_geometry->next) {
                             MSDF_LogGeometry *geometry = arena_push_struct(state->glyph_arena, MSDF_LogGeometry);
                             memory_copy(geometry, src_geometry, sizeof(*geometry));

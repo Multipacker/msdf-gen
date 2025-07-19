@@ -602,7 +602,12 @@ PANEL_BUILD_FUNCTION(view_glyph) {
                                     ui_column_begin();
                                 }
                                 ui_spacer_sized(ui_size_ems(0.5f, 1.0f));
-                                UI_Input check_input = ui_checkbox_b32_format(&state->is_group_visible[group_index], "%lu", group_index);
+                                UI_Input check_input = { 0 };
+                                if (group->text.size) {
+                                    check_input = ui_checkbox_b32_format(&state->is_group_visible[group_index], "%lu: %.*s", group_index, str8_expand(group->text));
+                                } else {
+                                    check_input = ui_checkbox_b32_format(&state->is_group_visible[group_index], "%lu", group_index);
+                                }
                                 if (check_input.flags & UI_InputFlag_Hovering) {
                                     next_hovered_group = 1 + group_index;
                                 }

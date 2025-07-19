@@ -45,8 +45,9 @@ internal Void msdf_log_push_entry(Arena *arena, MSDF_Log *log, Str8 description)
     ++log->count;
 }
 
-internal MSDF_LogGroup *msdf_log_push_group(Arena *arena, MSDF_Log *log) {
+internal MSDF_LogGroup *msdf_log_push_group(Arena *arena, MSDF_Log *log, Str8 text) {
     MSDF_LogGroup *group = arena_push_struct(arena, MSDF_LogGroup);
+    group->text = str8_copy(arena, text);
     MSDF_LogEntry *entry = log->last;
     dll_push_back(entry->first_group, entry->last_group, group);
     ++entry->group_count;
@@ -58,7 +59,7 @@ internal MSDF_LogGeometry *msdf_log_push_geometry(Arena *arena, MSDF_Log *log) {
     MSDF_LogEntry *entry = log->last;
     MSDF_LogGroup *group = entry->last_group;
     if (!group) {
-        group = msdf_log_push_group(arena, log);
+        group = msdf_log_push_group(arena, log, str8_literal(""));
     }
     dll_push_back(group->first_geometry, group->last_geometry, geometry);
     return geometry;
@@ -634,12 +635,13 @@ internal Void msdf_resolve_contour_overlap(Arena *arena, MSDF_Glyph *glyph, Aren
                     b_intersections[intersection_count] = b_new;
 
                     msdf_log_push_entry(log_arena, log, str8_literal("Intersection"));
-                    msdf_log_push_group(log_arena, log);
-                    msdf_log_push_contour(log_arena, log, a_contour, v4f32(1, 0, 0, 1));
-                    msdf_log_push_group(log_arena, log);
-                    msdf_log_push_contour(log_arena, log, b_contour, v4f32(0, 0, 1, 1));
-                    msdf_log_push_group(log_arena, log);
-                    msdf_log_push_point(log_arena, log, a_new->p0, v4f32(0, 1, 0, 1));
+                    msdf_log_push_group(log_arena, log, str8_literal(""));
+                    msdf_log_push_contour(log_arena, log, a_contour, v4f32(1.0f, 0.0f, 0.0f, 1.0f));
+                    msdf_log_push_group(log_arena, log, str8_literal(""));
+                    msdf_log_push_contour(log_arena, log, b_contour, v4f32(0.0f, 1.0f, 0.0f, 1.0f));
+                    msdf_log_push_group(log_arena, log, str8_literal(""));
+                    msdf_log_push_point(log_arena, log, a_new->p0, v4f32(0.5f, 0.0f, 0.0f, 1.0f));
+                    msdf_log_push_point(log_arena, log, b_new->p0, v4f32(0.0f, 0.5f, 0.0f, 1.0f));
 
                     // The corner with the narrowest angle is moved "inwards".
                     // It needs to move at least the distance between the two
@@ -717,9 +719,9 @@ internal Void msdf_resolve_contour_overlap(Arena *arena, MSDF_Glyph *glyph, Aren
                         a_swap_last->next = 0;
 
                         msdf_log_push_entry(log_arena, log, str8_literal("Swap"));
-                        msdf_log_push_group(log_arena, log);
+                        msdf_log_push_group(log_arena, log, str8_literal(""));
                         msdf_log_push_contour(log_arena, log, a_contour, v4f32(1, 0, 0, 1));
-                        msdf_log_push_group(log_arena, log);
+                        msdf_log_push_group(log_arena, log, str8_literal(""));
                         msdf_log_push_contour(log_arena, log, b_contour, v4f32(0, 0, 1, 1));
 
                         intersection_count = 0;
@@ -790,7 +792,7 @@ internal Void msdf_correct_contour_orientation(Arena *arena, MSDF_Glyph *glyph, 
     msdf_log_push_entry(arena, log, str8_literal("local windig"));
     for (MSDF_Contour *contour = glyph->first_contour; contour; contour = contour->next) {
         contour->local_winding = msdf_contour_calculate_own_winding_number(contour);
-        msdf_log_push_group(arena, log);
+        msdf_log_push_group(arena, log, str8_literal(""));
         V4F32 color = contour->local_winding == 1 ? v4f32(0, 1, 0, 1) : v4f32(1, 0, 0, 1);
         msdf_log_push_contour(arena, log, contour, color);
     }
@@ -810,7 +812,7 @@ internal Void msdf_correct_contour_orientation(Arena *arena, MSDF_Glyph *glyph, 
 
     msdf_log_push_entry(arena, log, str8_literal("orientation correction"));
     for (MSDF_Contour *contour = glyph->first_contour; contour; contour = contour->next) {
-        msdf_log_push_group(arena, log);
+        msdf_log_push_group(arena, log, str8_literal(""));
         V4F32 color = v4f32(1, 0, 0, 1);
         if ((contour->flags & (MSDF_ContourFlag_Flip | MSDF_ContourFlag_Keep)) == (MSDF_ContourFlag_Flip | MSDF_ContourFlag_Keep)) {
             color = v4f32(1, 1, 0, 1);
@@ -845,7 +847,7 @@ internal Void msdf_correct_contour_orientation(Arena *arena, MSDF_Glyph *glyph, 
 
         if (contour->flags & MSDF_ContourFlag_Keep) {
             dll_push_back(first, last, contour);
-            msdf_log_push_group(arena, log);
+            msdf_log_push_group(arena, log, str8_literal(""));
             V4F32 color = ((contour->local_winding == 1) ^ ((contour->flags & MSDF_ContourFlag_Flip) == MSDF_ContourFlag_Flip)) ? v4f32(0, 1, 0, 1) : v4f32(1, 0, 0, 1);
             msdf_log_push_contour(arena, log, contour, color);
         }
@@ -933,7 +935,7 @@ internal Void msdf_color_edges(Arena *arena, MSDF_Glyph glyph, MSDF_Log *log) {
 
     msdf_log_push_entry(arena, log, str8_literal("coloring"));
     for (MSDF_Contour *contour = glyph.first_contour; contour; contour = contour->next) {
-        msdf_log_push_group(arena, log);
+        msdf_log_push_group(arena, log, str8_literal(""));
         if (contour->first_segment) {
             msdf_log_push_point(arena, log, contour->first_segment->p0, v4f32(0, 0, 0, 1));
         }

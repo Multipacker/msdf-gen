@@ -91,6 +91,7 @@ struct MSDF_LogGroup {
     MSDF_LogGroup *next;
     MSDF_LogGroup *previous;
 
+    Str8 text;
     MSDF_LogGeometry *first_geometry;
     MSDF_LogGeometry *last_geometry;
 };
@@ -131,7 +132,7 @@ struct MSDF_RasterResult {
 
 internal Void              msdf_log_push_entry(Arena *arena, MSDF_Log *log, Str8 description);
 internal MSDF_LogGeometry *msdf_log_push_geometry(Arena *arena, MSDF_Log *log);
-internal MSDF_LogGroup    *msdf_log_push_group(Arena *arena, MSDF_Log *log);
+internal MSDF_LogGroup    *msdf_log_push_group(Arena *arena, MSDF_Log *log, Str8 text);
 internal MSDF_LogGeometry *msdf_log_push_point(Arena *arena, MSDF_Log *log, V2F32 p0, V4F32 color);
 internal MSDF_LogGeometry *msdf_log_push_line(Arena *arena, MSDF_Log *log, V2F32 p0, V2F32 p1, V4F32 color);
 internal MSDF_LogGeometry *msdf_log_push_bezier(Arena *arena, MSDF_Log *log, V2F32 p0, V2F32 p1, V2F32 p2, V4F32 color);
