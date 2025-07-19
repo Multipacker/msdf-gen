@@ -151,13 +151,13 @@ internal F32 msdf_line_signed_pseudo_distance(V2F32 point, MSDF_Segment line);
 internal F32 msdf_quadratic_bezier_signed_pseudo_distance(V2F32 point, MSDF_Segment bezier, F32 clamped_t);
 
 internal Void msdf_segment_split(MSDF_Segment segment, F32 t, MSDF_Segment *result_a, MSDF_Segment *result_b);
-internal U32 msdf_segment_intersect(MSDF_Segment a, MSDF_Segment b, F32 *result_ats, F32 *result_bts);
+internal U32 msdf_segment_intersect(MSDF_Segment a, MSDF_Segment b, F32 *result_ats, F32 *result_bts, Arena *log_arena, MSDF_Log *log);
 
 internal S32 msdf_contour_calculate_own_winding_number(MSDF_Contour *contour);
 internal S32 msdf_contour_calculate_winding_number(MSDF_Contour *contour, V2F32 point);
 
 internal Void msdf_resolve_contour_overlap(Arena *arena, MSDF_Glyph *glyph, Arena *log_arena, MSDF_Log *log);
-internal Void msdf_convert_to_simple_polygons(Arena *arena, MSDF_Glyph *glyph);
+internal Void msdf_convert_to_simple_polygons(Arena *arena, MSDF_Glyph *glyph, Arena *log_arena, MSDF_Log *log);
 internal Void msdf_correct_contour_orientation(Arena *arena, MSDF_Glyph *glyph, MSDF_Log *log);
 
 internal MSDF_RasterResult msdf_generate_from_glyph_index(Arena *arena, TTF_Font *font, U32 glyph_index, U32 render_size);

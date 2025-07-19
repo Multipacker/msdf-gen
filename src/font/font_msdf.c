@@ -232,77 +232,74 @@ internal U32 msdf_quadratic_bezier_intersect(MSDF_Segment a, MSDF_Segment b, F32
     return count;
 }
 
-/*
- * Solving for the intersection of a quadratci bezier and a line segment it
- * equivalent to solving the following equation.
- *
- *   p0 * (1 - t) + p1 * t = q0 * (1 - u)^2 + q1 * 2 * u * (1 - u) + q2 * u^2 { 0 <= t <= 1, 0 <= u <= 1 }
- *
- * Where:
- *   p0 and p1 are the points defining the line.
- *   q0, q1 and q2 are the points defining the quadratci bezier curve.
- *   t specifies how far along the line the solution is.
- *   u specifies how far along the quadratic bezier the solution is.
- *
- * Solving this gives the folowing quadratic.
- *               __________
- *       -b +- \/ b^2 - 4ac
- *   u = ------------------
- *              2a
- *
- * Where:
- *   a = (p1 - p0) x (q0 - 2 * q1 + q2)
- *   b = (p1 - p0) x (2 * q1 - 2 * q0)
- *   c = (p1 - p0) x (q0 - p0)
- */
-internal U32 msdf_line_quadratic_bezier_intersect(MSDF_Segment line, MSDF_Segment bezier, F32 *result_ats, F32 *result_bts) {
-    V2F32 line_direction = v2f32_subtract(line.p1, line.p0);
+internal U32 msdf_line_quadratic_bezier_intersect(MSDF_Segment line, MSDF_Segment bezier, F32 *result_line_ts, F32 *result_bezier_ts) {
+    // NOTE(simon): Extract points.
+    V2F32 l0 = line.p0;
+    V2F32 l1 = line.p1;
+    V2F32 q0 = bezier.p0;
+    V2F32 q1 = bezier.p1;
+    V2F32 q2 = bezier.p2;
 
-    F32 a = v2f32_cross(line_direction, v2f32_add(v2f32_add(bezier.p0, v2f32_scale(bezier.p1, -2.0f)), bezier.p2));
-    F32 b = v2f32_cross(line_direction, v2f32_scale(v2f32_subtract(bezier.p1, bezier.p0), 2.0f));
-    F32 c = v2f32_cross(line_direction, v2f32_subtract(bezier.p0, line.p0));
+    // NOTE(simon): Compute coefficients for normal forms.
+    // q = qa * qt^2 + qb * qt + qc
+    // l = la * qt + lb
+    V2F32 la = v2f32_subtract(l1, l0);
+    V2F32 lb = l0;
+    V2F32 qa = v2f32_add(v2f32_subtract(q0, v2f32_scale(q1, 2.0f)), q2);
+    V2F32 qb = v2f32_scale(v2f32_subtract(q1, q0), 2.0f);
+    V2F32 qc = q0;
 
-    F32 u0 = 0.0f;
-    F32 u1 = 0.0f;
+    // NOTE(simon): Compute coefficients for quadratic formula.
+    // a * qt^2 + b * qt + c = 0
+    F32 a = la.x * qa.y - la.y * qa.x;
+    F32 b = la.x * qb.y - la.y * qb.x;
+    F32 c = (la.x * qc.y - la.y * qc.x) - (la.x * lb.y - la.y * lb.x);
 
-    if (f32_abs(a) >= 0.01f) {
+    // NOTE(simon): Solve quadratic.
+    F32 qt0 = f32_infinity();
+    F32 qt1 = f32_infinity();
+    if (f32_abs(a) >= 0.000001f) {
+        // NOTE(simon): Use the quadratic formula.
         F32 discriminant = b * b - 4.0f * a * c;
+        if (f32_abs(discriminant) > 0.000001f) {
+            // NOTE(simon): Real roots <=> intersections.
+            F32 sqrt_discriminant = f32_sqrt(discriminant);
 
-        if (discriminant <= 0.0f) {
-            // Complex roots or a double root to the quadratic; the segments do not intersect.
-            return 0;
+            qt0 = (-b - sqrt_discriminant) / (2.0f * a);
+            qt1 = (-b + sqrt_discriminant) / (2.0f * a);
+        } else {
+            // NOTE(simon): Complex roots <=> no intersection.
         }
-
-        F32 sqrt_discriminant = f32_sqrt(discriminant);
-
-        u0 = (-b - sqrt_discriminant) / (2.0f * a);
-        u1 = (-b + sqrt_discriminant) / (2.0f * a);
+    } else if (f32_abs(b) >= 0.000001f) {
+        // NOTE(simon): The bezier is a line. Solve it as such.
+        qt0 = qt1 = -c / b;
     } else {
-        u0 = u1 = -c / b;
+        // NOTE(simon): The bezier is a point => no intersection.
     }
 
-    F32 t0 = 0.0f;
-    F32 t1 = 0.0f;
-
-    if (f32_abs(line.p1.x - line.p0.x) >= F32_EPSILON) {
-        t0 = (u0 * u0 * (bezier.p0.x - 2.0f * bezier.p1.x + bezier.p2.x) + 2.0f * u0 * (bezier.p1.x - bezier.p0.x) + bezier.p0.x - line.p0.x) / (line.p1.x - line.p0.x);
-        t1 = (u1 * u1 * (bezier.p0.x - 2.0f * bezier.p1.x + bezier.p2.x) + 2.0f * u1 * (bezier.p1.x - bezier.p0.x) + bezier.p0.x - line.p0.x) / (line.p1.x - line.p0.x);
+    // NOTE(simon): Compute lt0 and lt1 from qt0 and qt1.
+    F32 lt0 = f32_infinity();
+    F32 lt1 = f32_infinity();
+    if (f32_abs(la.x) > 0.000001f) {
+        lt0 = (qa.x * qt0 * qt0 + qb.x * qt0 + qc.x - lb.x) / la.x;
+        lt1 = (qa.x * qt1 * qt1 + qb.x * qt1 + qc.x - lb.x) / la.x;
+    } else if (f32_abs(la.y) > 0.000001f) {
+        lt0 = (qa.y * qt0 * qt0 + qb.y * qt0 + qc.y - lb.y) / la.y;
+        lt1 = (qa.y * qt1 * qt1 + qb.y * qt1 + qc.y - lb.y) / la.y;
     } else {
-        t0 = (u0 * u0 * (bezier.p0.y - 2.0f * bezier.p1.y + bezier.p2.y) + 2.0f * u0 * (bezier.p1.y - bezier.p0.y) + bezier.p0.y - line.p0.y) / (line.p1.y - line.p0.y);
-        t1 = (u1 * u1 * (bezier.p0.y - 2.0f * bezier.p1.y + bezier.p2.y) + 2.0f * u1 * (bezier.p1.y - bezier.p0.y) + bezier.p0.y - line.p0.y) / (line.p1.y - line.p0.y);
+        // NOTE(simon): The line is just a point => no intersection.
     }
 
+    // NOTE(simon): Push valid solutions to output.
     U32 intersection_count = 0;
-
-    if (0.0f <= t0 && t0 < 1.0f && 0.0f <= u0 && u0 < 1.0f) {
-        result_ats[intersection_count] = t0;
-        result_bts[intersection_count] = u0;
+    if (0.0f <= lt0 && lt0 < 1.0f && 0.0f <= qt0 && qt0 < 1.0f) {
+        result_line_ts[intersection_count] = lt0;
+        result_bezier_ts[intersection_count] = qt0;
         ++intersection_count;
     }
-
-    if (0.0f <= t1 && t1 < 1.0f && 0.0f <= u1 && u1 < 1.0f) {
-        result_ats[intersection_count] = t1;
-        result_bts[intersection_count] = u1;
+    if (0.0f <= lt1 && lt1 < 1.0f && 0.0f <= qt1 && qt1 < 1.0f) {
+        result_line_ts[intersection_count] = lt1;
+        result_bezier_ts[intersection_count] = qt1;
         ++intersection_count;
     }
 
@@ -327,17 +324,57 @@ internal U32 msdf_line_intersect(MSDF_Segment a, MSDF_Segment b, F32 *result_ats
     return intersection_count;
 }
 
-internal U32 msdf_segment_intersect(MSDF_Segment a, MSDF_Segment b, F32 *result_ats, F32 *result_bts) {
+internal V2F32 msdf_point_from_segment_t(MSDF_Segment *segment, F32 t) {
+    V2F32 result = { 0 };
+
+    switch (segment->kind) {
+        case MSDF_Segment_Null: {
+        } break;
+        case MSDF_Segment_Line: {
+            result = v2f32_add(segment->p0, v2f32_scale(v2f32_subtract(segment->p1, segment->p0), t));
+        } break;
+        case MSDF_Segment_QuadraticBezier: {
+            V2F32 a = v2f32_add(segment->p0, v2f32_scale(v2f32_subtract(segment->p1, segment->p0), t));
+            V2F32 b = v2f32_add(segment->p1, v2f32_scale(v2f32_subtract(segment->p2, segment->p1), t));
+            result  = v2f32_add(a,           v2f32_scale(v2f32_subtract(b,           a),           t));
+        } break;
+        case MSDF_Segment_COUNT: {
+        } break;
+    }
+
+    return result;
+}
+
+internal U32 msdf_segment_intersect(MSDF_Segment a, MSDF_Segment b, F32 *result_ats, F32 *result_bts, Arena *log_arena, MSDF_Log *log) {
+    Str8 log_name = { 0 };
+
     U32 intersection_count = 0;
     if (a.kind == MSDF_Segment_Line && b.kind == MSDF_Segment_Line) {
         intersection_count = msdf_line_intersect(a, b, result_ats, result_bts);
+        log_name = str8_literal("line-line intersection");
     } else if (a.kind == MSDF_Segment_Line && b.kind == MSDF_Segment_QuadraticBezier) {
         intersection_count = msdf_line_quadratic_bezier_intersect(a, b, result_ats, result_bts);
+        log_name = str8_literal("line-bezier intersection");
     } else if (a.kind == MSDF_Segment_QuadraticBezier && b.kind == MSDF_Segment_Line) {
         intersection_count = msdf_line_quadratic_bezier_intersect(b, a, result_bts, result_ats);
+        log_name = str8_literal("line-bezier intersection");
     } else if (a.kind == MSDF_Segment_QuadraticBezier && b.kind == MSDF_Segment_QuadraticBezier) {
         intersection_count = msdf_quadratic_bezier_intersect(a, b, result_ats, result_bts);
+        log_name = str8_literal("bezier-bezier intersection");
     }
+
+    if (intersection_count) {
+        msdf_log_push_entry(log_arena, log, log_name);
+        msdf_log_push_segment(log_arena, log, &a, v4f32(1.0f, 0.0f, 0.0f, 1.0f));
+        msdf_log_push_segment(log_arena, log, &b, v4f32(0.0f, 1.0f, 0.0f, 1.0f));
+
+        for (U32 i = 0; i < intersection_count; ++i) {
+            msdf_log_push_group(log_arena, log, str8_format(log_arena, "at: %f, bt: %f", result_ats[i], result_bts[i]));
+            msdf_log_push_point(log_arena, log, msdf_point_from_segment_t(&a, result_ats[i]), v4f32(0.5f, 0.0f, 0.0f, 1.0f));
+            msdf_log_push_point(log_arena, log, msdf_point_from_segment_t(&b, result_bts[i]), v4f32(0.0f, 0.5f, 0.0f, 1.0f));
+        }
+    }
+
     return intersection_count;
 }
 
@@ -611,7 +648,7 @@ internal Void msdf_resolve_contour_overlap(Arena *arena, MSDF_Glyph *glyph, Aren
                 for (MSDF_Segment *b_segment = b_contour->first_segment; b_segment; b_segment = b_segment->next) {
                     F32 ats[4] = { 0 };
                     F32 bts[4] = { 0 };
-                    U32 local_intersection_count = msdf_segment_intersect(*a_segment, *b_segment, ats, bts);
+                    U32 local_intersection_count = msdf_segment_intersect(*a_segment, *b_segment, ats, bts, log_arena, log);
                     F32 intersection_epsilon = 0.0001f; // TODO: Move this out and figure out an appropiate value for it.
                     for (U32 i = 0; i < local_intersection_count; ++i) {
                         if (ats[i] < min_at && intersection_epsilon < ats[i] && ats[i] < 1.0f - intersection_epsilon) {
@@ -732,18 +769,18 @@ internal Void msdf_resolve_contour_overlap(Arena *arena, MSDF_Glyph *glyph, Aren
     }
 }
 
-internal Void msdf_convert_to_simple_polygons(Arena *arena, MSDF_Glyph *glyph) {
+internal Void msdf_convert_to_simple_polygons(Arena *arena, MSDF_Glyph *glyph, Arena *log_arena, MSDF_Log *log) {
     for (MSDF_Contour *contour = glyph->first_contour; contour; contour = contour->next) {
         for (MSDF_Segment *a_segment = contour->first_segment; a_segment; a_segment = a_segment->next) {
             for (MSDF_Segment *b_segment = a_segment->next; b_segment; b_segment = b_segment->next) {
                 F32 ats[4] = { 0 };
                 F32 bts[4] = { 0 };
-                U32 intersection_count = msdf_segment_intersect(*a_segment, *b_segment, ats, bts);
+                U32 intersection_count = msdf_segment_intersect(*a_segment, *b_segment, ats, bts, log_arena, log);
 
                 F32 min_at = f32_infinity();
                 F32 min_bt = f32_infinity();
                 for (U32 i = 0; i < intersection_count; ++i) {
-                    F32 intersection_epsilon = 0.0001f;
+                    F32 intersection_epsilon = 0.001f;
                     if (ats[i] < min_at && intersection_epsilon < ats[i] && ats[i] < 1.0f - intersection_epsilon) {
                         min_at = ats[i];
                         min_bt = bts[i];
@@ -754,13 +791,19 @@ internal Void msdf_convert_to_simple_polygons(Arena *arena, MSDF_Glyph *glyph) {
                     MSDF_Contour *new_contour = arena_push_struct(arena, MSDF_Contour);
                     dll_push_back(glyph->first_contour, glyph->last_contour, new_contour);
 
+                    msdf_log_push_entry(log_arena, log, str8_literal("self intersection"));
+                    msdf_log_push_segment(log_arena, log, a_segment, v4f32(1, 0, 0, 1));
+                    msdf_log_push_segment(log_arena, log, b_segment, v4f32(0, 1, 0, 1));
+
                     MSDF_Segment *a_new = arena_push_struct(arena, MSDF_Segment);
                     msdf_segment_split(*a_segment, min_at, a_segment, a_new);
                     dll_insert_after(contour->first_segment, contour->last_segment, a_segment, a_new);
+                    msdf_log_push_point(log_arena, log, a_new->p0, v4f32(0, 0, 0, 1));
 
                     MSDF_Segment *b_new = arena_push_struct(arena, MSDF_Segment);
                     msdf_segment_split(*b_segment, min_bt, b_new, b_segment);
                     dll_insert_before(contour->first_segment, contour->last_segment, b_segment, b_new);
+                    msdf_log_push_point(log_arena, log, b_new->p0, v4f32(0, 0, 0, 1));
 
                     new_contour->first_segment = a_new;
                     new_contour->last_segment  = b_new;
@@ -974,7 +1017,7 @@ internal MSDF_RasterResult msdf_generate_from_glyph_index(Arena *arena, TTF_Font
     {
         prof_zone_begin(prof_simplify, "simplify outline");
         msdf_resolve_contour_overlap(scratch.arena, &glyph, arena, &result.log);
-        msdf_convert_to_simple_polygons(scratch.arena, &glyph);
+        msdf_convert_to_simple_polygons(scratch.arena, &glyph, arena, &result.log);
         msdf_correct_contour_orientation(arena, &glyph, &result.log);
         msdf_color_edges(arena, glyph, &result.log);
 
