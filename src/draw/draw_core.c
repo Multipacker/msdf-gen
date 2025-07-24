@@ -227,9 +227,9 @@ internal Void draw_bezier(V2F32 p0, V2F32 p1, V2F32 p2, V4F32 color, F32 radius,
         draw_line(p0, p2, color, radius, thickness, softness);
     } else {
         // NOTE(simon): Split the curve in the middle.
-	V2F32 a = v2f32_add(p0, v2f32_scale(v2f32_subtract(p1, p0), 0.5f));
-	V2F32 b = v2f32_add(p1, v2f32_scale(v2f32_subtract(p2, p1), 0.5f));
-	V2F32 c = v2f32_add(a, v2f32_scale(v2f32_subtract(b, a), 0.5f));
+        V2F32 a = v2f32_add(p0, v2f32_scale(v2f32_subtract(p1, p0), 0.5f));
+        V2F32 b = v2f32_add(p1, v2f32_scale(v2f32_subtract(p2, p1), 0.5f));
+        V2F32 c = v2f32_add(a, v2f32_scale(v2f32_subtract(b, a), 0.5f));
 
         draw_bezier(p0, a,  c, color, radius, thickness, softness);
         draw_bezier(c,  b, p2, color, radius, thickness, softness);
