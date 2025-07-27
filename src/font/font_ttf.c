@@ -328,7 +328,7 @@ internal TTF_CodepointMap ttf_get_codepoint_map(Arena *arena, TTF_Font *font) {
         format = U32_MAX;
     }
 
-    // NOTE(simon): Collect subtable mappings into our own unified set of mapping.
+    // NOTE(simon): Collect subtable mappings into our own unified set of mappings.
     TTF_CodepointRangeList ranges = { 0 };
     switch (format) {
         case 0: {

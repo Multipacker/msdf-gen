@@ -407,13 +407,10 @@ PANEL_BUILD_FUNCTION(view_glyph) {
         ui_parent_push(box);
 
         MSDFCache_Glyph *msdf_glyph = msdf_cache_get_glyph(global_state->ttf_font, tab->codepoint);
-        MSDF_LogEntry *log_entry = msdf_glyph->log.first;
-        for (U64 i = 0; i < state->log_index && log_entry; ++i) {
-            log_entry = log_entry->next;
-        }
-        if (!log_entry) {
-            state->log_index = 0;
-            log_entry = msdf_glyph->log.first;
+        MSDF_LogEntry *log_entry = 0;
+        if (msdf_glyph->log_entry_count > 0) {
+            state->log_index %= msdf_glyph->log_entry_count;
+            log_entry = &msdf_glyph->log_entries[state->log_index];
         }
         // NOTE(simon): Group visibility state
         if (log_entry) {
@@ -770,10 +767,10 @@ PANEL_BUILD_FUNCTION(view_glyph) {
                             ui_spacer_sized(ui_size_ems(0.5f, 1.0f));
                             ui_label_format("%lu: %.*s", state->log_index, str8_expand(log_entry->description));
                             if (next_input.flags & UI_InputFlag_Clicked) {
-                                next_log_index = (state->log_index + 1) % msdf_glyph->log.count;
+                                next_log_index = (state->log_index + 1) % msdf_glyph->log_entry_count;
                             }
                             if (previous_input.flags & UI_InputFlag_Clicked) {
-                                next_log_index = (state->log_index + msdf_glyph->log.count - 1) % msdf_glyph->log.count;
+                                next_log_index = (state->log_index + msdf_glyph->log_entry_count - 1) % msdf_glyph->log_entry_count;
                             }
                         }
 

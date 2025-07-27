@@ -14,7 +14,8 @@ struct MSDFCache_Glyph {
     R2F32 uv;
     Render_Texture texture;
 
-    MSDF_Log log;
+    MSDF_LogEntry *log_entries;
+    U64            log_entry_count;
 
     B32 loaded;
 };

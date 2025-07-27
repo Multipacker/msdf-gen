@@ -189,8 +189,11 @@ internal Void msdf_cache_update(Void) {
                     (F32) atlas_position.y + (F32) state->glyph_size - 0.5f
                 );
                 result->texture = selected_atlas->texture;
-                for (MSDF_LogEntry *src_entry = work.raster.log.first; src_entry; src_entry = src_entry->next) {
-                    MSDF_LogEntry *entry = arena_push_struct(state->glyph_arena, MSDF_LogEntry);
+                result->log_entry_count = work.raster.log_entry_count;
+                result->log_entries = arena_push_array(state->glyph_arena, MSDF_LogEntry, work.raster.log_entry_count);
+                for (U64 entry_index = 0; entry_index < work.raster.log_entry_count; ++entry_index) {
+                    MSDF_LogEntry *src_entry = &work.raster.log_entries[entry_index];
+                    MSDF_LogEntry *entry = &result->log_entries[entry_index];
                     entry->description = str8_copy(state->arena, src_entry->description);
                     for (MSDF_LogGroup *src_group = src_entry->first_group; src_group; src_group = src_group->next) {
                         MSDF_LogGroup *group = arena_push_struct(state->glyph_arena, MSDF_LogGroup);
@@ -203,8 +206,6 @@ internal Void msdf_cache_update(Void) {
                         dll_push_back(entry->first_group, entry->last_group, group);
                         ++entry->group_count;
                     }
-                    dll_push_back(result->log.first, result->log.last, entry);
-                    ++result->log.count;
                 }
                 result->loaded = true;
             }

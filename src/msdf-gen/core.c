@@ -398,7 +398,7 @@ internal Void quicksort(CommandItem *commands, U64 command_count) {
         pivot_index = last_index;
     }
 
-    // NOTE(simon): Swap pivot to start of list
+    // NOTE(simon): Swap the pivot to start of list
     swap(commands[0], commands[pivot_index], CommandItem);
     pivot_index = 0;
 

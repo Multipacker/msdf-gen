@@ -109,6 +109,7 @@ struct MSDF_LogEntry {
 
 typedef struct MSDF_Log MSDF_Log;
 struct MSDF_Log {
+    Arena         *arena;
     MSDF_LogEntry *first;
     MSDF_LogEntry *last;
     U64 count;
@@ -127,18 +128,19 @@ struct MSDF_RasterResult {
     V2U32 size;
     U8 *data;
 
-    MSDF_Log log;
+    MSDF_LogEntry *log_entries;
+    U64            log_entry_count;
 };
 
-internal Void              msdf_log_push_entry(Arena *arena, MSDF_Log *log, Str8 description);
-internal MSDF_LogGeometry *msdf_log_push_geometry(Arena *arena, MSDF_Log *log);
-internal MSDF_LogGroup    *msdf_log_push_group(Arena *arena, MSDF_Log *log, Str8 text);
-internal MSDF_LogGeometry *msdf_log_push_point(Arena *arena, MSDF_Log *log, V2F32 p0, V4F32 color);
-internal MSDF_LogGeometry *msdf_log_push_line(Arena *arena, MSDF_Log *log, V2F32 p0, V2F32 p1, V4F32 color);
-internal MSDF_LogGeometry *msdf_log_push_bezier(Arena *arena, MSDF_Log *log, V2F32 p0, V2F32 p1, V2F32 p2, V4F32 color);
-internal MSDF_LogGeometry *msdf_log_push_segment(Arena *arena, MSDF_Log *log, MSDF_Segment *segment, V4F32 color);
-internal Void              msdf_log_push_contour(Arena *arena, MSDF_Log *log, MSDF_Contour *contour, V4F32 color);
-internal Void              msdf_log_push_glyph(Arena *arena, MSDF_Log *log, MSDF_Glyph *glyph, V4F32 color);
+internal Void              msdf_log_push_entry(Str8 description);
+internal MSDF_LogGeometry *msdf_log_push_geometry(Void);
+internal MSDF_LogGroup    *msdf_log_push_group(Str8 text);
+internal MSDF_LogGeometry *msdf_log_push_point(V2F32 p0, V4F32 color);
+internal MSDF_LogGeometry *msdf_log_push_line(V2F32 p0, V2F32 p1, V4F32 color);
+internal MSDF_LogGeometry *msdf_log_push_bezier(V2F32 p0, V2F32 p1, V2F32 p2, V4F32 color);
+internal MSDF_LogGeometry *msdf_log_push_segment(MSDF_Segment *segment, V4F32 color);
+internal Void              msdf_log_push_contour(MSDF_Contour *contour, V4F32 color);
+internal Void              msdf_log_push_glyph(MSDF_Glyph *glyph, V4F32 color);
 
 internal B32 msdf_distance_is_closer(MSDF_Distance a, MSDF_Distance b);
 
@@ -151,14 +153,14 @@ internal F32 msdf_line_signed_pseudo_distance(V2F32 point, MSDF_Segment line);
 internal F32 msdf_quadratic_bezier_signed_pseudo_distance(V2F32 point, MSDF_Segment bezier, F32 clamped_t);
 
 internal Void msdf_segment_split(MSDF_Segment segment, F32 t, MSDF_Segment *result_a, MSDF_Segment *result_b);
-internal U32 msdf_segment_intersect(MSDF_Segment a, MSDF_Segment b, F32 *result_ats, F32 *result_bts, Arena *log_arena, MSDF_Log *log);
+internal U32 msdf_segment_intersect(MSDF_Segment a, MSDF_Segment b, F32 *result_ats, F32 *result_bts);
 
 internal S32 msdf_contour_calculate_own_winding_number(MSDF_Contour *contour);
 internal S32 msdf_contour_calculate_winding_number(MSDF_Contour *contour, V2F32 point);
 
-internal Void msdf_resolve_contour_overlap(Arena *arena, MSDF_Glyph *glyph, Arena *log_arena, MSDF_Log *log);
-internal Void msdf_convert_to_simple_polygons(Arena *arena, MSDF_Glyph *glyph, Arena *log_arena, MSDF_Log *log);
-internal Void msdf_correct_contour_orientation(Arena *arena, MSDF_Glyph *glyph, MSDF_Log *log);
+internal Void msdf_resolve_contour_overlap(Arena *arena, MSDF_Glyph *glyph);
+internal Void msdf_convert_to_simple_polygons(Arena *arena, MSDF_Glyph *glyph);
+internal Void msdf_correct_contour_orientation(Arena *arena, MSDF_Glyph *glyph);
 
 internal MSDF_RasterResult msdf_generate_from_glyph_index(Arena *arena, TTF_Font *font, U32 glyph_index, U32 render_size);
 internal MSDF_RasterResult msdf_generate_from_codepoint(Arena *arena, TTF_Font *font, U32 codepoint, U32 render_size);
