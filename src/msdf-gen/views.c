@@ -92,6 +92,7 @@ PANEL_BUILD_FUNCTION(view_glyph_list) {
         S64 index;
     } ViewState;
 
+    B32 is_new_tab = tab->view_state == 0;
     ViewState *state = tab_get_state(tab, sizeof(ViewState));
 
     // NOTE(simon): Get codepoint ranges.
@@ -105,6 +106,10 @@ PANEL_BUILD_FUNCTION(view_glyph_list) {
         codepoint_map.codepoint_count = codepoint_range->size;
     } else {
         codepoint_map = global_state->ttf_font->codepoint_map;
+    }
+
+    if (is_new_tab) {
+        state->index = index_from_map_codepoint(codepoint_map, top_context()->codepoint);
     }
 
     // NOTE(simon): Build
@@ -400,11 +405,11 @@ PANEL_BUILD_FUNCTION(view_glyph) {
         );
         ui_parent_push(box);
 
-        MSDFCache_Glyph *msdf_glyph = msdf_cache_get_glyph(global_state->ttf_font, tab->codepoint);
+        MSDFCache_Glyph *msdf_glyph = msdf_cache_get_glyph(global_state->ttf_font, top_context()->codepoint);
 
         F32 padding = 2.0f * (F32) ui_font_size_top();
 
-        U32 glyph_index = ttf_glyph_index_from_font_codepoint(global_state->ttf_font, tab->codepoint);
+        U32 glyph_index = ttf_glyph_index_from_font_codepoint(global_state->ttf_font, top_context()->codepoint);
         MSDF_Glyph glyph = ttf_expand_contours_to_msdf(scratch.arena, global_state->ttf_font, glyph_index);
 
         V2F32 box_size = r2f32_size(box->calculated_rectangle);
@@ -675,7 +680,7 @@ PANEL_BUILD_FUNCTION(view_glyph) {
                         ui_label(str8_literal("Line width"));
                     }
                     ui_spacer_sized(ui_size_ems(0.5f, 1.0f));
-                    ui_label_format("Selected glyph: U+%.6X", tab->codepoint);
+                    ui_label_format("Selected glyph: U+%.6X", top_context()->codepoint);
                     ui_spacer_sized(ui_size_ems(0.5f, 1.0f));
                 }
             }

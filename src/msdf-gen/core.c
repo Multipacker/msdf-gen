@@ -440,7 +440,7 @@ internal Void update(Void) {
             state->base_context.tab = panel_from_handle(active_panel)->active_tab;
         }
         state->base_context.panel = active_panel;
-        state->base_context.codepoint = tab_from_handle(state->base_context.tab) ? tab_from_handle(state->base_context.tab)->codepoint : 0;
+        state->base_context.codepoint = state->codepoint;
         state->context_stack->next = 0;
         state->context_stack = &state->base_context;
     }
@@ -606,6 +606,7 @@ internal Void update(Void) {
             Context *command_context = node->command.context;
             switch (node->command.kind) {
                 case Command_Quit: {
+                    push_command(Command_SaveProject);
                     state->running = false;
                 } break;
                 case Command_FocusPanel: {
@@ -842,7 +843,6 @@ internal Void update(Void) {
                         TabSpecification *tab_spec = tab_specification_from_string(command_context->tab_specification);
                         Tab *tab = tab_create(state, tab_spec->display_name);
                         tab->kind = tab_kind_from_string(command_context->tab_specification);
-                        tab->codepoint = command_context->codepoint;
                         panel_insert_tab(panel, panel->tab_last, tab);
                     }
                 } break;
@@ -898,42 +898,24 @@ internal Void update(Void) {
 
                 } break;
                 case Command_SaveProject: {
+                    Arena_Temporary scratch = arena_get_scratch(0, 0);
+
+                    // NOTE(simon): Build contents.
+                    Str8List output = { 0 };
+                    str8_list_push_format(scratch.arena, &output, "codepoint: %u\n", command_context->codepoint);
+
+                    // NOTE(simon): Build file path.
+                    Str8 current_directory = os_current_directory(scratch.arena);
+                    Str8 file_path = str8_format(scratch.arena, "%.*s/msdf.config", str8_expand(current_directory));
+
+                    os_file_write(file_path, output);
+                    arena_end_temporary(scratch);
                 } break;
                 case Command_SelectCodepoint: {
                     U32 codepoint = command_context->codepoint;
 
-                    Panel *new_panel = 0;
-                    Tab   *new_tab   = 0;
-
-                    for (Panel *panel = state->panel_root; panel; panel = panel_iterator_depth_first_pre_order(panel, 0).next) {
-                        if (panel->first) {
-                            continue;
-                        }
-
-                        for (Tab *tab = panel->tab_first; tab; tab = tab->next) {
-                            if (tab->kind != Tab_GlyphView) {
-                                continue;
-                            }
-
-                            if (!(new_panel && new_tab && tab_from_handle(new_panel->active_tab) == new_tab)) {
-                                new_panel = panel;
-                                new_tab   = tab;
-                            }
-                        }
-                    }
-
-                    if (!new_panel) {
-                        new_panel = panel_from_handle(state->active_panel);
-                    }
-
                     if (codepoint <= 0x10FFFF) {
-                        if (new_tab) {
-                            new_tab->codepoint = codepoint;
-                        } else if (new_panel) {
-                            push_command(Command_OpenTab, .tab_specification = str8_literal("GlyphView"), .panel = handle_from_panel(new_panel), .codepoint = codepoint);
-                        } else {
-                            // TODO(simon): We should probably still open a tab with the codepoint.
-                        }
+                        state->codepoint = codepoint;
                     }
                 } break;
                 case Command_NextTheme: {

@@ -260,7 +260,6 @@ struct Tab {
     Arena  *arena;
     Void   *view_state;
     TabKind kind;
-    U32     codepoint;
 
     U64 generation;
 };
@@ -323,6 +322,7 @@ struct State {
     B32 all_of_unicode;
     Arena *ttf_arena;
     TTF_Font *ttf_font;
+    U32 codepoint;
     B32 running;
 
     Arena *command_arena;

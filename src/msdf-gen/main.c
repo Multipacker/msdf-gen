@@ -43,6 +43,22 @@
 #include "core.c"
 #include "views.c"
 
+internal Str8 trim_whitespace(Str8 string) {
+    U8 *ptr = string.data;
+    U8 *opl = string.data + string.size;
+
+    while (ptr < opl && (ptr[0] == ' ' || ptr[0] == '\t')) {
+        ++ptr;
+    }
+
+    while (ptr < opl && (opl[-1] == ' ' || opl[-1] == '\t')) {
+        --opl;
+    }
+
+    Str8 result = str8_range(ptr, opl);
+    return result;
+}
+
 internal S32 os_run(Str8List arguments) {
     Arena *arena = arena_create();
     State *state = arena_push_struct(arena, State);
@@ -346,7 +362,41 @@ internal S32 os_run(Str8List arguments) {
     gfx_set_update_function(update);
     msdf_cache_create(32, gfx_send_wakeup_event);
 
-    // TODO(simon): Load config
+    // NOTE(simon): Load config
+    {
+        Arena_Temporary scratch = arena_get_scratch(0, 0);
+
+        Str8 config = { 0 };
+
+        Str8 current_directory = os_current_directory(scratch.arena);
+        Str8 file_path = str8_format(scratch.arena, "%.*s/msdf.config", str8_expand(current_directory));
+        os_file_read(scratch.arena, file_path, &config);
+
+        for (U64 start_of_line = 0; start_of_line < config.size;) {
+            U64 end_of_line = str8_first_index_of(str8_skip(config, start_of_line), '\n');
+            Str8 line = str8_substring(config, start_of_line, end_of_line - start_of_line);
+
+            U64 colon_index = str8_first_index_of(line, ':');
+
+            Str8 key   = trim_whitespace(str8_prefix(line, colon_index));
+            Str8 value = trim_whitespace(str8_skip(line, colon_index + 1));
+
+            if (str8_equal(key, str8_literal("codepoint"))) {
+                U64Decode decode = u64_from_str8(value);
+                state->codepoint = (U32) decode.value;
+            } else {
+                gfx_message(
+                    true,
+                    str8_literal("Could not parse configuration file"),
+                    str8_format(scratch.arena, "Unknown config key '%.*s'.", str8_expand(key))
+                );
+            }
+
+            start_of_line = end_of_line + 1;
+        }
+
+        arena_end_temporary(scratch);
+    }
 
     state->ui = ui_create();
     state->panel_root = panel_create(state);
