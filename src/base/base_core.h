@@ -219,14 +219,16 @@
     ((first) = (last) = 0) :       \
     ((first) = (first)->next))
 
-#define sll_stack_push(first, node)             \
-    ((first) == 0 ?                             \
-    ((first) = (node), (node)->next = 0) :      \
+#define sll_stack_push_next_zero(first, node, next, zero) \
+    ((first) == (zero) ?                                  \
+    ((first) = (node), (node)->next = (zero)) :           \
     ((node)->next = (first), (first) = (node)))
-#define sll_stack_pop(first)   \
-    ((first) == 0 ?            \
-    0 :                        \
+#define sll_stack_pop_next_zero(first, next, zero) \
+    ((first) == (zero) ?                           \
+    (zero) :                                       \
     ((first) = (first)->next))
+#define sll_stack_push(first, node) sll_stack_push_next_zero(first, node, next, 0)
+#define sll_stack_pop(first)        sll_stack_pop_next_zero(first, next, 0)
 
 #define swap(a, b, T)           \
     {                           \
