@@ -67,53 +67,59 @@ typedef struct {
     F32 unclamped_t;
 } MSDF_Distance;
 
+
+
+// NOTE(simon): Structured logging for debugging.
+
 typedef enum {
-    MSDF_LogKind_Point,
-    MSDF_LogKind_Line,
-    MSDF_LogKind_Bezier,
-} MSDF_LogKind;
+    MSDF_LogNodeFlag_DrawPoint  = 1 << 0,
+    MSDF_LogNodeFlag_DrawLine   = 1 << 1,
+    MSDF_LogNodeFlag_DrawBezier = 1 << 2,
+} MSDF_LogNodeFlags;
 
-typedef struct MSDF_LogGeometry MSDF_LogGeometry;
-struct MSDF_LogGeometry {
-    MSDF_LogGeometry *next;
-    MSDF_LogGeometry *previous;
+typedef struct MSDF_LogNode MSDF_LogNode;
+struct MSDF_LogNode {
+    // NOTE(simon): Structure links.
+    MSDF_LogNode *next;
+    MSDF_LogNode *previous;
+    MSDF_LogNode *first;
+    MSDF_LogNode *last;
+    MSDF_LogNode *parent;
 
-    MSDF_LogKind kind;
+    MSDF_LogNodeFlags flags;
+
+    Str8 string;
+
+    // NOTE(simon): Points for geometric data. Start from lowest, use more as
+    // needed.
     V4F32 color;
     V2F32 p0;
     V2F32 p1;
     V2F32 p2;
-    U64 group_index;
 };
 
-typedef struct MSDF_LogGroup MSDF_LogGroup;
-struct MSDF_LogGroup {
-    MSDF_LogGroup *next;
-    MSDF_LogGroup *previous;
-
-    Str8 text;
-    MSDF_LogGeometry *first_geometry;
-    MSDF_LogGeometry *last_geometry;
+typedef struct MSDF_LogNodeStack MSDF_LogNodeStack;
+struct MSDF_LogNodeStack {
+    MSDF_LogNodeStack *next;
+    MSDF_LogNode      *node;
 };
 
-typedef struct MSDF_LogEntry MSDF_LogEntry;
-struct MSDF_LogEntry {
-    MSDF_LogEntry *next;
-    MSDF_LogEntry *previous;
-
-    Str8 description;
-    MSDF_LogGroup *first_group;
-    MSDF_LogGroup *last_group;
-    U64 group_count;
+typedef struct MSDF_LogNodeIterator MSDF_LogNodeIterator;
+struct MSDF_LogNodeIterator {
+    MSDF_LogNode *next;
+    U32           push_count;
+    U32           pop_count;
 };
 
-typedef struct MSDF_Log MSDF_Log;
-struct MSDF_Log {
-    Arena         *arena;
-    MSDF_LogEntry *first;
-    MSDF_LogEntry *last;
-    U64 count;
+typedef struct MSDF_LogState MSDF_LogState;
+struct MSDF_LogState {
+    Arena             *arena;
+    Arena             *scratch_arena;
+    MSDF_LogNodeStack *parent_stack;
+    MSDF_LogNodeStack *stack_freelist;
 };
+
+
 
 typedef struct MSDF_RasterResult MSDF_RasterResult;
 struct MSDF_RasterResult {
@@ -128,19 +134,35 @@ struct MSDF_RasterResult {
     V2U32 size;
     U8 *data;
 
-    MSDF_LogEntry *log_entries;
-    U64            log_entry_count;
+    MSDF_LogNode *logs;
 };
 
-internal Void              msdf_log_push_entry(Str8 description);
-internal MSDF_LogGeometry *msdf_log_push_geometry(Void);
-internal MSDF_LogGroup    *msdf_log_push_group(Str8 text);
-internal MSDF_LogGeometry *msdf_log_push_point(V2F32 p0, V4F32 color);
-internal MSDF_LogGeometry *msdf_log_push_line(V2F32 p0, V2F32 p1, V4F32 color);
-internal MSDF_LogGeometry *msdf_log_push_bezier(V2F32 p0, V2F32 p1, V2F32 p2, V4F32 color);
-internal MSDF_LogGeometry *msdf_log_push_segment(MSDF_Segment *segment, V4F32 color);
-internal Void              msdf_log_push_contour(MSDF_Contour *contour, V4F32 color);
-internal Void              msdf_log_push_glyph(MSDF_Glyph *glyph, V4F32 color);
+// NOTE(simon): Base functions for creating logs.
+internal MSDF_LogNode        *msdf_log_create_node(Void);
+internal MSDF_LogNode        *msdf_log_create_node_from_string(Str8 label);
+internal MSDF_LogNode        *msdf_log_create_node_from_string_format(CStr format, ...);
+internal MSDF_LogNode        *msdf_log_create_node_from_string_format_list(CStr format, va_list arguments);
+internal Void                 msdf_log_node_set_string(MSDF_LogNode *node, Str8 string);
+internal Void                 msdf_log_node_set_string_format(MSDF_LogNode *node, CStr format, ...);
+internal Void                 msdf_log_push_parent(MSDF_LogNode *node);
+internal Void                 msdf_log_pop_parent(Void);
+internal MSDF_LogNodeIterator msdf_log_iterator_depth_first_pre_order(MSDF_LogNode *node);
+
+// NOTE(simon): Helpers for basic geometry.
+internal MSDF_LogNode *msdf_log_push_parent_string(Str8 string);
+internal MSDF_LogNode *msdf_log_push_parent_string_format(CStr format, ...);
+#define msdf_log_parent_string(string)             defer_loop(msdf_log_push_parent_string(string), msdf_log_pop_parent())
+#define msdf_log_parent_string_format(string, ...) defer_loop(msdf_log_push_parent_string_format(string, __VA_ARGS__), msdf_log_pop_parent())
+internal MSDF_LogNode *msdf_log_create_point(V2F32 p0, V4F32 color);
+internal MSDF_LogNode *msdf_log_create_line(V2F32 p0, V2F32 p1, V4F32 color);
+internal MSDF_LogNode *msdf_log_create_bezier(V2F32 p0, V2F32 p1, V2F32 p2, V4F32 color);
+
+// NOTE(simon): Helpers for glyph geometry.
+internal MSDF_LogNode *msdf_log_create_segment(MSDF_Segment *segment, V4F32 color);
+internal MSDF_LogNode *msdf_log_create_contour(MSDF_Contour *contour, V4F32 color);
+internal MSDF_LogNode *msdf_log_create_glyph(MSDF_Glyph *glyph, V4F32 color);
+
+
 
 internal B32 msdf_distance_is_closer(MSDF_Distance a, MSDF_Distance b);
 

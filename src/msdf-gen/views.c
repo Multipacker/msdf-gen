@@ -363,16 +363,10 @@ PANEL_BUILD_FUNCTION(view_glyph) {
         B32 render_points;
         B32 render_raw;
         B32 render_nearest;
-        B32 render_logs;
         B32 render_metrics;
         F32 target_zoom;
         F32 zoom;
         V2F32 offset;
-        U64 log_index;
-        B32 *is_group_visible;
-        U64 hovered_group;
-        F32 hovered_t;
-        F32 hovered_target_t;
         F32 point_size;
         F32 line_width;
     };
@@ -407,23 +401,6 @@ PANEL_BUILD_FUNCTION(view_glyph) {
         ui_parent_push(box);
 
         MSDFCache_Glyph *msdf_glyph = msdf_cache_get_glyph(global_state->ttf_font, tab->codepoint);
-        MSDF_LogEntry *log_entry = 0;
-        if (msdf_glyph->log_entry_count > 0) {
-            state->log_index %= msdf_glyph->log_entry_count;
-            log_entry = &msdf_glyph->log_entries[state->log_index];
-        }
-        // NOTE(simon): Group visibility state
-        if (log_entry) {
-            B32 *is_group_visible = arena_push_array_no_zero(frame_arena(), B32, log_entry->group_count);
-            if (!state->is_group_visible) {
-                for (U64 i = 0; i < log_entry->group_count; ++i) {
-                    is_group_visible[i] = true;
-                }
-            } else {
-                memory_copy(is_group_visible, state->is_group_visible, log_entry->group_count * sizeof(*is_group_visible));
-            }
-            state->is_group_visible = is_group_visible;
-        }
 
         F32 padding = 2.0f * (F32) ui_font_size_top();
 
@@ -615,50 +592,6 @@ PANEL_BUILD_FUNCTION(view_glyph) {
                     }
                 }
             }
-
-            if (state->render_logs && log_entry) {
-                U64 group_index = 0;
-                for (MSDF_LogGroup *group = log_entry->first_group; group; group = group->next, ++group_index) {
-                    if (!state->is_group_visible[group_index]) {
-                        continue;
-                    }
-                    for (MSDF_LogGeometry *geometry = group->first_geometry; geometry; geometry = geometry->next) {
-                        V4F32 color = geometry->color;
-
-                        if (1 + group_index == state->hovered_group) {
-                            V4F32 target = color_from_theme(ThemeColor_Hover);
-                            color.r = f32_lerp(color.r, target.r, state->hovered_t);
-                            color.g = f32_lerp(color.g, target.g, state->hovered_t);
-                            color.b = f32_lerp(color.b, target.b, state->hovered_t);
-                            color.a = f32_lerp(color.a, target.a, state->hovered_t);
-                        }
-
-                        switch (geometry->kind) {
-                            case MSDF_LogKind_Point: {
-                                point_widget(&geometry->p0, transform, point_size, color);
-                            } break;
-                            case MSDF_LogKind_Line: {
-                                draw_line(m3f32_multiply_v2f32(transform, geometry->p0), m3f32_multiply_v2f32(transform, geometry->p1), color, line_width, 0.0f, 1.0f);
-                            } break;
-                            case MSDF_LogKind_Bezier: {
-                                draw_bezier(m3f32_multiply_v2f32(transform, geometry->p0), m3f32_multiply_v2f32(transform, geometry->p1), m3f32_multiply_v2f32(transform, geometry->p2), color, line_width, 0.0f, 1.0f);
-                            } break;
-                        }
-                    }
-                }
-
-                if (state->hovered_group) {
-                    state->hovered_t += (state->hovered_target_t - state->hovered_t) * ui_animation_super_slow_rate();
-                    if (f32_abs(state->hovered_target_t - state->hovered_t) < 0.01f) {
-                        state->hovered_target_t = 1.0f - state-> hovered_target_t;
-                    }
-                    request_frame();
-                } else {
-                    state->hovered_t = 0.0f;
-                    state->hovered_target_t = 0.0f;
-                }
-            }
-
         }
         ui_box_set_draw_list(box, draw_list);
 
@@ -722,8 +655,6 @@ PANEL_BUILD_FUNCTION(view_glyph) {
                     ui_spacer_sized(ui_size_ems(0.5f, 1.0f));
                     ui_checkbox_b32(&state->render_nearest, str8_literal("Draw nearest"));
                     ui_spacer_sized(ui_size_ems(0.5f, 1.0f));
-                    ui_checkbox_b32(&state->render_logs, str8_literal("Draw logs"));
-                    ui_spacer_sized(ui_size_ems(0.5f, 1.0f));
                     ui_checkbox_b32(&state->render_metrics, str8_literal("Draw metrics"));
                     ui_spacer_sized(ui_size_ems(0.5f, 1.0f));
                     ui_width_next(ui_size_children_sum(1.0f));
@@ -746,71 +677,6 @@ PANEL_BUILD_FUNCTION(view_glyph) {
                     ui_spacer_sized(ui_size_ems(0.5f, 1.0f));
                     ui_label_format("Selected glyph: U+%.6X", tab->codepoint);
                     ui_spacer_sized(ui_size_ems(0.5f, 1.0f));
-                }
-            }
-            if (state->render_logs && log_entry) {
-                ui_spacer_sized(ui_size_ems(1.0f, 1.0f));
-                ui_column() {
-                    ui_width(ui_size_children_sum(1.0f))
-                    ui_height(ui_size_children_sum(1.0f)) {
-                        U64 next_log_index = state->log_index;
-                        U64 next_hovered_group = 0;
-
-                        ui_spacer_sized(ui_size_ems(0.5f, 1.0f));
-                        ui_row()
-                        ui_width(ui_size_text_content(10.0f, 1.0f))
-                        ui_height(ui_size_text_content(0.0f, 1.0f))
-                        ui_palette(palette_from_code(PaletteCode_Button)) {
-                            UI_Input previous_input = ui_button(str8_literal("Previous"));
-                            ui_spacer_sized(ui_size_ems(0.5f, 1.0f));
-                            UI_Input next_input = ui_button(str8_literal("Next"));
-                            ui_spacer_sized(ui_size_ems(0.5f, 1.0f));
-                            ui_label_format("%lu: %.*s", state->log_index, str8_expand(log_entry->description));
-                            if (next_input.flags & UI_InputFlag_Clicked) {
-                                next_log_index = (state->log_index + 1) % msdf_glyph->log_entry_count;
-                            }
-                            if (previous_input.flags & UI_InputFlag_Clicked) {
-                                next_log_index = (state->log_index + msdf_glyph->log_entry_count - 1) % msdf_glyph->log_entry_count;
-                            }
-                        }
-
-                        ui_row() {
-                            U32 group_index = 0;
-                            ui_width(ui_size_text_content(0.0f, 1.0f))
-                            ui_height(ui_size_text_content(0.0f, 1.0f))
-                            for (MSDF_LogGroup *group = log_entry->first_group; group; group = group->next, ++group_index) {
-                                if (group_index % 5 == 0) {
-                                    if (group_index != 0) {
-                                        ui_column_end();
-                                        ui_spacer_sized(ui_size_ems(1.0f, 1.0f));
-                                    }
-                                    ui_width_next(ui_size_children_sum(1.0f));
-                                    ui_height_next(ui_size_children_sum(1.0f));
-                                    ui_column_begin();
-                                }
-                                ui_spacer_sized(ui_size_ems(0.5f, 1.0f));
-                                UI_Input check_input = { 0 };
-                                if (group->text.size) {
-                                    check_input = ui_checkbox_b32_format(&state->is_group_visible[group_index], "%lu: %.*s", group_index, str8_expand(group->text));
-                                } else {
-                                    check_input = ui_checkbox_b32_format(&state->is_group_visible[group_index], "%lu", group_index);
-                                }
-                                if (check_input.flags & UI_InputFlag_Hovering) {
-                                    next_hovered_group = 1 + group_index;
-                                }
-                            }
-                            if (group_index != 0) {
-                                ui_column_end();
-                            }
-                        }
-                        ui_spacer_sized(ui_size_ems(0.5f, 1.0f));
-
-                        if (next_log_index != state->log_index) {
-                            state->is_group_visible = 0;
-                            state->log_index = next_log_index;
-                        }
-                        state->hovered_group = next_hovered_group;
-                    }
                 }
             }
         }

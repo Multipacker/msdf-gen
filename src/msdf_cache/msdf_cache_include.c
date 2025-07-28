@@ -189,24 +189,32 @@ internal Void msdf_cache_update(Void) {
                     (F32) atlas_position.y + (F32) state->glyph_size - 0.5f
                 );
                 result->texture = selected_atlas->texture;
-                result->log_entry_count = work.raster.log_entry_count;
-                result->log_entries = arena_push_array(state->glyph_arena, MSDF_LogEntry, work.raster.log_entry_count);
-                for (U64 entry_index = 0; entry_index < work.raster.log_entry_count; ++entry_index) {
-                    MSDF_LogEntry *src_entry = &work.raster.log_entries[entry_index];
-                    MSDF_LogEntry *entry = &result->log_entries[entry_index];
-                    entry->description = str8_copy(state->arena, src_entry->description);
-                    for (MSDF_LogGroup *src_group = src_entry->first_group; src_group; src_group = src_group->next) {
-                        MSDF_LogGroup *group = arena_push_struct(state->glyph_arena, MSDF_LogGroup);
-                        group->text = str8_copy(state->glyph_arena, src_group->text);
-                        for (MSDF_LogGeometry *src_geometry = src_group->first_geometry; src_geometry; src_geometry = src_geometry->next) {
-                            MSDF_LogGeometry *geometry = arena_push_struct(state->glyph_arena, MSDF_LogGeometry);
-                            memory_copy(geometry, src_geometry, sizeof(*geometry));
-                            dll_push_back(group->first_geometry, group->last_geometry, geometry);
-                        }
-                        dll_push_back(entry->first_group, entry->last_group, group);
-                        ++entry->group_count;
+
+                result->logs = arena_push_struct(state->glyph_arena, MSDF_LogNode);
+                *result->logs = *work.raster.logs;
+                for (MSDF_LogNode *node = result->logs; node; node = msdf_log_iterator_depth_first_pre_order(node).next) {
+                    // NOTE(simon): Move own state to glyph arena.
+                    node->string = str8_copy(state->glyph_arena, node->string);
+
+                    // NOTE(simon): Move children to glyph arena.
+                    MSDF_LogNode *first_child = node->first;
+                    MSDF_LogNode *last_child = node->last;
+                    node->first = 0;
+                    node->last  = 0;
+                    for (MSDF_LogNode *child = first_child, *next = 0; child; child = next) {
+                        next = child->next;
+
+                        MSDF_LogNode *new_child = arena_push_struct(state->glyph_arena, MSDF_LogNode);
+                        *new_child = *child;
+
+                        // NOTE(simon): Set structure links.
+                        new_child->parent = node;
+                        new_child->next     = 0;
+                        new_child->previous = 0;
+                        dll_push_back(node->first, node->last, new_child);
                     }
                 }
+
                 result->loaded = true;
             }
 
