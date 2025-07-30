@@ -903,8 +903,8 @@ PANEL_BUILD_FUNCTION(view_glyph_debug) {
                 continue;
             }
 
-            R1U64 absolute_range  = r1u64(block_range->range.min + row_index, block_range->range.max + row_index);
             U64   block_row_count = r1u64_size(block_range->range);
+            R1U64 absolute_range  = r1u64(row_index, row_index + block_row_count);
 
             R1U64 local_range = block_range->range;
             if (absolute_range.min < (U64) top_row) {
