@@ -855,6 +855,498 @@ internal M4F32 m4f32_ortho(F32 left, F32 right, F32 top, F32 bottom, F32 near_pl
 
 
 
+internal R1U8 r1u8(U8 min, U8 max) {
+    R1U8 result = { 0 };
+
+    result.min = min;
+    result.max = max;
+
+    return result;
+}
+
+internal R1U8 r1u8_intersect(R1U8 a, R1U8 b) {
+    R1U8 result = { 0 };
+
+    result.min = u8_max(a.min, b.min);
+    result.max = u8_min(a.max, b.max);
+
+    return result;
+}
+
+internal B32 r1u8_contains_u8(R1U8 bounds, U8 point) {
+    B32 result = bounds.min <= point && point < bounds.max;
+    return result;
+}
+
+internal B32 r1u8_contains_r1u8(R1U8 a, R1U8 b) {
+    B32 result = a.min <= b.min && b.max <= a.max;
+    return result;
+}
+
+internal R1U8 r1u8_pad(R1U8 range, U8 pad) {
+    R1U8 result = { 0 };
+
+    result.min = range.min - pad;
+    result.max = range.max + pad;
+
+    return result;
+}
+
+internal U8 r1u8_size(R1U8 range) {
+    U8 result = range.max - range.min;
+    return result;
+}
+
+internal U8 r1u8_center(R1U8 range) {
+    U8 result = (range.min + range.max) / 2;
+    return result;
+}
+
+
+
+
+internal R1U16 r1u16(U16 min, U16 max) {
+    R1U16 result = { 0 };
+
+    result.min = min;
+    result.max = max;
+
+    return result;
+}
+
+internal R1U16 r1u16_intersect(R1U16 a, R1U16 b) {
+    R1U16 result = { 0 };
+
+    result.min = u16_max(a.min, b.min);
+    result.max = u16_min(a.max, b.max);
+
+    return result;
+}
+
+internal B32 r1u16_contains_u16(R1U16 bounds, U16 point) {
+    B32 result = bounds.min <= point && point < bounds.max;
+    return result;
+}
+
+internal B32 r1u16_contains_r1u16(R1U16 a, R1U16 b) {
+    B32 result = a.min <= b.min && b.max <= a.max;
+    return result;
+}
+
+internal R1U16 r1u16_pad(R1U16 range, U16 pad) {
+    R1U16 result = { 0 };
+
+    result.min = range.min - pad;
+    result.max = range.max + pad;
+
+    return result;
+}
+
+internal U16 r1u16_size(R1U16 range) {
+    U16 result = range.max - range.min;
+    return result;
+}
+
+internal U16 r1u16_center(R1U16 range) {
+    U16 result = (range.min + range.max) / 2;
+    return result;
+}
+
+
+
+internal R1U32 r1u32(U32 min, U32 max) {
+    R1U32 result = { 0 };
+
+    result.min = min;
+    result.max = max;
+
+    return result;
+}
+
+internal R1U32 r1u32_intersect(R1U32 a, R1U32 b) {
+    R1U32 result = { 0 };
+
+    result.min = u32_max(a.min, b.min);
+    result.max = u32_min(a.max, b.max);
+
+    return result;
+}
+
+internal B32 r1u32_contains_u32(R1U32 bounds, U32 point) {
+    B32 result = bounds.min <= point && point < bounds.max;
+    return result;
+}
+
+internal B32 r1u32_contains_r1u32(R1U32 a, R1U32 b) {
+    B32 result = a.min <= b.min && b.max <= a.max;
+    return result;
+}
+
+internal R1U32 r1u32_pad(R1U32 range, U32 pad) {
+    R1U32 result = { 0 };
+
+    result.min = range.min - pad;
+    result.max = range.max + pad;
+
+    return result;
+}
+
+internal U32 r1u32_size(R1U32 range) {
+    U32 result = range.max - range.min;
+    return result;
+}
+
+internal U32 r1u32_center(R1U32 range) {
+    U32 result = (range.min + range.max) / 2;
+    return result;
+}
+
+
+
+internal R1U64 r1u64(U64 min, U64 max) {
+    R1U64 result = { 0 };
+
+    result.min = min;
+    result.max = max;
+
+    return result;
+}
+
+internal R1U64 r1u64_intersect(R1U64 a, R1U64 b) {
+    R1U64 result = { 0 };
+
+    result.min = u64_max(a.min, b.min);
+    result.max = u64_min(a.max, b.max);
+
+    return result;
+}
+
+internal B32 r1u64_contains_u64(R1U64 bounds, U64 point) {
+    B32 result = bounds.min <= point && point < bounds.max;
+    return result;
+}
+
+internal B32 r1u64_contains_r1u64(R1U64 a, R1U64 b) {
+    B32 result = a.min <= b.min && b.max <= a.max;
+    return result;
+}
+
+internal R1U64 r1u64_pad(R1U64 range, U64 pad) {
+    R1U64 result = { 0 };
+
+    result.min = range.min - pad;
+    result.max = range.max + pad;
+
+    return result;
+}
+
+internal U64 r1u64_size(R1U64 range) {
+    U64 result = range.max - range.min;
+    return result;
+}
+
+internal U64 r1u64_center(R1U64 range) {
+    U64 result = (range.min + range.max) / 2;
+    return result;
+}
+
+
+
+internal R1S8 r1s8(S8 min, S8 max) {
+    R1S8 result = { 0 };
+
+    result.min = min;
+    result.max = max;
+
+    return result;
+}
+
+internal R1S8 r1s8_intersect(R1S8 a, R1S8 b) {
+    R1S8 result = { 0 };
+
+    result.min = s8_max(a.min, b.min);
+    result.max = s8_min(a.max, b.max);
+
+    return result;
+}
+
+internal B32 r1s8_contains_s8(R1S8 bounds, S8 point) {
+    B32 result = bounds.min <= point && point < bounds.max;
+    return result;
+}
+
+internal B32 r1s8_contains_r1s8(R1S8 a, R1S8 b) {
+    B32 result = a.min <= b.min && b.max <= a.max;
+    return result;
+}
+
+internal R1S8 r1s8_pad(R1S8 range, S8 pad) {
+    R1S8 result = { 0 };
+
+    result.min = range.min - pad;
+    result.max = range.max + pad;
+
+    return result;
+}
+
+internal S8 r1s8_size(R1S8 range) {
+    S8 result = range.max - range.min;
+    return result;
+}
+
+internal S8 r1s8_center(R1S8 range) {
+    S8 result = (range.min + range.max) / 2;
+    return result;
+}
+
+
+
+
+internal R1S16 r1s16(S16 min, S16 max) {
+    R1S16 result = { 0 };
+
+    result.min = min;
+    result.max = max;
+
+    return result;
+}
+
+internal R1S16 r1s16_intersect(R1S16 a, R1S16 b) {
+    R1S16 result = { 0 };
+
+    result.min = s16_max(a.min, b.min);
+    result.max = s16_min(a.max, b.max);
+
+    return result;
+}
+
+internal B32 r1s16_contains_s16(R1S16 bounds, S16 point) {
+    B32 result = bounds.min <= point && point < bounds.max;
+    return result;
+}
+
+internal B32 r1s16_contains_r1s16(R1S16 a, R1S16 b) {
+    B32 result = a.min <= b.min && b.max <= a.max;
+    return result;
+}
+
+internal R1S16 r1s16_pad(R1S16 range, S16 pad) {
+    R1S16 result = { 0 };
+
+    result.min = range.min - pad;
+    result.max = range.max + pad;
+
+    return result;
+}
+
+internal S16 r1s16_size(R1S16 range) {
+    S16 result = range.max - range.min;
+    return result;
+}
+
+internal S16 r1s16_center(R1S16 range) {
+    S16 result = (range.min + range.max) / 2;
+    return result;
+}
+
+
+
+internal R1S32 r1s32(S32 min, S32 max) {
+    R1S32 result = { 0 };
+
+    result.min = min;
+    result.max = max;
+
+    return result;
+}
+
+internal R1S32 r1s32_intersect(R1S32 a, R1S32 b) {
+    R1S32 result = { 0 };
+
+    result.min = s32_max(a.min, b.min);
+    result.max = s32_min(a.max, b.max);
+
+    return result;
+}
+
+internal B32 r1s32_contains_s32(R1S32 bounds, S32 point) {
+    B32 result = bounds.min <= point && point < bounds.max;
+    return result;
+}
+
+internal B32 r1s32_contains_r1s32(R1S32 a, R1S32 b) {
+    B32 result = a.min <= b.min && b.max <= a.max;
+    return result;
+}
+
+internal R1S32 r1s32_pad(R1S32 range, S32 pad) {
+    R1S32 result = { 0 };
+
+    result.min = range.min - pad;
+    result.max = range.max + pad;
+
+    return result;
+}
+
+internal S32 r1s32_size(R1S32 range) {
+    S32 result = range.max - range.min;
+    return result;
+}
+
+internal S32 r1s32_center(R1S32 range) {
+    S32 result = (range.min + range.max) / 2;
+    return result;
+}
+
+
+
+internal R1S64 r1s64(S64 min, S64 max) {
+    R1S64 result = { 0 };
+
+    result.min = min;
+    result.max = max;
+
+    return result;
+}
+
+internal R1S64 r1s64_intersect(R1S64 a, R1S64 b) {
+    R1S64 result = { 0 };
+
+    result.min = s64_max(a.min, b.min);
+    result.max = s64_min(a.max, b.max);
+
+    return result;
+}
+
+internal B32 r1s64_contains_s64(R1S64 bounds, S64 point) {
+    B32 result = bounds.min <= point && point < bounds.max;
+    return result;
+}
+
+internal B32 r1s64_contains_r1s64(R1S64 a, R1S64 b) {
+    B32 result = a.min <= b.min && b.max <= a.max;
+    return result;
+}
+
+internal R1S64 r1s64_pad(R1S64 range, S64 pad) {
+    R1S64 result = { 0 };
+
+    result.min = range.min - pad;
+    result.max = range.max + pad;
+
+    return result;
+}
+
+internal S64 r1s64_size(R1S64 range) {
+    S64 result = range.max - range.min;
+    return result;
+}
+
+internal S64 r1s64_center(R1S64 range) {
+    S64 result = (range.min + range.max) / 2;
+    return result;
+}
+
+
+
+internal R1F32 r1f32(F32 min, F32 max) {
+    R1F32 result = { 0 };
+
+    result.min = min;
+    result.max = max;
+
+    return result;
+}
+
+internal R1F32 r1f32_intersect(R1F32 a, R1F32 b) {
+    R1F32 result = { 0 };
+
+    result.min = f32_max(a.min, b.min);
+    result.max = f32_min(a.max, b.max);
+
+    return result;
+}
+
+internal B32 r1f32_contains_f32(R1F32 bounds, F32 point) {
+    B32 result = bounds.min <= point && point < bounds.max;
+    return result;
+}
+
+internal B32 r1f32_contains_r1f32(R1F32 a, R1F32 b) {
+    B32 result = a.min <= b.min && b.max <= a.max;
+    return result;
+}
+
+internal R1F32 r1f32_pad(R1F32 range, F32 pad) {
+    R1F32 result = { 0 };
+
+    result.min = range.min - pad;
+    result.max = range.max + pad;
+
+    return result;
+}
+
+internal F32 r1f32_size(R1F32 range) {
+    F32 result = range.max - range.min;
+    return result;
+}
+
+internal F32 r1f32_center(R1F32 range) {
+    F32 result = (range.min + range.max) / 2;
+    return result;
+}
+
+
+
+internal R1F64 r1f64(F64 min, F64 max) {
+    R1F64 result = { 0 };
+
+    result.min = min;
+    result.max = max;
+
+    return result;
+}
+
+internal R1F64 r1f64_intersect(R1F64 a, R1F64 b) {
+    R1F64 result = { 0 };
+
+    result.min = f64_max(a.min, b.min);
+    result.max = f64_min(a.max, b.max);
+
+    return result;
+}
+
+internal B32 r1f64_contains_f64(R1F64 bounds, F64 point) {
+    B32 result = bounds.min <= point && point < bounds.max;
+    return result;
+}
+
+internal B32 r1f64_contains_r1f64(R1F64 a, R1F64 b) {
+    B32 result = a.min <= b.min && b.max <= a.max;
+    return result;
+}
+
+internal R1F64 r1f64_pad(R1F64 range, F64 pad) {
+    R1F64 result = { 0 };
+
+    result.min = range.min - pad;
+    result.max = range.max + pad;
+
+    return result;
+}
+
+internal F64 r1f64_size(R1F64 range) {
+    F64 result = range.max - range.min;
+    return result;
+}
+
+internal F64 r1f64_center(R1F64 range) {
+    F64 result = (range.min + range.max) / 2;
+    return result;
+}
+
+
+
 internal R2U8 r2u8(U8 min_x, U8 min_y, U8 max_x, U8 max_y) {
     R2U8 result = { 0 };
 

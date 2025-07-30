@@ -181,6 +181,100 @@ struct M4F32 {
     F32 m[4][4];
 };
 
+
+
+typedef union R1U8 R1U8;
+union R1U8 {
+    struct {
+        U8 min;
+        U8 max;
+    };
+    U8 values[2];
+};
+
+typedef union R1U16 R1U16;
+union R1U16 {
+    struct {
+        U16 min;
+        U16 max;
+    };
+    U16 values[2];
+};
+
+typedef union R1U32 R1U32;
+union R1U32 {
+    struct {
+        U32 min;
+        U32 max;
+    };
+    U32 values[2];
+};
+
+typedef union R1U64 R1U64;
+union R1U64 {
+    struct {
+        U64 min;
+        U64 max;
+    };
+    U64 values[2];
+};
+
+typedef union R1S8 R1S8;
+union R1S8 {
+    struct {
+        S8 min;
+        S8 max;
+    };
+    S8 values[2];
+};
+
+typedef union R1S16 R1S16;
+union R1S16 {
+    struct {
+        S16 min;
+        S16 max;
+    };
+    S16 values[2];
+};
+
+typedef union R1S32 R1S32;
+union R1S32 {
+    struct {
+        S32 min;
+        S32 max;
+    };
+    S32 values[2];
+};
+
+typedef union R1S64 R1S64;
+union R1S64 {
+    struct {
+        S64 min;
+        S64 max;
+    };
+    S64 values[2];
+};
+
+typedef union R1F32 R1F32;
+union R1F32 {
+    struct {
+        F32 min;
+        F32 max;
+    };
+    F32 values[2];
+};
+
+typedef union R1F64 R1F64;
+union R1F64 {
+    struct {
+        F64 min;
+        F64 max;
+    };
+    F64 values[2];
+};
+
+
+
 typedef union R2U8 R2U8;
 union R2U8 {
     struct {
@@ -375,6 +469,90 @@ internal V2F32 m3f32_multiply_v2f32(M3F32 matrix, V2F32 vector);
 internal V3F32 m3f32_multiply_v3f32(M3F32 matrix, V3F32 vector);
 
 internal M4F32 m4f32_ortho(F32 left, F32 right, F32 top, F32 bottom, F32 near_plane, F32 far_plane);
+
+
+
+internal R1U8 r1u8(U8 min, U8 max);
+internal R1U8 r1u8_intersect(R1U8 a, R1U8 b);
+internal B32  r1u8_contains_u8(R1U8 bounds, U8 point);
+internal B32  r1u8_contains_r1u8(R1U8 a, R1U8 b);
+internal R1U8 r1u8_pad(R1U8 range, U8 pad);
+internal U8   r1u8_size(R1U8 range);
+internal U8   r1u8_center(R1U8 range);
+
+internal R1U16 r1u16(U16 min, U16 max);
+internal R1U16 r1u16_intersect(R1U16 a, R1U16 b);
+internal B32   r1u16_contains_u16(R1U16 bounds, U16 point);
+internal B32   r1u16_contains_r1u16(R1U16 a, R1U16 b);
+internal R1U16 r1u16_pad(R1U16 range, U16 pad);
+internal U16   r1u16_size(R1U16 range);
+internal U16   r1u16_center(R1U16 range);
+
+internal R1U32 r1u32(U32 min, U32 max);
+internal R1U32 r1u32_intersect(R1U32 a, R1U32 b);
+internal B32   r1u32_contains_u32(R1U32 bounds, U32 point);
+internal B32   r1u32_contains_r1u32(R1U32 a, R1U32 b);
+internal R1U32 r1u32_pad(R1U32 range, U32 pad);
+internal U32   r1u32_size(R1U32 range);
+internal U32   r1u32_center(R1U32 range);
+
+internal R1U64 r1u64(U64 min, U64 max);
+internal R1U64 r1u64_intersect(R1U64 a, R1U64 b);
+internal B32   r1u64_contains_u64(R1U64 bounds, U64 point);
+internal B32   r1u64_contains_r1u64(R1U64 a, R1U64 b);
+internal R1U64 r1u64_pad(R1U64 range, U64 pad);
+internal U64   r1u64_size(R1U64 range);
+internal U64   r1u64_center(R1U64 range);
+
+internal R1S8 r1s8(S8 min, S8 max);
+internal R1S8 r1s8_intersect(R1S8 a, R1S8 b);
+internal B32  r1s8_contains_s8(R1S8 bounds, S8 point);
+internal B32  r1s8_contains_r1s8(R1S8 a, R1S8 b);
+internal R1S8 r1s8_pad(R1S8 range, S8 pad);
+internal S8   r1s8_size(R1S8 range);
+internal S8   r1s8_center(R1S8 range);
+
+internal R1S16 r1s16(S16 min, S16 max);
+internal R1S16 r1s16_intersect(R1S16 a, R1S16 b);
+internal B32   r1s16_contains_s16(R1S16 bounds, S16 point);
+internal B32   r1s16_contains_r1s16(R1S16 a, R1S16 b);
+internal R1S16 r1s16_pad(R1S16 range, S16 pad);
+internal S16   r1s16_size(R1S16 range);
+internal S16   r1s16_center(R1S16 range);
+
+internal R1S32 r1s32(S32 min, S32 max);
+internal R1S32 r1s32_intersect(R1S32 a, R1S32 b);
+internal B32   r1s32_contains_s32(R1S32 bounds, S32 point);
+internal B32   r1s32_contains_r1s32(R1S32 a, R1S32 b);
+internal R1S32 r1s32_pad(R1S32 range, S32 pad);
+internal S32   r1s32_size(R1S32 range);
+internal S32   r1s32_center(R1S32 range);
+
+internal R1S64 r1s64(S64 min, S64 max);
+internal R1S64 r1s64_intersect(R1S64 a, R1S64 b);
+internal B32   r1s64_contains_s64(R1S64 bounds, S64 point);
+internal B32   r1s64_contains_r1s64(R1S64 a, R1S64 b);
+internal R1S64 r1s64_pad(R1S64 range, S64 pad);
+internal S64   r1s64_size(R1S64 range);
+internal S64   r1s64_center(R1S64 range);
+
+internal R1F32 r1f32(F32 min, F32 max);
+internal R1F32 r1f32_intersect(R1F32 a, R1F32 b);
+internal B32   r1f32_contains_f32(R1F32 bounds, F32 point);
+internal B32   r1f32_contains_r1f32(R1F32 a, R1F32 b);
+internal R1F32 r1f32_pad(R1F32 range, F32 pad);
+internal F32   r1f32_size(R1F32 range);
+internal F32   r1f32_center(R1F32 range);
+
+internal R1F64 r1f64(F64 min, F64 max);
+internal R1F64 r1f64_intersect(R1F64 a, R1F64 b);
+internal B32   r1f64_contains_f64(R1F64 bounds, F64 point);
+internal B32   r1f64_contains_r1f64(R1F64 a, R1F64 b);
+internal R1F64 r1f64_pad(R1F64 range, F64 pad);
+internal F64   r1f64_size(R1F64 range);
+internal F64   r1f64_center(R1F64 range);
+
+
 
 internal R2U8 r2u8(U8 min_x, U8 min_y, U8 max_x, U8 max_y);
 internal R2U8 r2u8_from_position_size(V2U8 position, V2U8 size);
