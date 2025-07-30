@@ -126,14 +126,14 @@ PANEL_BUILD_FUNCTION(view_glyph_list) {
     F32 width  = container_width / (F32) codepoints_per_row;
     F32 height = width * 2.0f;
 
-    // NOTE(simon): Properties of the data begin viewed.
+    // NOTE(simon): Properties of the data being viewed.
     S64 first_row    = 0;
     S64 last_row     = ((S64) codepoint_map.codepoint_count + codepoints_per_row - 1) / codepoints_per_row;
-    S64 visible_rows = (S64) f32_ceil(container_height / height);
 
     // NOTE(simon): Properties of the current view.
-    S64 top_row    = state->position.index + (S64) f32_floor(state->position.offset);
-    S64 bottom_row = s64_min(top_row + (state->position.offset != 0.0f) + visible_rows, last_row);
+    S64 visible_rows = (S64) f32_ceil(container_height / height);
+    S64 top_row      = state->position.index + (S64) f32_floor(state->position.offset);
+    S64 bottom_row   = s64_min(top_row + (state->position.offset != 0.0f) + visible_rows, last_row);
 
     S64 new_index = s64_min(s64_max(0, state->index), (S64) codepoint_map.codepoint_count - 1);
 
@@ -689,6 +689,470 @@ PANEL_BUILD_FUNCTION(view_glyph) {
 
     arena_end_temporary(scratch);
     prof_function_end();
+}
+
+PANEL_BUILD_FUNCTION(view_glyph_debug) {
+    Arena_Temporary scratch = arena_get_scratch(0, 0);
+
+    typedef struct ExpansionNode ExpansionNode;
+    struct ExpansionNode {
+        ExpansionNode *next;
+        ExpansionNode *previous;
+        MSDF_LogNode  *parent;
+        U64            index_in_parent;
+    };
+    typedef struct ExpansionList ExpansionList;
+    struct ExpansionList {
+        ExpansionNode *first;
+        ExpansionNode *last;
+    };
+    typedef struct ViewState ViewState;
+    struct ViewState {
+        // NOTE(simon): Expansion set.
+        ExpansionList *expansion_set;
+        ExpansionNode *expansion_freelist;
+        U64 expansion_set_count;
+
+        UI_ScrollPosition position;
+    };
+
+    B32 is_new_tab = tab->view_state == 0;
+    ViewState *state = (ViewState *) tab_get_state(tab, sizeof(ViewState));
+
+    // NOTE(simon): Initialize new tabs.
+    if (is_new_tab) {
+        state->expansion_set_count = 1024;
+        state->expansion_set = arena_push_array(tab->arena, ExpansionList, state->expansion_set_count);
+    }
+
+    MSDFCache_Glyph *msdf_glyph = msdf_cache_get_glyph(global_state->ttf_font, top_context()->codepoint);
+    MSDF_LogNode *logs = msdf_glyph->logs;
+
+    // NOTE(simon): Build block tree.
+    typedef struct Block Block;
+    struct Block {
+        Block *next;
+        Block *previous;
+        Block *first;
+        Block *last;
+        Block *parent;
+
+        MSDF_LogNode *node;
+        U64           index_in_parent;
+        U64           row_count;
+        U64           depth;
+    };
+    Block *root_block = arena_push_struct(scratch.arena, Block);
+    if (logs) {
+        Arena_Temporary task_scratch = arena_get_scratch(&scratch.arena, 1);
+
+        typedef struct Task Task;
+        struct Task {
+            Task         *next;
+            Block        *parent_block;
+            MSDF_LogNode *node;
+            U64           index_in_parent;
+        };
+
+        Task  start_task = { 0, root_block, logs, 0, };
+        Task *first_task = &start_task;
+        Task *last_task  = first_task;
+        for (Task *task = first_task; task; task = task->next) {
+            MSDF_LogNode *node = task->node;
+
+            // NOTE(simon): No children => nothing to expand.
+            if (!node->first) {
+                continue;
+            }
+
+            // NOTE(simon): Find expandsion state.
+            U64 hash = hash_combine(u64_hash(integer_from_pointer(node->parent)), u64_hash(task->index_in_parent));
+            U64 expansion_index = hash % state->expansion_set_count;
+            ExpansionList *expansion_slot = &state->expansion_set[expansion_index];
+            ExpansionNode *is_expanded = expansion_slot->first;
+            while (is_expanded && !(is_expanded->parent == node->parent && is_expanded->index_in_parent == task->index_in_parent)) {
+                is_expanded = is_expanded->next;
+            }
+
+            // NOTE(simon): Skip if not expanded.
+            if (is_expanded) {
+                continue;
+            }
+
+            // NOTE(simon): Build block.
+            Block *block = arena_push_struct(scratch.arena, Block);
+            block->parent = task->parent_block;
+            block->index_in_parent = task->index_in_parent;
+            dll_push_back(task->parent_block->first, task->parent_block->last, block);
+            block->node = node;
+            block->depth = task->parent_block->depth + 1;
+
+            // NOTE(simon): Queue up all children.
+            U64 child_index = 0;
+            for (MSDF_LogNode *child = node->first; child; child = child->next, ++child_index) {
+                Task *child_task = arena_push_struct(task_scratch.arena, Task);
+                child_task->node = child;
+                child_task->parent_block = block;
+                child_task->index_in_parent = child_index;
+                sll_queue_push(first_task, last_task, child_task);
+
+                ++block->row_count;
+            }
+        }
+
+        arena_end_temporary(task_scratch);
+    }
+
+    // NOTE(simon): Generate block list.
+    typedef struct BlockRange BlockRange;
+    struct BlockRange {
+        BlockRange *next;
+        Block *block;
+        R1U64  range;
+    };
+    typedef struct BlockRangeList BlockRangeList;
+    struct BlockRangeList {
+        BlockRange *first;
+        BlockRange *last;
+    };
+    BlockRangeList range_list = { 0 };
+    {
+        Arena_Temporary task_scratch = arena_get_scratch(&scratch.arena, 1);
+
+        typedef struct Task Task;
+        struct Task {
+            Task  *next;
+            Block *block;
+            Block *next_child;
+            R1U64  range;
+        };
+        Task start_task = { 0, root_block, root_block->first, r1u64(0, root_block->row_count), };
+        for (Task *task = &start_task; task; task = task->next) {
+            // NOTE(simon): Get block range, truncated to next child.
+            R1U64 range  = task->range;
+            if (task->next_child) {
+                range.max = task->next_child->index_in_parent + 1;
+            }
+
+            // NOTE(simon): Create range block.
+            if (r1u64_size(range) != 0) {
+                BlockRange *block_range = arena_push_struct(scratch.arena, BlockRange);
+                block_range->block = task->block;
+                block_range->range = range;
+                sll_queue_push(range_list.first, range_list.last, block_range);
+            }
+
+            // NOTE(simon): Queue up child task and parts after the child.
+            if (task->next_child) {
+                Task *child_task = arena_push_struct(task_scratch.arena, Task);
+                child_task->next = task->next;
+                task->next = child_task;
+                child_task->block = task->next_child;
+                child_task->next_child = task->next_child->first;
+                child_task->range = r1u64(0, task->next_child->row_count);
+
+                // NOTE(simon): Queue up task for rows after child, if any.
+                R1U64 remainder_range = r1u64(range.max, task->range.max);
+                if (r1u64_size(remainder_range) != 0) {
+                    Task *remainder_task = arena_push_struct(task_scratch.arena, Task);
+                    remainder_task->next = child_task->next;
+                    child_task->next = remainder_task;
+                    remainder_task->block = task->block;
+                    remainder_task->next_child = task->next_child->next;
+                    remainder_task->range = remainder_range;
+                }
+            }
+        }
+
+        arena_end_temporary(task_scratch);
+    }
+
+    // NOTE(simon): Count total number of rows.
+    U64 row_count = 0;
+    for (BlockRange *block_range = range_list.first; block_range; block_range = block_range->next) {
+        row_count += r1u64_size(block_range->range);
+    }
+
+    // NOTE(simon): Build
+    V2F32 panel_size     = r2f32_size(panel_rectangle);
+    F32 scrollbar_width  = (F32) ui_font_size_top();
+    F32 container_width  = panel_size.width - scrollbar_width;
+    F32 container_height = panel_size.height;
+
+    F32 height = ui_size_ems(2.0f, 1.0f).value;
+
+    // NOTE(simon): Properties of the current view.
+    S64 visible_rows = (S64) f32_ceil(container_height / height);
+    S64 top_row      = state->position.index + (S64) f32_floor(state->position.offset);
+    S64 bottom_row   = s64_min(top_row + (state->position.offset != 0.0f) + visible_rows, (S64) row_count);
+
+    // NOTE(simon): Generate rows.
+    typedef struct Row Row;
+    struct Row {
+        Row *next;
+        MSDF_LogNode *node;
+        U64 depth;
+        U64 index_in_parent;
+    };
+    Row *first_row = 0;
+    Row *last_row = 0;
+    {
+        S64 row_index = 0;
+        for (BlockRange *block_range = range_list.first; block_range; block_range = block_range->next) {
+            if (!block_range->block->node) {
+                continue;
+            }
+
+            R1U64 absolute_range  = r1u64(block_range->range.min + (U64) row_index, block_range->range.max + (U64) row_index);
+            U64   block_row_count = r1u64_size(block_range->range);
+
+            U64 skipped_rows = 0;
+            U64 chopped_rows = 0;
+            if (absolute_range.min < (U64) top_row) {
+                skipped_rows = u64_min((U64) top_row - absolute_range.min, block_row_count);
+            }
+            if (absolute_range.max > (U64) bottom_row) {
+                chopped_rows = u64_min(absolute_range.max - (U64) bottom_row, block_row_count);
+            }
+
+            // NOTE(simon): Skip invisible children.
+            MSDF_LogNode *child = block_range->block->node->first;
+            for (U64 i = 0; i < skipped_rows; ++i) {
+                child = child->next;
+            }
+
+            // NOTE(simon): Queue up rows.
+            for (U64 i = skipped_rows; i < block_row_count - chopped_rows; ++i, child = child->next) {
+                Row *row = arena_push_struct(scratch.arena, Row);
+                row->node = child;
+                row->depth = block_range->block->depth;
+                row->index_in_parent = i;
+                sll_queue_push(first_row, last_row, row);
+            }
+
+            row_index += (S64) r1u64_size(block_range->range);
+        }
+    }
+
+    // NOTE(simon): Scroll region.
+    ui_width_next(ui_size_pixels(panel_size.x, 1.0f));
+    ui_height_next(ui_size_pixels(panel_size.y, 1.0f));
+    ui_layout_axis_next(Axis2_X);
+    UI_Box *region = ui_create_box_from_string(UI_BoxFlag_OverflowY | UI_BoxFlag_Scrollable, str8_literal("##region"));
+    ui_parent(region) {
+        // NOTE(simon): Scroll container.
+        ui_width_next(ui_size_pixels(container_width, 1.0f));
+        ui_height_next(ui_size_pixels(container_height, 1.0f));
+        ui_layout_axis_next(Axis2_Y);
+        UI_Box *container = ui_create_box_from_string(0, str8_literal("##container"));
+        container->view_offset.y = height * (f32_mod(state->position.offset, 1.0f) + (state->position.offset < 0.0f));
+
+        ui_palette(palette_from_code(PaletteCode_Button))
+        ui_focus(UI_Focus_Active)
+        ui_parent(container) {
+            ui_width(ui_size_fill())
+            ui_height(ui_size_pixels(height, 1.0f))
+            for (Row *row = first_row; row; row = row->next) {
+                // NOTE(simon): Find expandsion state.
+                U64 hash = hash_combine(u64_hash(integer_from_pointer(row->node->parent)), u64_hash(row->index_in_parent));
+                U64 expansion_index = hash % state->expansion_set_count;
+                ExpansionList *expansion_slot = &state->expansion_set[expansion_index];
+                ExpansionNode *is_expanded = expansion_slot->first;
+                while (is_expanded && !(is_expanded->parent == row->node->parent && is_expanded->index_in_parent == row->index_in_parent)) {
+                    is_expanded = is_expanded->next;
+                }
+
+                ui_palette_push(palette_from_code(row->index_in_parent % 2 == 0 ? PaletteCode_Button : PaletteCode_SecondaryButton));
+                ui_layout_axis_next(Axis2_X);
+                UI_Box *row_box = ui_create_box_from_string_format(
+                    UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawHot | UI_BoxFlag_DrawActive | UI_BoxFlag_Clickable,
+                    "##%p", row->node
+                );
+                ui_parent_push(row_box);
+
+                ui_width(ui_size_ems(1.0f, 1.0f))
+                ui_text_align(UI_TextAlign_Center)
+                for (U64 depth = 0; depth < row->depth; ++depth) {
+                    ui_label(str8_literal("|"));
+                }
+
+                ui_width_next(ui_size_ems(1.0f, 0.0f));
+                ui_text_align_next(UI_TextAlign_Center);
+                if (row->node->first) {
+                    if (is_expanded) {
+                        ui_label(str8_literal("v"));
+                    } else {
+                        ui_label(str8_literal(">"));
+                    }
+                } else {
+                    ui_spacer();
+                }
+
+                Str8 display = row->node->string;
+                if (display.size == 0) {
+                    if (row->node->first) {
+                        display = str8_literal("Group");
+                    } else if (row->node->flags & MSDF_LogNodeFlag_DrawBezier) {
+                        display = str8_literal("Bezier");
+                    } else if (row->node->flags & MSDF_LogNodeFlag_DrawLine) {
+                        display = str8_literal("Line");
+                    } else if (row->node->flags & MSDF_LogNodeFlag_DrawPoint) {
+                        display = str8_literal("Point");
+                    } else {
+                        display = str8_literal("No geometry");
+                    }
+                }
+                ui_label_format("[%lu]: %.*s", row->index_in_parent, str8_expand(display));
+
+                ui_parent_pop();
+                ui_palette_pop();
+
+                UI_Input row_input = ui_input_from_box(row_box);
+                if (row_input.flags & UI_InputFlag_Clicked) {
+                    if (is_expanded) {
+                        dll_remove(expansion_slot->first, expansion_slot->last, is_expanded);
+                        sll_stack_push(state->expansion_freelist, is_expanded);
+                    } else {
+                        is_expanded = state->expansion_freelist;
+                        if (is_expanded) {
+                            sll_stack_pop(state->expansion_freelist);
+                            memory_zero_struct(is_expanded);
+                        } else {
+                            is_expanded = arena_push_struct(tab->arena, ExpansionNode);
+                        }
+                        is_expanded->parent          = row->node->parent;
+                        is_expanded->index_in_parent = row->index_in_parent;
+                        dll_push_back(expansion_slot->first, expansion_slot->last, is_expanded);
+                    }
+                }
+            }
+        }
+
+        ui_palette(palette_from_code(PaletteCode_Button))
+        ui_focus(UI_Focus_None)
+        ui_width(ui_size_pixels(scrollbar_width, 1.0f))
+        ui_height(ui_size_pixels(panel_size.y, 1.0f)) {
+            state->position = ui_scroll_bar(state->position, 0, (S64) row_count, visible_rows);
+        }
+    }
+
+    // NOTE(simon): Scrolling.
+    UI_Input region_input = ui_input_from_box(region);
+    S64 scroll_delta = (S64) f32_round(region_input.scroll.y);
+    state->position.index  -= scroll_delta;
+    state->position.offset += (F32) scroll_delta;
+
+    // NOTE(simon): Clamp scrolling.
+    if (state->position.index < 0) {
+        state->position.offset += (F32) state->position.index;
+        state->position.index = 0;
+    } else if ((S64) row_count <= state->position.index) {
+        state->position.offset -= (F32) (s64_max(0, (S64) row_count - 1) - state->position.index);
+        state->position.index = s64_max(0, (S64) row_count - 1);
+    }
+
+    // NOTE(simon): Animation
+    state->position.offset += -state->position.offset * ui_animation_slow_rate();
+    if (f32_abs(state->position.offset) < 0.001f) {
+        state->position.offset = 0.0f;
+    } else {
+        request_frame();
+    }
+
+#if 0
+    U32 row_index = 0;
+    for (BlockRange *block_range = range_list.first; block_range && row_index < visible_rows; block_range = block_range->next) {
+        if (!block_range->block->node) {
+            continue;
+        }
+
+        U64 child_index = 0;
+        MSDF_LogNode *first_child = block_range->block->node->first;
+        while (child_index < block_range->range.min) {
+            first_child = first_child->next;
+            ++child_index;
+        }
+
+        ui_width(ui_size_fill())
+        ui_height(ui_size_pixels(height, 1.0f))
+        for (MSDF_LogNode *node = first_child; child_index < block_range->range.max; ++child_index, node = node->next, ++row_index) {
+            // NOTE(simon): Find expandsion state.
+            U64 hash = hash_combine(u64_hash(integer_from_pointer(node->parent)), u64_hash(child_index));
+            U64 expansion_index = hash % state->expansion_set_count;
+            ExpansionList *expansion_slot = &state->expansion_set[expansion_index];
+            ExpansionNode *is_expanded = expansion_slot->first;
+            while (is_expanded && !(is_expanded->parent == node->parent && is_expanded->index_in_parent == child_index)) {
+                is_expanded = is_expanded->next;
+            }
+
+            ui_palette_push(palette_from_code(row_index % 2 == 0 ? PaletteCode_Button : PaletteCode_SecondaryButton));
+            ui_layout_axis_next(Axis2_X);
+            UI_Box *row_box = ui_create_box_from_string_format(
+                UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawHot | UI_BoxFlag_DrawActive | UI_BoxFlag_Clickable,
+                "##%p", node
+            );
+            ui_parent_push(row_box);
+
+            ui_width(ui_size_ems(1.0f, 1.0f))
+            ui_text_align(UI_TextAlign_Center)
+            for (U64 depth = 0; depth < block_range->block->depth; ++depth) {
+                ui_label(str8_literal("|"));
+            }
+
+            ui_width_next(ui_size_ems(1.0f, 0.0f));
+            ui_text_align_next(UI_TextAlign_Center);
+            if (node->first) {
+                if (is_expanded) {
+                    ui_label(str8_literal("v"));
+                } else {
+                    ui_label(str8_literal(">"));
+                }
+            } else {
+                ui_spacer();
+            }
+
+            Str8 display = node->string;
+            if (display.size == 0) {
+                if (node->first) {
+                    display = str8_literal("Group");
+                } else if (node->flags & MSDF_LogNodeFlag_DrawBezier) {
+                    display = str8_literal("Bezier");
+                } else if (node->flags & MSDF_LogNodeFlag_DrawLine) {
+                    display = str8_literal("Line");
+                } else if (node->flags & MSDF_LogNodeFlag_DrawPoint) {
+                    display = str8_literal("Point");
+                } else {
+                    display = str8_literal("No geometry");
+                }
+            }
+            ui_label_format("[%lu]: %.*s", child_index, str8_expand(display));
+
+            ui_parent_pop();
+            ui_palette_pop();
+
+            UI_Input row_input = ui_input_from_box(row_box);
+            if (row_input.flags & UI_InputFlag_Clicked) {
+                if (is_expanded) {
+                    dll_remove(expansion_slot->first, expansion_slot->last, is_expanded);
+                    sll_stack_push(state->expansion_freelist, is_expanded);
+                } else {
+                    is_expanded = state->expansion_freelist;
+                    if (is_expanded) {
+                        sll_stack_pop(state->expansion_freelist);
+                        memory_zero_struct(is_expanded);
+                    } else {
+                        is_expanded = arena_push_struct(tab->arena, ExpansionNode);
+                    }
+                    is_expanded->parent          = node->parent;
+                    is_expanded->index_in_parent = child_index;
+                    dll_push_back(expansion_slot->first, expansion_slot->last, is_expanded);
+                }
+            }
+        }
+    }
+#endif
+
+    arena_end_temporary(scratch);
 }
 
 PANEL_BUILD_FUNCTION(view_stats) {

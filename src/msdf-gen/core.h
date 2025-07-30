@@ -80,13 +80,14 @@ struct TabSpecification {
     PanelBuildFunction *build;
 };
 
-#define TABS                                             \
-    X(Null,        "Empty",             view_null)       \
-    X(GlyphList,   "Glyph list",        view_glyph_list) \
-    X(GlyphView,   "Glyph view",        view_glyph)      \
-    X(RenderStats, "Render statistics", view_stats)      \
-    X(Theme,       "Theme",             view_theme)      \
-    X(Preview,     "Preview",           view_preview)    \
+#define TABS                                              \
+    X(Null,        "Empty",             view_null)        \
+    X(GlyphList,   "Glyph list",        view_glyph_list)  \
+    X(GlyphView,   "Glyph view",        view_glyph)       \
+    X(GlyphDebug,  "Glyph debug",       view_glyph_debug) \
+    X(RenderStats, "Render statistics", view_stats)       \
+    X(Theme,       "Theme",             view_theme)       \
+    X(Preview,     "Preview",           view_preview)     \
     X(Test,        "Test",              view_test)
 
 #define X(name, ...) Tab_##name,
@@ -202,6 +203,7 @@ struct Context {
     X(OpenCommandLister,    true,  "Open command lister",         "Opens the command lister")                                                     \
     X(OpenGlyphListView,    true,  "Open glyph list view",        "Opens a new tab with a glyph list")                                            \
     X(OpenGlyphViewView,    true,  "Open glyph view",             "Opens a new tab with a glyph inspector")                                       \
+    X(OpenGlyphDebugView,   true,  "Open glyph debug view",       "Opens a new tab with a glyph debug inspector")                                 \
     X(OpenPreviewView,      true,  "Open preview view",           "Opens a new tab with a preview")                                               \
     X(OpenRenderStatsView,  true,  "Open render statistics view", "Opens a new tab with render statistics")                                       \
     X(OpenThemeView,        true,  "Open theme view",             "Opens a new tab with theme settings")                                          \
