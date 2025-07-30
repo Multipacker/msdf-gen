@@ -728,6 +728,7 @@ internal F32 msdf_quadratic_bezier_signed_pseudo_distance(V2F32 point, MSDF_Segm
 // TODO(simon): We will need to rethink how we handle overlapping contours.
 // This approach doesn't handle endpoints on contours correctly in all cases.
 internal Void msdf_resolve_contour_overlap(Arena *arena, MSDF_Glyph *glyph) {
+    msdf_log_push_parent_string(str8_literal("resolve contour overlap"));
     for (MSDF_Contour *a_contour = glyph->first_contour; a_contour; a_contour = a_contour->next) {
         for (MSDF_Contour *b_contour = glyph->first_contour; b_contour; b_contour = b_contour->next) {
             if (a_contour == b_contour) {
@@ -866,9 +867,11 @@ internal Void msdf_resolve_contour_overlap(Arena *arena, MSDF_Glyph *glyph) {
             }
         }
     }
+    msdf_log_pop_parent();
 }
 
 internal Void msdf_convert_to_simple_polygons(Arena *arena, MSDF_Glyph *glyph) {
+    msdf_log_push_parent_string(str8_literal("resolve self intersection"));
     for (MSDF_Contour *contour = glyph->first_contour; contour; contour = contour->next) {
         for (MSDF_Segment *a_segment = contour->first_segment; a_segment; a_segment = a_segment->next) {
             for (MSDF_Segment *b_segment = a_segment->next; b_segment; b_segment = b_segment->next) {
@@ -930,9 +933,11 @@ internal Void msdf_convert_to_simple_polygons(Arena *arena, MSDF_Glyph *glyph) {
             }
         }
     }
+    msdf_log_pop_parent();
 }
 
 internal Void msdf_correct_contour_orientation(Arena *arena, MSDF_Glyph *glyph) {
+    msdf_log_push_parent_string(str8_literal("correct contour orientation"));
     msdf_log_parent_string(str8_literal("local windig")) {
         for (MSDF_Contour *contour = glyph->first_contour; contour; contour = contour->next) {
             contour->local_winding = msdf_contour_calculate_own_winding_number(contour);
@@ -999,9 +1004,11 @@ internal Void msdf_correct_contour_orientation(Arena *arena, MSDF_Glyph *glyph) 
 
     glyph->first_contour = first;
     glyph->last_contour  = last;
+    msdf_log_pop_parent();
 }
 
 internal Void msdf_color_edges(MSDF_Glyph glyph) {
+    msdf_log_push_parent_string(str8_literal("color edges"));
     F32 corner_threshold = f32_sin(0.1f);
 
     for (MSDF_Contour *contour = glyph.first_contour; contour; contour = contour->next) {
@@ -1080,7 +1087,7 @@ internal Void msdf_color_edges(MSDF_Glyph glyph) {
         }
     }
 
-    msdf_log_parent_string(str8_literal("coloring")) {
+    msdf_log_parent_string(str8_literal("final coloring")) {
         for (MSDF_Contour *contour = glyph.first_contour; contour; contour = contour->next) {
             for (MSDF_Segment *segment = contour->first_segment; segment; segment = segment->next) {
                 V4F32 color = v4f32(
@@ -1093,6 +1100,7 @@ internal Void msdf_color_edges(MSDF_Glyph glyph) {
             }
         }
     }
+    msdf_log_pop_parent();
 }
 
 internal MSDF_RasterResult msdf_generate_from_glyph_index(Arena *arena, TTF_Font *font, U32 glyph_index, U32 render_size) {
@@ -1126,7 +1134,6 @@ internal MSDF_RasterResult msdf_generate_from_glyph_index(Arena *arena, TTF_Font
         msdf_convert_to_simple_polygons(scratch.arena, &glyph);
         msdf_correct_contour_orientation(arena, &glyph);
         msdf_color_edges(glyph);
-
         prof_zone_end(prof_simplify);
     }
 
