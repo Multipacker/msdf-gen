@@ -186,8 +186,7 @@ internal MSDF_LogNode *msdf_log_create_segment(MSDF_Segment *segment, V4F32 colo
 }
 
 internal MSDF_LogNode *msdf_log_create_contour(MSDF_Contour *contour, V4F32 color) {
-    MSDF_LogNode *contour_group = msdf_log_create_node();
-    msdf_log_push_parent(contour_group);
+    MSDF_LogNode *contour_group = msdf_log_push_parent_string(str8_literal("Contour"));
     for (MSDF_Segment *segment = contour->first_segment; segment; segment = segment->next) {
         msdf_log_create_segment(segment, color);
     }
@@ -196,8 +195,7 @@ internal MSDF_LogNode *msdf_log_create_contour(MSDF_Contour *contour, V4F32 colo
 }
 
 internal MSDF_LogNode *msdf_log_create_glyph(MSDF_Glyph *glyph, V4F32 color) {
-    MSDF_LogNode *glyph_group = msdf_log_create_node();
-    msdf_log_push_parent(glyph_group);
+    MSDF_LogNode *glyph_group = msdf_log_push_parent_string(str8_literal("Glyph"));
     for (MSDF_Contour *contour = glyph->first_contour; contour; contour = contour->next) {
         msdf_log_create_contour(contour, color);
     }
