@@ -897,32 +897,31 @@ PANEL_BUILD_FUNCTION(view_glyph_debug) {
     Row *first_row = 0;
     Row *last_row = 0;
     {
-        S64 row_index = 0;
+        U64 row_index = 0;
         for (BlockRange *block_range = range_list.first; block_range; block_range = block_range->next) {
             if (!block_range->block->node) {
                 continue;
             }
 
-            R1U64 absolute_range  = r1u64(block_range->range.min + (U64) row_index, block_range->range.max + (U64) row_index);
+            R1U64 absolute_range  = r1u64(block_range->range.min + row_index, block_range->range.max + row_index);
             U64   block_row_count = r1u64_size(block_range->range);
 
-            U64 skipped_rows = 0;
-            U64 chopped_rows = 0;
+            R1U64 local_range = block_range->range;
             if (absolute_range.min < (U64) top_row) {
-                skipped_rows = u64_min((U64) top_row - absolute_range.min, block_row_count);
+                local_range.min += u64_min((U64) top_row - absolute_range.min, block_row_count);
             }
             if (absolute_range.max > (U64) bottom_row) {
-                chopped_rows = u64_min(absolute_range.max - (U64) bottom_row, block_row_count);
+                local_range.max -= u64_min(absolute_range.max - (U64) bottom_row, block_row_count);
             }
 
             // NOTE(simon): Skip invisible children.
             MSDF_LogNode *child = block_range->block->node->first;
-            for (U64 i = 0; i < skipped_rows; ++i) {
+            for (U64 i = 0; i < local_range.min; ++i) {
                 child = child->next;
             }
 
             // NOTE(simon): Queue up rows.
-            for (U64 i = skipped_rows; i < block_row_count - chopped_rows; ++i, child = child->next) {
+            for (U64 i = local_range.min; i < local_range.max; ++i, child = child->next) {
                 Row *row = arena_push_struct(scratch.arena, Row);
                 row->node = child;
                 row->depth = block_range->block->depth;
@@ -930,7 +929,7 @@ PANEL_BUILD_FUNCTION(view_glyph_debug) {
                 sll_queue_push(first_row, last_row, row);
             }
 
-            row_index += (S64) r1u64_size(block_range->range);
+            row_index += r1u64_size(block_range->range);
         }
     }
 
