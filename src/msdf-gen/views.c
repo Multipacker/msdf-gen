@@ -949,9 +949,11 @@ PANEL_BUILD_FUNCTION(view_glyph_debug) {
         ui_palette(palette_from_code(PaletteCode_Button))
         ui_focus(UI_Focus_Active)
         ui_parent(container) {
+            S64 row_index = top_row;
             ui_width(ui_size_fill())
             ui_height(ui_size_pixels(height, 1.0f))
-            for (Row *row = first_row; row; row = row->next) {
+            ui_focus(UI_Focus_None)
+            for (Row *row = first_row; row; row = row->next, ++row_index) {
                 // NOTE(simon): Find expandsion state.
                 U64 hash = hash_combine(u64_hash(integer_from_pointer(row->node->parent)), u64_hash(row->index_in_parent));
                 U64 expansion_index = hash % state->expansion_set_count;
@@ -961,7 +963,7 @@ PANEL_BUILD_FUNCTION(view_glyph_debug) {
                     is_expanded = is_expanded->next;
                 }
 
-                ui_palette_push(palette_from_code(row->index_in_parent % 2 == 0 ? PaletteCode_Button : PaletteCode_SecondaryButton));
+                ui_palette_push(palette_from_code(row_index % 2 == 0 ? PaletteCode_Button : PaletteCode_SecondaryButton));
                 ui_layout_axis_next(Axis2_X);
                 UI_Box *row_box = ui_create_box_from_string_format(
                     UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawHot | UI_BoxFlag_DrawActive | UI_BoxFlag_Clickable,
