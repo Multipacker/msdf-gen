@@ -142,7 +142,7 @@ internal MSDF_LogNode *msdf_log_push_parent_string_format(CStr format, ...) {
 }
 
 internal MSDF_LogNode *msdf_log_create_point(V2F32 p0, V4F32 color) {
-    MSDF_LogNode *result = msdf_log_create_node();
+    MSDF_LogNode *result = msdf_log_create_node_from_string(str8_literal("Point"));
     result->flags |= MSDF_LogNodeFlag_DrawPoint;
     result->color  = color;
     result->p0     = p0;
@@ -150,7 +150,7 @@ internal MSDF_LogNode *msdf_log_create_point(V2F32 p0, V4F32 color) {
 }
 
 internal MSDF_LogNode *msdf_log_create_line(V2F32 p0, V2F32 p1, V4F32 color) {
-    MSDF_LogNode *result = msdf_log_create_node();
+    MSDF_LogNode *result = msdf_log_create_node_from_string(str8_literal("Line"));
     result->flags |= MSDF_LogNodeFlag_DrawLine;
     result->color  = color;
     result->p0     = p0;
@@ -159,7 +159,7 @@ internal MSDF_LogNode *msdf_log_create_line(V2F32 p0, V2F32 p1, V4F32 color) {
 }
 
 internal MSDF_LogNode *msdf_log_create_bezier(V2F32 p0, V2F32 p1, V2F32 p2, V4F32 color) {
-    MSDF_LogNode *result = msdf_log_create_node();
+    MSDF_LogNode *result = msdf_log_create_node_from_string(str8_literal("Bezier"));
     result->flags |= MSDF_LogNodeFlag_DrawBezier;
     result->color  = color;
     result->p0     = p0;

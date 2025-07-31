@@ -971,12 +971,14 @@ PANEL_BUILD_FUNCTION(view_glyph_debug) {
                 );
                 ui_parent_push(row_box);
 
+                // NOTE(simon): Create indentation.
                 ui_width(ui_size_ems(1.0f, 1.0f))
                 ui_text_align(UI_TextAlign_Center)
                 for (U64 depth = 0; depth < row->depth; ++depth) {
                     ui_label(str8_literal("|"));
                 }
 
+                // NOTE(simon): Create expander.
                 ui_width_next(ui_size_ems(1.0f, 0.0f));
                 ui_text_align_next(UI_TextAlign_Center);
                 if (row->node->first) {
@@ -989,16 +991,11 @@ PANEL_BUILD_FUNCTION(view_glyph_debug) {
                     ui_spacer();
                 }
 
+                // NOTE(simon): Create text node.
                 Str8 display = row->node->string;
                 if (display.size == 0) {
                     if (row->node->first) {
                         display = str8_literal("Group");
-                    } else if (row->node->flags & MSDF_LogNodeFlag_DrawBezier) {
-                        display = str8_literal("Bezier");
-                    } else if (row->node->flags & MSDF_LogNodeFlag_DrawLine) {
-                        display = str8_literal("Line");
-                    } else if (row->node->flags & MSDF_LogNodeFlag_DrawPoint) {
-                        display = str8_literal("Point");
                     } else {
                         display = str8_literal("No geometry");
                     }
@@ -1008,6 +1005,7 @@ PANEL_BUILD_FUNCTION(view_glyph_debug) {
                 ui_parent_pop();
                 ui_palette_pop();
 
+                // NOTE(simon): Input.
                 UI_Input row_input = ui_input_from_box(row_box);
                 if (row_input.flags & UI_InputFlag_Clicked) {
                     if (is_expanded) {
