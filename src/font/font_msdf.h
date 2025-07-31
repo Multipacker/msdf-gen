@@ -146,7 +146,7 @@ internal Void                 msdf_log_node_set_string(MSDF_LogNode *node, Str8 
 internal Void                 msdf_log_node_set_string_format(MSDF_LogNode *node, CStr format, ...);
 internal Void                 msdf_log_push_parent(MSDF_LogNode *node);
 internal Void                 msdf_log_pop_parent(Void);
-internal MSDF_LogNodeIterator msdf_log_iterator_depth_first_pre_order(MSDF_LogNode *node);
+internal MSDF_LogNodeIterator msdf_log_iterator_depth_first_pre_order(MSDF_LogNode *node, MSDF_LogNode *root);
 
 // NOTE(simon): Helpers for basic geometry.
 internal MSDF_LogNode *msdf_log_push_parent_string(Str8 string);

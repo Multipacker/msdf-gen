@@ -597,6 +597,26 @@ PANEL_BUILD_FUNCTION(view_glyph) {
                     }
                 }
             }
+
+            // NOTE(simon): Draw hovered debug logs.
+            if (global_state->hover_context_slot == ContextSlot_LogNode) {
+                MSDF_LogNode *log_node = get_hover_context()->log_node;
+                for (MSDF_LogNode *node = log_node; node; node = msdf_log_iterator_depth_first_pre_order(node, log_node).next) {
+                    V2F32 p0 = m3f32_multiply_v2f32(transform, node->p0);
+                    V2F32 p1 = m3f32_multiply_v2f32(transform, node->p1);
+                    V2F32 p2 = m3f32_multiply_v2f32(transform, node->p2);
+
+                    if (node->flags & MSDF_LogNodeFlag_DrawPoint) {
+                        point_widget(&node->p0, transform, point_size, node->color);
+                    }
+                    if (node->flags & MSDF_LogNodeFlag_DrawLine) {
+                        draw_line(p0, p1, node->color, line_width, 0.0f, 1.0f);
+                    }
+                    if (node->flags & MSDF_LogNodeFlag_DrawBezier) {
+                        draw_bezier(p0, p1, p2, node->color, line_width, 0.0f, 1.0f);
+                    }
+                }
+            }
         }
         ui_box_set_draw_list(box, draw_list);
 
@@ -1022,6 +1042,11 @@ PANEL_BUILD_FUNCTION(view_glyph_debug) {
                         is_expanded->parent          = row->node->parent;
                         is_expanded->index_in_parent = row->index_in_parent;
                         dll_push_back(expansion_slot->first, expansion_slot->last, is_expanded);
+                    }
+                }
+                if (row_input.flags & UI_InputFlag_Hovering) {
+                    context_scope(.log_node = row->node) {
+                        set_hover_context(ContextSlot_LogNode);
                     }
                 }
             }

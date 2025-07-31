@@ -106,14 +106,14 @@ internal Void msdf_log_pop_parent(Void) {
     sll_stack_push(msdf_log_state.stack_freelist, node_node);
 }
 
-internal MSDF_LogNodeIterator msdf_log_iterator_depth_first_pre_order(MSDF_LogNode *node) {
+internal MSDF_LogNodeIterator msdf_log_iterator_depth_first_pre_order(MSDF_LogNode *node, MSDF_LogNode *root) {
     MSDF_LogNodeIterator iterator = { 0 };
 
     if (node->first) {
         iterator.next       = node->first;
         iterator.push_count = 1;
     } else {
-        for (MSDF_LogNode *parent = node; parent; parent = parent->parent, iterator.pop_count) {
+        for (MSDF_LogNode *parent = node; parent && parent != root; parent = parent->parent, iterator.pop_count) {
             if (parent->next) {
                 iterator.next = parent->next;
                 break;

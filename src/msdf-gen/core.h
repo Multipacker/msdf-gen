@@ -116,6 +116,13 @@ struct Handle {
     U64 generation;
 };
 
+typedef enum {
+    ContextSlot_Null,
+    ContextSlot_Codepoint,
+    ContextSlot_LogNode,
+    ContextSlot_COUNT,
+} ContextSlot;
+
 typedef struct Context Context;
 struct Context {
     Context *next;
@@ -132,7 +139,8 @@ struct Context {
 
     Str8 tab_specification;
 
-    U32 codepoint;
+    U32           codepoint;
+    MSDF_LogNode *log_node;
 };
 
 #define context_top_values                                 \
@@ -326,6 +334,11 @@ struct State {
     TTF_Font *ttf_font;
     U32 codepoint;
     B32 running;
+
+    ContextSlot hover_context_slot;
+    Context    *hover_context;
+    ContextSlot hover_context_slot_next;
+    Context    *hover_context_next;
 
     Arena *command_arena;
     CommandList commands;

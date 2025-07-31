@@ -192,7 +192,7 @@ internal Void msdf_cache_update(Void) {
 
                 result->logs = arena_push_struct(state->glyph_arena, MSDF_LogNode);
                 *result->logs = *work.raster.logs;
-                for (MSDF_LogNode *node = result->logs; node; node = msdf_log_iterator_depth_first_pre_order(node).next) {
+                for (MSDF_LogNode *node = result->logs; node; node = msdf_log_iterator_depth_first_pre_order(node, 0).next) {
                     // NOTE(simon): Move own state to glyph arena.
                     node->string = str8_copy(state->glyph_arena, node->string);
 

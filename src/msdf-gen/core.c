@@ -281,6 +281,18 @@ internal Void drag_cancel(Void) {
     }
 }
 
+internal Void set_hover_context(ContextSlot slot) {
+    State *state = global_state;
+    state->hover_context_slot_next = slot;
+    state->hover_context_next      = copy_context(frame_arena(), top_context());
+}
+
+internal Context *get_hover_context(Void) {
+    State *state = global_state;
+    Context *result = state->hover_context;
+    return result;
+}
+
 
 
 // NOTE(simon): Themes
@@ -446,6 +458,14 @@ internal Void update(Void) {
     }
 
     arena_reset(frame_arena());
+    if (state->hover_context_next) {
+        state->hover_context_slot = state->hover_context_slot_next;
+        state->hover_context      = copy_context(frame_arena(), state->hover_context_next);
+        state->hover_context_next = 0;
+    } else {
+        state->hover_context_slot = ContextSlot_Null;
+        state->hover_context      = arena_push_struct(frame_arena(), Context);
+    }
 
     // NOTE(simon): Trigger an auto save once every 5 seconds.
     if (os_now_nanoseconds() - state->previous_auto_save > (U64) (5 * 1e9)) {
