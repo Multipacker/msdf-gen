@@ -923,6 +923,8 @@ internal Void update(Void) {
                     // NOTE(simon): Build contents.
                     Str8List output = { 0 };
                     str8_list_push_format(scratch.arena, &output, "codepoint: %u\n", command_context->codepoint);
+                    str8_list_push_format(scratch.arena, &output, "theme_index: %u\n", state->theme_index);
+                    str8_list_push_format(scratch.arena, &output, "font_size: %u\n", (U32) state->font_size);
 
                     // NOTE(simon): Build file path.
                     Str8 current_directory = os_current_directory(scratch.arena);

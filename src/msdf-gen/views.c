@@ -1155,19 +1155,21 @@ PANEL_BUILD_FUNCTION(view_theme) {
             ui_width(ui_size_children_sum(1.0))
             ui_height(ui_size_children_sum(1.0))
             ui_row() {
-                ui_column() {
-                    ui_width(ui_size_text_content(0.0f, 1.0f))
-                    ui_height(ui_size_ems(1.0f, 1.0f))
+                ui_column()
+                ui_width(ui_size_text_content(0.0f, 1.0f))
+                ui_height(ui_size_ems(1.0f, 1.0f)) {
                     for (ThemeColor color = 0; color < ThemeColor_COUNT; ++color) {
                         ui_spacer_sized(ui_size_ems(0.5f, 1.0f));
                         ui_label(theme_color_names[color]);
                     }
+                    ui_spacer_sized(ui_size_ems(0.5f, 1.0f));
+                    ui_label(str8_literal("Font size"));
                 }
                 ui_spacer_sized(ui_size_ems(0.5f, 1.0f));
                 ui_corner_radius(5.0f)
-                ui_column() {
-                    ui_width(ui_size_ems(10.0f, 1.0f))
-                    ui_height(ui_size_ems(1.0f, 1.0f))
+                ui_column()
+                ui_width(ui_size_ems(10.0f, 1.0f))
+                ui_height(ui_size_ems(1.0f, 1.0f)) {
                     for (ThemeColor color = 0; color < ThemeColor_COUNT; ++color) {
                         ui_spacer_sized(ui_size_ems(0.5f, 1.0f));
                         UI_Palette display = ui_palette_top();
@@ -1180,6 +1182,10 @@ PANEL_BUILD_FUNCTION(view_theme) {
                             state->context_color = color;
                             ui_context_menu_open(context_key, box->key, v2f32(0, 0));
                         }
+                    }
+                    ui_spacer_sized(ui_size_ems(0.5f, 1.0f));
+                    ui_palette(palette_from_code(PaletteCode_Button)) {
+                        ui_slider(1.0f, &global_state->font_size, 30.0f, ui_key_from_string(ui_active_seed_key(), str8_literal("font_size")));
                     }
                 }
             }

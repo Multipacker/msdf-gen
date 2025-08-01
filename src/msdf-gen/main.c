@@ -452,9 +452,6 @@ internal S32 os_run(Str8List arguments) {
 
     state->running = true;
 
-    state->theme_index = 0;
-    state->theme = global_themes[state->theme_index];
-    state->target_theme = global_themes[state->theme_index];
     state->font_size = 11.0f;
 
     state->frames_to_render = 4;
@@ -484,7 +481,7 @@ internal S32 os_run(Str8List arguments) {
 
         for (U64 start_of_line = 0; start_of_line < config.size;) {
             U64 end_of_line = str8_first_index_of(str8_skip(config, start_of_line), '\n');
-            Str8 line = str8_substring(config, start_of_line, end_of_line - start_of_line);
+            Str8 line = str8_substring(config, start_of_line, end_of_line);
 
             U64 colon_index = str8_first_index_of(line, ':');
 
@@ -494,6 +491,12 @@ internal S32 os_run(Str8List arguments) {
             if (str8_equal(key, str8_literal("codepoint"))) {
                 U64Decode decode = u64_from_str8(value);
                 state->codepoint = (U32) decode.value;
+            } else if (str8_equal(key, str8_literal("theme_index"))) {
+                U64Decode decode = u64_from_str8(value);
+                state->theme_index = (U32) decode.value;
+            } else if (str8_equal(key, str8_literal("font_size"))) {
+                U64Decode decode = u64_from_str8(value);
+                state->font_size = (F32) decode.value;
             } else {
                 gfx_message(
                     true,
@@ -502,11 +505,14 @@ internal S32 os_run(Str8List arguments) {
                 );
             }
 
-            start_of_line = end_of_line + 1;
+            start_of_line += end_of_line + 1;
         }
 
         arena_end_temporary(scratch);
     }
+
+    state->theme = global_themes[state->theme_index];
+    state->target_theme = global_themes[state->theme_index];
 
     state->ui = ui_create();
     state->panel_root = panel_create(state);
