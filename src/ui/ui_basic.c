@@ -109,11 +109,12 @@ internal UI_Input ui_checkbox(B32 is_checked, Str8 label) {
     ui_height_next(ui_size_ems(1.2f, 1.0f));
     ui_hover_cursor_next(Gfx_Cursor_Hand);
     ui_text_align_next(UI_TextAlign_Center);
+    ui_font_next(ui_icon_font());
     UI_Box *check = ui_create_box_from_string_format(
         UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawBorder | (is_checked ? UI_BoxFlag_DrawText : 0) |
         UI_BoxFlag_DrawHot | UI_BoxFlag_DrawActive |
         UI_BoxFlag_Clickable | UI_BoxFlag_KeyboardClickable,
-        "X###check_%.*s", str8_expand(label)
+        "%.*s###check_%.*s", str8_expand(ui_icon_string_from_kind(UI_IconKind_Check)), str8_expand(label)
     );
 
     ui_spacer_sized(ui_size_ems(0.5f, 1.0f));
@@ -603,10 +604,11 @@ internal UI_ScrollPosition ui_scroll_bar(UI_ScrollPosition position, S64 first_r
     // NOTE(simon): Build
     ui_extra_box_flags_next(UI_BoxFlag_DrawBorder);
     ui_column_string(str8_literal("##scroll"))
-    ui_hover_cursor(Gfx_Cursor_Hand) {
-        ui_height_next(ui_size_pixels(ui_parent_top()->calculated_size.width, 1.0f));
-        ui_text_align_next(UI_TextAlign_Center);
-        up_input = ui_button(str8_literal("^"));
+    ui_hover_cursor(Gfx_Cursor_Hand)
+    ui_text_align(UI_TextAlign_Center)
+    ui_font(ui_icon_font()) {
+        ui_height_next(ui_size_aspect_ratio(1.0f, 1.0f));
+        up_input = ui_button(ui_icon_string_from_kind(UI_IconKind_UpArrow));
 
         ui_height_next(ui_size_fill());
         ui_column_string(str8_literal("##container")) {
@@ -627,9 +629,8 @@ internal UI_ScrollPosition ui_scroll_bar(UI_ScrollPosition position, S64 first_r
             after_input = ui_input_from_box(scroll_after);
         }
 
-        ui_height_next(ui_size_pixels(ui_parent_top()->calculated_size.width, 1.0f));
-        ui_text_align_next(UI_TextAlign_Center);
-        down_input = ui_button(str8_literal("v"));
+        ui_height_next(ui_size_aspect_ratio(1.0f, 1.0f));
+        down_input = ui_button(ui_icon_string_from_kind(UI_IconKind_DownArrow));
     }
 
     // NOTE(simon): Input

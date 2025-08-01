@@ -997,20 +997,21 @@ PANEL_BUILD_FUNCTION(view_glyph_debug) {
                 ui_parent_push(row_box);
 
                 // NOTE(simon): Create indentation.
-                ui_width(ui_size_ems(1.0f, 1.0f))
+                ui_width(ui_size_ems(1.5f, 1.0f))
                 ui_text_align(UI_TextAlign_Center)
                 for (U64 depth = 0; depth < row->depth; ++depth) {
                     ui_label(str8_literal("|"));
                 }
 
                 // NOTE(simon): Create expander.
-                ui_width_next(ui_size_ems(1.0f, 0.0f));
+                ui_width_next(ui_size_ems(1.5f, 0.0f));
                 ui_text_align_next(UI_TextAlign_Center);
+                ui_font_next(ui_icon_font());
                 if (row->node->first) {
                     if (is_expanded) {
-                        ui_label(str8_literal("v"));
+                        ui_label(ui_icon_string_from_kind(UI_IconKind_DownAngle));
                     } else {
-                        ui_label(str8_literal(">"));
+                        ui_label(ui_icon_string_from_kind(UI_IconKind_RightAngle));
                     }
                 } else {
                     ui_spacer();

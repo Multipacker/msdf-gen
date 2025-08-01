@@ -2,6 +2,31 @@
 #define UI_CORE_H
 
 typedef enum {
+    UI_IconKind_Null,
+    UI_IconKind_Minimize,
+    UI_IconKind_Maximize,
+    UI_IconKind_Close,
+    UI_IconKind_Shown,
+    UI_IconKind_Hidden,
+    UI_IconKind_LeftArrow,
+    UI_IconKind_RightArrow,
+    UI_IconKind_UpArrow,
+    UI_IconKind_DownArrow,
+    UI_IconKind_LeftAngle,
+    UI_IconKind_RightAngle,
+    UI_IconKind_UpAngle,
+    UI_IconKind_DownAngle,
+    UI_IconKind_Check,
+    UI_IconKind_COUNT,
+} UI_IconKind;
+
+typedef struct UI_IconInfo UI_IconInfo;
+struct UI_IconInfo {
+    FontCache_Font *icon_font;
+    Str8            icon_kind_text[UI_IconKind_COUNT];
+};
+
+typedef enum {
     UI_Size_Pixels,
     UI_Size_ChildrenSum,
     UI_Size_ParentPercent,
@@ -348,8 +373,9 @@ struct UI_Context {
     UI_Box *context_menu_root;
 
     // NOTE(simon): Per frame input.
-    UI_EventList  *events;
-    V2F32          mouse;
+    UI_IconInfo   icon_info;
+    UI_EventList *events;
+    V2F32         mouse;
     F32 dt;
     F32 fast_rate;
     F32 slow_rate;
@@ -401,9 +427,11 @@ struct UI_Context {
     UI_FocusStack           focus_active_stack;
 };
 
-internal Void ui_select_state(UI_Context *state);
-internal UI_Key ui_active_seed_key(Void);
-internal V2F32  ui_mouse(Void);
+internal Void            ui_select_state(UI_Context *state);
+internal UI_Key          ui_active_seed_key(Void);
+internal V2F32           ui_mouse(Void);
+internal FontCache_Font *ui_icon_font(Void);
+internal Str8            ui_icon_string_from_kind(UI_IconKind icon);
 
 // NOTE(simon): Event lists
 internal Void ui_event_list_push_event(UI_EventList *list, UI_Event *event);
@@ -439,7 +467,7 @@ internal UI_Size ui_size_aspect_ratio(F32 ratio, F32 strictness);
 
 internal UI_Context *ui_create(Void);
 
-internal Void ui_begin(Gfx_Window window, UI_EventList *ui_events, F32 dt);
+internal Void ui_begin(Gfx_Window window, UI_EventList *ui_events, UI_IconInfo *icon_info, F32 dt);
 internal Void ui_end(Void);
 
 internal UI_BoxIterator ui_box_iterator_depth_first_pre_order(UI_Box *box);

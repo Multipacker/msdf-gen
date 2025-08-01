@@ -38,6 +38,16 @@ internal V2F32 ui_mouse(Void) {
     return ui->mouse;
 }
 
+internal FontCache_Font *ui_icon_font(Void) {
+    UI_Context *ui = global_ui_state;
+    return ui->icon_info.icon_font;
+}
+
+internal Str8 ui_icon_string_from_kind(UI_IconKind icon) {
+    UI_Context *ui = global_ui_state;
+    return ui->icon_info.icon_kind_text[icon];
+}
+
 
 
 // NOTE(simon): Event lists
@@ -320,7 +330,7 @@ internal UI_Context *ui_create(Void) {
 
 
 
-internal Void ui_begin(Gfx_Window window, UI_EventList *events, F32 dt) {
+internal Void ui_begin(Gfx_Window window, UI_EventList *events, UI_IconInfo *icon_info, F32 dt) {
     prof_function_begin();
 
     UI_Context *ui = global_ui_state;
@@ -347,6 +357,11 @@ internal Void ui_begin(Gfx_Window window, UI_EventList *events, F32 dt) {
     memory_zero_struct(&ui->focus_hot_stack);
     memory_zero_struct(&ui->focus_active_stack);
 
+    memory_zero_struct(&ui->icon_info);
+    ui->icon_info.icon_font = icon_info->icon_font;
+    for (UI_IconKind icon = 0; icon < UI_IconKind_COUNT; ++icon) {
+        ui->icon_info.icon_kind_text[icon] = str8_copy(ui_frame_arena(), icon_info->icon_kind_text[icon]);
+    }
     ui->mouse = gfx_mouse_position_from_window(window);
     ui->events = events;
     ui->dt = dt;

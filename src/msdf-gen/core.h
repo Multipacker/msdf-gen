@@ -28,6 +28,23 @@
     X(OnCurve,                   on_curve,                    "On curve")                    \
     X(OffCurve,                  off_curve,                   "Off curve")
 
+global Str8 icon_kind_text[] = {
+    [UI_IconKind_Minimize]   = str8_literal_compile("\uF2D1"),
+    [UI_IconKind_Maximize]   = str8_literal_compile("\uF2D0"),
+    [UI_IconKind_Close]      = str8_literal_compile("\uE807"),
+    [UI_IconKind_Shown]      = str8_literal_compile("\uE809"),
+    [UI_IconKind_Hidden]     = str8_literal_compile("\uE80A"),
+    [UI_IconKind_LeftArrow]  = str8_literal_compile("\uE801"),
+    [UI_IconKind_RightArrow] = str8_literal_compile("\uE800"),
+    [UI_IconKind_UpArrow]    = str8_literal_compile("\uE802"),
+    [UI_IconKind_DownArrow]  = str8_literal_compile("\uE80B"),
+    [UI_IconKind_LeftAngle]  = str8_literal_compile("\uE804"),
+    [UI_IconKind_RightAngle] = str8_literal_compile("\uE805"),
+    [UI_IconKind_UpAngle]    = str8_literal_compile("\uE806"),
+    [UI_IconKind_DownAngle]  = str8_literal_compile("\uE803"),
+    [UI_IconKind_Check]      = str8_literal_compile("\uE808"),
+};
+
 #define X(name, snake_name, display_name) ThemeColor_##name,
 typedef enum {
     THEME_COLORS

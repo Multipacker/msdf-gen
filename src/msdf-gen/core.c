@@ -1,6 +1,7 @@
 #include "generated.h"
 
 embed_file(msdf_gen_default_font, "/data/NotoSans-Regular.ttf");
+embed_file(msdf_gen_icon_font,    "/data/fontello/fontello.ttf");
 
 // NOTE(simon): Tabs
 internal Tab *tab_create(State *state, Str8 name) {
@@ -1315,8 +1316,26 @@ internal Void update(Void) {
     // NOTE(simon): Build UI
     {
         prof_zone_begin(prof_ui_build, "ui build");
+
+        UI_IconInfo icon_info = { 0 };
+        icon_info.icon_font = font_cache_font_from_static_data(&msdf_gen_icon_font);
+        icon_info.icon_kind_text[UI_IconKind_Minimize]   = icon_kind_text[UI_IconKind_Minimize];
+        icon_info.icon_kind_text[UI_IconKind_Maximize]   = icon_kind_text[UI_IconKind_Maximize];
+        icon_info.icon_kind_text[UI_IconKind_Close]      = icon_kind_text[UI_IconKind_Close];
+        icon_info.icon_kind_text[UI_IconKind_Shown]      = icon_kind_text[UI_IconKind_Shown];
+        icon_info.icon_kind_text[UI_IconKind_Hidden]     = icon_kind_text[UI_IconKind_Hidden];
+        icon_info.icon_kind_text[UI_IconKind_LeftArrow]  = icon_kind_text[UI_IconKind_LeftArrow];
+        icon_info.icon_kind_text[UI_IconKind_RightArrow] = icon_kind_text[UI_IconKind_RightArrow];
+        icon_info.icon_kind_text[UI_IconKind_UpArrow]    = icon_kind_text[UI_IconKind_UpArrow];
+        icon_info.icon_kind_text[UI_IconKind_DownArrow]  = icon_kind_text[UI_IconKind_DownArrow];
+        icon_info.icon_kind_text[UI_IconKind_LeftAngle]  = icon_kind_text[UI_IconKind_LeftAngle];
+        icon_info.icon_kind_text[UI_IconKind_RightAngle] = icon_kind_text[UI_IconKind_RightAngle];
+        icon_info.icon_kind_text[UI_IconKind_UpAngle]    = icon_kind_text[UI_IconKind_UpAngle];
+        icon_info.icon_kind_text[UI_IconKind_DownAngle]  = icon_kind_text[UI_IconKind_DownAngle];
+        icon_info.icon_kind_text[UI_IconKind_Check]      = icon_kind_text[UI_IconKind_Check];
+
         ui_select_state(state->ui);
-        ui_begin(state->window, &ui_events, 1.0f / 60.0f);
+        ui_begin(state->window, &ui_events, &icon_info, 1.0f / 60.0f);
 
         ui_palette_push(palette_from_code(PaletteCode_Base));
 
@@ -1794,12 +1813,13 @@ internal Void update(Void) {
 
                 // NOTE(simon): Right side
                 ui_width_next(ui_size_fill());
-                ui_row() {
+                ui_row()
+                ui_font(ui_icon_font()) {
                     ui_spacer_sized(ui_size_fill());
 
-                    UI_Input minimize_input = ui_button(str8_literal("—##minimize"));
-                    UI_Input maximize_input = ui_button(str8_literal("[]##maximize"));
-                    UI_Input close_input    = ui_button(str8_literal("X##close"));
+                    UI_Input minimize_input = ui_button_format("%.*s##minimize", str8_expand(ui_icon_string_from_kind(UI_IconKind_Minimize)));
+                    UI_Input maximize_input = ui_button_format("%.*s##maximize", str8_expand(ui_icon_string_from_kind(UI_IconKind_Maximize)));
+                    UI_Input close_input    = ui_button_format("%.*s##close",    str8_expand(ui_icon_string_from_kind(UI_IconKind_Close)));
 
                     if (minimize_input.flags & UI_InputFlag_Clicked) {
                         gfx_window_minimize(state->window);
@@ -2320,11 +2340,12 @@ internal Void update(Void) {
                             ui_width_next(ui_size_ems(1.5f, 1.0f));
                             ui_text_align_next(UI_TextAlign_Center);
                             ui_hover_cursor_next(Gfx_Cursor_Hand);
+                            ui_font_next(ui_icon_font());
                             UI_Box *close_box = ui_create_box_from_string_format(
                                 UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawText |
                                 UI_BoxFlag_DrawHot | UI_BoxFlag_DrawActive |
                                 UI_BoxFlag_Clickable,
-                                "X##_tab_%p", tab
+                                "%.*s##_tab_%p", str8_expand(ui_icon_string_from_kind(UI_IconKind_Close)), tab
                             );
                             UI_Input close_input = ui_input_from_box(close_box);
                             if (close_input.flags & UI_InputFlag_LeftClicked) {
