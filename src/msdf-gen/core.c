@@ -1551,7 +1551,7 @@ internal Void update(Void) {
                         ui_hover_cursor_next(Gfx_Cursor_Hand);
                         ui_layout_axis_next(Axis2_X);
                         UI_Box *command_button_box = ui_create_box_from_string_format(
-                            UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawBorder |
+                            UI_BoxFlag_DrawBackground |
                             UI_BoxFlag_DrawHot | UI_BoxFlag_DrawActive |
                             UI_BoxFlag_Clickable | UI_BoxFlag_KeyboardClickable,
                             "##command_%u", commands[i].command
@@ -2576,7 +2576,7 @@ internal Void update(Void) {
 
                 if (parent->flags & UI_BoxFlag_Clickable && parent->focus_active_t > 0.01f && !(parent->flags & UI_BoxFlag_DisableFocusOverlay)) {
                     V4F32 color = color_from_theme(ThemeColor_Focus);
-                    color.a *= 0.2f * parent->focus_active_t;
+                    color.a *= 0.05f * parent->focus_active_t;
                     Render_Shape *shape = draw_rectangle(parent->calculated_rectangle, color, 0.0f, 0.0f, 0.0f);
                     memory_copy(shape->radies, parent->corner_radies, sizeof(shape->radies));
                 }

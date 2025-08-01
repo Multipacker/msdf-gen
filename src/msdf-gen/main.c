@@ -81,99 +81,144 @@ internal S32 os_run(Str8List arguments) {
     {
         {
             Theme *theme = &global_themes[0];
-            theme->name = str8_literal("Catppuccin Latte");
+            theme->name = str8_literal("OpenColor Dark");
 
-            V4F32 rosewater = color_from_srgba_u32(0xDC8A78FF);
-            V4F32 flamingo  = color_from_srgba_u32(0xDD7878FF);
-            V4F32 pink      = color_from_srgba_u32(0xEA76CBFF);
-            V4F32 mauve     = color_from_srgba_u32(0x8839EFFF);
-            V4F32 red       = color_from_srgba_u32(0xD20F39FF);
-            V4F32 maroon    = color_from_srgba_u32(0xE64553FF);
-            V4F32 peach     = color_from_srgba_u32(0xFE640BFF);
-            V4F32 yellow    = color_from_srgba_u32(0xDF8E1DFF);
-            V4F32 green     = color_from_srgba_u32(0x40A02BFF);
-            V4F32 teal      = color_from_srgba_u32(0x179299FF);
-            V4F32 sky       = color_from_srgba_u32(0x04A5E5FF);
-            V4F32 sapphire  = color_from_srgba_u32(0x209FB5FF);
-            V4F32 blue      = color_from_srgba_u32(0x1E66F5FF);
-            V4F32 lavender  = color_from_srgba_u32(0x7287FDFF);
-            V4F32 text      = color_from_srgba_u32(0x4C4F69FF);
-            V4F32 subtext1  = color_from_srgba_u32(0x5C5F77FF);
-            V4F32 subtext0  = color_from_srgba_u32(0x6C6F85FF);
-            V4F32 overlay2  = color_from_srgba_u32(0x7C7F93FF);
-            V4F32 overlay1  = color_from_srgba_u32(0x8C8FA1FF);
-            V4F32 overlay0  = color_from_srgba_u32(0x9CA0B0FF);
-            V4F32 surface2  = color_from_srgba_u32(0xACB0BEFF);
-            V4F32 surface1  = color_from_srgba_u32(0xBCC0CCFF);
-            V4F32 surface0  = color_from_srgba_u32(0xCCD0DAFF);
-            V4F32 base      = color_from_srgba_u32(0xEFF1F5FF);
-            V4F32 mantle    = color_from_srgba_u32(0xE6E9EFFF);
-            V4F32 crust     = color_from_srgba_u32(0xDCE0E8FF);
+            V4F32 gray0 = color_from_srgba_u32(0xf8f9faff);
+            V4F32 gray1 = color_from_srgba_u32(0xf1f3f5ff);
+            V4F32 gray2 = color_from_srgba_u32(0xe9ecefff);
+            V4F32 gray3 = color_from_srgba_u32(0xdee2e6ff);
+            V4F32 gray4 = color_from_srgba_u32(0xced4daff);
+            V4F32 gray5 = color_from_srgba_u32(0xadb5bdff);
+            V4F32 gray6 = color_from_srgba_u32(0x868e96ff);
+            V4F32 gray7 = color_from_srgba_u32(0x495057ff);
+            V4F32 gray8 = color_from_srgba_u32(0x343a40ff);
+            V4F32 gray9 = color_from_srgba_u32(0x212529ff);
 
-            theme->text  = text;
-            theme->weak_text = subtext0;
-            theme->hover = overlay1;
-            theme->cursor = rosewater;
-            theme->selection = overlay2;
+            V4F32 red6 = color_from_srgba_u32(0xfa5252ff);
+
+            V4F32 green6 = color_from_srgba_u32(0x40c057ff);
+
+            V4F32 orange4 = color_from_srgba_u32(0xffa94dff);
+
+            theme->text  = gray0;
+            theme->weak_text = gray5;
+            theme->hover = gray4;
+            theme->cursor = gray0;
+            theme->selection = gray1;
             theme->selection.a = 0.3f;
-            theme->focus = lavender;
+            theme->focus = orange4;
 
-            theme->disabled_overlay         = overlay0;
+            theme->disabled_overlay         = gray6;
             theme->disabled_overlay.a       = 0.5f;
-            theme->drop_site_overlay        = overlay1;
+            theme->drop_site_overlay        = gray4;
             theme->drop_site_overlay.a      = 0.5f;
-            theme->inactive_panel_overlay   = crust;
-            theme->inactive_panel_overlay.a = 0.2f;
+            theme->inactive_panel_overlay   = v4f32(0.0f, 0.0f, 0.0f, 0.8f);
+            theme->inactive_panel_overlay.a = 0.5f;
             theme->drop_shadow              = v4f32(0.0f, 0.0f, 0.0f, 0.8f);
 
-            theme->base_background         = base;
-            theme->base_border             = mantle;
-            theme->title_bar_background    = surface1;
-            theme->title_bar_border        = surface2;
-            theme->tab_background          = surface2;
-            theme->tab_border              = surface2;
-            theme->inactive_tab_background = surface1;
-            theme->inactive_tab_border     = surface1;
-            theme->button_background       = surface0;
-            theme->button_border           = surface1;
-            theme->secondary_button_background = surface1;
-            theme->secondary_button_border     = surface1;
+            theme->base_background         = gray9;
+            theme->base_border             = gray8;
+            theme->title_bar_background    = gray8;
+            theme->title_bar_border        = gray7;
+            theme->tab_background          = gray6;
+            theme->tab_border              = gray5;
+            theme->inactive_tab_background = gray7;
+            theme->inactive_tab_border     = gray6;
+            theme->button_background       = gray8;
+            theme->button_border           = gray7;
+            theme->secondary_button_background = gray7;
+            theme->secondary_button_border     = gray6;
 
-            theme->outline   = surface2;
-            theme->on_curve  = green;
-            theme->off_curve = red;
+            theme->outline   = gray6;
+            theme->on_curve  = green6;
+            theme->off_curve = red6;
         }
 
         {
             Theme *theme = &global_themes[1];
-            theme->name = str8_literal("Catppuccin Frappé");
+            theme->name = str8_literal("OpenColor Light");
 
-            V4F32 rosewater = color_from_srgba_u32(0xF2D5CFFF);
-            V4F32 flamingo  = color_from_srgba_u32(0xEEBEBEFF);
-            V4F32 pink      = color_from_srgba_u32(0xF4B8E4FF);
-            V4F32 mauve     = color_from_srgba_u32(0xCA9EE6FF);
-            V4F32 red       = color_from_srgba_u32(0xE78284FF);
-            V4F32 maroon    = color_from_srgba_u32(0xEA999CFF);
-            V4F32 peach     = color_from_srgba_u32(0xEF9F76FF);
-            V4F32 yellow    = color_from_srgba_u32(0xE5C890FF);
-            V4F32 green     = color_from_srgba_u32(0xA6D189FF);
-            V4F32 teal      = color_from_srgba_u32(0x81C8BEFF);
-            V4F32 sky       = color_from_srgba_u32(0x99D1DBFF);
-            V4F32 sapphire  = color_from_srgba_u32(0x85C1DCFF);
-            V4F32 blue      = color_from_srgba_u32(0x8CAAEEFF);
-            V4F32 lavender  = color_from_srgba_u32(0xBABBF1FF);
-            V4F32 text      = color_from_srgba_u32(0xC6D0F5FF);
-            V4F32 subtext1  = color_from_srgba_u32(0xB5BFE2FF);
-            V4F32 subtext0  = color_from_srgba_u32(0xA5ADCEFF);
-            V4F32 overlay2  = color_from_srgba_u32(0x949CBBFF);
-            V4F32 overlay1  = color_from_srgba_u32(0x838BA7FF);
-            V4F32 overlay0  = color_from_srgba_u32(0x737994FF);
-            V4F32 surface2  = color_from_srgba_u32(0x626880FF);
-            V4F32 surface1  = color_from_srgba_u32(0x51576DFF);
-            V4F32 surface0  = color_from_srgba_u32(0x414559FF);
-            V4F32 base      = color_from_srgba_u32(0x303446FF);
-            V4F32 mantle    = color_from_srgba_u32(0x292C3CFF);
-            V4F32 crust     = color_from_srgba_u32(0x232634FF);
+            V4F32 gray0 = color_from_srgba_u32(0xf8f9faff);
+            V4F32 gray1 = color_from_srgba_u32(0xf1f3f5ff);
+            V4F32 gray2 = color_from_srgba_u32(0xe9ecefff);
+            V4F32 gray3 = color_from_srgba_u32(0xdee2e6ff);
+            V4F32 gray4 = color_from_srgba_u32(0xced4daff);
+            V4F32 gray5 = color_from_srgba_u32(0xadb5bdff);
+            V4F32 gray6 = color_from_srgba_u32(0x868e96ff);
+            V4F32 gray7 = color_from_srgba_u32(0x495057ff);
+            V4F32 gray8 = color_from_srgba_u32(0x343a40ff);
+            V4F32 gray9 = color_from_srgba_u32(0x212529ff);
+
+            V4F32 red6 = color_from_srgba_u32(0xfa5252ff);
+
+            V4F32 green6 = color_from_srgba_u32(0x40c057ff);
+
+            V4F32 orange6 = color_from_srgba_u32(0xfd7e14ff);
+
+            theme->text  = gray9;
+            theme->weak_text = gray7;
+            theme->hover = gray6;
+            theme->cursor = gray9;
+            theme->selection = gray6;
+            theme->selection.a = 0.3f;
+            theme->focus = orange6;
+
+            theme->disabled_overlay         = gray6;
+            theme->disabled_overlay.a       = 0.5f;
+            theme->drop_site_overlay        = gray4;
+            theme->drop_site_overlay.a      = 0.5f;
+            theme->inactive_panel_overlay   = gray6;
+            theme->inactive_panel_overlay.a = 0.25f;
+            theme->drop_shadow              = v4f32(0.0f, 0.0f, 0.0f, 0.8f);
+
+            theme->base_background         = gray0;
+            theme->base_border             = gray1;
+            theme->title_bar_background    = gray1;
+            theme->title_bar_border        = gray2;
+            theme->tab_background          = gray2;
+            theme->tab_border              = gray3;
+            theme->inactive_tab_background = gray3;
+            theme->inactive_tab_border     = gray4;
+            theme->button_background       = gray2;
+            theme->button_border           = gray3;
+            theme->secondary_button_background = gray3;
+            theme->secondary_button_border     = gray4;
+
+            theme->outline   = gray6;
+            theme->on_curve  = green6;
+            theme->off_curve = red6;
+        }
+
+        {
+            Theme *theme = &global_themes[2];
+            theme->name = str8_literal("Catppuccin Mocha");
+
+            V4F32 rosewater = color_from_srgba_u32(0xF5E0DCFF);
+            V4F32 flamingo  = color_from_srgba_u32(0xF2CDCDFF);
+            V4F32 pink      = color_from_srgba_u32(0xF5C2E7FF);
+            V4F32 mauve     = color_from_srgba_u32(0xCBA6F7FF);
+            V4F32 red       = color_from_srgba_u32(0xF38BA8FF);
+            V4F32 maroon    = color_from_srgba_u32(0xEBA0ACFF);
+            V4F32 peach     = color_from_srgba_u32(0xFAB387FF);
+            V4F32 yellow    = color_from_srgba_u32(0xF9E2AFFF);
+            V4F32 green     = color_from_srgba_u32(0xA6E3A1FF);
+            V4F32 teal      = color_from_srgba_u32(0x94E2D5FF);
+            V4F32 sky       = color_from_srgba_u32(0x89DCEBFF);
+            V4F32 sapphire  = color_from_srgba_u32(0x74C7ECFF);
+            V4F32 blue      = color_from_srgba_u32(0x89B4FAFF);
+            V4F32 lavender  = color_from_srgba_u32(0xB4BEFEFF);
+            V4F32 text      = color_from_srgba_u32(0xCDD6F4FF);
+            V4F32 subtext1  = color_from_srgba_u32(0xBAC2DEFF);
+            V4F32 subtext0  = color_from_srgba_u32(0xA6ADC8FF);
+            V4F32 overlay2  = color_from_srgba_u32(0x9399B2FF);
+            V4F32 overlay1  = color_from_srgba_u32(0x7F849CFF);
+            V4F32 overlay0  = color_from_srgba_u32(0x6C7086FF);
+            V4F32 surface2  = color_from_srgba_u32(0x585B70FF);
+            V4F32 surface1  = color_from_srgba_u32(0x45475AFF);
+            V4F32 surface0  = color_from_srgba_u32(0x313244FF);
+            V4F32 base      = color_from_srgba_u32(0x1E1E2EFF);
+            V4F32 mantle    = color_from_srgba_u32(0x181825FF);
+            V4F32 crust     = color_from_srgba_u32(0x11111BFF);
 
             theme->text  = text;
             theme->weak_text = subtext0;
@@ -210,7 +255,7 @@ internal S32 os_run(Str8List arguments) {
         }
 
         {
-            Theme *theme = &global_themes[2];
+            Theme *theme = &global_themes[3];
             theme->name = str8_literal("Catppuccin Macchiato");
 
             V4F32 rosewater = color_from_srgba_u32(0xF4DBD6FF);
@@ -275,35 +320,35 @@ internal S32 os_run(Str8List arguments) {
         }
 
         {
-            Theme *theme = &global_themes[3];
-            theme->name = str8_literal("Catppuccin Mocha");
+            Theme *theme = &global_themes[4];
+            theme->name = str8_literal("Catppuccin Frappé");
 
-            V4F32 rosewater = color_from_srgba_u32(0xF5E0DCFF);
-            V4F32 flamingo  = color_from_srgba_u32(0xF2CDCDFF);
-            V4F32 pink      = color_from_srgba_u32(0xF5C2E7FF);
-            V4F32 mauve     = color_from_srgba_u32(0xCBA6F7FF);
-            V4F32 red       = color_from_srgba_u32(0xF38BA8FF);
-            V4F32 maroon    = color_from_srgba_u32(0xEBA0ACFF);
-            V4F32 peach     = color_from_srgba_u32(0xFAB387FF);
-            V4F32 yellow    = color_from_srgba_u32(0xF9E2AFFF);
-            V4F32 green     = color_from_srgba_u32(0xA6E3A1FF);
-            V4F32 teal      = color_from_srgba_u32(0x94E2D5FF);
-            V4F32 sky       = color_from_srgba_u32(0x89DCEBFF);
-            V4F32 sapphire  = color_from_srgba_u32(0x74C7ECFF);
-            V4F32 blue      = color_from_srgba_u32(0x89B4FAFF);
-            V4F32 lavender  = color_from_srgba_u32(0xB4BEFEFF);
-            V4F32 text      = color_from_srgba_u32(0xCDD6F4FF);
-            V4F32 subtext1  = color_from_srgba_u32(0xBAC2DEFF);
-            V4F32 subtext0  = color_from_srgba_u32(0xA6ADC8FF);
-            V4F32 overlay2  = color_from_srgba_u32(0x9399B2FF);
-            V4F32 overlay1  = color_from_srgba_u32(0x7F849CFF);
-            V4F32 overlay0  = color_from_srgba_u32(0x6C7086FF);
-            V4F32 surface2  = color_from_srgba_u32(0x585B70FF);
-            V4F32 surface1  = color_from_srgba_u32(0x45475AFF);
-            V4F32 surface0  = color_from_srgba_u32(0x313244FF);
-            V4F32 base      = color_from_srgba_u32(0x1E1E2EFF);
-            V4F32 mantle    = color_from_srgba_u32(0x181825FF);
-            V4F32 crust     = color_from_srgba_u32(0x11111BFF);
+            V4F32 rosewater = color_from_srgba_u32(0xF2D5CFFF);
+            V4F32 flamingo  = color_from_srgba_u32(0xEEBEBEFF);
+            V4F32 pink      = color_from_srgba_u32(0xF4B8E4FF);
+            V4F32 mauve     = color_from_srgba_u32(0xCA9EE6FF);
+            V4F32 red       = color_from_srgba_u32(0xE78284FF);
+            V4F32 maroon    = color_from_srgba_u32(0xEA999CFF);
+            V4F32 peach     = color_from_srgba_u32(0xEF9F76FF);
+            V4F32 yellow    = color_from_srgba_u32(0xE5C890FF);
+            V4F32 green     = color_from_srgba_u32(0xA6D189FF);
+            V4F32 teal      = color_from_srgba_u32(0x81C8BEFF);
+            V4F32 sky       = color_from_srgba_u32(0x99D1DBFF);
+            V4F32 sapphire  = color_from_srgba_u32(0x85C1DCFF);
+            V4F32 blue      = color_from_srgba_u32(0x8CAAEEFF);
+            V4F32 lavender  = color_from_srgba_u32(0xBABBF1FF);
+            V4F32 text      = color_from_srgba_u32(0xC6D0F5FF);
+            V4F32 subtext1  = color_from_srgba_u32(0xB5BFE2FF);
+            V4F32 subtext0  = color_from_srgba_u32(0xA5ADCEFF);
+            V4F32 overlay2  = color_from_srgba_u32(0x949CBBFF);
+            V4F32 overlay1  = color_from_srgba_u32(0x838BA7FF);
+            V4F32 overlay0  = color_from_srgba_u32(0x737994FF);
+            V4F32 surface2  = color_from_srgba_u32(0x626880FF);
+            V4F32 surface1  = color_from_srgba_u32(0x51576DFF);
+            V4F32 surface0  = color_from_srgba_u32(0x414559FF);
+            V4F32 base      = color_from_srgba_u32(0x303446FF);
+            V4F32 mantle    = color_from_srgba_u32(0x292C3CFF);
+            V4F32 crust     = color_from_srgba_u32(0x232634FF);
 
             theme->text  = text;
             theme->weak_text = subtext0;
@@ -338,11 +383,76 @@ internal S32 os_run(Str8List arguments) {
             theme->on_curve  = green;
             theme->off_curve = red;
         }
+
+        {
+            Theme *theme = &global_themes[5];
+            theme->name = str8_literal("Catppuccin Latte");
+
+            V4F32 rosewater = color_from_srgba_u32(0xDC8A78FF);
+            V4F32 flamingo  = color_from_srgba_u32(0xDD7878FF);
+            V4F32 pink      = color_from_srgba_u32(0xEA76CBFF);
+            V4F32 mauve     = color_from_srgba_u32(0x8839EFFF);
+            V4F32 red       = color_from_srgba_u32(0xD20F39FF);
+            V4F32 maroon    = color_from_srgba_u32(0xE64553FF);
+            V4F32 peach     = color_from_srgba_u32(0xFE640BFF);
+            V4F32 yellow    = color_from_srgba_u32(0xDF8E1DFF);
+            V4F32 green     = color_from_srgba_u32(0x40A02BFF);
+            V4F32 teal      = color_from_srgba_u32(0x179299FF);
+            V4F32 sky       = color_from_srgba_u32(0x04A5E5FF);
+            V4F32 sapphire  = color_from_srgba_u32(0x209FB5FF);
+            V4F32 blue      = color_from_srgba_u32(0x1E66F5FF);
+            V4F32 lavender  = color_from_srgba_u32(0x7287FDFF);
+            V4F32 text      = color_from_srgba_u32(0x4C4F69FF);
+            V4F32 subtext1  = color_from_srgba_u32(0x5C5F77FF);
+            V4F32 subtext0  = color_from_srgba_u32(0x6C6F85FF);
+            V4F32 overlay2  = color_from_srgba_u32(0x7C7F93FF);
+            V4F32 overlay1  = color_from_srgba_u32(0x8C8FA1FF);
+            V4F32 overlay0  = color_from_srgba_u32(0x9CA0B0FF);
+            V4F32 surface2  = color_from_srgba_u32(0xACB0BEFF);
+            V4F32 surface1  = color_from_srgba_u32(0xBCC0CCFF);
+            V4F32 surface0  = color_from_srgba_u32(0xCCD0DAFF);
+            V4F32 base      = color_from_srgba_u32(0xEFF1F5FF);
+            V4F32 mantle    = color_from_srgba_u32(0xE6E9EFFF);
+            V4F32 crust     = color_from_srgba_u32(0xDCE0E8FF);
+
+            theme->text  = text;
+            theme->weak_text = subtext0;
+            theme->hover = overlay1;
+            theme->cursor = rosewater;
+            theme->selection = overlay2;
+            theme->selection.a = 0.3f;
+            theme->focus = lavender;
+
+            theme->disabled_overlay         = overlay0;
+            theme->disabled_overlay.a       = 0.5f;
+            theme->drop_site_overlay        = overlay1;
+            theme->drop_site_overlay.a      = 0.5f;
+            theme->inactive_panel_overlay   = crust;
+            theme->inactive_panel_overlay.a = 0.2f;
+            theme->drop_shadow              = v4f32(0.0f, 0.0f, 0.0f, 0.8f);
+
+            theme->base_background         = base;
+            theme->base_border             = mantle;
+            theme->title_bar_background    = surface1;
+            theme->title_bar_border        = surface2;
+            theme->tab_background          = surface2;
+            theme->tab_border              = surface2;
+            theme->inactive_tab_background = surface1;
+            theme->inactive_tab_border     = surface1;
+            theme->button_background       = surface0;
+            theme->button_border           = surface1;
+            theme->secondary_button_background = surface1;
+            theme->secondary_button_border     = surface1;
+
+            theme->outline   = surface2;
+            theme->on_curve  = green;
+            theme->off_curve = red;
+        }
     }
 
     state->running = true;
 
-    state->theme_index = 3;
+    state->theme_index = 0;
     state->theme = global_themes[state->theme_index];
     state->target_theme = global_themes[state->theme_index];
     state->font_size = 11.0f;

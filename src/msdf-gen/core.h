@@ -54,7 +54,7 @@ struct Theme {
 };
 #undef X
 
-global Theme global_themes[4];
+global Theme global_themes[6];
 
 typedef enum {
     PaletteCode_Base,
