@@ -1087,6 +1087,7 @@ internal Void msdf_color_edges(MSDF_Glyph glyph) {
 
     msdf_log_parent_string(str8_literal("final coloring")) {
         for (MSDF_Contour *contour = glyph.first_contour; contour; contour = contour->next) {
+            MSDF_LogNode *contour_group = msdf_log_push_parent_string(str8_literal("Contour"));
             for (MSDF_Segment *segment = contour->first_segment; segment; segment = segment->next) {
                 V4F32 color = v4f32(
                     (F32) (segment->flags & MSDF_SegmentFlag_Red),
@@ -1096,6 +1097,7 @@ internal Void msdf_color_edges(MSDF_Glyph glyph) {
                 );
                 msdf_log_create_segment(segment, color);
             }
+            msdf_log_pop_parent();
         }
     }
     msdf_log_pop_parent();
@@ -1112,7 +1114,7 @@ internal MSDF_RasterResult msdf_generate_from_glyph_index(Arena *arena, TTF_Font
     memory_zero_struct(&msdf_log_state);
     msdf_log_state.arena         = arena;
     msdf_log_state.scratch_arena = scratch.arena;
-    result.logs = msdf_log_push_parent_string(str8_literal("logs"));
+    result.logs = msdf_log_push_parent_string(str8_literal("Logs"));
 
     MSDF_Glyph glyph = ttf_expand_contours_to_msdf(scratch.arena, font, glyph_index);
     TTF_HmtxMetrics metrics = ttf_get_metrics(font, glyph_index);
@@ -1123,11 +1125,11 @@ internal MSDF_RasterResult msdf_generate_from_glyph_index(Arena *arena, TTF_Font
     result.left_side_bearing = (F32) metrics.left_side_bearing / (F32) font->funits_per_em;
 
     MSDF_LogNode *whole_glyph = msdf_log_create_glyph(&glyph, v4f32(1, 0, 0, 1));
-    msdf_log_node_set_string(whole_glyph, str8_literal("whole glyph"));
+    msdf_log_node_set_string(whole_glyph, str8_literal("Whole glyph"));
 
     // NOTE(simon): Simplify outline
     {
-        prof_zone_begin(prof_simplify, "simplify outline");
+        prof_zone_begin(prof_simplify, "Simplify outline");
         msdf_resolve_contour_overlap(scratch.arena, &glyph);
         msdf_convert_to_simple_polygons(scratch.arena, &glyph);
         msdf_correct_contour_orientation(arena, &glyph);
