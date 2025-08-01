@@ -219,7 +219,9 @@ struct Context {
     X(Accept,               true,  "Accept",                      "Accepts the current action")                                                   \
     X(Cancel,               true,  "Cancel",                      "Cancles the current action")                                                   \
     X(UnloadFont,           true,  "Unload font",                 "Unloads the current font")                                                     \
-    X(LoadFont,             false, "Load font",                   "Loads a new font")
+    X(LoadFont,             false, "Load font",                   "Loads a new font")                                                             \
+    X(IncreaseFontSize,     true,  "Increase font size",          "Increases the font size by one point")                                         \
+    X(DecreaseFontSize,     true,  "Decrease font size",          "Decreases the font size by one point")
 
 #define X(name, show_in_ui, display_string, description) Command_##name,
 typedef enum {

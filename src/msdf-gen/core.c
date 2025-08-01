@@ -924,7 +924,7 @@ internal Void update(Void) {
                     Str8List output = { 0 };
                     str8_list_push_format(scratch.arena, &output, "codepoint: %u\n", command_context->codepoint);
                     str8_list_push_format(scratch.arena, &output, "theme_index: %u\n", state->theme_index);
-                    str8_list_push_format(scratch.arena, &output, "font_size: %u\n", (U32) state->font_size);
+                    str8_list_push_format(scratch.arena, &output, "font_size: %u\n", f32_round_to_u32(state->font_size));
 
                     // NOTE(simon): Build file path.
                     Str8 current_directory = os_current_directory(scratch.arena);
@@ -1258,6 +1258,12 @@ internal Void update(Void) {
                     }
 
                     arena_end_temporary(scratch);
+                } break;
+                case Command_IncreaseFontSize: {
+                    state->font_size = f32_min(state->font_size + 1.0f, 30.0f);
+                } break;
+                case Command_DecreaseFontSize: {
+                    state->font_size = f32_max(1.0f, state->font_size - 1.0f);
                 } break;
                 case Command_COUNT: {
                 } break;
