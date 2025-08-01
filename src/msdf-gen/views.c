@@ -996,12 +996,10 @@ PANEL_BUILD_FUNCTION(view_glyph_debug) {
                 );
                 ui_parent_push(row_box);
 
+                ui_spacer_sized(ui_size_ems(0.5f, 1.0f));
+
                 // NOTE(simon): Create indentation.
-                ui_width(ui_size_ems(1.5f, 1.0f))
-                ui_text_align(UI_TextAlign_Center)
-                for (U64 depth = 0; depth < row->depth; ++depth) {
-                    ui_label(str8_literal("|"));
-                }
+                ui_spacer_sized(ui_size_ems(1.5f * (F32) row->depth, 1.0f));
 
                 // NOTE(simon): Create expander.
                 ui_width_next(ui_size_ems(1.5f, 0.0f));
@@ -1022,11 +1020,13 @@ PANEL_BUILD_FUNCTION(view_glyph_debug) {
                 if (display.size == 0) {
                     if (row->node->first) {
                         display = str8_literal("Group");
+                    } else if (row->node->flags & (MSDF_LogNodeFlag_DrawPoint | MSDF_LogNodeFlag_DrawLine | MSDF_LogNodeFlag_DrawBezier)) {
+                        display = str8_literal("Geometry");
                     } else {
                         display = str8_literal("No geometry");
                     }
                 }
-                ui_label_format("[%lu]: %.*s", row->index_in_parent, str8_expand(display));
+                ui_label_format("[%lu] %.*s", row->index_in_parent, str8_expand(display));
 
                 ui_parent_pop();
                 ui_palette_pop();
