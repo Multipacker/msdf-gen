@@ -760,7 +760,6 @@ PANEL_BUILD_FUNCTION(view_glyph_debug) {
         MSDF_LogNode *node;
         U64           index_in_parent;
         U64           row_count;
-        U64           depth;
     };
     Block *root_block = arena_push_struct(scratch.arena, Block);
     if (logs) {
@@ -794,8 +793,8 @@ PANEL_BUILD_FUNCTION(view_glyph_debug) {
                 is_expanded = is_expanded->next;
             }
 
-            // NOTE(simon): Skip if not expanded.
-            if (is_expanded) {
+            // NOTE(simon): Excluding the root, skip if not expanded.
+            if (node != logs && !is_expanded) {
                 continue;
             }
 
@@ -805,7 +804,6 @@ PANEL_BUILD_FUNCTION(view_glyph_debug) {
             block->index_in_parent = task->index_in_parent;
             dll_push_back(task->parent_block->first, task->parent_block->last, block);
             block->node = node;
-            block->depth = task->parent_block->depth + 1;
 
             // NOTE(simon): Queue up all children.
             U64 child_index = 0;
@@ -934,6 +932,13 @@ PANEL_BUILD_FUNCTION(view_glyph_debug) {
                 local_range.max -= u64_min(absolute_range.max - (U64) bottom_row, block_row_count);
             }
 
+            // NOTE(simon): Calculate depth, skipping the outermost nesting as
+            // that is just there to group everything together.
+            U64 depth = 0;
+            for (Block *enclosing = block_range->block->parent; enclosing != root_block; enclosing = enclosing->parent) {
+                ++depth;
+            }
+
             // NOTE(simon): Skip invisible children.
             MSDF_LogNode *child = block_range->block->node->first;
             for (U64 i = 0; i < local_range.min; ++i) {
@@ -944,7 +949,7 @@ PANEL_BUILD_FUNCTION(view_glyph_debug) {
             for (U64 i = local_range.min; i < local_range.max; ++i, child = child->next) {
                 Row *row = arena_push_struct(scratch.arena, Row);
                 row->node = child;
-                row->depth = block_range->block->depth;
+                row->depth = depth;
                 row->index_in_parent = i;
                 sll_queue_push(first_row, last_row, row);
             }
