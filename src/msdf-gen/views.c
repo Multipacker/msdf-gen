@@ -1017,7 +1017,7 @@ PANEL_BUILD_FUNCTION(view_glyph_debug) {
         ui_width_next(ui_size_pixels(container_width, 1.0f));
         ui_height_next(ui_size_pixels(container_height, 1.0f));
         ui_layout_axis_next(Axis2_Y);
-        UI_Box *container = ui_create_box_from_string(0, str8_literal("##container"));
+        UI_Box *container = ui_create_box_from_string(UI_BoxFlag_Clip, str8_literal("##container"));
         container->view_offset.y = height * (f32_mod(state->position.offset, 1.0f) + (state->position.offset < 0.0f));
 
         ui_palette(palette_from_code(PaletteCode_Button))
