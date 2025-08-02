@@ -523,7 +523,9 @@ internal S32 msdf_contour_calculate_global_winding_number(Arena *arena, MSDF_Gly
                             msdf_log_push_parent(intersection);
                             msdf_log_create_contour(contour, v4f32(0, 1, 0, 1));
                             msdf_log_create_contour(other_contour, v4f32(1, 0, 0, 1));
+                            msdf_log_create_line(test_point, v2f32_add(test_point, v2f32(100.0f, 0.0f)), v4f32(0, 0, 0, 1));
                             msdf_log_create_point(test_point, v4f32(0, 0, 0, 1));
+                            msdf_log_create_point(v2f32_add(test_point, v2f32(v, 0.0f)), v4f32(0, 0, 0, 1));
                             msdf_log_create_segment(segment, v4f32(0, 0, 1, 1));
                             msdf_log_create_point(segment->p0, v4f32(1, 0, 0, 1));
                             msdf_log_create_point(segment->p1, v4f32(0, 1, 0, 1));
@@ -554,11 +556,13 @@ internal S32 msdf_contour_calculate_global_winding_number(Arena *arena, MSDF_Gly
                         F32 v = u * u * ax + u * bx + cx;
 
                         if (0.0f <= u && u < 1.0f && 0.0f <= v) {
-                            MSDF_LogNode *intersection = msdf_log_create_node_from_string(str8_literal("Bezier intersection"));
+                            MSDF_LogNode *intersection = msdf_log_create_node_from_string_format("Bezier intersection (double root)");
                             msdf_log_push_parent(intersection);
                             msdf_log_create_contour(contour, v4f32(0, 1, 0, 1));
                             msdf_log_create_contour(other_contour, v4f32(1, 0, 0, 1));
+                            msdf_log_create_line(test_point, v2f32_add(test_point, v2f32(100.0f, 0.0f)), v4f32(0, 0, 0, 1));
                             msdf_log_create_point(test_point, v4f32(0, 0, 0, 1));
+                            msdf_log_create_point(v2f32_add(test_point, v2f32(v, 0.0f)), v4f32(0, 0, 0, 1));
                             msdf_log_create_segment(segment, v4f32(0, 0, 1, 1));
                             msdf_log_pop_parent();
                             ++intersection_count;
@@ -571,22 +575,26 @@ internal S32 msdf_contour_calculate_global_winding_number(Arena *arena, MSDF_Gly
                         F32 v1 = u1 * u1 * ax + u1 * bx + cx;
 
                         if (0.0f <= u0 && u0 < 1.0f && 0.0f <= v0) {
-                            MSDF_LogNode *intersection = msdf_log_create_node_from_string(str8_literal("Bezier intersection"));
+                            MSDF_LogNode *intersection = msdf_log_create_node_from_string(str8_literal("Bezier intersection (negative root)"));
                             msdf_log_push_parent(intersection);
                             msdf_log_create_contour(contour, v4f32(0, 1, 0, 1));
                             msdf_log_create_contour(other_contour, v4f32(1, 0, 0, 1));
+                            msdf_log_create_line(test_point, v2f32_add(test_point, v2f32(100.0f, 0.0f)), v4f32(0, 0, 0, 1));
                             msdf_log_create_point(test_point, v4f32(0, 0, 0, 1));
+                            msdf_log_create_point(v2f32_add(test_point, v2f32(v0, 0.0f)), v4f32(0, 0, 0, 1));
                             msdf_log_create_segment(segment, v4f32(0, 0, 1, 1));
                             msdf_log_pop_parent();
                             ++intersection_count;
                         }
 
                         if (0.0f <= u1 && u1 < 1.0f && 0.0f <= v1) {
-                            MSDF_LogNode *intersection = msdf_log_create_node_from_string(str8_literal("Bezier intersection"));
+                            MSDF_LogNode *intersection = msdf_log_create_node_from_string(str8_literal("Bezier intersection (positive root)"));
                             msdf_log_push_parent(intersection);
                             msdf_log_create_contour(contour, v4f32(0, 1, 0, 1));
                             msdf_log_create_contour(other_contour, v4f32(1, 0, 0, 1));
+                            msdf_log_create_line(test_point, v2f32_add(test_point, v2f32(100.0f, 0.0f)), v4f32(0, 0, 0, 1));
                             msdf_log_create_point(test_point, v4f32(0, 0, 0, 1));
+                            msdf_log_create_point(v2f32_add(test_point, v2f32(v1, 0.0f)), v4f32(0, 0, 0, 1));
                             msdf_log_create_segment(segment, v4f32(0, 0, 1, 1));
                             msdf_log_pop_parent();
                             ++intersection_count;
@@ -945,6 +953,7 @@ internal Void msdf_correct_contour_orientation(Arena *arena, MSDF_Glyph *glyph) 
     }
 
     for (MSDF_Contour *contour = glyph->first_contour; contour; contour = contour->next) {
+        msdf_log_push_parent_string(str8_literal("contour correction"));
         S32 global_winding = msdf_contour_calculate_global_winding_number(arena, glyph, contour);
 
         // NOTE(simon): Determine if each contour should be kept and if we need to flip it.
@@ -955,6 +964,16 @@ internal Void msdf_correct_contour_orientation(Arena *arena, MSDF_Glyph *glyph) 
         if ((global_winding == 0 && contour->local_winding == 1) || (global_winding != 0 && contour->local_winding == -1)) {
             contour->flags |= MSDF_ContourFlag_Flip;
         }
+
+        V4F32 color = v4f32(1, 0, 0, 1);
+        if ((contour->flags & (MSDF_ContourFlag_Flip | MSDF_ContourFlag_Keep)) == (MSDF_ContourFlag_Flip | MSDF_ContourFlag_Keep)) {
+            color = v4f32(1, 1, 0, 1);
+        } else if (contour->flags & MSDF_ContourFlag_Keep) {
+            color = v4f32(0, 1, 0, 1);
+        }
+        msdf_log_create_contour(contour, color);
+
+        msdf_log_pop_parent();
     }
 
     msdf_log_parent_string(str8_literal("orientation correction")) {
