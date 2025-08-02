@@ -1322,8 +1322,9 @@ internal Void update(Void) {
         icon_info.icon_kind_text[UI_IconKind_Minimize]   = icon_kind_text[UI_IconKind_Minimize];
         icon_info.icon_kind_text[UI_IconKind_Maximize]   = icon_kind_text[UI_IconKind_Maximize];
         icon_info.icon_kind_text[UI_IconKind_Close]      = icon_kind_text[UI_IconKind_Close];
-        icon_info.icon_kind_text[UI_IconKind_Shown]      = icon_kind_text[UI_IconKind_Shown];
-        icon_info.icon_kind_text[UI_IconKind_Hidden]     = icon_kind_text[UI_IconKind_Hidden];
+        icon_info.icon_kind_text[UI_IconKind_Pin]        = icon_kind_text[UI_IconKind_Pin];
+        icon_info.icon_kind_text[UI_IconKind_Eye]        = icon_kind_text[UI_IconKind_Eye];
+        icon_info.icon_kind_text[UI_IconKind_NoEye]      = icon_kind_text[UI_IconKind_NoEye];
         icon_info.icon_kind_text[UI_IconKind_LeftArrow]  = icon_kind_text[UI_IconKind_LeftArrow];
         icon_info.icon_kind_text[UI_IconKind_RightArrow] = icon_kind_text[UI_IconKind_RightArrow];
         icon_info.icon_kind_text[UI_IconKind_UpArrow]    = icon_kind_text[UI_IconKind_UpArrow];
