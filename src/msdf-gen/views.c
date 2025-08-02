@@ -1008,7 +1008,7 @@ PANEL_BUILD_FUNCTION(view_glyph_debug) {
                 ui_spacer_sized(ui_size_ems(1.5f * (F32) row->depth, 1.0f));
 
                 // NOTE(simon): Create expander.
-                ui_width_next(ui_size_ems(1.5f, 0.0f));
+                ui_width_next(ui_size_ems(1.5f, 1.0f));
                 ui_text_align_next(UI_TextAlign_Center);
                 ui_font_next(ui_icon_font());
                 if (row->node->first) {
