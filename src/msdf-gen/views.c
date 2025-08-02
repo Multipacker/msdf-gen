@@ -374,6 +374,9 @@ PANEL_BUILD_FUNCTION(view_glyph) {
         V2F32 offset;
         F32 point_size;
         F32 line_width;
+
+        F32 hover_t;
+        F32 target_hover_t;
     };
 
     B32 is_new_tab = tab->view_state == 0;
@@ -605,24 +608,64 @@ PANEL_BUILD_FUNCTION(view_glyph) {
                 }
             }
 
-            // NOTE(simon): Draw hovered debug logs.
+            // NOTE(simon): Draw debug logs.
+            MSDF_LogNode *pinned_log_node = get_pinned_log_node();
+            MSDF_LogNode *hovered_log_node = 0;
             if (global_state->hover_context_slot == ContextSlot_LogNode) {
-                MSDF_LogNode *log_node = get_hover_context()->log_node;
-                for (MSDF_LogNode *node = log_node; node; node = msdf_log_iterator_depth_first_pre_order(node, log_node).next) {
-                    V2F32 p0 = m3f32_multiply_v2f32(transform, node->p0);
-                    V2F32 p1 = m3f32_multiply_v2f32(transform, node->p1);
-                    V2F32 p2 = m3f32_multiply_v2f32(transform, node->p2);
-
-                    if (node->flags & MSDF_LogNodeFlag_DrawPoint) {
-                        point_widget(&node->p0, transform, point_size, node->color);
+                hovered_log_node = get_hover_context()->log_node;
+            }
+            for (MSDF_LogNode *node = msdf_glyph->logs; node; node = msdf_log_iterator_depth_first_pre_order(node, 0).next) {
+                // NOTE(simon): Are we hovered or pinned?
+                B32 is_hovered = false;
+                B32 is_pinned = false;
+                for (MSDF_LogNode *lookup = node; lookup; lookup = lookup->parent) {
+                    if (lookup == hovered_log_node) {
+                        is_hovered = true;
                     }
-                    if (node->flags & MSDF_LogNodeFlag_DrawLine) {
-                        draw_line(p0, p1, node->color, line_width, 0.0f, 1.0f);
-                    }
-                    if (node->flags & MSDF_LogNodeFlag_DrawBezier) {
-                        draw_bezier(p0, p1, p2, node->color, line_width, 0.0f, 1.0f);
+                    if (lookup == pinned_log_node) {
+                        is_pinned = true;
                     }
                 }
+
+                // NOTE(simon): Nothing to do for this node if we are neither
+                // hovered nor pinned.
+                if (!is_hovered && !is_pinned) {
+                    continue;
+                }
+
+                V2F32 p0 = m3f32_multiply_v2f32(transform, node->p0);
+                V2F32 p1 = m3f32_multiply_v2f32(transform, node->p1);
+                V2F32 p2 = m3f32_multiply_v2f32(transform, node->p2);
+                V4F32 color = node->color;
+
+                if (is_hovered) {
+                    color.a *= state->hover_t;
+                }
+
+                if (node->flags & MSDF_LogNodeFlag_DrawPoint) {
+                    point_widget(&node->p0, transform, point_size, color);
+                }
+                if (node->flags & MSDF_LogNodeFlag_DrawLine) {
+                    draw_line(p0, p1, color, line_width, 0.0f, 1.0f);
+                }
+                if (node->flags & MSDF_LogNodeFlag_DrawBezier) {
+                    draw_bezier(p0, p1, p2, color, line_width, 0.0f, 1.0f);
+                }
+            }
+
+            // NOTE(simon): Animate hover_t if we are hovered
+            if (global_state->hover_context_slot == ContextSlot_LogNode) {
+                F32 hover_t_delta = (state->target_hover_t - state->hover_t) * ui_animation_slow_rate();
+                if (f32_abs(hover_t_delta) >= 0.001f) {
+                    state->hover_t += hover_t_delta;
+                } else {
+                    state->hover_t = state->target_hover_t;
+                    state->target_hover_t = 1.0f - state->target_hover_t;
+                }
+                request_frame();
+            } else {
+                state->hover_t = 0.0f;
+                state->target_hover_t = 0.0f;
             }
         }
         ui_box_set_draw_list(box, draw_list);
@@ -1034,6 +1077,24 @@ PANEL_BUILD_FUNCTION(view_glyph_debug) {
                 }
                 ui_label_format("[%lu] %.*s", row->index_in_parent, str8_expand(display));
 
+                UI_Input pin_input = { 0 };
+                if (
+                    (global_state->hover_context_slot  == ContextSlot_LogNode && get_hover_context()->log_node  == row->node) ||
+                    get_pinned_log_node() == row->node
+                ) {
+                    ui_font_next(ui_icon_font());
+                    ui_width_next(ui_size_pixels(height, 1.0f));
+                    ui_text_align_next(UI_TextAlign_Center);
+                    pin_input = ui_button_format("%.*s###pin_%p", str8_expand(ui_icon_string_from_kind(UI_IconKind_Pin)), row->node);
+                }
+                if (pin_input.flags & UI_InputFlag_Clicked) {
+                    if (get_pinned_log_node() == row->node) {
+                        set_pinned_log_node(0);
+                    } else {
+                        set_pinned_log_node(row->node);
+                    }
+                }
+
                 ui_parent_pop();
                 ui_palette_pop();
 
@@ -1055,7 +1116,8 @@ PANEL_BUILD_FUNCTION(view_glyph_debug) {
                         dll_push_back(expansion_slot->first, expansion_slot->last, is_expanded);
                     }
                 }
-                if (row_input.flags & UI_InputFlag_Hovering) {
+
+                if ((row_input.flags | pin_input.flags) & UI_InputFlag_Hovering) {
                     context_scope(.log_node = row->node) {
                         set_hover_context(ContextSlot_LogNode);
                     }

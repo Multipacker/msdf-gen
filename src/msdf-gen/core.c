@@ -294,6 +294,17 @@ internal Context *get_hover_context(Void) {
     return result;
 }
 
+internal Void set_pinned_log_node(MSDF_LogNode *node) {
+    State *state = global_state;
+    state->pinned_log_node_next = node;
+}
+
+internal MSDF_LogNode *get_pinned_log_node(Void) {
+    State *state = global_state;
+    MSDF_LogNode *result = state->pinned_log_node;
+    return result;
+}
+
 
 
 // NOTE(simon): Themes
@@ -467,6 +478,7 @@ internal Void update(Void) {
         state->hover_context_slot = ContextSlot_Null;
         state->hover_context      = arena_push_struct(frame_arena(), Context);
     }
+    state->pinned_log_node = state->pinned_log_node_next;
 
     // NOTE(simon): Trigger an auto save once every 5 seconds.
     if (os_now_nanoseconds() - state->previous_auto_save > (U64) (5 * 1e9)) {
@@ -1240,6 +1252,8 @@ internal Void update(Void) {
                     msdf_cache_clear();
                     arena_reset(state->ttf_arena);
                     state->ttf_font = &ttf_font_nil;
+                    state->pinned_log_node = 0;
+                    state->pinned_log_node_next = 0;
                 } break;
                 case Command_LoadFont: {
                     // NOTE(simon): Unload any previous font

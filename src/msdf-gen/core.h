@@ -360,6 +360,11 @@ struct State {
     ContextSlot hover_context_slot_next;
     Context    *hover_context_next;
 
+    // TODO(simon): This feels hacky and messy, we should probably use some
+    // stable key for this instead.
+    MSDF_LogNode *pinned_log_node;
+    MSDF_LogNode *pinned_log_node_next;
+
     Arena *command_arena;
     CommandList commands;
 
