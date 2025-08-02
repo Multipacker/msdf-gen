@@ -516,9 +516,16 @@ PANEL_BUILD_FUNCTION(view_glyph) {
 
                 if (hovered) {
                     ui_tooltip(tooltip_key) {
-                        ui_width_next(ui_size_text_content(0.0f, 1.0f));
-                        ui_height_next(ui_size_text_content(0.0f, 1.0f));
-                        ui_label(metrics[i].name);
+                        ui_extra_box_flags_next(UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawBorder | UI_BoxFlag_DrawDropShadow);
+
+                        ui_palette(palette_from_code(PaletteCode_Button))
+                        ui_width(ui_size_children_sum(1.0f))
+                        ui_height(ui_size_children_sum(1.0f))
+                        ui_column()
+                        ui_width(ui_size_text_content(5.0f, 1.0f))
+                        ui_height(ui_size_text_content(5.0f, 1.0f)) {
+                            ui_label(metrics[i].name);
+                        }
                     }
                 }
             }
