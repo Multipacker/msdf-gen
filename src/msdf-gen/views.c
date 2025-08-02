@@ -718,8 +718,7 @@ PANEL_BUILD_FUNCTION(view_glyph_debug) {
     struct ExpansionNode {
         ExpansionNode *next;
         ExpansionNode *previous;
-        MSDF_LogNode  *parent;
-        U64            index_in_parent;
+        MSDF_LogNode  *node;
     };
     typedef struct ExpansionList ExpansionList;
     struct ExpansionList {
@@ -785,11 +784,11 @@ PANEL_BUILD_FUNCTION(view_glyph_debug) {
             }
 
             // NOTE(simon): Find expandsion state.
-            U64 hash = hash_combine(u64_hash(integer_from_pointer(node->parent)), u64_hash(task->index_in_parent));
+            U64 hash = u64_hash(integer_from_pointer(node));
             U64 expansion_index = hash % state->expansion_set_count;
             ExpansionList *expansion_slot = &state->expansion_set[expansion_index];
             ExpansionNode *is_expanded = expansion_slot->first;
-            while (is_expanded && !(is_expanded->parent == node->parent && is_expanded->index_in_parent == task->index_in_parent)) {
+            while (is_expanded && is_expanded->node != node) {
                 is_expanded = is_expanded->next;
             }
 
@@ -980,11 +979,11 @@ PANEL_BUILD_FUNCTION(view_glyph_debug) {
             ui_focus(UI_Focus_None)
             for (Row *row = first_row; row; row = row->next, ++row_index) {
                 // NOTE(simon): Find expandsion state.
-                U64 hash = hash_combine(u64_hash(integer_from_pointer(row->node->parent)), u64_hash(row->index_in_parent));
+                U64 hash = u64_hash(integer_from_pointer(row->node));
                 U64 expansion_index = hash % state->expansion_set_count;
                 ExpansionList *expansion_slot = &state->expansion_set[expansion_index];
                 ExpansionNode *is_expanded = expansion_slot->first;
-                while (is_expanded && !(is_expanded->parent == row->node->parent && is_expanded->index_in_parent == row->index_in_parent)) {
+                while (is_expanded && is_expanded->node != row->node) {
                     is_expanded = is_expanded->next;
                 }
 
@@ -1045,8 +1044,7 @@ PANEL_BUILD_FUNCTION(view_glyph_debug) {
                         } else {
                             is_expanded = arena_push_struct(tab->arena, ExpansionNode);
                         }
-                        is_expanded->parent          = row->node->parent;
-                        is_expanded->index_in_parent = row->index_in_parent;
+                        is_expanded->node = row->node;
                         dll_push_back(expansion_slot->first, expansion_slot->last, is_expanded);
                     }
                 }
