@@ -1167,10 +1167,10 @@ internal Void ui_box_set_draw_list(UI_Box *box, Draw_List *list) {
 internal V2F32 ui_box_text_location(UI_Box *box) {
     V2F32 result = { 0 };
 
-    V2F32 offset = { 0 };
+    V2F32 offset = box->text_padding;
     for (Axis2 axis = Axis2_X; axis < Axis2_COUNT; ++axis) {
         if (box->size[axis].kind == UI_Size_TextContent) {
-            offset.values[axis] = box->size[axis].value;
+            offset.values[axis] += box->size[axis].value;
         }
     }
 
@@ -1178,17 +1178,17 @@ internal V2F32 ui_box_text_location(UI_Box *box) {
 
     switch (box->text_align) {
         case UI_TextAlign_Left: {
-            result.x = box->calculated_rectangle.min.x + offset.x + box->text_padding.x;
+            result.x = box->calculated_rectangle.min.x + offset.x;
         } break;
         case UI_TextAlign_Center: {
             result.x = (box->calculated_rectangle.max.x + box->calculated_rectangle.min.x) * 0.5f - box->text.size.x * 0.5f;
-            result.x = f32_max(box->calculated_rectangle.min.x, result.x);
-            result.x = f32_floor(result.x + offset.x);
+            result.x = f32_max(box->calculated_rectangle.min.x + offset.x, result.x);
+            result.x = f32_floor(result.x);
         } break;
         case UI_TextAlign_Right: {
-            result.x = box->calculated_rectangle.max.x - box->text.size.x - offset.x - box->text_padding.x;
-            result.x = f32_max(box->calculated_rectangle.min.x, result.x);
-            result.x = f32_floor(result.x + offset.x);
+            result.x = box->calculated_rectangle.max.x - box->text.size.x - offset.x;
+            result.x = f32_max(box->calculated_rectangle.min.x + offset.x, result.x);
+            result.x = f32_floor(result.x);
         } break;
         case UI_TextAlign_COUNT: {
         } break;
