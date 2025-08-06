@@ -550,7 +550,7 @@ internal S32 msdf_contour_calculate_global_winding_number(Arena *arena, MSDF_Gly
                     F32 cy = segment->p0.y - test_point.y;
 
                     F32 discriminant = by * by - 4.0f * ay * cy;
-                    if (f32_abs(discriminant) < 0.0001f) {
+                    if (f32_abs(discriminant) < 0.000001f) {
                         F32 u = -by / (2.0f * ay);
 
                         F32 v = u * u * ax + u * bx + cx;
