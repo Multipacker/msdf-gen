@@ -1281,7 +1281,7 @@ internal UI_Input ui_input_from_box(UI_Box *box) {
         }
 
         if (box->flags & UI_BoxFlag_Scrollable && event->kind == UI_EventKind_Scroll && is_in_bounds) {
-            result.scroll = event->scroll;
+            result.scroll = v2f32_add(result.scroll, event->scroll);
             consumed = true;
         }
 
