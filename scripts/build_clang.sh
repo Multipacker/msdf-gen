@@ -119,6 +119,3 @@ clang $compiler_flags $linker_flags $base_libraries src/meta/main.c -o build/met
 build/meta
 
 clang $compiler_flags $linker_flags $base_libraries $graphics_libraries $render_libraries build/msdf-gen.o src/msdf-gen/main.c -o build/msdf-gen
-#clang $compiler_flags $linker_flags $base_libraries $graphics_libraries $render_libraries src/ui_test/main.c -o build/ui_test
-#clang $compiler_flags $linker_flags $base_libraries $graphics_libraries $render_libraries src/msdf-gen/test.c -o build/test
-#clang $compiler_flags $linker_flags $base_libraries $graphics_libraries $render_libraries src/points/main.c -o build/points
