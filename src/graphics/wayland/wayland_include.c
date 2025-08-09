@@ -911,6 +911,8 @@ internal Void wayland_xdg_surface_configure(Void *data, struct xdg_surface *xdg_
 
     xdg_surface_ack_configure(window->xdg_surface, serial);
 
+    window->is_configured = true;
+
     if (state->update) {
         state->update();
     }

@@ -161,6 +161,9 @@ internal Void opengl_window_select(Gfx_Window graphics_handle, Render_Window ren
 internal Void opengl_swap_buffers(Gfx_Window graphics_handle, Render_Window render_handle) {
     Wayland_OpenGLState *state = &global_wayland_opengl_state;
     OpenGL_Window *render_window = opengl_window_from_handle(render_handle);
+    Wayland_Window *graphics_window = wayland_window_from_handle(graphics_handle);
 
-    eglSwapBuffers(state->display, render_window->surface);
+    if (graphics_window->is_configured) {
+        eglSwapBuffers(state->display, render_window->surface);
+    }
 }

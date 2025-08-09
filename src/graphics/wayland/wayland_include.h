@@ -86,7 +86,6 @@ struct Wayland_TitleBarClientArea {
     R2F32 rectangle;
 };
 
-// TODO(simon): Track configuration of windows
 typedef struct Wayland_Window Wayland_Window;
 struct Wayland_Window {
     Wayland_Window *next;
@@ -97,6 +96,7 @@ struct Wayland_Window {
     struct xdg_toplevel *xdg_toplevel;
     struct zxdg_toplevel_decoration_v1 *xdg_toplevel_decoration;
     B32 is_maximized;
+    B32 is_configured;
 
     // NOTE(simon): Custom title bars.
     Arena *title_bar_arena;
