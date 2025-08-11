@@ -102,6 +102,7 @@ struct Wayland_Window {
     Arena *title_bar_arena;
     B32 has_server_side_decorations;
     F32 title_bar_height;
+    F32 border_width;
     Wayland_TitleBarClientArea *first_client_area;
     Wayland_TitleBarClientArea *last_client_area;
 

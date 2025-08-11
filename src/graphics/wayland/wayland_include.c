@@ -43,6 +43,30 @@ internal Wayland_Window *wayland_window_from_surface(struct wl_surface *surface)
     return result;
 }
 
+internal U32 wayland_border_edges_from_pointer(Void) {
+    Wayland_State *state = &global_wayland_state;
+    Wayland_Window *window = state->pointer_window;
+
+    U32 border_edges = 0;
+    if (window) {
+        R2F32 client_area = r2f32_pad(r2f32(0.0f, 0.0f, (F32) window->surface->width, (F32) window->surface->height), -window->border_width);
+
+        if (state->pointer_position.x < client_area.min.x) {
+            border_edges |= 1 << Direction2_Left;
+        } else if (state->pointer_position.x >= client_area.max.x) {
+            border_edges |= 1 << Direction2_Right;
+        }
+
+        if (state->pointer_position.y < client_area.min.y) {
+            border_edges |= 1 << Direction2_Up;
+        } else if (state->pointer_position.y >= client_area.max.y) {
+            border_edges |= 1 << Direction2_Down;
+        }
+    }
+
+    return border_edges;
+}
+
 
 
 internal Void wayland_update_cursor(Void) {
@@ -65,33 +89,58 @@ internal Void wayland_update_cursor(Void) {
         dll_push_back(state->first_cursor_theme, state->last_cursor_theme, theme);
     }
 
+    Gfx_Cursor cursor = state->pointer_cursor;
+    U32 border_edges = wayland_border_edges_from_pointer();
+    if (border_edges != 0) {
+        Gfx_Cursor resize_cursors[1 << Direction2_COUNT] = {
+            [1 << Direction2_Left]  = Gfx_Cursor_SizeW,
+            [1 << Direction2_Up]    = Gfx_Cursor_SizeN,
+            [1 << Direction2_Right] = Gfx_Cursor_SizeE,
+            [1 << Direction2_Down]  = Gfx_Cursor_SizeS,
+
+            [1 << Direction2_Left  | 1 << Direction2_Up]    = Gfx_Cursor_SizeNW,
+            [1 << Direction2_Up    | 1 << Direction2_Right] = Gfx_Cursor_SizeNE,
+            [1 << Direction2_Right | 1 << Direction2_Down]  = Gfx_Cursor_SizeSE,
+            [1 << Direction2_Down  | 1 << Direction2_Left]  = Gfx_Cursor_SizeSW,
+        };
+        cursor = resize_cursors[border_edges];
+    }
+
     // NOTEE(simon): Load the requested cursor.
-    if (!theme->cursors[state->pointer_cursor]) {
+    if (!theme->cursors[cursor]) {
         CStr names[] = {
             [Gfx_Cursor_Pointer]  = "default",
             [Gfx_Cursor_Hand]     = "pointer",
             [Gfx_Cursor_Beam]     = "text",
-            [Gfx_Cursor_SizeNWSE] = "nwse-resize",
-            [Gfx_Cursor_SizeNESW] = "nesw-resize",
+            [Gfx_Cursor_SizeW]    = "w-resize",
+            [Gfx_Cursor_SizeN]    = "n-resize",
+            [Gfx_Cursor_SizeE]    = "e-resize",
+            [Gfx_Cursor_SizeS]    = "s-resize",
+            [Gfx_Cursor_SizeNW]   = "nw-resize",
+            [Gfx_Cursor_SizeNE]   = "ne-resize",
+            [Gfx_Cursor_SizeSE]   = "se-resize",
+            [Gfx_Cursor_SizeSW]   = "sw-resize",
             [Gfx_Cursor_SizeWE]   = "ew-resize",
             [Gfx_Cursor_SizeNS]   = "ns-resize",
+            [Gfx_Cursor_SizeNWSE] = "nwse-resize",
+            [Gfx_Cursor_SizeNESW] = "nesw-resize",
             [Gfx_Cursor_SizeAll]  = "all-scroll",
             [Gfx_Cursor_Disabled] = "not-allowd",
         };
 
-        struct wl_cursor *theme_cursor = wl_cursor_theme_get_cursor(theme->theme, names[state->pointer_cursor]);
+        struct wl_cursor *theme_cursor = wl_cursor_theme_get_cursor(theme->theme, names[cursor]);
         if (theme_cursor && theme_cursor->image_count > 0) {
             struct wl_cursor_image *image = theme_cursor->images[0];
-            theme->cursors[state->pointer_cursor]  = wl_cursor_image_get_buffer(image);
-            theme->hotspots[state->pointer_cursor] = v2s32((S32) f64_ceil((F64) image->hotspot_x / theme->scale), (S32) f64_ceil((F64) image->hotspot_y / theme->scale));
-            theme->sizes[state->pointer_cursor]    = v2s32((S32) image->width, (S32) image->height);
+            theme->cursors[cursor]  = wl_cursor_image_get_buffer(image);
+            theme->hotspots[cursor] = v2s32((S32) f64_ceil((F64) image->hotspot_x / theme->scale), (S32) f64_ceil((F64) image->hotspot_y / theme->scale));
+            theme->sizes[cursor]    = v2s32((S32) image->width, (S32) image->height);
         }
     }
 
-    if (theme->cursors[state->pointer_cursor]) {
+    if (theme->cursors[cursor]) {
         // NOTE(simon): Update surface size.
-        state->pointer_surface->width  = (S32) f64_ceil(theme->sizes[state->pointer_cursor].width  / state->pointer_surface->scale);
-        state->pointer_surface->height = (S32) f64_ceil(theme->sizes[state->pointer_cursor].height / state->pointer_surface->scale);
+        state->pointer_surface->width  = (S32) f64_ceil(theme->sizes[cursor].width  / state->pointer_surface->scale);
+        state->pointer_surface->height = (S32) f64_ceil(theme->sizes[cursor].height / state->pointer_surface->scale);
 
         // NOTE(simon): Update viewport if we are using fractional scaling.
         if (state->pointer_surface->fractional_scale) {
@@ -110,7 +159,7 @@ internal Void wayland_update_cursor(Void) {
         }
 
         // NOTE(simon): Update surface contents.
-        wl_surface_attach(state->pointer_surface->surface, theme->cursors[state->pointer_cursor], 0, 0);
+        wl_surface_attach(state->pointer_surface->surface, theme->cursors[cursor], 0, 0);
         wl_surface_damage_buffer(state->pointer_surface->surface, 0, 0, S32_MAX, S32_MAX);
         wl_surface_commit(state->pointer_surface->surface);
 
@@ -119,8 +168,8 @@ internal Void wayland_update_cursor(Void) {
             state->pointer,
             state->pointer_enter_serial,
             state->pointer_surface->surface,
-            theme->hotspots[state->pointer_cursor].x,
-            theme->hotspots[state->pointer_cursor].y
+            theme->hotspots[cursor].x,
+            theme->hotspots[cursor].y
         );
     }
 }
@@ -429,11 +478,18 @@ internal Void wayland_pointer_motion(Void *data, struct wl_pointer *pointer, U32
         (F32) (wl_fixed_to_double(surface_y) * window->surface->scale)
     );
 
-    Gfx_Event *event = arena_push_struct(state->event_arena, Gfx_Event);
-    event->kind     = Gfx_EventKind_MouseMove;
-    event->position = state->pointer_position;
-    event->window   = wayland_handle_from_window(window);
-    dll_push_back(state->events.first, state->events.last, event);
+    U32 border_edges = wayland_border_edges_from_pointer();
+    if (border_edges == 0) {
+        Gfx_Event *event = arena_push_struct(state->event_arena, Gfx_Event);
+        event->kind     = Gfx_EventKind_MouseMove;
+        event->position = state->pointer_position;
+        event->window   = wayland_handle_from_window(window);
+        dll_push_back(state->events.first, state->events.last, event);
+    }
+
+    // NOTE(simon): Update the cursor if we moved from the resize borders to
+    // the client area, or the other way around.
+    wayland_update_cursor();
 }
 
 internal Void wayland_pointer_button(Void *data, struct wl_pointer *pointer, U32 serial, U32 time, U32 button, U32 button_state) {
@@ -457,29 +513,37 @@ internal Void wayland_pointer_button(Void *data, struct wl_pointer *pointer, U32
 
     // NOTE(simon): Determine if we are interacting with the title bar or with
     // the client area.
-    B32 client_interaction = true;
+    B32 border_edges = wayland_border_edges_from_pointer();
+    B32 title_bar_interaction = false;
     if (state->pointer_position.y < window->title_bar_height) {
-        client_interaction = false;
+        title_bar_interaction = true;
     }
     for (Wayland_TitleBarClientArea *area = window->first_client_area; area; area = area->next) {
         if (r2f32_contains_v2f32(area->rectangle, state->pointer_position)) {
-            client_interaction = true;
+            title_bar_interaction = false;
             break;
         }
     }
 
     // TODO(simon): If we press inside the client area and release in the title
     // bar, that event should still be sent to the client.
-    if (client_interaction) {
-        if (kind != Gfx_EventKind_Null && key != Gfx_Key_Null) {
-            Gfx_Event *event = arena_push_struct(state->event_arena, Gfx_Event);
-            event->kind     = kind;
-            event->key      = key;
-            event->position = state->pointer_position;
-            event->window   = wayland_handle_from_window(window);
-            dll_push_back(state->events.first, state->events.last, event);
+    if (border_edges != 0) {
+        if (kind == Gfx_EventKind_KeyPress && key == Gfx_Key_MouseLeft && border_edges) {
+            U32 resize_edges[1 << Direction2_COUNT] = {
+                [1 << Direction2_Left]  = XDG_TOPLEVEL_RESIZE_EDGE_LEFT,
+                [1 << Direction2_Up]    = XDG_TOPLEVEL_RESIZE_EDGE_TOP,
+                [1 << Direction2_Right] = XDG_TOPLEVEL_RESIZE_EDGE_RIGHT,
+                [1 << Direction2_Down]  = XDG_TOPLEVEL_RESIZE_EDGE_BOTTOM,
+
+                [1 << Direction2_Left  | 1 << Direction2_Up]    = XDG_TOPLEVEL_RESIZE_EDGE_TOP_LEFT,
+                [1 << Direction2_Up    | 1 << Direction2_Right] = XDG_TOPLEVEL_RESIZE_EDGE_TOP_RIGHT,
+                [1 << Direction2_Right | 1 << Direction2_Down]  = XDG_TOPLEVEL_RESIZE_EDGE_BOTTOM_RIGHT,
+                [1 << Direction2_Down  | 1 << Direction2_Left]  = XDG_TOPLEVEL_RESIZE_EDGE_BOTTOM_LEFT,
+            };
+
+            xdg_toplevel_resize(window->xdg_toplevel, state->seat, serial, resize_edges[border_edges]);
         }
-    } else {
+    } else if (title_bar_interaction) {
         if (kind == Gfx_EventKind_KeyPress && key == Gfx_Key_MouseLeft) {
             xdg_toplevel_move(window->xdg_toplevel, state->seat, serial);
         } else if (kind == Gfx_EventKind_KeyPress && key == Gfx_Key_MouseRight) {
@@ -490,6 +554,15 @@ internal Void wayland_pointer_button(Void *data, struct wl_pointer *pointer, U32
                 (S32) f32_round(state->pointer_position.x),
                 (S32) f32_round(state->pointer_position.y)
             );
+        }
+    } else {
+        if (kind != Gfx_EventKind_Null && key != Gfx_Key_Null) {
+            Gfx_Event *event = arena_push_struct(state->event_arena, Gfx_Event);
+            event->kind     = kind;
+            event->key      = key;
+            event->position = state->pointer_position;
+            event->window   = wayland_handle_from_window(window);
+            dll_push_back(state->events.first, state->events.last, event);
         }
     }
 }
@@ -1413,13 +1486,21 @@ internal Void gfx_window_set_custom_title_bar_height(Gfx_Window handle, F32 heig
     }
 }
 
-internal Void gfx_window_push_cusomt_title_bar_client_area(Gfx_Window handle, R2F32 rectangle) {
+internal Void gfx_window_push_custom_title_bar_client_area(Gfx_Window handle, R2F32 rectangle) {
     Wayland_Window *window = wayland_window_from_handle(handle);
 
     if (window) {
         Wayland_TitleBarClientArea *client_area = arena_push_struct(window->title_bar_arena, Wayland_TitleBarClientArea);
         client_area->rectangle = rectangle;
         sll_queue_push(window->first_client_area, window->last_client_area, client_area);
+    }
+}
+
+internal Void gfx_window_set_custom_border_width(Gfx_Window handle, F32 width) {
+    Wayland_Window *window = wayland_window_from_handle(handle);
+
+    if (window) {
+        window->border_width = width;
     }
 }
 

@@ -153,10 +153,18 @@ typedef enum {
     Gfx_Cursor_Pointer,
     Gfx_Cursor_Hand,
     Gfx_Cursor_Beam,
-    Gfx_Cursor_SizeNWSE,
-    Gfx_Cursor_SizeNESW,
+    Gfx_Cursor_SizeW,
+    Gfx_Cursor_SizeN,
+    Gfx_Cursor_SizeE,
+    Gfx_Cursor_SizeS,
+    Gfx_Cursor_SizeNW,
+    Gfx_Cursor_SizeNE,
+    Gfx_Cursor_SizeSE,
+    Gfx_Cursor_SizeSW,
     Gfx_Cursor_SizeWE,
     Gfx_Cursor_SizeNS,
+    Gfx_Cursor_SizeNWSE,
+    Gfx_Cursor_SizeNESW,
     Gfx_Cursor_SizeAll,
     Gfx_Cursor_Disabled,
     Gfx_Cursor_COUNT,
@@ -180,7 +188,8 @@ internal V2F32      gfx_mouse_position_from_window(Gfx_Window handle);
 internal F32        gfx_dpi_from_window(Gfx_Window window);
 internal Void       gfx_window_clear_custom_title_bar_data(Gfx_Window handle);
 internal Void       gfx_window_set_custom_title_bar_height(Gfx_Window handle, F32 height);
-internal Void       gfx_window_push_cusomt_title_bar_client_area(Gfx_Window handle, R2F32 rectangle);
+internal Void       gfx_window_push_custom_title_bar_client_area(Gfx_Window handle, R2F32 rectangle);
+internal Void       gfx_window_set_custom_border_width(Gfx_Window handle, F32 width);
 internal B32        gfx_window_has_os_title_bar(Gfx_Window handle);
 internal Void       gfx_window_minimize(Gfx_Window handle);
 internal B32        gfx_window_is_maximized(Gfx_Window handle);

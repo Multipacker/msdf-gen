@@ -1320,12 +1320,9 @@ internal Void update(Void) {
     state->palettes[PaletteCode_DropSiteOverlay].border     = state->theme.drop_site_overlay;
     state->palettes[PaletteCode_DropSiteOverlay].text       = state->theme.text;
 
-    V2U32 client_area = gfx_client_area_from_window(state->window);
-    render_begin();
-    render_window_begin(state->window, state->render);
+    V2U32 client_size = gfx_client_area_from_window(state->window);
+    R2F32 client_rectangle = r2f32(0.0f, 0.0f, (F32) client_size.x, (F32) client_size.y);
     draw_begin_frame();
-    Draw_List *draw_list = draw_list_create();
-    draw_list_push(draw_list);
 
     // NOTE(simon): Build UI
     {
@@ -1360,14 +1357,14 @@ internal Void update(Void) {
 
         ui_height_push(ui_size_ems(1.5f, 1.0f));
 
-        R2F32 root_rectangle    = r2f32(0.0f, 0.0f, (F32) client_area.x, (F32) client_area.y);
         R2F32 top_bar_rectangle = { 0 };
+        F32 border_width = 0.0f;
         if (!gfx_window_has_os_title_bar(state->window)) {
-            top_bar_rectangle = r2f32(root_rectangle.min.x, root_rectangle.min.y, root_rectangle.max.x, root_rectangle.min.y + ui_height_top().value);
+            top_bar_rectangle = r2f32(client_rectangle.min.x, client_rectangle.min.y, client_rectangle.max.x, client_rectangle.min.y + ui_height_top().value);
+            border_width = 3.0f * gfx_dpi_from_window(state->window) / 72.0f;
         }
-        R2F32 content_rectangle = r2f32(root_rectangle.min.x, top_bar_rectangle.max.y, root_rectangle.max.x, root_rectangle.max.y);
-
-        V2F32 content_size = r2f32_size(content_rectangle);
+        R2F32 content_rectangle = r2f32_pad(r2f32(client_rectangle.min.x, top_bar_rectangle.max.y, client_rectangle.max.x, client_rectangle.max.y), -border_width);
+        V2F32 content_size      = r2f32_size(content_rectangle);
 
         typedef struct DragTabData DragTabData;
         struct DragTabData {
@@ -1798,10 +1795,12 @@ internal Void update(Void) {
 
         // NOTE(simon): Build title bar if needed.
         if (!gfx_window_has_os_title_bar(state->window)) {
-            gfx_window_clear_custom_title_bar_data(state->window);
-            gfx_window_set_custom_title_bar_height(state->window, top_bar_rectangle.max.y);
-
             V2F32 top_bar_size = r2f32_size(top_bar_rectangle);
+
+            gfx_window_clear_custom_title_bar_data(state->window);
+            gfx_window_set_custom_title_bar_height(state->window, top_bar_size.height);
+            gfx_window_set_custom_border_width(state->window, border_width);
+
             ui_fixed_position_next(top_bar_rectangle.min);
             ui_width_next(ui_size_pixels(top_bar_size.width, 1.0f));
             ui_height_next(ui_size_pixels(top_bar_size.height, 1.0f));
@@ -1846,9 +1845,9 @@ internal Void update(Void) {
                         push_command(Command_Quit);
                     }
 
-                    gfx_window_push_cusomt_title_bar_client_area(state->window, minimize_input.box->calculated_rectangle);
-                    gfx_window_push_cusomt_title_bar_client_area(state->window, maximize_input.box->calculated_rectangle);
-                    gfx_window_push_cusomt_title_bar_client_area(state->window, close_input.box->calculated_rectangle);
+                    gfx_window_push_custom_title_bar_client_area(state->window, minimize_input.box->calculated_rectangle);
+                    gfx_window_push_custom_title_bar_client_area(state->window, maximize_input.box->calculated_rectangle);
+                    gfx_window_push_custom_title_bar_client_area(state->window, close_input.box->calculated_rectangle);
                 }
             }
 
@@ -2119,7 +2118,7 @@ internal Void update(Void) {
         }
 
         // NOTE(simon): Build leaf panel UI.
-        prof_zone_begin(prof_bulid_leaf_ui, "leaf ui");
+        prof_zone_begin(prof_build_leaf_ui, "leaf ui");
         ui_layout_axis(Axis2_Y)
         for (Panel *panel = state->panel_root; panel; panel = panel_iterator_depth_first_pre_order(panel, 0).next) {
             if (panel->first) {
@@ -2454,7 +2453,7 @@ internal Void update(Void) {
 
             pop_context();
         }
-        prof_zone_end(prof_bulid_leaf_ui);
+        prof_zone_end(prof_build_leaf_ui);
 
         ui_font_size_pop();
         ui_palette_pop();
@@ -2463,10 +2462,14 @@ internal Void update(Void) {
     }
 
     // NOTE(simon): Draw
-    {
-        prof_zone_begin(prof_draw_ui, "draw");
+    prof_zone_begin(prof_draw_ui, "draw");
+    Draw_List *draw_list = draw_list_create();
+    draw_list_scope(draw_list) {
+        // NOTE(simon); Draw background.
+        draw_rectangle(client_rectangle, color_from_theme(ThemeColor_BaseBackground), 0, 0, 0);
 
-        draw_rectangle(r2f32(0, 0, (F32) client_area.width, (F32) client_area.height), color_from_theme(ThemeColor_BaseBackground), 0, 0, 0);
+        // NOTE(simon): Draw border.
+        draw_rectangle(r2f32_pad(client_rectangle, 1.0f), color_from_theme(ThemeColor_TitleBarBorder), 0, 1.0f, 1.0f);
 
         for (UI_Box *box = state->ui->root; !ui_box_is_null(box);) {
             if (box->flags & UI_BoxFlag_DrawDropShadow) {
@@ -2643,8 +2646,12 @@ internal Void update(Void) {
             box = iterator.next;
         }
 
-        prof_zone_end(prof_draw_ui);
     }
+    prof_zone_end(prof_draw_ui);
+
+    // NOTE(simon): Render.
+    render_begin();
+    render_window_begin(state->window, state->render);
     draw_submit_list(state->window, state->render, draw_list);
     render_window_end(state->window, state->render);
     render_end();

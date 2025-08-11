@@ -472,7 +472,10 @@ internal Void gfx_window_clear_custom_title_bar_data(Gfx_Window handle) {
 internal Void gfx_window_set_custom_title_bar_height(Gfx_Window handle, F32 height) {
 }
 
-internal Void gfx_window_push_cusomt_title_bar_client_area(Gfx_Window handle, R2F32 rectangle) {
+internal Void gfx_window_push_custom_title_bar_client_area(Gfx_Window handle, R2F32 rectangle) {
+}
+
+internal Void gfx_window_set_custom_border_width(Gfx_Window handle, F32 width) {
 }
 
 internal B32 gfx_window_has_os_title_bar(Gfx_Window handle) {
