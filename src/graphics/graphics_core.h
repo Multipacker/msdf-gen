@@ -125,7 +125,7 @@ global Str8 gfx_name_from_key[] = {
 
 typedef struct Gfx_Window Gfx_Window;
 struct Gfx_Window {
-    U64 u64[1];
+    U64 u64[2];
 };
 
 typedef struct Gfx_Event Gfx_Event;
@@ -172,6 +172,7 @@ internal Void          gfx_set_update_function(VoidFunction *update);
 internal Void gfx_set_cursor(Gfx_Cursor cursor);
 
 // NOTE(simon): Windows.
+internal B32        gfx_window_equal(Gfx_Window handle_a, Gfx_Window handle_b);
 internal Gfx_Window gfx_window_create(Str8 title, U32 width, U32 height);
 internal Void       gfx_window_close(Gfx_Window handle);
 internal V2U32      gfx_client_area_from_window(Gfx_Window handle);

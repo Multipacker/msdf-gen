@@ -119,6 +119,8 @@ struct X11_Window {
     xcb_sync_int64_t   counter_value;
     U32                width;
     U32                height;
+
+    U64 generation;
 };
 
 typedef struct X11_State X11_State;

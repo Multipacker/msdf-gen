@@ -25,12 +25,16 @@ global Win32_GetDpiForWindow  *win32_get_dpi_for_window  = 0;
 internal Gfx_Window win32_handle_from_window(Gfx_Win32Window *window) {
     Gfx_Window result = { 0 };
     result.u64[0] = integer_from_pointer(window);
+    reuslt.u64[1] = window->generation;
     return result;
 }
 
 internal Gfx_Win32Window *win32_window_from_handle(Gfx_Window handle) {
-    Gfx_Win32Window *result = (Gfx_Win32Window *) pointer_from_integer(handle.u64[0]);
-    return result;
+    Gfx_Win32Window *window = (Gfx_Win32Window *) pointer_from_integer(handle.u64[0]);
+    if (!window || window->generation != handle.u64[1]) {
+        window = 0;
+    }
+    return window;
 }
 
 internal Gfx_Win32Window *win32_window_from_hwnd(HWND hwnd) {
@@ -353,6 +357,14 @@ internal Void gfx_set_cursor(Gfx_Cursor cursor) {
 
 
 // NOTE(simon): Windows.
+internal B32 gfx_window_equal(Gfx_Window handle_a, Gfx_Window handle_b) {
+    Gfx_Win32Window *window_a = win32_window_from_handle(handle_a);
+    Gfx_Win32Window *window_b = win32_window_from_handle(handle_b);
+
+    B32 result = window_a == window_b;
+    return result;
+}
+
 internal Gfx_Window gfx_window_create(Str8 title, U32 width, U32 height) {
     Gfx_Win32State *state = &gfx_win32_state;
     Arena_Temporary scratch = arena_get_scratch(0, 0);
@@ -360,7 +372,9 @@ internal Gfx_Window gfx_window_create(Str8 title, U32 width, U32 height) {
     Gfx_Win32Window *window = state->window_freelist;
     if (window) {
         sll_stack_pop(state->window_freelist);
+        U64 generation = window->generation;
         memory_zero_struct(window);
+        window->generation = generation;
     } else {
         window = arena_push_struct(state->permanent_arena, Gfx_Win32Window);
     }
@@ -410,6 +424,7 @@ internal Void gfx_window_close(Gfx_Window handle) {
     if (window) {
         ReleaseDC(window->hwnd, window->hdc);
         DestroyWindow(window->hwnd);
+        ++window->generation;
         dll_remove(state->first_window, state->last_window, window);
         sll_stack_push(state->window_freelist, window);
     }

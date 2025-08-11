@@ -91,6 +91,8 @@ struct Gfx_Win32Window {
     F32  dpi;
     HDC  hdc;
     U32  buttons_pressed;
+
+    U64 generation;
 };
 
 typedef struct Gfx_Win32State Gfx_Win32State;

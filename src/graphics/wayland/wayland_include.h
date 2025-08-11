@@ -104,6 +104,8 @@ struct Wayland_Window {
     F32 title_bar_height;
     Wayland_TitleBarClientArea *first_client_area;
     Wayland_TitleBarClientArea *last_client_area;
+
+    U64 generation;
 };
 
 typedef struct Wayland_State Wayland_State;

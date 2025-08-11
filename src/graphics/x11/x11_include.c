@@ -44,11 +44,15 @@ global X11_State global_x11_state;
 internal Gfx_Window x11_handle_from_window(X11_Window *window) {
     Gfx_Window handle = { 0 };
     handle.u64[0] = integer_from_pointer(window);
+    handle.u64[1] = window->generation;
     return handle;
 }
 
 internal X11_Window *x11_window_from_handle(Gfx_Window handle) {
     X11_Window *window = (X11_Window *) pointer_from_integer(handle.u64[0]);
+    if (!window || window->generation != handle.u64[1]) {
+        window = 0;
+    }
     return window;
 }
 
@@ -890,6 +894,14 @@ internal Void gfx_set_cursor(Gfx_Cursor cursor) {
 
 
 // NOTE(simon): Windows.
+internal B32 gfx_window_equal(Gfx_Window handle_a, Gfx_Window handle_b) {
+    X11_Window *window_a = x11_window_from_handle(handle_a);
+    X11_Window *window_b = x11_window_from_handle(handle_b);
+
+    B32 result = window_a == window_b;
+    return result;
+}
+
 internal Gfx_Window gfx_window_create(Str8 title, U32 width, U32 height) {
     X11_State *state = &global_x11_state;
     Arena_Temporary scratch = arena_get_scratch(0, 0);
@@ -898,7 +910,9 @@ internal Gfx_Window gfx_window_create(Str8 title, U32 width, U32 height) {
     X11_Window *window = state->window_freelist;
     if (window) {
         sll_stack_pop(state->window_freelist);
+        U64 generation = window->generation;
         memory_zero_struct(window);
+        window->generation = generation;
     } else {
         window = arena_push_struct(state->permanent_arena, X11_Window);
     }
@@ -1061,6 +1075,8 @@ internal Void gfx_window_close(Gfx_Window handle) {
 
     xcb_destroy_window(state->connection, window->window);
     xcb_sync_destroy_counter(state->connection, window->counter);
+
+    ++window->generation;
 
     dll_remove(state->first_window, state->last_window, window);
     sll_stack_push(state->window_freelist, window);

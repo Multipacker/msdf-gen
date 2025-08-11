@@ -17,11 +17,15 @@ global Wayland_State global_wayland_state;
 internal Gfx_Window wayland_handle_from_window(Wayland_Window *window) {
     Gfx_Window result = { 0 };
     result.u64[0] = integer_from_pointer(window);
+    result.u64[1] = window->generation;
     return result;
 }
 
 internal Wayland_Window *wayland_window_from_handle(Gfx_Window handle) {
     Wayland_Window *window = (Wayland_Window *) pointer_from_integer(handle.u64[0]);
+    if (!window || window->generation != handle.u64[1]) {
+        window = 0;
+    }
     return window;
 }
 
@@ -1278,6 +1282,14 @@ internal Void gfx_set_cursor(Gfx_Cursor cursor) {
 
 
 
+internal B32 gfx_window_equal(Gfx_Window handle_a, Gfx_Window handle_b) {
+    Wayland_Window *window_a = wayland_window_from_handle(handle_a);
+    Wayland_Window *window_b = wayland_window_from_handle(handle_b);
+
+    B32 result = window_a == window_b;
+    return result;
+}
+
 internal Gfx_Window gfx_window_create(Str8 title, U32 width, U32 height) {
     Wayland_State *state = &global_wayland_state;
     Arena_Temporary scratch = arena_get_scratch(0, 0);
@@ -1286,7 +1298,9 @@ internal Gfx_Window gfx_window_create(Str8 title, U32 width, U32 height) {
     Wayland_Window *window = state->window_freelist;
     if (window) {
         sll_stack_pop(state->window_freelist);
+        U64 generation = window->generation;
         memory_zero_struct(window);
+        window->generation = generation;
     } else {
         window = arena_push_struct(state->arena, Wayland_Window);
     }
@@ -1336,6 +1350,8 @@ internal Void gfx_window_close(Gfx_Window handle) {
     xdg_toplevel_destroy(window->xdg_toplevel);
     xdg_surface_destroy(window->xdg_surface);
     wayland_surface_destroy(window->surface);
+
+    ++window->generation;
 
     dll_remove(state->first_window, state->last_window, window);
     sll_stack_push(state->window_freelist, window);
