@@ -125,8 +125,8 @@ global TabSpecification tab_specifications[] = {
 };
 #undef X
 
-TabKind tab_kind_from_string(Str8 string);
-TabSpecification *tab_specification_from_string(Str8 string);
+internal TabKind tab_kind_from_string(Str8 string);
+internal TabSpecification *tab_specification_from_string(Str8 string);
 
 typedef struct Handle Handle;
 struct Handle {

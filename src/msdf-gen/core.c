@@ -2302,12 +2302,7 @@ internal Void update(Void) {
                     }
                 }
 
-                Tab *next_active_tab = tab_from_handle(panel->active_tab);
-
-                UI_Size tab_height = ui_size_ems(2.0f, 1.0f);
-                R2F32 tab_bar_rectangle = r2f32(panel_rectangle.min.x, panel_rectangle.min.y, panel_rectangle.max.x, panel_rectangle.min.y + tab_height.value);
-                R2F32 panel_content_rectangle = r2f32(panel_rectangle.min.x, panel_rectangle.min.y + tab_height.value, panel_rectangle.max.x, panel_rectangle.max.y);
-
+                // NOTE(simon): Inactive panel overlay.
                 if (panel != panel_from_handle(state->active_panel) || state->show_command_lister) {
                     UI_Palette overlay = ui_palette_top();
                     overlay.background = color_from_theme(ThemeColor_InactivePanelOverlay);
@@ -2317,6 +2312,12 @@ internal Void update(Void) {
                     ui_height_next(ui_size_pixels(r2f32_size(panel_rectangle).height, 1.0f));
                     ui_create_box(UI_BoxFlag_DrawBackground | UI_BoxFlag_FloatingPosition);
                 }
+
+                Tab *next_active_tab = tab_from_handle(panel->active_tab);
+
+                UI_Size tab_height = ui_size_ems(2.0f, 1.0f);
+                R2F32 tab_bar_rectangle = r2f32(panel_rectangle.min.x, panel_rectangle.min.y, panel_rectangle.max.x, panel_rectangle.min.y + tab_height.value);
+                R2F32 panel_content_rectangle = r2f32(panel_rectangle.min.x, panel_rectangle.min.y + tab_height.value, panel_rectangle.max.x, panel_rectangle.max.y);
 
                 ui_fixed_position_next(tab_bar_rectangle.min);
                 ui_width_next(ui_size_pixels(r2f32_size(tab_bar_rectangle).width, 1.0f));
@@ -2519,25 +2520,6 @@ internal Void update(Void) {
             if (box->flags & UI_BoxFlag_DrawText) {
                 V2F32 origin = ui_box_text_location(box);
 
-                {
-                    F32 advance = 0.0f;
-                    for (U64 i = 0; i < box->text.letter_count; ++i) {
-                        FontCache_Letter *letter = &box->text.letters[i];
-                        draw_glyph(
-                            r2f32(
-                                f32_floor(origin.x + letter->offset.x + advance),
-                                f32_floor(origin.y + letter->offset.y),
-                                f32_floor(origin.x + letter->offset.x + advance + letter->size.x),
-                                f32_floor(origin.y + letter->offset.y + letter->size.y)
-                            ),
-                            letter->source,
-                            letter->texture,
-                            box->palette.text
-                        );
-                        advance += letter->advance;
-                    }
-                }
-
                 if (box->flags & UI_BoxFlag_DrawFuzzyMatches) {
                     F32 ascent = box->text.ascent;
                     F32 descent = box->text.descent;
@@ -2573,6 +2555,25 @@ internal Void update(Void) {
                             0,
                             0
                         );
+                    }
+                }
+
+                {
+                    F32 advance = 0.0f;
+                    for (U64 i = 0; i < box->text.letter_count; ++i) {
+                        FontCache_Letter *letter = &box->text.letters[i];
+                        draw_glyph(
+                            r2f32(
+                                f32_floor(origin.x + letter->offset.x + advance),
+                                f32_floor(origin.y + letter->offset.y),
+                                f32_floor(origin.x + letter->offset.x + advance + letter->size.x),
+                                f32_floor(origin.y + letter->offset.y + letter->size.y)
+                            ),
+                            letter->source,
+                            letter->texture,
+                            box->palette.text
+                        );
+                        advance += letter->advance;
                     }
                 }
             }
