@@ -1320,6 +1320,25 @@ internal Void update(Void) {
     state->palettes[PaletteCode_DropSiteOverlay].border     = state->theme.drop_site_overlay;
     state->palettes[PaletteCode_DropSiteOverlay].text       = state->theme.text;
 
+    // NOTE(simon): Build icon info.
+    UI_IconInfo icon_info = { 0 };
+    icon_info.icon_font = font_cache_font_from_static_data(&msdf_gen_icon_font);
+    icon_info.icon_kind_text[UI_IconKind_Minimize]   = icon_kind_text[UI_IconKind_Minimize];
+    icon_info.icon_kind_text[UI_IconKind_Maximize]   = icon_kind_text[UI_IconKind_Maximize];
+    icon_info.icon_kind_text[UI_IconKind_Close]      = icon_kind_text[UI_IconKind_Close];
+    icon_info.icon_kind_text[UI_IconKind_Pin]        = icon_kind_text[UI_IconKind_Pin];
+    icon_info.icon_kind_text[UI_IconKind_Eye]        = icon_kind_text[UI_IconKind_Eye];
+    icon_info.icon_kind_text[UI_IconKind_NoEye]      = icon_kind_text[UI_IconKind_NoEye];
+    icon_info.icon_kind_text[UI_IconKind_LeftArrow]  = icon_kind_text[UI_IconKind_LeftArrow];
+    icon_info.icon_kind_text[UI_IconKind_RightArrow] = icon_kind_text[UI_IconKind_RightArrow];
+    icon_info.icon_kind_text[UI_IconKind_UpArrow]    = icon_kind_text[UI_IconKind_UpArrow];
+    icon_info.icon_kind_text[UI_IconKind_DownArrow]  = icon_kind_text[UI_IconKind_DownArrow];
+    icon_info.icon_kind_text[UI_IconKind_LeftAngle]  = icon_kind_text[UI_IconKind_LeftAngle];
+    icon_info.icon_kind_text[UI_IconKind_RightAngle] = icon_kind_text[UI_IconKind_RightAngle];
+    icon_info.icon_kind_text[UI_IconKind_UpAngle]    = icon_kind_text[UI_IconKind_UpAngle];
+    icon_info.icon_kind_text[UI_IconKind_DownAngle]  = icon_kind_text[UI_IconKind_DownAngle];
+    icon_info.icon_kind_text[UI_IconKind_Check]      = icon_kind_text[UI_IconKind_Check];
+
     V2U32 client_size = gfx_client_area_from_window(state->window);
     R2F32 client_rectangle = r2f32(0.0f, 0.0f, (F32) client_size.x, (F32) client_size.y);
     draw_begin_frame();
@@ -1328,39 +1347,16 @@ internal Void update(Void) {
     {
         prof_zone_begin(prof_ui_build, "ui build");
 
-        UI_IconInfo icon_info = { 0 };
-        icon_info.icon_font = font_cache_font_from_static_data(&msdf_gen_icon_font);
-        icon_info.icon_kind_text[UI_IconKind_Minimize]   = icon_kind_text[UI_IconKind_Minimize];
-        icon_info.icon_kind_text[UI_IconKind_Maximize]   = icon_kind_text[UI_IconKind_Maximize];
-        icon_info.icon_kind_text[UI_IconKind_Close]      = icon_kind_text[UI_IconKind_Close];
-        icon_info.icon_kind_text[UI_IconKind_Pin]        = icon_kind_text[UI_IconKind_Pin];
-        icon_info.icon_kind_text[UI_IconKind_Eye]        = icon_kind_text[UI_IconKind_Eye];
-        icon_info.icon_kind_text[UI_IconKind_NoEye]      = icon_kind_text[UI_IconKind_NoEye];
-        icon_info.icon_kind_text[UI_IconKind_LeftArrow]  = icon_kind_text[UI_IconKind_LeftArrow];
-        icon_info.icon_kind_text[UI_IconKind_RightArrow] = icon_kind_text[UI_IconKind_RightArrow];
-        icon_info.icon_kind_text[UI_IconKind_UpArrow]    = icon_kind_text[UI_IconKind_UpArrow];
-        icon_info.icon_kind_text[UI_IconKind_DownArrow]  = icon_kind_text[UI_IconKind_DownArrow];
-        icon_info.icon_kind_text[UI_IconKind_LeftAngle]  = icon_kind_text[UI_IconKind_LeftAngle];
-        icon_info.icon_kind_text[UI_IconKind_RightAngle] = icon_kind_text[UI_IconKind_RightAngle];
-        icon_info.icon_kind_text[UI_IconKind_UpAngle]    = icon_kind_text[UI_IconKind_UpAngle];
-        icon_info.icon_kind_text[UI_IconKind_DownAngle]  = icon_kind_text[UI_IconKind_DownAngle];
-        icon_info.icon_kind_text[UI_IconKind_Check]      = icon_kind_text[UI_IconKind_Check];
-
         ui_select_state(state->ui);
         ui_begin(state->window, &ui_events, &icon_info, 1.0f / 60.0f);
-
         ui_palette_push(palette_from_code(PaletteCode_Base));
-
-        FontCache_Font *default_font = font_cache_font_from_static_data(&msdf_gen_default_font);
-        ui_font_push(default_font);
+        ui_font_push(font_cache_font_from_static_data(&msdf_gen_default_font));
         ui_font_size_push((U32) (state->font_size * gfx_dpi_from_window(state->window) / 72.0f));
-
-        ui_height_push(ui_size_ems(1.5f, 1.0f));
 
         R2F32 top_bar_rectangle = { 0 };
         F32 border_width = 0.0f;
         if (!gfx_window_has_os_title_bar(state->window)) {
-            top_bar_rectangle = r2f32(client_rectangle.min.x, client_rectangle.min.y, client_rectangle.max.x, client_rectangle.min.y + ui_height_top().value);
+            top_bar_rectangle = r2f32(client_rectangle.min.x, client_rectangle.min.y, client_rectangle.max.x, client_rectangle.min.y + ui_size_ems(1.5f, 1.0f).value);
             border_width = 3.0f * gfx_dpi_from_window(state->window) / 72.0f;
         }
         R2F32 content_rectangle = r2f32_pad(r2f32(client_rectangle.min.x, top_bar_rectangle.max.y, client_rectangle.max.x, client_rectangle.max.y), -border_width);
@@ -2457,6 +2453,7 @@ internal Void update(Void) {
         prof_zone_end(prof_build_leaf_ui);
 
         ui_font_size_pop();
+        ui_font_pop();
         ui_palette_pop();
         ui_end();
         prof_zone_end(prof_ui_build);
@@ -2473,6 +2470,7 @@ internal Void update(Void) {
         draw_rectangle(r2f32_pad(client_rectangle, 1.0f), color_from_theme(ThemeColor_TitleBarBorder), 0, 1.0f, 1.0f);
 
         for (UI_Box *box = state->ui->root; !ui_box_is_null(box);) {
+            // NOOTE(simon): Draw drop shadow.
             if (box->flags & UI_BoxFlag_DrawDropShadow) {
                 draw_rectangle(
                     r2f32(
@@ -2486,11 +2484,10 @@ internal Void update(Void) {
                 );
             }
 
+            // NOTE(simon): Draw background.
             if (box->flags & UI_BoxFlag_DrawBackground) {
-                {
-                    Render_Shape *shape = draw_rectangle(r2f32_pad(box->calculated_rectangle, 1), box->palette.background, 0.0f, 0.0f, 1.0f);
-                    memory_copy(shape->radies, box->corner_radies, sizeof(shape->radies));
-                }
+                Render_Shape *shape = draw_rectangle(r2f32_pad(box->calculated_rectangle, 1), box->palette.background, 0.0f, 0.0f, 1.0f);
+                memory_copy(shape->radies, box->corner_radies, sizeof(shape->radies));
 
                 if (box->flags & UI_BoxFlag_DrawHot && box->hot_t > 0.0f) {
                     F32 active_t = box->active_t;
@@ -2517,9 +2514,11 @@ internal Void update(Void) {
                 }
             }
 
+            // NOTE(simon): Draw text.
             if (box->flags & UI_BoxFlag_DrawText) {
                 V2F32 origin = ui_box_text_location(box);
 
+                // NOTE(simon): Draw fuzzy matches.
                 if (box->flags & UI_BoxFlag_DrawFuzzyMatches) {
                     F32 ascent = box->text.ascent;
                     F32 descent = box->text.descent;
@@ -2558,6 +2557,7 @@ internal Void update(Void) {
                     }
                 }
 
+                // NOTE(simon): Draw text.
                 {
                     F32 advance = 0.0f;
                     for (U64 i = 0; i < box->text.letter_count; ++i) {
@@ -2578,18 +2578,21 @@ internal Void update(Void) {
                 }
             }
 
+            // NOTE(simon): Push clip.
             if (box->flags & UI_BoxFlag_Clip) {
                 R2F32 top_clip = draw_clip_top();
                 R2F32 new_clip = r2f32_intersect(r2f32_pad(top_clip, -1.0f), box->calculated_rectangle);
                 draw_clip_push(new_clip);
             }
 
+            // NOTE(simon): Custom draw list.
             if (box->draw_list) {
                 draw_transform(m3f32_translation(box->calculated_rectangle.min)) {
                     draw_sub_list(box->draw_list);
                 }
             }
 
+            // NOTE(simon): Custom draw callback.
             if (box->draw_function) {
                 box->draw_function(box, box->draw_data);
             }
@@ -2605,10 +2608,12 @@ internal Void update(Void) {
                     continue;
                 }
 
+                // NOTE(simon): Pop clip.
                 if (parent->flags & UI_BoxFlag_Clip) {
                     draw_clip_pop();
                 }
 
+                // NOTE(simon): Draw border.
                 if (parent->flags & UI_BoxFlag_DrawBorder) {
                     Render_Shape *shape = draw_rectangle(r2f32_pad(parent->calculated_rectangle, 1.0f), parent->palette.border, 0.0f, 1.0f, 1.0f);
                     memory_copy(shape->radies, parent->corner_radies, sizeof(shape->radies));
@@ -2622,6 +2627,7 @@ internal Void update(Void) {
                     }
                 }
 
+                // NOTE(simon): Focus overlay.
                 if (parent->flags & UI_BoxFlag_Clickable && parent->focus_active_t > 0.01f && !(parent->flags & UI_BoxFlag_DisableFocusOverlay)) {
                     V4F32 color = color_from_theme(ThemeColor_Focus);
                     color.a *= 0.05f * parent->focus_active_t;
@@ -2629,6 +2635,7 @@ internal Void update(Void) {
                     memory_copy(shape->radies, parent->corner_radies, sizeof(shape->radies));
                 }
 
+                // NOTE(simon): Focus border.
                 if (parent->flags & UI_BoxFlag_Clickable && parent->focus_hot_t > 0.01f && !(parent->flags & UI_BoxFlag_DisableFocusBorder)) {
                     V4F32 color = color_from_theme(ThemeColor_Focus);
                     color.a *= parent->focus_hot_t;
@@ -2636,6 +2643,7 @@ internal Void update(Void) {
                     memory_copy(shape->radies, parent->corner_radies, sizeof(shape->radies));
                 }
 
+                // NOTE(simon): Draw disable overlay.
                 if (parent->flags & UI_BoxFlag_Disabled) {
                     V4F32 color = color_from_theme(ThemeColor_DisabledOverlay);
                     color.a *= parent->disabled_t;
