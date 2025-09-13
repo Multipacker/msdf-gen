@@ -506,12 +506,25 @@ internal Gfx_EventList gfx_get_events(Arena *arena, B32 wait) {
                 xcb_key_press_event_t *key = (xcb_key_press_event_t *) event_node->event;
                 X11_Window *window = x11_window_from_id(key->event);
 
+                Gfx_KeyModifier modifiers = 0;
+                modifiers |= (xkb_state_mod_name_is_active(state->xkb_state, XKB_MOD_NAME_SHIFT, XKB_STATE_MODS_EFFECTIVE) > 0 ? Gfx_KeyModifier_Shift   : 0);
+                modifiers |= (xkb_state_mod_name_is_active(state->xkb_state, XKB_MOD_NAME_CTRL,  XKB_STATE_MODS_EFFECTIVE) > 0 ? Gfx_KeyModifier_Control : 0);
+
                 U32 codepoint = xkb_state_key_get_utf32(state->xkb_state, key->detail);
 
                 B32 is_c0_control = codepoint <= 0x1F || codepoint == 0x7F;
                 B32 is_c1_control = (0x80 <= codepoint && codepoint <= 0x9F);
+                B32 is_newline    = codepoint == 0x0A || codepoint == 0x0D;
 
-                if (!is_c0_control && !is_c1_control) {
+                // NOTE(simon): Translate carriage returns to line feeds.
+                if (is_newline) {
+                    codepoint = 0x0A;
+                }
+
+                B32 is_plain           = !(modifiers & Gfx_KeyModifier_Control);
+                B32 is_valid_character = (!is_c0_control && !is_c1_control) || is_newline;
+
+                if (is_plain && is_valid_character) {
                     Gfx_Event *text_event = arena_push_struct(arena, Gfx_Event);
                     text_event->kind = Gfx_EventKind_Text;
                     text_event->text.data = arena_push_array_no_zero(arena, U8, 4);
@@ -527,7 +540,7 @@ internal Gfx_EventList gfx_get_events(Arena *arena, B32 wait) {
 
                 // NOTE(simon): Get keysyms without modifiers.
                 xkb_keysym_t *keysyms = 0;
-                int keysym_count = xkb_keymap_key_get_syms_by_level(state->xkb_keymap, key->detail, 0, 0, (const xkb_keysym_t **) &keysyms);
+                int keysym_count = xkb_state_key_get_syms(state->xkb_state, key->detail, (const xkb_keysym_t **) &keysyms);
 
                 for (int i = 0; i < keysym_count; ++i) {
                     Gfx_Key event_key = Gfx_Key_Null;
@@ -602,6 +615,33 @@ internal Gfx_EventList gfx_get_events(Arena *arena, B32 wait) {
                         case XKB_KEY_Prior:      event_key = Gfx_Key_PageUp;    break;
                         case XKB_KEY_Next:       event_key = Gfx_Key_PageDown;  break;
                         case XKB_KEY_End:        event_key = Gfx_Key_End;       break;
+
+                        case XKB_KEY_KP_Space:   event_key = Gfx_Key_Space;     break;
+                        case XKB_KEY_KP_Tab:     event_key = Gfx_Key_Tab;       break;
+                        case XKB_KEY_KP_Enter:   event_key = Gfx_Key_Return;    break;
+                        case XKB_KEY_KP_F1:      event_key = Gfx_Key_F1;        break;
+                        case XKB_KEY_KP_F2:      event_key = Gfx_Key_F2;        break;
+                        case XKB_KEY_KP_F3:      event_key = Gfx_Key_F3;        break;
+                        case XKB_KEY_KP_F4:      event_key = Gfx_Key_F4;        break;
+                        case XKB_KEY_KP_Home:    event_key = Gfx_Key_Home;      break;
+                        case XKB_KEY_KP_Left:    event_key = Gfx_Key_Left;      break;
+                        case XKB_KEY_KP_Up:      event_key = Gfx_Key_Up;        break;
+                        case XKB_KEY_KP_Right:   event_key = Gfx_Key_Right;     break;
+                        case XKB_KEY_KP_Down:    event_key = Gfx_Key_Down;      break;
+                        case XKB_KEY_KP_Prior:   event_key = Gfx_Key_PageUp;    break;
+                        case XKB_KEY_KP_Next:    event_key = Gfx_Key_PageDown;  break;
+                        case XKB_KEY_KP_End:     event_key = Gfx_Key_End;       break;
+                        case XKB_KEY_KP_Delete:  event_key = Gfx_Key_Delete;    break;
+                        case XKB_KEY_KP_0:       event_key = Gfx_Key_0;         break;
+                        case XKB_KEY_KP_1:       event_key = Gfx_Key_1;         break;
+                        case XKB_KEY_KP_2:       event_key = Gfx_Key_2;         break;
+                        case XKB_KEY_KP_3:       event_key = Gfx_Key_3;         break;
+                        case XKB_KEY_KP_4:       event_key = Gfx_Key_4;         break;
+                        case XKB_KEY_KP_5:       event_key = Gfx_Key_5;         break;
+                        case XKB_KEY_KP_6:       event_key = Gfx_Key_6;         break;
+                        case XKB_KEY_KP_7:       event_key = Gfx_Key_7;         break;
+                        case XKB_KEY_KP_8:       event_key = Gfx_Key_8;         break;
+                        case XKB_KEY_KP_9:       event_key = Gfx_Key_9;         break;
                     }
 
                     if (event_key != Gfx_Key_Null) {
