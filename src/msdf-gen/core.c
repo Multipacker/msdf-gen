@@ -1338,6 +1338,8 @@ internal Void update(Void) {
     icon_info.icon_kind_text[UI_IconKind_UpAngle]    = icon_kind_text[UI_IconKind_UpAngle];
     icon_info.icon_kind_text[UI_IconKind_DownAngle]  = icon_kind_text[UI_IconKind_DownAngle];
     icon_info.icon_kind_text[UI_IconKind_Check]      = icon_kind_text[UI_IconKind_Check];
+    icon_info.icon_kind_text[UI_IconKind_File]       = icon_kind_text[UI_IconKind_File];
+    icon_info.icon_kind_text[UI_IconKind_Folder]     = icon_kind_text[UI_IconKind_Folder];
 
     V2U32 client_size = gfx_client_area_from_window(state->window);
     R2F32 client_rectangle = r2f32(0.0f, 0.0f, (F32) client_size.x, (F32) client_size.y);

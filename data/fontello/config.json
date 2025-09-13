@@ -95,6 +95,18 @@
       "css": "eye-off",
       "code": 59404,
       "src": "fontawesome"
+    },
+    {
+      "uid": "178053298e3e5b03551d754d4b9acd8b",
+      "css": "doc-inv",
+      "code": 61787,
+      "src": "fontawesome"
+    },
+    {
+      "uid": "f8aa663c489bcbd6e68ec8147dca841e",
+      "css": "folder",
+      "code": 59405,
+      "src": "fontawesome"
     }
   ]
 }

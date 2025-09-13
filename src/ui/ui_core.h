@@ -18,6 +18,8 @@ typedef enum {
     UI_IconKind_UpAngle,
     UI_IconKind_DownAngle,
     UI_IconKind_Check,
+    UI_IconKind_File,
+    UI_IconKind_Folder,
     UI_IconKind_COUNT,
 } UI_IconKind;
 
