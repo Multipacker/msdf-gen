@@ -360,6 +360,34 @@ struct UI_EventList {
 };
 
 #define UI_BOX_TABLE_SIZE (1 << 12)
+#define UI_ANIMATION_TABLE_SIZE (1 << 12)
+
+typedef struct UI_AnimationParameters UI_AnimationParameters;
+struct UI_AnimationParameters {
+    F32 initial;
+    F32 target;
+    F32 rate;
+    F32 epsilon;
+    B32 reset;
+};
+
+typedef struct UI_Animation UI_Animation;
+struct UI_Animation {
+    UI_Animation *next;
+    UI_Animation *previous;
+
+    U64 last_used_index;
+
+    UI_Key key;
+    UI_AnimationParameters parameters;
+    F32 current;
+};
+
+typedef struct UI_AnimationList UI_AnimationList;
+struct UI_AnimationList {
+    UI_Animation *first;
+    UI_Animation *last;
+};
 
 typedef struct UI_Context UI_Context;
 struct UI_Context {
@@ -367,6 +395,9 @@ struct UI_Context {
     UI_BoxList *box_table;
     UI_Box *box_freelist;
     U64 box_count;
+
+    UI_AnimationList *animation_table;
+    UI_Animation *animation_freelist;
 
     Arena *frame_arenas[2];
     U64    frame_index;
@@ -507,6 +538,8 @@ internal B32 ui_context_menu_is_open(UI_Key context_key);
         glue(is_open, __LINE__) = false                                   \
     )
 
+
+
 // NOTE(simon): Drag and drop
 internal UI_Key ui_drop_hot_key(Void);
 internal V2F32  ui_drag_delta(Void);
@@ -515,10 +548,16 @@ internal Void   ui_set_drag_data_str8(Str8 data);
 #define ui_get_drag_data(type) ((type *) ui_get_drag_data_str8(sizeof(type)).data)
 #define ui_set_drag_data(ptr) ui_set_drag_data_str8(str8((U8 *) (ptr), sizeof(*(ptr))))
 
+
+
 // NOTE(simon): Animation
 internal F32 ui_animation_slow_rate(Void);
 internal F32 ui_animation_fast_rate(Void);
 internal B32 ui_is_animating_from_context(UI_Context *ui);
+#define ui_animate(key, target_value, ...) ui_animate_internal(key, &(UI_AnimationParameters) {.target = target_value, .rate = global_ui_state->fast_rate, __VA_ARGS__ })
+internal F32 ui_animate_internal(UI_Key key, UI_AnimationParameters *parameters);
+
+
 
 #define ui_parent_push(parent) ui_box_stack_push(&global_ui_state->parent_stack, parent, false)
 #define ui_parent_pop()        ui_box_stack_pop(&global_ui_state->parent_stack)

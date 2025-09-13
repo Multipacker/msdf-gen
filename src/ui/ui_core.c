@@ -323,7 +323,8 @@ internal UI_Context *ui_create(Void) {
     }
     ui->root = &global_ui_null_box;
 
-    ui->box_table = arena_push_array(ui->permanent_arena, UI_BoxList, UI_BOX_TABLE_SIZE);
+    ui->box_table       = arena_push_array(ui->permanent_arena, UI_BoxList,       UI_BOX_TABLE_SIZE);
+    ui->animation_table = arena_push_array(ui->permanent_arena, UI_AnimationList, UI_ANIMATION_TABLE_SIZE);
 
     return ui;
 }
@@ -739,6 +740,19 @@ internal Void ui_end(Void) {
         }
     }
 
+    // NOTE(simon): Remove untouched animations.
+    for (U64 i = 0; i < UI_ANIMATION_TABLE_SIZE; ++i) {
+        UI_AnimationList *animations = &ui->animation_table[i];
+        for (UI_Animation *animation = animations->first, *next = 0; animation; animation = next) {
+            next = animation->next;
+
+            if (animation->last_used_index != ui->frame_index) {
+                dll_remove(animations->first, animations->last, animation);
+                sll_stack_push(ui->animation_freelist, animation);
+            }
+        }
+    }
+
     if (!ui->context_menu_used_this_frame) {
         ui_context_menu_close();
     }
@@ -893,6 +907,19 @@ internal Void ui_end(Void) {
             }
 
             ui->is_animating |= is_animating;
+        }
+
+        for (U64 i = 0; i < UI_ANIMATION_TABLE_SIZE; ++i) {
+            UI_AnimationList *animations = &ui->animation_table[i];
+            for (UI_Animation *animation = animations->first; animation; animation = animation->next) {
+                F32 delta = animation->parameters.target - animation->current;
+                if (f32_abs(delta) >= animation->parameters.epsilon) {
+                    animation->current += delta * animation->parameters.rate;
+                    ui->is_animating = true;
+                } else {
+                    animation->current = animation->parameters.target;
+                }
+            }
         }
 
         F32 tooltip_t_delta = ((F32) ui->is_tooltip_active - ui->tooltip_t) * ui->fast_rate;
@@ -1452,5 +1479,55 @@ internal F32 ui_animation_fast_rate(Void) {
 
 internal B32 ui_is_animating_from_context(UI_Context *ui) {
     B32 result = ui->is_animating;
+    return result;
+}
+
+internal F32 ui_animate_internal(UI_Key key, UI_AnimationParameters *parameters) {
+    UI_Context *ui = global_ui_state;
+
+    // NOTE(simon): Get animation.
+    UI_Animation *animation = 0;
+    {
+        UI_AnimationList *animations = &ui->animation_table[key % (UI_ANIMATION_TABLE_SIZE - 1)];
+        for (UI_Animation *node = animations->first; node; node = node->next) {
+            if (node->key == key) {
+                animation = node;
+                break;
+            }
+        }
+
+        if (!animation) {
+            animation = ui->animation_freelist;
+            if (animation) {
+                sll_stack_pop(ui->animation_freelist);
+                memory_zero_struct(animation);
+            } else {
+                animation = arena_push_struct(ui->permanent_arena, UI_Animation);
+            }
+
+            animation->key        = key;
+            animation->parameters = *parameters;
+            animation->current    = parameters->initial;
+            dll_push_back(animations->first, animations->last, animation);
+        }
+    }
+
+    // NOTE(simon): Mark as used and update parameters and current.
+    F32 result = parameters->target;
+    if (animation) {
+        animation->last_used_index = ui->frame_index;
+
+        if (parameters->reset) {
+            animation->current = parameters->initial;
+        }
+
+        animation->parameters = *parameters;
+        if (animation->parameters.epsilon == 0.0f) {
+            animation->parameters.epsilon = 0.005f;
+        }
+
+        result = animation->current;
+    }
+
     return result;
 }
