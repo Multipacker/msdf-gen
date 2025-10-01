@@ -373,7 +373,7 @@ internal U64 font_cache_offset_from_text_position(FontCache_Text text, F32 posit
     U64 byte_offset      = 0;
     for (U64 i = 0; i <= text.letter_count; ++i) {
         F32 pixel_diff = f32_abs(position - pixel_offset);
-        if (pixel_diff < best_pixel_diff) {
+        if (pixel_diff <= best_pixel_diff) {
             best_pixel_diff  = pixel_diff;
             best_byte_offset = byte_offset;
         }
