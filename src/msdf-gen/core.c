@@ -708,11 +708,11 @@ internal Void update(Void) {
                             }
 
                             V2F32 child_center = r2f32_center(child->animated_rectangle_percentage);
-                            F32 distance = f32_abs(panel_center.x - child_center.x) + f32_abs(panel_center.y - child_center.y);
+                            F32   distance     = f32_abs(panel_center.x - child_center.x) + f32_abs(panel_center.y - child_center.y);
 
                             if (distance < best_distance) {
                                 best_distance = distance;
-                                best_child = child;
+                                best_child    = child;
                             }
                         }
                     } else {
@@ -734,7 +734,6 @@ internal Void update(Void) {
                             Panel *keep_child    = parent->first == discard_child ? parent->last : parent->first;
                             Panel *grandparent   = parent->parent;
                             Panel *previous      = parent->previous;
-                            F32 parent_percentage = parent->percentage_of_parent;
 
                             panel_remove(parent, keep_child);
 
@@ -863,7 +862,6 @@ internal Void update(Void) {
                         if (new_panel && move_panel && move_tab) {
                             panel_remove_tab(move_panel, move_tab);
                             panel_insert_tab(new_panel, new_panel->tab_last, move_tab);
-                            new_panel->active_tab = handle_from_tab(move_tab);
 
                             if (!move_panel->tab_first && move_panel != state->panel_root && move_panel != new_panel->next && move_panel != new_panel->previous) {
                                 push_command(Command_ClosePanel, .panel = handle_from_panel(move_panel));
@@ -1536,11 +1534,11 @@ internal Void update(Void) {
             ui_parent(command_box)
             ui_width(ui_size_pixels(region_width, 1.0f))
             ui_height(ui_size_pixels(query_height, 1.0f))
-            ui_focus(UI_Focus_None)
-            ui_text_x_padding(ui_size_ems(0.5f, 1.0f).value) {
+            ui_focus(UI_Focus_None) {
                 UI_Key key = ui_key_from_string(ui_active_seed_key(), str8_literal("##query"));
                 UI_Input line_input = { 0 };
                 ui_palette(palette_from_code(PaletteCode_Button))
+                ui_text_x_padding(ui_size_ems(0.5f, 1.0f).value)
                 ui_focus(UI_Focus_Active) {
                     line_input = ui_line_edit(buffer, &buffer_size, array_count(buffer), &cursor, &mark, key);
                 }
@@ -1559,7 +1557,6 @@ internal Void update(Void) {
                 F32 height = ui_size_ems(3.0, 1.0f).value;
 
                 // NOTE(simon): Properties of the data begin viewed.
-                S64 first_row    = 0;
                 S64 last_row     = (S64) command_count;
                 S64 visible_rows = (S64) f32_ceil(container_height / height);
 
@@ -1578,7 +1575,8 @@ internal Void update(Void) {
 
                 ui_parent(container)
                 ui_width(ui_size_fill())
-                ui_height(ui_size_pixels(height, 1.0f)) {
+                ui_height(ui_size_pixels(height, 1.0f))
+                ui_text_x_padding(ui_size_ems(0.5f, 1.0f).value) {
                     for (S64 i = top_row; i < bottom_row; ++i) {
                         ui_focus_push(i == active_index ? UI_Focus_Active : UI_Focus_Inactive);
                         ui_palette_push(palette_from_code(i % 2 == 0 ? PaletteCode_Button : PaletteCode_SecondaryButton));
@@ -1699,7 +1697,7 @@ internal Void update(Void) {
 
                 // NOTE(simon): Recenter if the active index is out of view.
                 if (previous_active_index != active_index) {
-                    if (!(top_row <= active_index && active_index < bottom_row)) {
+                    if (!(top_row <= active_index && active_index < top_row + visible_rows)) {
                         S64 target_row = active_index - visible_rows / 2;
                         S64 delta = target_row - position.index;
                         position.index  += delta;
@@ -2093,17 +2091,17 @@ internal Void update(Void) {
         for (Panel *panel = state->panel_root; panel; panel = panel_iterator_depth_first_pre_order(panel, 0).next) {
             R2F32 target = rectangle_from_panel(panel, content_rectangle);
             R2F32 target_percentage = r2f32(
-                target.min.x / (F32) content_size.x,
-                target.min.y / (F32) content_size.y,
-                target.max.x / (F32) content_size.x,
-                target.max.y / (F32) content_size.y
+                target.min.x / content_size.x,
+                target.min.y / content_size.y,
+                target.max.x / content_size.x,
+                target.max.y / content_size.y
             );
 
             B32 is_animating = false;
-            is_animating |= f32_abs(target.min.x - panel->animated_rectangle_percentage.min.x * (F32) content_size.x) > 0.5f;
-            is_animating |= f32_abs(target.min.y - panel->animated_rectangle_percentage.min.y * (F32) content_size.y) > 0.5f;
-            is_animating |= f32_abs(target.max.x - panel->animated_rectangle_percentage.max.x * (F32) content_size.x) > 0.5f;
-            is_animating |= f32_abs(target.max.y - panel->animated_rectangle_percentage.max.y * (F32) content_size.y) > 0.5f;
+            is_animating |= f32_abs(target.min.x - panel->animated_rectangle_percentage.min.x * content_size.x) > 0.5f;
+            is_animating |= f32_abs(target.min.y - panel->animated_rectangle_percentage.min.y * content_size.y) > 0.5f;
+            is_animating |= f32_abs(target.max.x - panel->animated_rectangle_percentage.max.x * content_size.x) > 0.5f;
+            is_animating |= f32_abs(target.max.y - panel->animated_rectangle_percentage.max.y * content_size.y) > 0.5f;
 
             if (is_animating) {
                 panel->animated_rectangle_percentage.min.x += (target_percentage.min.x - panel->animated_rectangle_percentage.min.x) * ui_animation_fast_rate();
@@ -2129,10 +2127,10 @@ internal Void update(Void) {
             ui_focus(panel == panel_from_handle(state->active_panel) && !state->show_command_lister ? UI_Focus_None : UI_Focus_Inactive) {
                 R2F32 panel_rectangle = r2f32_pad(
                     r2f32(
-                        panel->animated_rectangle_percentage.min.x * (F32) content_size.x,
-                        panel->animated_rectangle_percentage.min.y * (F32) content_size.y,
-                        panel->animated_rectangle_percentage.max.x * (F32) content_size.x,
-                        panel->animated_rectangle_percentage.max.y * (F32) content_size.y
+                        panel->animated_rectangle_percentage.min.x * content_size.x,
+                        panel->animated_rectangle_percentage.min.y * content_size.y,
+                        panel->animated_rectangle_percentage.max.x * content_size.x,
+                        panel->animated_rectangle_percentage.max.y * content_size.y
                     ),
                     -panel_pad
                 );
@@ -2225,21 +2223,17 @@ internal Void update(Void) {
                             ui_height(ui_size_fill())
                             ui_padding(ui_size_pixels(padding, 1.0f))
                             ui_palette(palette_from_code(PaletteCode_Button)) {
-                                if (targets[i].direction != Direction2_Invalid) {
-                                    ui_layout_axis_next(axis);
-                                    UI_Box *row_or_column = ui_create_box(0);
-                                    ui_parent(row_or_column)
-                                    ui_padding(ui_size_pixels(padding, 1.0f)) {
-                                        ui_create_box(side == Side_Min ? UI_BoxFlag_DrawBackground : UI_BoxFlag_DrawBorder);
+                                ui_layout_axis_next(axis);
+                                UI_Box *row_or_column = ui_create_box(0);
+
+                                ui_parent(row_or_column)
+                                ui_padding(ui_size_pixels(padding, 1.0f)) {
+                                    if (targets[i].direction != Direction2_Invalid) {
+                                        ui_create_box((side == Side_Min ? UI_BoxFlag_DrawBackground : 0) | UI_BoxFlag_DrawBorder);
                                         ui_spacer_sized(ui_size_pixels(padding, 1.0f));
-                                        ui_create_box(side == Side_Max ? UI_BoxFlag_DrawBackground : UI_BoxFlag_DrawBorder);
-                                    }
-                                } else {
-                                    ui_layout_axis_next(axis);
-                                    UI_Box *row_or_column = ui_create_box(0);
-                                    ui_parent(row_or_column)
-                                    ui_padding(ui_size_pixels(padding, 1.0f)) {
-                                        ui_create_box(UI_BoxFlag_DrawBackground);
+                                        ui_create_box((side == Side_Max ? UI_BoxFlag_DrawBackground : 0) | UI_BoxFlag_DrawBorder);
+                                    } else {
+                                        ui_create_box(UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawBorder);
                                     }
                                 }
                             }
