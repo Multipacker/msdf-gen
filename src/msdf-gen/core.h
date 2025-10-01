@@ -44,6 +44,8 @@ global Str8 icon_kind_text[] = {
     [UI_IconKind_UpAngle]    = str8_literal_compile("\uE806"),
     [UI_IconKind_DownAngle]  = str8_literal_compile("\uE803"),
     [UI_IconKind_Check]      = str8_literal_compile("\uE808"),
+    [UI_IconKind_File]       = str8_literal_compile("\uF15B"),
+    [UI_IconKind_Folder]     = str8_literal_compile("\uE80D"),
 };
 
 #define X(name, snake_name, display_name) ThemeColor_##name,
