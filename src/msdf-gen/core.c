@@ -178,6 +178,7 @@ internal Void panel_remove_tab(Panel *panel, Tab *tab) {
         }
     }
     dll_remove(panel->tab_first, panel->tab_last, tab);
+    --panel->child_count;
 }
 
 internal Void panel_insert_tab(Panel *panel, Tab *previous_tab, Tab *tab) {
