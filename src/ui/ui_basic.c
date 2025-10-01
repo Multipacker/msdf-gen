@@ -702,6 +702,133 @@ internal UI_ScrollPosition ui_scroll_bar(UI_ScrollPosition position, S64 first_r
     return result;
 }
 
+internal Void ui_scroll_region_begin(V2F32 size, F32 row_height, S64 item_count, S64 *cursor, R1S64 *visible_range_out, UI_ScrollPosition *scroll_position) {
+    F32 scrollbar_width = (F32) ui_font_size_top();
+    F32 container_width = size.width - scrollbar_width;
+
+    // NOTE(simon): Properties of the data begin viewed.
+    S64 visible_rows = (S64) f32_ceil(size.height / row_height);
+
+    // NOTE(simon): Properties of the current view.
+    S64 top_row    = scroll_position->index + (S64) f32_floor(scroll_position->offset);
+    S64 bottom_row = s64_min(top_row + (scroll_position->offset != 0.0f) + visible_rows, item_count);
+
+    // NOTE(simon): Fill out paramters.
+    visible_range_out->min = top_row;
+    visible_range_out->max = bottom_row;
+
+    ui_width_next(ui_size_pixels(size.width, 1.0f));
+    ui_height_next(ui_size_pixels(size.height, 1.0f));
+    ui_layout_axis_next(Axis2_X);
+    UI_Box *region = ui_create_box(0);
+
+    ui_parent_next(region);
+    ui_width_next(ui_size_pixels(container_width, 1.0f));
+    ui_height_next(ui_size_pixels(size.height, 1.0f));
+    ui_layout_axis_next(Axis2_Y);
+    UI_Box *container = ui_create_box_from_string(UI_BoxFlag_OverflowY | UI_BoxFlag_Clip | UI_BoxFlag_Scrollable, str8_literal("##container"));
+    container->view_offset.y = row_height * (f32_mod(scroll_position->offset, 1.0f) + (scroll_position->offset < 0.0f));
+
+    ui_parent(region)
+    ui_focus(UI_Focus_None) {
+        ui_width(ui_size_pixels(scrollbar_width, 1.0f))
+        ui_height(ui_size_pixels(size.height, 1.0f)) {
+            *scroll_position = ui_scroll_bar(*scroll_position, 0, item_count, visible_rows);
+        }
+    }
+
+    ui_parent_push(region);
+    ui_parent_push(container);
+    ui_height_push(ui_size_pixels(row_height, 1.0f));
+}
+
+internal Void ui_scroll_region_end(V2F32 size, F32 row_height, S64 item_count, S64 *cursor, UI_ScrollPosition *scroll_position) {
+    // NOTE(simon): Pop UI stacks.
+    ui_height_pop();
+    UI_Box *container = ui_parent_pop();
+    UI_Box *region    = ui_parent_pop();
+
+    // NOTE(simon): Compuate focus.
+    B32 is_focus_hot    = ui_is_focus_hot();
+    B32 is_focus_active = ui_is_focus_active();
+
+    // NOTE(simon): Properties of the data begin viewed.
+    S64 visible_rows = (S64) f32_ceil(size.height / row_height);
+
+    // NOTE(simon): Properties of the current view.
+    S64 top_row    = scroll_position->index + (S64) f32_floor(scroll_position->offset);
+    S64 bottom_row = s64_min(top_row + (scroll_position->offset != 0.0f) + visible_rows, item_count);
+
+    B32 snap_to_cursor = false;
+
+    for (UI_Event *event = 0; is_focus_active && ui_next_event(&event);) {
+        if (event->kind != UI_EventKind_Navigation) {
+            continue;
+        }
+
+        S64 delta = 0;
+        switch (event->unit) {
+            case UI_EventDeltaUnit_Null: {
+            } break;
+            case UI_EventDeltaUnit_Character: {
+                delta += event->delta.y;
+                snap_to_cursor = true;
+            } break;
+            case UI_EventDeltaUnit_Word: {
+            } break;
+            case UI_EventDeltaUnit_Line: {
+            } break;
+            case UI_EventDeltaUnit_Page: {
+                delta += event->delta.y * visible_rows;
+                snap_to_cursor = true;
+            } break;
+            case UI_EventDeltaUnit_Whole: {
+            } break;
+            case UI_EventDeltaUnit_COUNT: {
+            } break;
+        }
+
+        *cursor = s64_clamp(*cursor + delta, 0, item_count - 1);
+
+        ui_consume_event(event);
+    }
+
+    // NOTE(simon): Scrolling
+    UI_Input region_input = ui_input_from_box(container);
+    S64 scroll_delta = (S64) f32_round(region_input.scroll.y);
+    scroll_position->index  -= scroll_delta;
+    scroll_position->offset += (F32) scroll_delta;
+
+    // NOTE(simon): Snap to cursor.
+    if (snap_to_cursor) {
+        *cursor = s64_clamp(*cursor, 0, item_count - 1);
+
+        if (!(top_row <= *cursor && *cursor < top_row + visible_rows)) {
+            S64 target_row = *cursor - visible_rows / 2;
+            S64 delta = target_row - scroll_position->index;
+            scroll_position->index  += delta;
+            scroll_position->offset -= (F32) delta;
+        }
+    }
+
+    // NOTE(simon): Clamp scrolling.
+    if (scroll_position->index < 0) {
+        scroll_position->offset += (F32) scroll_position->index;
+        scroll_position->index = 0;
+    } else if (item_count <= scroll_position->index) {
+        scroll_position->offset -= (F32) (s64_max(0, item_count - 1) - scroll_position->index);
+        scroll_position->index = s64_max(0, item_count - 1);
+    }
+
+    // NOTE(simon): Animation
+    scroll_position->offset += -scroll_position->offset * ui_animation_slow_rate();
+    if (f32_abs(scroll_position->offset) < 0.001f) {
+        scroll_position->offset = 0.0f;
+    } else {
+        // TODO(simon): Mark the UI as animating.
+    }
+}
+
 
 
 // NOTE(simon): Color picking

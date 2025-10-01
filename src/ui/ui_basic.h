@@ -54,6 +54,10 @@ internal UI_Input ui_slider(F32 min, F32 *value, F32 max, UI_Key key);
 // NOTE(simon): Scrolling
 internal UI_ScrollPosition ui_scroll_bar(UI_ScrollPosition position, S64 first_row, S64 last_row, S64 visible_rows);
 
+internal Void ui_scroll_region_begin(V2F32 size, F32 row_height, S64 item_count, S64 *cursor, R1S64 *visible_range_out, UI_ScrollPosition *scroll_position);
+internal Void ui_scroll_region_end(V2F32 size, F32 row_height, S64 item_count, S64 *cursor, UI_ScrollPosition *scroll_position);
+#define ui_scroll_region(size, row_height, item_count, visible_range_out, cursor, scroll_position) defer_loop(ui_scroll_region_begin(size, row_height, item_count, cursor, visible_range_out, scroll_position), ui_scroll_region_end(size, row_height, item_count, cursor, scroll_position))
+
 // NOTE(simon): Color picking
 internal UI_Input ui_saturation_value_picker(V4F32 *color);
 internal UI_Input ui_hue_picker(V4F32 *color);
