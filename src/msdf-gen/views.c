@@ -127,8 +127,8 @@ PANEL_BUILD_FUNCTION(view_glyph_list) {
     F32 height = width * 2.0f;
 
     // NOTE(simon): Properties of the data being viewed.
-    S64 first_row    = 0;
-    S64 last_row     = ((S64) codepoint_map.codepoint_count + codepoints_per_row - 1) / codepoints_per_row;
+    S64 first_row = 0;
+    S64 last_row  = ((S64) codepoint_map.codepoint_count + codepoints_per_row - 1) / codepoints_per_row;
 
     // NOTE(simon): Properties of the current view.
     S64 visible_rows = (S64) f32_ceil(container_height / height);
@@ -231,6 +231,7 @@ PANEL_BUILD_FUNCTION(view_glyph_list) {
             }
         }
 
+        // NOTE(simon): Scrollbar
         ui_palette(palette_from_code(PaletteCode_Button))
         ui_focus(UI_Focus_None)
         ui_width(ui_size_pixels(scrollbar_width, 1.0f))
@@ -935,225 +936,168 @@ PANEL_BUILD_FUNCTION(view_glyph_debug) {
     }
 
     // NOTE(simon): Count total number of rows.
-    U64 row_count = 0;
+    S64 row_count = 0;
     for (BlockRange *block_range = range_list.first; block_range; block_range = block_range->next) {
-        row_count += r1u64_size(block_range->range);
+        row_count += (S64) r1u64_size(block_range->range);
     }
 
     // NOTE(simon): Build
-    V2F32 panel_size     = r2f32_size(panel_rectangle);
-    F32 scrollbar_width  = (F32) ui_font_size_top();
-    F32 container_width  = panel_size.width - scrollbar_width;
-    F32 container_height = panel_size.height;
+    V2F32 panel_size = r2f32_size(panel_rectangle);
+    F32   row_height = ui_size_ems(2.0f, 1.0f).value;
 
-    F32 height = ui_size_ems(2.0f, 1.0f).value;
-
-    // NOTE(simon): Properties of the current view.
-    S64 visible_rows = (S64) f32_ceil(container_height / height);
-    S64 top_row      = state->position.index + (S64) f32_floor(state->position.offset);
-    S64 bottom_row   = s64_min(top_row + (state->position.offset != 0.0f) + visible_rows, (S64) row_count);
-
-    // NOTE(simon): Generate rows.
-    typedef struct Row Row;
-    struct Row {
-        Row *next;
-        MSDF_LogNode *node;
-        U64 depth;
-        U64 index_in_parent;
-    };
-    Row *first_row = 0;
-    Row *last_row = 0;
-    {
-        U64 row_index = 0;
-        for (BlockRange *block_range = range_list.first; block_range; block_range = block_range->next) {
-            if (!block_range->block->node) {
-                continue;
-            }
-
-            U64   block_row_count = r1u64_size(block_range->range);
-            R1U64 absolute_range  = r1u64(row_index, row_index + block_row_count);
-
-            R1U64 local_range = block_range->range;
-            if (absolute_range.min < (U64) top_row) {
-                local_range.min += u64_min((U64) top_row - absolute_range.min, block_row_count);
-            }
-            if (absolute_range.max > (U64) bottom_row) {
-                local_range.max -= u64_min(absolute_range.max - (U64) bottom_row, block_row_count);
-            }
-
-            // NOTE(simon): Calculate depth, skipping the outermost nesting as
-            // that is just there to group everything together.
-            U64 depth = 0;
-            for (Block *enclosing = block_range->block->parent; enclosing != root_block; enclosing = enclosing->parent) {
-                ++depth;
-            }
-
-            // NOTE(simon): Skip invisible children.
-            MSDF_LogNode *child = block_range->block->node->first;
-            for (U64 i = 0; i < local_range.min; ++i) {
-                child = child->next;
-            }
-
-            // NOTE(simon): Queue up rows.
-            for (U64 i = local_range.min; i < local_range.max; ++i, child = child->next) {
-                Row *row = arena_push_struct(scratch.arena, Row);
-                row->node = child;
-                row->depth = depth;
-                row->index_in_parent = i;
-                sll_queue_push(first_row, last_row, row);
-            }
-
-            row_index += r1u64_size(block_range->range);
-        }
-    }
-
-    // NOTE(simon): Scroll region.
-    ui_width_next(ui_size_pixels(panel_size.x, 1.0f));
-    ui_height_next(ui_size_pixels(panel_size.y, 1.0f));
-    ui_layout_axis_next(Axis2_X);
-    UI_Box *region = ui_create_box_from_string(UI_BoxFlag_OverflowY | UI_BoxFlag_Scrollable, str8_literal("##region"));
-    ui_parent(region) {
-        // NOTE(simon): Scroll container.
-        ui_width_next(ui_size_pixels(container_width, 1.0f));
-        ui_height_next(ui_size_pixels(container_height, 1.0f));
-        ui_layout_axis_next(Axis2_Y);
-        UI_Box *container = ui_create_box_from_string(UI_BoxFlag_Clip, str8_literal("##container"));
-        container->view_offset.y = height * (f32_mod(state->position.offset, 1.0f) + (state->position.offset < 0.0f));
-
-        ui_palette(palette_from_code(PaletteCode_Button))
-        ui_focus(UI_Focus_Active)
-        ui_parent(container) {
-            S64 row_index = top_row;
-            ui_width(ui_size_fill())
-            ui_height(ui_size_pixels(height, 1.0f))
-            ui_focus(UI_Focus_None)
-            for (Row *row = first_row; row; row = row->next, ++row_index) {
-                // NOTE(simon): Find expandsion state.
-                U64 hash = u64_hash(integer_from_pointer(row->node));
-                U64 expansion_index = hash % state->expansion_set_count;
-                ExpansionList *expansion_slot = &state->expansion_set[expansion_index];
-                ExpansionNode *is_expanded = expansion_slot->first;
-                while (is_expanded && is_expanded->node != row->node) {
-                    is_expanded = is_expanded->next;
+    R1S64 visible_range = { 0 };
+    ui_palette(palette_from_code(PaletteCode_Button))
+    ui_focus(UI_Focus_Active)
+    ui_scroll_region(panel_size, row_height, row_count, &visible_range, 0, &state->position)
+    ui_width(ui_size_fill())
+    ui_focus(UI_Focus_None) {
+        // NOTE(simon): Generate rows.
+        typedef struct Row Row;
+        struct Row {
+            Row *next;
+            MSDF_LogNode *node;
+            U64 depth;
+            U64 index_in_parent;
+        };
+        Row *first_row = 0;
+        Row *last_row = 0;
+        {
+            U64 row_index = 0;
+            for (BlockRange *block_range = range_list.first; block_range; block_range = block_range->next) {
+                if (!block_range->block->node) {
+                    continue;
                 }
 
-                ui_palette_push(palette_from_code(row_index % 2 == 0 ? PaletteCode_Button : PaletteCode_SecondaryButton));
-                ui_layout_axis_next(Axis2_X);
-                UI_Box *row_box = ui_create_box_from_string_format(
-                    UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawHot | UI_BoxFlag_DrawActive | UI_BoxFlag_Clickable,
-                    "##%p", row->node
-                );
-                ui_parent_push(row_box);
+                U64   block_row_count = r1u64_size(block_range->range);
+                R1U64 absolute_range  = r1u64(row_index, row_index + block_row_count);
 
-                ui_spacer_sized(ui_size_ems(0.5f, 1.0f));
+                R1U64 local_range = block_range->range;
+                if (absolute_range.min < (U64) visible_range.min) {
+                    local_range.min += u64_min((U64) visible_range.min - absolute_range.min, block_row_count);
+                }
+                if (absolute_range.max > (U64) visible_range.max) {
+                    local_range.max -= u64_min(absolute_range.max - (U64) visible_range.max, block_row_count);
+                }
 
-                // NOTE(simon): Create indentation.
-                ui_spacer_sized(ui_size_ems(1.5f * (F32) row->depth, 1.0f));
+                // NOTE(simon): Calculate depth, skipping the outermost nesting as
+                // that is just there to group everything together.
+                U64 depth = 0;
+                for (Block *enclosing = block_range->block->parent; enclosing != root_block; enclosing = enclosing->parent) {
+                    ++depth;
+                }
 
-                // NOTE(simon): Create expander.
-                ui_width_next(ui_size_ems(1.5f, 1.0f));
+                // NOTE(simon): Skip invisible children.
+                MSDF_LogNode *child = block_range->block->node->first;
+                for (U64 i = 0; i < local_range.min; ++i) {
+                    child = child->next;
+                }
+
+                // NOTE(simon): Queue up rows.
+                for (U64 i = local_range.min; i < local_range.max; ++i, child = child->next) {
+                    Row *row = arena_push_struct(scratch.arena, Row);
+                    row->node = child;
+                    row->depth = depth;
+                    row->index_in_parent = i;
+                    sll_queue_push(first_row, last_row, row);
+                }
+
+                row_index += r1u64_size(block_range->range);
+            }
+        }
+
+        S64 row_index = visible_range.min;
+        for (Row *row = first_row; row; row = row->next, ++row_index) {
+            // NOTE(simon): Find expandsion state.
+            U64 hash = u64_hash(integer_from_pointer(row->node));
+            U64 expansion_index = hash % state->expansion_set_count;
+            ExpansionList *expansion_slot = &state->expansion_set[expansion_index];
+            ExpansionNode *is_expanded = expansion_slot->first;
+            while (is_expanded && is_expanded->node != row->node) {
+                is_expanded = is_expanded->next;
+            }
+
+            ui_palette_push(palette_from_code(row_index % 2 == 0 ? PaletteCode_Button : PaletteCode_SecondaryButton));
+            ui_layout_axis_next(Axis2_X);
+            UI_Box *row_box = ui_create_box_from_string_format(
+                UI_BoxFlag_DrawBackground | UI_BoxFlag_DrawHot | UI_BoxFlag_DrawActive | UI_BoxFlag_Clickable,
+                "##%p", row->node
+            );
+            ui_parent_push(row_box);
+
+            ui_spacer_sized(ui_size_ems(0.5f, 1.0f));
+
+            // NOTE(simon): Create indentation.
+            ui_spacer_sized(ui_size_ems(1.5f * (F32) row->depth, 1.0f));
+
+            // NOTE(simon): Create expander.
+            ui_width_next(ui_size_ems(1.5f, 1.0f));
+            if (row->node->first) {
                 ui_text_align_next(UI_TextAlign_Center);
                 ui_font_next(ui_icon_font());
+                ui_label(ui_icon_string_from_kind(is_expanded ? UI_IconKind_DownAngle : UI_IconKind_RightAngle));
+            } else {
+                ui_spacer();
+            }
+
+            // NOTE(simon): Create text node.
+            Str8 display = row->node->string;
+            if (display.size == 0) {
                 if (row->node->first) {
-                    if (is_expanded) {
-                        ui_label(ui_icon_string_from_kind(UI_IconKind_DownAngle));
-                    } else {
-                        ui_label(ui_icon_string_from_kind(UI_IconKind_RightAngle));
-                    }
+                    display = str8_literal("Group");
+                } else if (row->node->flags & (MSDF_LogNodeFlag_DrawPoint | MSDF_LogNodeFlag_DrawLine | MSDF_LogNodeFlag_DrawBezier)) {
+                    display = str8_literal("Geometry");
                 } else {
-                    ui_spacer();
+                    display = str8_literal("No geometry");
                 }
+            }
+            ui_label_format("[%lu] %.*s", row->index_in_parent, str8_expand(display));
 
-                // NOTE(simon): Create text node.
-                Str8 display = row->node->string;
-                if (display.size == 0) {
-                    if (row->node->first) {
-                        display = str8_literal("Group");
-                    } else if (row->node->flags & (MSDF_LogNodeFlag_DrawPoint | MSDF_LogNodeFlag_DrawLine | MSDF_LogNodeFlag_DrawBezier)) {
-                        display = str8_literal("Geometry");
-                    } else {
-                        display = str8_literal("No geometry");
-                    }
+            UI_Input pin_input = { 0 };
+            if (
+                (global_state->hover_context_slot == ContextSlot_LogNode && get_hover_context()->log_node == row->node) ||
+                get_pinned_log_node() == row->node
+            ) {
+                ui_font_next(ui_icon_font());
+                ui_width_next(ui_size_pixels(row_height, 1.0f));
+                ui_text_align_next(UI_TextAlign_Center);
+                pin_input = ui_button_format("%.*s###pin_%p", str8_expand(ui_icon_string_from_kind(UI_IconKind_Pin)), row->node);
+            }
+            if (pin_input.flags & UI_InputFlag_Clicked) {
+                if (get_pinned_log_node() == row->node) {
+                    set_pinned_log_node(0);
+                } else {
+                    set_pinned_log_node(row->node);
                 }
-                ui_label_format("[%lu] %.*s", row->index_in_parent, str8_expand(display));
+            }
 
-                UI_Input pin_input = { 0 };
-                if (
-                    (global_state->hover_context_slot  == ContextSlot_LogNode && get_hover_context()->log_node  == row->node) ||
-                    get_pinned_log_node() == row->node
-                ) {
-                    ui_font_next(ui_icon_font());
-                    ui_width_next(ui_size_pixels(height, 1.0f));
-                    ui_text_align_next(UI_TextAlign_Center);
-                    pin_input = ui_button_format("%.*s###pin_%p", str8_expand(ui_icon_string_from_kind(UI_IconKind_Pin)), row->node);
-                }
-                if (pin_input.flags & UI_InputFlag_Clicked) {
-                    if (get_pinned_log_node() == row->node) {
-                        set_pinned_log_node(0);
-                    } else {
-                        set_pinned_log_node(row->node);
-                    }
-                }
+            ui_parent_pop();
+            ui_palette_pop();
 
-                ui_parent_pop();
-                ui_palette_pop();
-
-                // NOTE(simon): Input.
-                UI_Input row_input = ui_input_from_box(row_box);
-                if (row_input.flags & UI_InputFlag_Clicked) {
+            // NOTE(simon): Input.
+            UI_Input row_input = ui_input_from_box(row_box);
+            if (row_input.flags & UI_InputFlag_Clicked) {
+                if (is_expanded) {
+                    dll_remove(expansion_slot->first, expansion_slot->last, is_expanded);
+                    sll_stack_push(state->expansion_freelist, is_expanded);
+                } else {
+                    is_expanded = state->expansion_freelist;
                     if (is_expanded) {
-                        dll_remove(expansion_slot->first, expansion_slot->last, is_expanded);
-                        sll_stack_push(state->expansion_freelist, is_expanded);
+                        sll_stack_pop(state->expansion_freelist);
+                        memory_zero_struct(is_expanded);
                     } else {
-                        is_expanded = state->expansion_freelist;
-                        if (is_expanded) {
-                            sll_stack_pop(state->expansion_freelist);
-                            memory_zero_struct(is_expanded);
-                        } else {
-                            is_expanded = arena_push_struct(tab->arena, ExpansionNode);
-                        }
-                        is_expanded->node = row->node;
-                        dll_push_back(expansion_slot->first, expansion_slot->last, is_expanded);
+                        is_expanded = arena_push_struct(tab->arena, ExpansionNode);
                     }
+                    is_expanded->node = row->node;
+                    dll_push_back(expansion_slot->first, expansion_slot->last, is_expanded);
                 }
+            }
 
-                if ((row_input.flags | pin_input.flags) & UI_InputFlag_Hovering) {
-                    context_scope(.log_node = row->node) {
-                        set_hover_context(ContextSlot_LogNode);
-                    }
+            if ((row_input.flags | pin_input.flags) & UI_InputFlag_Hovering) {
+                context_scope(.log_node = row->node) {
+                    set_hover_context(ContextSlot_LogNode);
                 }
             }
         }
-
-        ui_palette(palette_from_code(PaletteCode_Button))
-        ui_focus(UI_Focus_None)
-        ui_width(ui_size_pixels(scrollbar_width, 1.0f))
-        ui_height(ui_size_pixels(panel_size.y, 1.0f)) {
-            state->position = ui_scroll_bar(state->position, 0, (S64) row_count, visible_rows);
-        }
-    }
-
-    // NOTE(simon): Scrolling.
-    UI_Input region_input = ui_input_from_box(region);
-    S64 scroll_delta = (S64) f32_round(region_input.scroll.y);
-    state->position.index  -= scroll_delta;
-    state->position.offset += (F32) scroll_delta;
-
-    // NOTE(simon): Clamp scrolling.
-    if (state->position.index < 0) {
-        state->position.offset += (F32) state->position.index;
-        state->position.index = 0;
-    } else if ((S64) row_count <= state->position.index) {
-        state->position.offset -= (F32) (s64_max(0, (S64) row_count - 1) - state->position.index);
-        state->position.index = s64_max(0, (S64) row_count - 1);
-    }
-
-    // NOTE(simon): Animation
-    state->position.offset += -state->position.offset * ui_animation_slow_rate();
-    if (f32_abs(state->position.offset) < 0.001f) {
-        state->position.offset = 0.0f;
-    } else {
-        request_frame();
     }
 
     arena_end_temporary(scratch);
