@@ -170,7 +170,7 @@ UI_BOX_DRAW_FUNCTION(ui_draw_line_edit) {
     F32 offset_to_cursor = font_cache_text_prefix(box->text, draw_data->cursor).size.width;
     F32 offset_to_mark = font_cache_text_prefix(box->text, draw_data->mark).size.width;
     V2F32 text_position = ui_box_text_location(box);
-    F32 cursor_width = f32_max(2.0f, (F32) box->font_size / 5.0f);
+    F32 cursor_width = f32_max(2.0f, (F32) box->font_size / 4.0f);
 
     V4F32 selection_color = box->palette.selection;
     V4F32 cursor_color = box->palette.cursor;
@@ -207,9 +207,10 @@ UI_BOX_DRAW_FUNCTION(ui_draw_line_edit) {
 // boundaries are.
 // TODO(simon): This function doesn't handle unicode at all, fix it!
 internal B32 ui_is_word(U32 codepoint) {
-    B32 is_alpha   = ('a' <= codepoint && codepoint <= 'z') || ('A' <= codepoint && codepoint <= 'Z');
-    B32 is_numeric = ('0' <= codepoint && codepoint <= '9');
-    B32 result     = is_alpha || is_numeric;
+    B32 is_alpha      = ('a' <= codepoint && codepoint <= 'z') || ('A' <= codepoint && codepoint <= 'Z');
+    B32 is_numeric    = ('0' <= codepoint && codepoint <= '9');
+    B32 is_underscore = codepoint == '_';
+    B32 result        = is_alpha || is_numeric || is_underscore;
     return result;
 }
 
@@ -265,7 +266,7 @@ internal UI_Input ui_line_edit(U8 *buffer, U64 *buffer_size, U64 buffer_capacity
         input.flags |= UI_InputFlag_Commit;
     }
 
-    if (start_edit || (text_container_box->flags & UI_BoxFlag_FocusActive && !(text_container_box->flags & UI_BoxFlag_FocusActiveDisabled))) {
+    if (start_edit || is_focus_active) {
         prof_zone_begin(prof_events, "events");
         for (UI_Event *event = 0; ui_next_event(&event);) {
             if (!(event->kind == UI_EventKind_Text || event->kind == UI_EventKind_Edit || event->kind == UI_EventKind_Navigation)) {
@@ -340,9 +341,9 @@ internal UI_Input ui_line_edit(U8 *buffer, U64 *buffer_size, U64 buffer_capacity
 
             if (*cursor != *mark && (event->flags & UI_EventFlag_PickSelectSide)) {
                 if (event->delta.x < 0) {
-                    *cursor = u64_min(*cursor, *mark);
+                    new_cursor = u64_min(*cursor, *mark);
                 } else if (0 < event->delta.x) {
-                    *cursor = u64_max(*cursor, *mark);
+                    new_cursor = u64_max(*cursor, *mark);
                 }
             }
 
@@ -350,7 +351,7 @@ internal UI_Input ui_line_edit(U8 *buffer, U64 *buffer_size, U64 buffer_capacity
                 cursor_delta = 0;
             }
 
-            new_cursor = (U64) s64_min(s64_max(0, (S64) *cursor + cursor_delta), (S64) edit_string.size);
+            new_cursor = (U64) s64_min(s64_max(0, (S64) new_cursor + cursor_delta), (S64) edit_string.size);
 
             if (event->flags & UI_EventFlag_Delete) {
                 replace_min = u64_min(new_cursor, new_mark);
@@ -385,14 +386,32 @@ internal UI_Input ui_line_edit(U8 *buffer, U64 *buffer_size, U64 buffer_capacity
                 gfx_set_clipboard_text(copy_string);
             }
 
+            // NOTE(simon): Filter out newlines.
+            // TODO(simon): Handle \r\n
+            Str8List lines = { 0 };
+            for (U64 offset = 0; offset < replace.size; ) {
+                U64 newline_offset = str8_first_index_of(str8_skip(replace, offset), '\n');
+                Str8 line = str8_substring(replace, offset, newline_offset);
+
+                str8_list_push(scratch.arena, &lines, line);
+
+                // NOTE(simon): Add one more to skip the newline itself.
+                offset += newline_offset + 1;
+            }
+
             {
                 U64 to_remove = replace_max - replace_min;
                 // TODO(simon): This should round down to the previous codepoint, at least!
-                U64 to_insert = u64_min(replace.size, buffer_capacity - (*buffer_size - to_remove));
+                U64 to_insert = u64_min(lines.total_size, buffer_capacity - (*buffer_size - to_remove));
                 U64 to_move = u64_min(*buffer_size - replace_max, buffer_capacity - (replace_min + to_insert));
 
                 memory_move(&buffer[replace_min + to_insert], &buffer[replace_max], to_move);
-                memory_copy(&buffer[replace_min], replace.data, to_insert);
+                U64 offset = 0;
+                for (Str8Node *node = lines.first; node && offset < to_insert; node = node->next) {
+                    U64 to_insert_line = u64_min(node->string.size, to_insert - offset);
+                    memory_copy(&buffer[replace_min + offset], node->string.data, to_insert_line);
+                    offset += to_insert_line;
+                }
                 *buffer_size -= to_remove;
                 *buffer_size += to_insert;
             }
