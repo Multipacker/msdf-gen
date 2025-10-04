@@ -43,14 +43,16 @@ typedef U16 TTF_UFWord;
 typedef U16 TTF_F2Dot14;
 typedef U64 TTF_LongDateTime;
 
-#define TTF_TABLES              \
-    X(Cmap, 'c', 'm', 'a', 'p') \
-    X(Glyf, 'g', 'l', 'y', 'f') \
-    X(Head, 'h', 'e', 'a', 'd') \
-    X(Hhea, 'h', 'h', 'e', 'a') \
-    X(Hmtx, 'h', 'm', 't', 'x') \
-    X(Loca, 'l', 'o', 'c', 'a') \
-    X(Maxp, 'm', 'a', 'x', 'p') \
+#define TTF_TABLES                      \
+    X(Cmap, 'c', 'm', 'a', 'p')         \
+    X(Glyf, 'g', 'l', 'y', 'f')         \
+    X(Head, 'h', 'e', 'a', 'd')         \
+    X(Hhea, 'h', 'h', 'e', 'a')         \
+    X(Hmtx, 'h', 'm', 't', 'x')         \
+    X(Loca, 'l', 'o', 'c', 'a')         \
+    X(Maxp, 'm', 'a', 'x', 'p')         \
+    /* NOTE(simon): Optional tables. */ \
+    X(Fpgm, 'f', 'p', 'g', 'm')
 
 #define X(name, ...) TTF_Table_##name,
 typedef enum {

@@ -545,6 +545,259 @@ internal TTF_CodepointMap ttf_get_codepoint_map(Arena *arena, TTF_Font *font) {
     return codepoint_map;
 }
 
+internal Void ttf_print_disassembly(U32 glyph_index, Str8 instructions) {
+    Arena_Temporary scratch = arena_get_scratch(0, 0);
+    typedef enum {
+        OpFlag_UnsignedBytesFromStream = 1 << 0,
+        OpFlag_SignedWordsFromStream   = 1 << 1,
+        OpFlag_NumberCountFromStream   = 1 << 2,
+    } OpFlag;
+
+#define OPS(X)                                                                                                                            \
+    X(SVTCA,     0x00, 0x01, 0,                                                             "Set freedom and projection Vectors To Coordinate Axis")                     \
+    X(SPVTCA,    0x02, 0x03, 0,                                                             "Set Projection Vector To Coordinate Axis")                                  \
+    X(SFVTCA,    0x04, 0x05, 0,                                                             "Set Freedom Vector to Coordinate Axis")                                     \
+    X(SPVTL,     0x06, 0x07, 0,                                                             "Set Projection Vector To Line")                                             \
+    X(SFVTL,     0x08, 0x09, 0,                                                             "Set Freedom Vector To Line")                                                \
+    X(SPVFS,     0x0A, 0x0A, 0,                                                             "Set Projection Vector From Stack")                                          \
+    X(SFVFS,     0x0B, 0x0B, 0,                                                             "Set Freedom Vector From Stack")                                             \
+    X(GPV,       0x0C, 0x0C, 0,                                                             "Get Projection Vector")                                                     \
+    X(GFV,       0x0D, 0x0D, 0,                                                             "Get Freedom Vector")                                                        \
+    X(SFVTPV,    0x0E, 0x0E, 0,                                                             "Set Freedom Vector To Projection Vector")                                   \
+    X(ISECT,     0x0F, 0x0F, 0,                                                             "moves point p to the InterSECTion of two lines")                            \
+    X(SRP0,      0x10, 0x10, 0,                                                             "Set Reference Point 0")                                                     \
+    X(SRP1,      0x11, 0x11, 0,                                                             "Set Reference Point 1")                                                     \
+    X(SRP2,      0x12, 0x12, 0,                                                             "Set Reference Point 2")                                                     \
+    X(SZP0,      0x13, 0x13, 0,                                                             "Set Zone Pointer 0")                                                        \
+    X(SZP1,      0x14, 0x14, 0,                                                             "Set Zone Pointer 1")                                                        \
+    X(SZP2,      0x15, 0x15, 0,                                                             "Set Zone Pointer 2")                                                        \
+    X(SZPS,      0x16, 0x16, 0,                                                             "Set Zone PointerS")                                                         \
+    X(SLOOP,     0x17, 0x17, 0,                                                             "Set LOOP variable")                                                         \
+    X(RTG,       0x18, 0x18, 0,                                                             "Round To Grid")                                                             \
+    X(RTHG,      0x19, 0x19, 0,                                                             "Round To Half Grid")                                                        \
+    X(SMD,       0x1A, 0x1A, 0,                                                             "Set Minimum Distance")                                                      \
+    X(ELSE,      0x1B, 0x1B, 0,                                                             "ELSE clause")                                                               \
+    X(JMPR,      0x1C, 0x1C, 0,                                                             "JuMP Relative")                                                             \
+    X(SCVTCI,    0x1D, 0x1D, 0,                                                             "Set Control Value Table Cut-In")                                            \
+    X(SSWCI,     0x1E, 0x1E, 0,                                                             "Set Single Width Cut-In")                                                   \
+    X(SSW,       0x1F, 0x1F, 0,                                                             "Set Single Width")                                                          \
+    X(DUP,       0x20, 0x20, 0,                                                             "DUPlicate top stack element")                                               \
+    X(POP,       0x21, 0x21, 0,                                                             "POP top stack element")                                                     \
+    X(CLEAR,     0x22, 0x22, 0,                                                             "CLEAR the stack")                                                           \
+    X(SWAP,      0x23, 0x23, 0,                                                             "SWAP the top two elements on the stack")                                    \
+    X(DEPTH,     0x24, 0x24, 0,                                                             "DEPTH of the stack")                                                        \
+    X(CINDEX,    0x25, 0x25, 0,                                                             "Copy the INDEXed element to the top of the stack")                          \
+    X(MINDEX,    0x26, 0x26, 0,                                                             "Move the INDEXed element to the top of the stack")                          \
+    X(ALIGNPTS,  0x27, 0x27, 0,                                                             "ALIGN Points")                                                              \
+    /* (NOTE(simon): 0x28 is not defined. */                                                                                              \
+    X(UTP,       0x29, 0x29, 0,                                                             "UnTouch Point")                                                             \
+    X(LOOPCALL,  0x2A, 0x2A, 0,                                                             "LOOP and CALL function")                                                    \
+    X(CALL,      0x2B, 0x2B, 0,                                                             "CALL function")                                                             \
+    X(FDEF,      0x2C, 0x2C, 0,                                                             "Function DEFinition")                                                       \
+    X(ENDF,      0x2D, 0x2D, 0,                                                             "END Function definition")                                                   \
+    X(MDAP,      0x2E, 0x2F, 0,                                                             "Move Direct Absolute Point")                                                \
+    X(IUP,       0x30, 0x31, 0,                                                             "Interpolate Untouched Points through the outline")                          \
+    X(SHP,       0x32, 0x33, 0,                                                             "SHift Point using reference point")                                         \
+    X(SHC,       0x34, 0x35, 0,                                                             "SHift Contour using reference point")                                       \
+    X(SHZ,       0x36, 0x37, 0,                                                             "SHift Zone using reference point")                                          \
+    X(SHPIX,     0x38, 0x38, 0,                                                             "SHift point by a PIXel amount")                                             \
+    X(IP,        0x39, 0x39, 0,                                                             "Interpolate Point")                                                         \
+    X(MSIRP,     0x3A, 0x3B, 0,                                                             "Move Stack Indirect Relative Point")                                        \
+    X(ALIGNRP,   0x3C, 0x3C, 0,                                                             "ALIGN Reference Point")                                                     \
+    X(RTDG,      0x3D, 0x3D, 0,                                                             "Round To Double Grid")                                                      \
+    X(MIAP,      0x3E, 0x3F, 0,                                                             "Move Indirect Absolute Point")                                              \
+    X(NPUSHB,    0x40, 0x40, OpFlag_UnsignedBytesFromStream | OpFlag_NumberCountFromStream, "PUSH N Bytes")                                                              \
+    X(NPUSHW,    0x41, 0x41, OpFlag_SignedWordsFromStream | OpFlag_NumberCountFromStream,   "PUSH N Words")                                                              \
+    X(WS,        0x42, 0x42, 0,                                                             "Write Store")                                                               \
+    X(RS,        0x43, 0x43, 0,                                                             "Read Store")                                                                \
+    X(WCVTP,     0x44, 0x44, 0,                                                             "Write ControlValue Table in Pixel units")                                   \
+    X(RCVT,      0x45, 0x45, 0,                                                             "Read Control Value Table entry")                                            \
+    X(GC,        0x46, 0x47, 0,                                                             "Get Coordinate projected onto the projection vector")                       \
+    X(SCFS,      0x48, 0x48, 0,                                                             "Sets Coordinate From the Stack using projection vector and freedom vector") \
+    X(MD,        0x49, 0x4A, 0,                                                             "Measure Distance")                                                          \
+    X(MPPEM,     0x4B, 0x4B, 0,                                                             "Measure Pixels Per EM")                                                     \
+    X(MPS,       0x4C, 0x4C, 0,                                                             "Measure Point Size")                                                        \
+    X(FLIPON,    0x4D, 0x4D, 0,                                                             "set the auto FLIP Boolean to ON")                                           \
+    X(FLIPOFF,   0x4E, 0x4E, 0,                                                             "set the auto FLIP Boolean to OFF")                                          \
+    X(DEBUG,     0x4F, 0x4F, 0,                                                             "DEBUG call")                                                                \
+    X(LT,        0x50, 0x50, 0,                                                             "Less Than")                                                                 \
+    X(LTEQ,      0x51, 0x51, 0,                                                             "Less Than or EQual")                                                        \
+    X(GT,        0x52, 0x52, 0,                                                             "Greater Than")                                                              \
+    X(GTEQ,      0x53, 0x53, 0,                                                             "Greater Than or EQual")                                                     \
+    X(EQ,        0x54, 0x54, 0,                                                             "EQual")                                                                     \
+    X(NEQ,       0x55, 0x55, 0,                                                             "Not EQual")                                                                 \
+    X(ODD,       0x56, 0x56, 0,                                                             "ODD")                                                                       \
+    X(EVEN,      0x57, 0x57, 0,                                                             "EVEN")                                                                      \
+    X(IF,        0x58, 0x58, 0,                                                             "IF test")                                                                   \
+    X(EIF,       0x59, 0x59, 0,                                                             "End IF")                                                                    \
+    X(AND,       0x5A, 0x5A, 0,                                                             "logical AND")                                                               \
+    X(OR,        0x5B, 0x5B, 0,                                                             "logical OR")                                                                \
+    X(NOT,       0x5C, 0x5C, 0,                                                             "logical NOT")                                                               \
+    X(DELTAP1,   0x5D, 0x5D, 0,                                                             "DELTA exception P1")                                                        \
+    X(SDB,       0x5E, 0x5E, 0,                                                             "Set Delta Base in the graphics state")                                      \
+    X(SDS,       0x5F, 0x5F, 0,                                                             "Set Delta Shift in the graphics state")                                     \
+    X(ADD,       0x60, 0x60, 0,                                                             "ADD")                                                                       \
+    X(SUB,       0x61, 0x61, 0,                                                             "SUBtractc")                                                                 \
+    X(DIV,       0x62, 0x62, 0,                                                             "DIVide")                                                                    \
+    X(MUL,       0x63, 0x63, 0,                                                             "MULtiply")                                                                  \
+    X(ABS,       0x64, 0x64, 0,                                                             "ABSolute value")                                                            \
+    X(NEG,       0x65, 0x65, 0,                                                             "NEGate")                                                                    \
+    X(FLOOR,     0x66, 0x66, 0,                                                             "FLOOR")                                                                     \
+    X(CEILING,   0x67, 0x67, 0,                                                             "CEILING")                                                                   \
+    X(ROUND,     0x68, 0x6B, 0,                                                             "ROUND value")                                                               \
+    X(NROUND,    0x6C, 0x6F, 0,                                                             "No ROUNDing of value")                                                      \
+    X(WCVTF,     0x70, 0x70, 0,                                                             "Write Control Value Table in Funits")                                       \
+    X(DELTAP2,   0x71, 0x71, 0,                                                             "DELTA exception P2")                                                        \
+    X(DELTAP3,   0x72, 0x72, 0,                                                             "DELTA exception P3")                                                        \
+    X(DELTAC1,   0x73, 0x73, 0,                                                             "DELTA exception C1")                                                        \
+    X(DELTAC2,   0x74, 0x74, 0,                                                             "DELTA exception C2")                                                        \
+    X(DELTAC3,   0x75, 0x75, 0,                                                             "DELTA exception C3")                                                        \
+    X(SROUND,    0x76, 0x76, 0,                                                             "Super ROUND")                                                               \
+    X(S45ROUND,  0x77, 0x77, 0,                                                             "Super ROUND 45 degrees")                                                    \
+    X(JROT,      0x78, 0x78, 0,                                                             "Jump Relative On True")                                                     \
+    X(JROF,      0x79, 0x79, 0,                                                             "Jump Relative On False")                                                    \
+    X(ROFF,      0x7A, 0x7A, 0,                                                             "Round OFF")                                                                 \
+    /* (NOTE(simon): 0x7B is not defined. */                                                                                              \
+    X(RUTG,      0x7C, 0x7C, 0,                                                             "Round Up To Grid")                                                          \
+    X(RDTG,      0x7D, 0x7D, 0,                                                             "Round Down To Grid")                                                        \
+    X(SANGW,     0x7E, 0x7E, 0,                                                             "Set ANGle Weight")                                                          \
+    X(AA,        0x7F, 0x7F, 0,                                                             "Adjust Angle")                                                              \
+    X(FLIPPT,    0x80, 0x80, 0,                                                             "FLIP PoinT")                                                                \
+    X(FLIPRGON,  0x81, 0x81, 0,                                                             "FLIP RanGe ON")                                                             \
+    X(FLIPRGOFF, 0x82, 0x82, 0,                                                             "FLIP RanGe OFF")                                                            \
+    /* (NOTE(simon): 0x83 is not defined. */                                                                                              \
+    /* (NOTE(simon): 0x84 is not defined. */                                                                                              \
+    X(SCANCTRL,  0x85, 0x85, 0,                                                             "SCAN conversion ConTRoL")                                                   \
+    X(SDPVTL,    0x86, 0x87, 0,                                                             "Set Dual Projection Vector To Line")                                        \
+    X(GETINFO,   0x88, 0x88, 0,                                                             "GET INFOrmation")                                                           \
+    X(IDEF,      0x89, 0x89, 0,                                                             "Instruction DEFinition")                                                    \
+    X(ROLL,      0x8A, 0x8A, 0,                                                             "ROLL the top three stack elements")                                         \
+    X(MAX,       0x8B, 0x8B, 0,                                                             "MAXimum of top two stack elements")                                         \
+    X(MIN,       0x8C, 0x8C, 0,                                                             "MINimum of top two stack elements")                                         \
+    X(SCANTYPE,  0x8D, 0x8D, 0,                                                             "SCANTYPE")                                                                  \
+    X(INSTCTRL,  0x8E, 0x8E, 0,                                                             "INSTRuction execution ConTRoL")                                             \
+    /* (NOTE(simon): 0x8F is not defined. */                                                                                              \
+    /* (NOTE(simon): 0xA0-0xAF is not defined */                                                                                          \
+    X(PUSHB,     0xB0, 0xB7, OpFlag_UnsignedBytesFromStream,                                "PUSH Bytes")                                                                \
+    X(PUSHW,     0xB8, 0xBF, OpFlag_SignedWordsFromStream,                                  "PUSH Words")                                                                \
+    X(MDRP,      0xC0, 0xDF, 0,                                                             "Move Direct Relative Point")                                                \
+    X(MIRP,      0xE0, 0xFF, 0,                                                             "Move Indirect Relative Point")                                              \
+    X(UNDEF,     0xFF, 0xFF, 0,                                                             "UNDEFined instruction")                                                     \
+
+    typedef enum {
+#define X(mnemonic, min_code, max_code, flags, description) Op_##mnemonic,
+        OPS(X)
+#undef X
+    } OpKind;
+
+    R1U8 op_ranges[] = {
+#define X(mnemonic, min_code, max_code, flags, description) r1u8(min_code, max_code),
+        OPS(X)
+#undef X
+    };
+    U8 op_flags[] = {
+#define X(mnemonic, min_code, max_code, flags, description) flags,
+        OPS(X)
+#undef X
+    };
+    Str8 op_mnemonic_from_kind[] = {
+#define X(mnemonic, min_code, max_code, flags, description) str8_literal_compile(#mnemonic),
+        OPS(X)
+#undef X
+    };
+
+    typedef struct Op Op;
+    struct Op {
+        U32    offset;
+        OpKind kind;
+        U64    number_count;
+        U32   *numbers;
+    };
+
+    typedef struct OpNode OpNode;
+    struct OpNode {
+        OpNode *next;
+        OpNode *previous;
+        Op op;
+    };
+
+    OpNode *first_op = 0;
+    OpNode *last_op = 0;
+
+    TTF_Parser instruction_parser = { 0 };
+    instruction_parser.data = instructions.data;
+    instruction_parser.size = instructions.size;
+    while (instruction_parser.size) {
+        OpNode *op_node = arena_push_struct(scratch.arena, OpNode);
+        op_node->op.offset = (U32) (instructions.size - instruction_parser.size);
+
+        U8 byte = ttf_read_u8(&instruction_parser);
+
+        // NOTE(simon): Determine operation.
+        op_node->op.kind = Op_UNDEF;
+        for (OpKind op_candidate  = 0; op_candidate < array_count(op_ranges); ++op_candidate) {
+            if (op_ranges[op_candidate].min <= byte && byte <= op_ranges[op_candidate].max) {
+                op_node->op.kind = op_candidate;
+                break;
+            }
+        }
+
+        // NOTE(simon): Determine amount of numbers to read.
+        if (op_flags[op_node->op.kind] & (OpFlag_SignedWordsFromStream | OpFlag_UnsignedBytesFromStream)) {
+            if (op_flags[op_node->op.kind] & OpFlag_NumberCountFromStream) {
+                op_node->op.number_count = ttf_read_u8(&instruction_parser);
+            } else {
+                op_node->op.number_count = 1 + (byte - op_ranges[op_node->op.kind].min);
+            }
+        }
+
+        // NOTE(simon): Read numbers.
+        op_node->op.numbers = arena_push_array(scratch.arena, U32, op_node->op.number_count);
+        if (op_flags[op_node->op.kind] & OpFlag_UnsignedBytesFromStream) {
+            for (U64 offset = 0; offset < op_node->op.number_count; ++offset) {
+                op_node->op.numbers[offset] = ttf_read_u8(&instruction_parser);
+            }
+        } else if (op_flags[op_node->op.kind] & OpFlag_SignedWordsFromStream) {
+            for (U64 offset = 0; offset < op_node->op.number_count; ++offset) {
+                op_node->op.numbers[offset] = (U32) (S32) ttf_read_s16(&instruction_parser);
+            }
+        }
+
+        dll_push_back(first_op, last_op, op_node);
+    }
+
+    // NOTE(simon): Print.
+    os_console_print(str8_format(scratch.arena, "Instructions for glyph index %u:\n", glyph_index));
+    U64 indent = 0;
+    Str8List output = { 0 };
+    for (OpNode *node = first_op; node; node = node->next) {
+        if ((node->op.kind == Op_ELSE || node->op.kind == Op_ENDF || node->op.kind == Op_EIF) && indent > 0) {
+            --indent;
+        }
+
+        // NOTE(simon): Print instruction offset and indentation.
+        str8_list_push_format(scratch.arena, &output, "0x%04X:%*s ", node->op.offset, 2 * indent, "");
+
+        str8_list_push(scratch.arena, &output, op_mnemonic_from_kind[node->op.kind]);
+
+        // NOTE(simon): Print numbers
+        for (U64 j = 0; j < node->op.number_count; ++j) {
+            str8_list_push_format(scratch.arena, &output, " %u", node->op.numbers[j]);
+        }
+
+        str8_list_push(scratch.arena, &output, str8_literal("\n"));
+
+        if (node->op.kind == Op_IDEF || node->op.kind == Op_FDEF || node->op.kind == Op_IF || node->op.kind == Op_ELSE) {
+            ++indent;
+        }
+    }
+
+    Str8 output_string = str8_join(scratch.arena, &output);
+    os_console_print(output_string);
+
+    arena_end_temporary(scratch);
+}
+
 internal TTF_Glyph ttf_get_glyph_outlines(Arena *arena, TTF_Font *font, U32 glyph_index) {
     TTF_Glyph result = { 0 };
 
@@ -587,6 +840,10 @@ internal TTF_Glyph ttf_get_glyph_outlines(Arena *arena, TTF_Font *font, U32 glyp
         // NOTE: Read instructions.
         U16  instruction_length = ttf_read_u16(&parser);
         Str8 instructions       = ttf_read_bytes(&parser, instruction_length);
+
+        if (instruction_length) {
+            ttf_print_disassembly(glyph_index, instructions);
+        }
 
         if (parser.out_of_data) {
             log_error(str8_literal("Not enough data for glyph instructions.\n"));
@@ -1190,6 +1447,11 @@ internal TTF_Font *ttf_load(Arena *arena, Str8 font_path) {
 
     if (good) {
         font->codepoint_map = ttf_get_codepoint_map(arena, font);
+    }
+
+    if (good) {
+        Str8 fpgm_data = font->tables[TTF_Table_Fpgm];
+        ttf_print_disassembly(U32_MAX, fpgm_data);
     }
 
     return font;
