@@ -210,12 +210,12 @@ internal Void str8_list_push_format_list(Arena *arena, Str8List *list, CStr form
     str8_list_push(arena, list, string);
 }
 
-internal Str8 str8_join(Arena *arena, Str8List *list) {
-    U64 size = list->total_size;
+internal Str8 str8_join(Arena *arena, Str8List list) {
+    U64 size = list.total_size;
     U8 *data = arena_push_array_no_zero(arena, U8, size);
 
     U8 *ptr = data;
-    for (Str8Node *node = list->first; node; node = node->next) {
+    for (Str8Node *node = list.first; node; node = node->next) {
         memory_copy(ptr, node->string.data, node->string.size);
         ptr += node->string.size;
     }

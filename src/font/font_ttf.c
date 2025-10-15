@@ -792,7 +792,7 @@ internal Void ttf_print_disassembly(U32 glyph_index, Str8 instructions) {
         }
     }
 
-    Str8 output_string = str8_join(scratch.arena, &output);
+    Str8 output_string = str8_join(scratch.arena, output);
     os_console_print(output_string);
 
     arena_end_temporary(scratch);

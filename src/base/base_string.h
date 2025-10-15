@@ -88,7 +88,7 @@ internal Void str8_list_push_explicit(Str8List *list, Str8 string, Str8Node *nod
 internal Void str8_list_push(Arena *arena, Str8List *list, Str8 string);
 internal Void str8_list_push_format(Arena *arena, Str8List *list, CStr format, ...);
 internal Void str8_list_push_format_list(Arena *arena, Str8List *list, CStr format, va_list arguments);
-internal Str8 str8_join(Arena *arena, Str8List *list);
+internal Str8 str8_join(Arena *arena, Str8List list);
 
 // NOTE(simon): Formatting.
 internal Str8 str8_concatenate(Arena *arena, Str8 a, Str8 b);

@@ -106,7 +106,7 @@ internal S32 os_run(Str8List arguments) {
             for (OS_FileInfo info = { 0 }; os_file_iterator_next(scratch.arena, file_iterator, &info); ) {
                 Str8 name = str8_format(scratch.arena, "%.*s/%.*s", str8_expand(directory->string), str8_expand(info.name));
 
-                if (info.properties.flags & FILE_PROPERTY_FLAGS_IS_FOLDER) {
+                if (info.properties.flags & FilePropertyFlags_IsFolder) {
                     Str8Node *new_directory = arena_push_struct(scratch.arena, Str8Node);
                     new_directory->string = name;
                     sll_stack_push(directories, new_directory);

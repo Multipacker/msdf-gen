@@ -74,11 +74,11 @@ internal Void linux_file_properties_from_stat(FileProperties *properties, struct
     properties->size = (U64) (metadata->st_size);
     properties->flags = 0;
     if (S_ISDIR(metadata->st_mode)) {
-        properties->flags |= FILE_PROPERTY_FLAGS_IS_FOLDER;
+        properties->flags |= FilePropertyFlags_IsFolder;
     }
-    properties->access |= ((metadata->st_mode & S_IRUSR) || (metadata->st_mode & S_IRGRP) || (metadata->st_mode & S_IROTH) ? DATA_ACCESS_FLAGS_READ : 0);
-    properties->access |= ((metadata->st_mode & S_IWUSR) || (metadata->st_mode & S_IWGRP) || (metadata->st_mode & S_IWOTH) ? DATA_ACCESS_FLAGS_WRITE : 0);
-    properties->access |= ((metadata->st_mode & S_IXUSR) || (metadata->st_mode & S_IXGRP) || (metadata->st_mode & S_IXOTH) ? DATA_ACCESS_FLAGS_EXECUTE : 0);
+    properties->access |= ((metadata->st_mode & S_IRUSR) || (metadata->st_mode & S_IRGRP) || (metadata->st_mode & S_IROTH) ? DataAccessFlags_Read    : 0);
+    properties->access |= ((metadata->st_mode & S_IWUSR) || (metadata->st_mode & S_IWGRP) || (metadata->st_mode & S_IWOTH) ? DataAccessFlags_Write   : 0);
+    properties->access |= ((metadata->st_mode & S_IXUSR) || (metadata->st_mode & S_IXGRP) || (metadata->st_mode & S_IXOTH) ? DataAccessFlags_Execute : 0);
     properties->create_time = 0; // TODO: Figure out how to acquire creation time.
 
     struct tm deconstructed_modify_time = { 0 };
@@ -407,7 +407,7 @@ internal Str8 os_file_path(Arena *arena, OS_SystemPath path) {
                 Str8Node nodes[2];
                 str8_list_push_explicit(&config_path_list, str8_cstr(user_data->pw_dir), &nodes[0]);
                 str8_list_push_explicit(&config_path_list, str8_literal("/.config"), &nodes[1]);
-                result = str8_join(arena, &config_path_list);
+                result = str8_join(arena, config_path_list);
             } else {
                 // TODO: Handle error
             }
@@ -419,7 +419,7 @@ internal Str8 os_file_path(Arena *arena, OS_SystemPath path) {
                 Str8Node nodes[2];
                 str8_list_push_explicit(&cache_path_list, str8_cstr(user_data->pw_dir), &nodes[0]);
                 str8_list_push_explicit(&cache_path_list, str8_literal("/.cache"), &nodes[1]);
-                result = str8_join(arena, &cache_path_list);
+                result = str8_join(arena, cache_path_list);
             } else {
                 // TODO: Handle error
             }

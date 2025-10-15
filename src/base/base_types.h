@@ -21,11 +21,11 @@ typedef U64 B64;
 typedef float  F32;
 typedef double F64;
 
-typedef void Void;
+typedef void  Void;
 typedef char *CStr;
 typedef U16  *CStr16;
 typedef U32  *CStr32;
-typedef Void VoidFunction(Void);
+typedef Void  VoidFunction(Void);
 
 typedef enum {
     Month_Jan,
@@ -70,9 +70,9 @@ typedef enum {
 } Architecture;
 
 typedef enum {
-    DATA_ACCESS_FLAGS_READ    = (1 << 0),
-    DATA_ACCESS_FLAGS_WRITE   = (1 << 1),
-    DATA_ACCESS_FLAGS_EXECUTE = (1 << 2),
+    DataAccessFlags_Read    = (0 << 0),
+    DataAccessFlags_Write   = (1 << 1),
+    DataAccessFlags_Execute = (1 << 2),
 } DataAccessFlags;
 
 typedef U64 DenseTime;
@@ -88,7 +88,7 @@ typedef struct {
 } DateTime;
 
 typedef enum {
-    FILE_PROPERTY_FLAGS_IS_FOLDER = (1 << 0),
+    FilePropertyFlags_IsFolder = (1 << 0),
 } FilePropertyFlags;
 
 // NOTE: DenseTime is in universal time by default.

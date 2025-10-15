@@ -1620,7 +1620,7 @@ internal Void update(Void) {
                                     }
                                     str8_list_push(ui_frame_arena(), &parts, gfx_name_from_key[commands[i].key]);
 
-                                    Str8 binding_name = str8_join(ui_frame_arena(), &parts);
+                                    Str8 binding_name = str8_join(ui_frame_arena(), parts);
 
                                     ui_width_next(ui_size_text_content(0.0f, 1.0f));
                                     ui_height_next(ui_size_text_content(0.0f, 1.0f));

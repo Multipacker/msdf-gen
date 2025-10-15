@@ -41,7 +41,7 @@ internal LogScopeResult log_scope_end(Arena *arena) {
 
         if (arena) {
             for (LogMessageKind kind = 0; kind < Log_MessageKind_COUNT; ++kind) {
-                result.strings[kind] = str8_join(arena, &scope->strings[kind]);
+                result.strings[kind] = str8_join(arena, scope->strings[kind]);
             }
         }
 

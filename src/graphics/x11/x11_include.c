@@ -1361,7 +1361,7 @@ internal Str8 gfx_get_clipboard_text(Arena *arena) {
             }
         }
 
-        result = str8_join(arena, &copy_parts);
+        result = str8_join(arena, copy_parts);
         arena_end_temporary(scratch);
     }
 

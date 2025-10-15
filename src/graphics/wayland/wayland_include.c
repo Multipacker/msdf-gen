@@ -450,7 +450,7 @@ internal Str8 wayland_data_offer_receive(Arena *arena, Wayland_DataOffer *data_o
         close(file_descriptors[0]);
     }
 
-    Str8 result = str8_join(arena, &segments);
+    Str8 result = str8_join(arena, segments);
 
     arena_end_temporary(scratch);
     return result;
