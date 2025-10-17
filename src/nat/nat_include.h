@@ -1,55 +1,44 @@
 #ifndef NAT_INCLUDE_H
 #define NAT_INCLUDE_H
 
-/*
- * Features:
- * * Single line comments with //
- * * Nested multiline comments with / * and * / (spaces added between
- *   characters becuase C doesn't support them)
- * * Multiline literals between ''' """ and ```
- * * Single line literals between ' " and `
- * * Grouping with () [] {} <>
- */
-
 typedef enum {
-    Nat_Token_Identifier,
-    Nat_Token_Number,
-    Nat_Token_Literal,
-    Nat_Token_Punctuator,
-    Nat_Token_Whitespace,
-    Nat_Token_Newline,
-    Nat_Token_Comment,
-    Nat_Token_Unknown,
-} Nat_TokenKind;
+    Nat_TokenFlag_Unknown      = 1 << 0,
+    Nat_TokenFlag_Newline      = 1 << 1,
+    Nat_TokenFlag_Whitespace   = 1 << 2,
+    Nat_TokenFlag_Comment      = 1 << 3,
+    Nat_TokenFlag_Punctuation  = 1 << 4,
+    Nat_TokenFlag_Identifier   = 1 << 5,
+    Nat_TokenFlag_String       = 1 << 6,
+    Nat_TokenFlag_Number       = 1 << 7,
+    Nat_TokenFlag_SingleQuoted = 1 << 8,
+    Nat_TokenFlag_DoubleQuoted = 1 << 9,
+    Nat_TokenFlag_Ticked       = 1 << 10,
+    Nat_TokenFlag_Multiline    = 1 << 11,
+    Nat_TokenFlag_Unclosed     = 1 << 12,
 
-typedef enum {
-    Nat_TokenFlag_UnclosedComment    = 1 << 0,
-    Nat_TokenFlag_UnclosedLiteral    = 1 << 1,
-    Nat_TokenFlag_MultilineLiteral   = 1 << 2,
-    Nat_TokenFlag_SingleQuoteLiteral = 1 << 3,
-    Nat_TokenFlag_DoubleQuoteLiteral = 1 << 4,
-    Nat_TokenFlag_TickLiteral        = 1 << 5,
-} Nat_TokenFlag;
+    Nat_TokenFlag_Label = Nat_TokenFlag_Identifier | Nat_TokenFlag_String | Nat_TokenFlag_Number,
+} Nat_TokenFlags;
 
 typedef struct Nat_Token Nat_Token;
 struct Nat_Token {
-    Nat_TokenKind kind;
-    Nat_TokenFlag flags;
-    Str8 source;
+    Nat_TokenFlags flags;
+    Str8           raw;
 };
 
 typedef struct Nat_TokenChunk Nat_TokenChunk;
 struct Nat_TokenChunk {
     Nat_TokenChunk *next;
-    U64             count;
+    Nat_TokenChunk *previous;
     Nat_Token       tokens[1000];
+    U64             count;
 };
 
 typedef struct Nat_TokenList Nat_TokenList;
 struct Nat_TokenList {
-    Nat_TokenChunk *first;
-    Nat_TokenChunk *last;
-    U64             total_token_count;
+    Nat_TokenChunk *first_chunk;
+    Nat_TokenChunk *last_chunk;
+    U64             chunk_count;
+    U64             token_count;
 };
 
 typedef struct Nat_TokenArray Nat_TokenArray;
@@ -58,34 +47,39 @@ struct Nat_TokenArray {
     U64        count;
 };
 
-typedef struct Nat_Location Nat_Location;
-struct Nat_Location {
-    U32 line;
-    U32 column;
+typedef enum {
+    Nat_NodeFlag_IsBeforeComma   = 1 << 0,
+    Nat_NodeFlag_IsAfterComma    = 1 << 1,
+    Nat_NodeFlag_HasParenLeft    = 1 << 2,
+    Nat_NodeFlag_HasParenRight   = 1 << 3,
+    Nat_NodeFlag_HasBraceLeft    = 1 << 4,
+    Nat_NodeFlag_HasBraceRight   = 1 << 5,
+    Nat_NodeFlag_HasBracketLeft  = 1 << 6,
+    Nat_NodeFlag_HasBracketRight = 1 << 7,
+} Nat_NodeFlags;
+
+typedef struct Nat_Node Nat_Node;
+struct Nat_Node {
+    Nat_Node *next;
+    Nat_Node *previous;
+    Nat_Node *first;
+    Nat_Node *last;
+    Nat_Node *parent;
+
+    Nat_NodeFlags flags;
+    Str8 string;
+    Str8 raw;
 };
 
-typedef struct Nat_Error Nat_Error;
-struct Nat_Error {
-    Nat_Error   *next;
-    Nat_Location location;
-    Str8         message;
+global Nat_Node nat_nil_node = {
+    .next     = &nat_nil_node,
+    .previous = &nat_nil_node,
+    .first    = &nat_nil_node,
+    .last     = &nat_nil_node,
+    .parent   = &nat_nil_node,
 };
 
-typedef struct Nat_ErrorList Nat_ErrorList;
-struct Nat_ErrorList {
-    Nat_Error *first;
-    Nat_Error *last;
-    U64        total_error_count;
-};
-
-typedef struct Nat_LexerResult Nat_LexerResult;
-struct Nat_LexerResult {
-    Nat_TokenArray tokens;
-    Nat_ErrorList  errors;
-};
-
-internal Nat_TokenArray  nat_token_array_from_list(Arena *arena, Nat_TokenList list);
-internal Nat_Location    nat_location_from_token(Str8 source, Nat_Token token);
-internal Nat_LexerResult nat_tokens_from_string(Arena *arena, Str8 source);
+internal Nat_TokenArray nat_token_array_from_list(Arena *arena, Nat_TokenList list);
+internal Void nat_test(Void);
 
 #endif // NAT_INCLUDE_H
