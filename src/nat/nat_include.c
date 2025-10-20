@@ -214,7 +214,7 @@ internal Nat_TokenArray nat_token_array_from_string(Arena *arena, Str8 source) {
         }
 
         if (token.flags != 0) {
-            Nat_TokenChunk *chunk = token_list.first_chunk;
+            Nat_TokenChunk *chunk = token_list.last_chunk;
             if (!chunk || chunk->count == array_count(chunk->tokens)) {
                 chunk = arena_push_struct_no_zero(scratch.arena, Nat_TokenChunk);
                 chunk->count = 0;
