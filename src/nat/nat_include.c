@@ -255,6 +255,9 @@ internal Nat_Node *nat_parse_from_tokens(Arena *arena, Str8 filename, Str8 sourc
 
     typedef enum {
         WorkKind_Main,
+        WorkKind_MainImplicit,
+        WorkKind_OptionalChildren,
+        WorkKind_ChildrenScan,
     } WorkKind;
 
     typedef struct Work Work;
@@ -292,29 +295,40 @@ internal Nat_Node *nat_parse_from_tokens(Arena *arena, Str8 filename, Str8 sourc
     Nat_Token *token = tokens_first;
     while (token < tokens_opl) {
         // NOTE(simon): whitespace, comments -> consume
-        if (token->flags & (Nat_TokenFlag_Whitespace | Nat_TokenFlag_Comment)) {
+        if (token->flags & (Nat_TokenFlag_Newline | Nat_TokenFlag_Whitespace | Nat_TokenFlag_Comment)) {
             ++token;
+            goto end;
+        }
+
+        // NOTE(simon): [optional children] : following label -> top work has children.
+        if (work_top->kind == WorkKind_OptionalChildren && (token->flags & Nat_TokenFlag_Punctuation) && str8_equal(token->raw, str8_literal(":"))) {
+            Nat_Node *parent = work_top->parent;
+            pop_work();
+            push_work(WorkKind_ChildrenScan, parent);
+            ++token;
+            goto end;
+        }
+
+        // NOTE(simon): [optional children] anything but : -> pop
+        if (work_top->kind == WorkKind_OptionalChildren) {
+            pop_work();
             goto end;
         }
 
         // NOTE(simon): [main] , -> consume, mark
-        if (work_top->kind == WorkKind_Main && (token->flags & Nat_TokenFlag_Punctuation) && str8_equal(token->raw, str8_literal(","))) {
+        if (
+            work_top->kind == WorkKind_Main && (token->flags & Nat_TokenFlag_Punctuation) && (
+                str8_equal(token->raw, str8_literal(",")) ||
+                str8_equal(token->raw, str8_literal(";"))
+            )
+        ) {
             Nat_Node *parent = work_top->parent;
             if (!nat_node_is_nil(parent->last)) {
-                parent->last->flags         |= Nat_NodeFlag_IsBeforeComma;
-                work_top->accumulated_flags |= Nat_NodeFlag_IsAfterComma;
+                parent->last->flags         |= str8_equal(token->raw, str8_literal(",")) ? Nat_NodeFlag_IsBeforeComma     : 0;
+                parent->last->flags         |= str8_equal(token->raw, str8_literal(";")) ? Nat_NodeFlag_IsBeforeSemicolon : 0;
+                work_top->accumulated_flags |= str8_equal(token->raw, str8_literal(",")) ? Nat_NodeFlag_IsAfterComma      : 0;
+                work_top->accumulated_flags |= str8_equal(token->raw, str8_literal(";")) ? Nat_NodeFlag_IsAfterSemicolon  : 0;
             }
-            ++token;
-            goto end;
-        }
-
-        // NOTE(simon): [main] label -> consume, push child
-        if (work_top->kind == WorkKind_Main && (token->flags& Nat_TokenFlag_Label)) {
-            Nat_Node *parent = work_top->parent;
-            Nat_Node *node = nat_create_node(arena, token->raw, token->raw, work_top->accumulated_flags);
-            work_top->accumulated_flags = 0;
-            nat_node_push_child(parent, node);
-
             ++token;
             goto end;
         }
@@ -341,6 +355,46 @@ internal Nat_Node *nat_parse_from_tokens(Arena *arena, Str8 filename, Str8 sourc
             goto end;
         }
 
+        // NOTE(simon): [children scan] (, {, [ -> explicitly delimited children.
+        if (
+            work_top->kind == WorkKind_ChildrenScan && (token->flags & Nat_TokenFlag_Punctuation) && (
+                str8_equal(token->raw, str8_literal("(")) ||
+                str8_equal(token->raw, str8_literal("{")) ||
+                str8_equal(token->raw, str8_literal("["))
+            )
+        ) {
+            Nat_Node *parent = work_top->parent;
+            parent->flags |= str8_equal(token->raw, str8_literal("(")) ? Nat_NodeFlag_HasParenLeft   : 0;
+            parent->flags |= str8_equal(token->raw, str8_literal("{")) ? Nat_NodeFlag_HasBraceLeft   : 0;
+            parent->flags |= str8_equal(token->raw, str8_literal("[")) ? Nat_NodeFlag_HasBracketLeft : 0;
+            pop_work()
+            push_work(WorkKind_Main, parent);
+            ++token;
+            goto end;
+        }
+
+        // NOTE(simon): [children scan] anything else -> assume implicit chilren
+        if (work_top->kind == WorkKind_ChildrenScan) {
+            Nat_Node *parent = work_top->parent;
+            pop_work();
+            push_work(WorkKind_MainImplicit, parent);
+            goto end;
+        }
+
+        // NOTE(simon): [main implicit] ,, ;, ), }, ] -> pop
+        if (
+            work_top->kind == WorkKind_MainImplicit && (token->flags & Nat_TokenFlag_Punctuation) && (
+                str8_equal(token->raw, str8_literal(",")) ||
+                str8_equal(token->raw, str8_literal(";")) ||
+                str8_equal(token->raw, str8_literal(")")) ||
+                str8_equal(token->raw, str8_literal("}")) ||
+                str8_equal(token->raw, str8_literal("]"))
+            )
+        ) {
+            pop_work();
+            goto end;
+        }
+
         // NOTE(simon): [main] ), }, ] -> consume, pop new main
         if (
             work_top->kind == WorkKind_Main && (token->flags & Nat_TokenFlag_Punctuation) && (
@@ -358,13 +412,31 @@ internal Nat_Node *nat_parse_from_tokens(Arena *arena, Str8 filename, Str8 sourc
             goto end;
         }
 
-        // NOTE(simon): newline -> consume
-        if (token->flags & Nat_TokenFlag_Newline) {
+        // NOTE(simon): [main, main implicit] label -> consume, push child
+        if ((work_top->kind == WorkKind_Main || work_top->kind == WorkKind_MainImplicit) && (token->flags& Nat_TokenFlag_Label)) {
+            Nat_Node *parent = work_top->parent;
+            Nat_NodeFlags flags = work_top->accumulated_flags;
+            flags |= (token->flags & Nat_TokenFlag_SingleQuoted) ? Nat_NodeFlag_StringSingleQuoted : 0;
+            flags |= (token->flags & Nat_TokenFlag_DoubleQuoted) ? Nat_NodeFlag_StringDoubleQuoted : 0;
+            flags |= (token->flags & Nat_TokenFlag_Ticked)       ? Nat_NodeFlag_StringTicked       : 0;
+            flags |= (token->flags & Nat_TokenFlag_Multiline)    ? Nat_NodeFlag_StringMultiline    : 0;
+            flags |= (token->flags & Nat_TokenFlag_Punctuation)  ? Nat_NodeFlag_Punctuation        : 0;
+            flags |= (token->flags & Nat_TokenFlag_Identifier)   ? Nat_NodeFlag_Identifier         : 0;
+            flags |= (token->flags & Nat_TokenFlag_String)       ? Nat_NodeFlag_String             : 0;
+            flags |= (token->flags & Nat_TokenFlag_Number)       ? Nat_NodeFlag_Number             : 0;
+            Nat_Node *node = nat_create_node(arena, token->raw, token->raw, flags);
+            work_top->accumulated_flags = 0;
+            nat_node_push_child(parent, node);
+            push_work(WorkKind_OptionalChildren, node);
+
             ++token;
             goto end;
         }
+
 end:;
     }
+#undef push_work
+#undef pop_work
 
     arena_end_temporary(scratch);
     return root;
@@ -373,42 +445,51 @@ end:;
 internal Void nat_test(Void) {
     Arena *arena = arena_create();
 
-    Str8 path = str8_literal("new.json");
+    Str8 path = str8_literal("feeds.json");
     Str8 source = { 0 };
     os_file_read(arena, path, &source);
     Nat_TokenArray tokens = nat_token_array_from_string(arena, source);
     for (U64 i = 0; i < tokens.count; ++i) {
         Nat_TokenFlags flags = tokens.tokens[i].flags;
-        if (flags & Nat_TokenFlag_Unknown)      os_console_print(str8_literal("Unknown "));
-        if (flags & Nat_TokenFlag_Newline)      os_console_print(str8_literal("Newline "));
-        if (flags & Nat_TokenFlag_Whitespace)   os_console_print(str8_literal("Whitespace "));
-        if (flags & Nat_TokenFlag_Comment)      os_console_print(str8_literal("Comment "));
-        if (flags & Nat_TokenFlag_Punctuation)  os_console_print(str8_literal("Punctuation "));
-        if (flags & Nat_TokenFlag_Identifier)   os_console_print(str8_literal("Identifier "));
-        if (flags & Nat_TokenFlag_String)       os_console_print(str8_literal("String "));
-        if (flags & Nat_TokenFlag_Number)       os_console_print(str8_literal("Number "));
-        if (flags & Nat_TokenFlag_SingleQuoted) os_console_print(str8_literal("SingleQuoted "));
-        if (flags & Nat_TokenFlag_DoubleQuoted) os_console_print(str8_literal("DoubleQuoted "));
-        if (flags & Nat_TokenFlag_Ticked)       os_console_print(str8_literal("Ticked "));
-        if (flags & Nat_TokenFlag_Multiline)    os_console_print(str8_literal("Multiline "));
-        if (flags & Nat_TokenFlag_Unclosed)     os_console_print(str8_literal("Unclosed "));
-        os_console_print(tokens.tokens[i].raw);
-        os_console_print(str8_literal("\n"));
+        if (flags & Nat_TokenFlag_Unknown)      printf("Unknown ");
+        if (flags & Nat_TokenFlag_Newline)      printf("Newline ");
+        if (flags & Nat_TokenFlag_Whitespace)   printf("Whitespace ");
+        if (flags & Nat_TokenFlag_Comment)      printf("Comment ");
+        if (flags & Nat_TokenFlag_Punctuation)  printf("Punctuation ");
+        if (flags & Nat_TokenFlag_Identifier)   printf("Identifier ");
+        if (flags & Nat_TokenFlag_String)       printf("String ");
+        if (flags & Nat_TokenFlag_Number)       printf("Number ");
+        if (flags & Nat_TokenFlag_SingleQuoted) printf("SingleQuoted ");
+        if (flags & Nat_TokenFlag_DoubleQuoted) printf("DoubleQuoted ");
+        if (flags & Nat_TokenFlag_Ticked)       printf("Ticked ");
+        if (flags & Nat_TokenFlag_Multiline)    printf("Multiline ");
+        if (flags & Nat_TokenFlag_Unclosed)     printf("Unclosed ");
+        printf("%.*s\n", str8_expand(tokens.tokens[i].raw));
     }
 
     Nat_Node *root = nat_parse_from_tokens(arena, path, source, tokens);
 
     S32 depth = 0;
     for (Nat_Node *node = root; !nat_node_is_nil(node); ) {
-        printf("%*s%.*s: ", depth, "", str8_expand(node->string));
-        if (node->flags & Nat_NodeFlag_IsBeforeComma)   printf("IsBeforeComma ");
-        if (node->flags & Nat_NodeFlag_IsAfterComma)    printf("IsAfterComma ");
-        if (node->flags & Nat_NodeFlag_HasParenLeft)    printf("HasParenLeft ");
-        if (node->flags & Nat_NodeFlag_HasParenRight)   printf("HasParenRight ");
-        if (node->flags & Nat_NodeFlag_HasBraceLeft)    printf("HasBraceLeft ");
-        if (node->flags & Nat_NodeFlag_HasBraceRight)   printf("HasBraceRight ");
-        if (node->flags & Nat_NodeFlag_HasBracketLeft)  printf("HasBracketLeft ");
-        if (node->flags & Nat_NodeFlag_HasBracketRight) printf("HasBracketRight ");
+        printf("%*s%.*s: ", 2 * depth, "", str8_expand(node->string));
+        if (node->flags & Nat_NodeFlag_IsBeforeComma)      printf("IsBeforeComma ");
+        if (node->flags & Nat_NodeFlag_IsAfterComma)       printf("IsAfterComma ");
+        if (node->flags & Nat_NodeFlag_IsBeforeSemicolon)  printf("IsBeforeSemicolon ");
+        if (node->flags & Nat_NodeFlag_IsAfterSemicolon)   printf("IsAfterSemicolon ");
+        if (node->flags & Nat_NodeFlag_HasParenLeft)       printf("HasParenLeft ");
+        if (node->flags & Nat_NodeFlag_HasParenRight)      printf("HasParenRight ");
+        if (node->flags & Nat_NodeFlag_HasBraceLeft)       printf("HasBraceLeft ");
+        if (node->flags & Nat_NodeFlag_HasBraceRight)      printf("HasBraceRight ");
+        if (node->flags & Nat_NodeFlag_HasBracketLeft)     printf("HasBracketLeft ");
+        if (node->flags & Nat_NodeFlag_HasBracketRight)    printf("HasBracketRight ");
+        if (node->flags & Nat_NodeFlag_StringSingleQuoted) printf("StringSingleQuoted ");
+        if (node->flags & Nat_NodeFlag_StringDoubleQuoted) printf("StringDoubleQuoted ");
+        if (node->flags & Nat_NodeFlag_StringTicked)       printf("StringTicked ");
+        if (node->flags & Nat_NodeFlag_StringMultiline)    printf("StringMultiline ");
+        if (node->flags & Nat_NodeFlag_Punctuation)        printf("Punctuation ");
+        if (node->flags & Nat_NodeFlag_Identifier)         printf("Identifier ");
+        if (node->flags & Nat_NodeFlag_String)             printf("String ");
+        if (node->flags & Nat_NodeFlag_Number)             printf("Number ");
         printf("\n");
 
         Nat_Node *next = &nat_nil_node;
