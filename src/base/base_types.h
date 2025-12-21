@@ -218,6 +218,7 @@ internal U64 u64_ceil_to_power_of_2(U64 x);
 internal U64 u64_reverse(U64 x);
 internal U64 u64_big_to_local_endian(U64 x);
 internal U64 u64_count_trailing_zeros(U64 x);
+internal U64 u64_most_significant_bit(U64 x);
 
 internal S8 s8_min(S8 a, S8 B);
 internal S8 s8_max(S8 a, S8 B);

@@ -316,9 +316,20 @@ internal U64 u64_count_trailing_zeros(U64 x) {
 #if COMPILER_CL
     unsigned long result = 0;
     _BitScanForward64(&result, x);
-    return (U32) result;
+    return (U64) result;
 #else
     return (U64) __builtin_ctzl(x);
+#endif
+}
+
+internal U64 u64_most_significant_bit(U64 x) {
+#if COMPILER_CL
+    // TODO(simon): Verify this!!!
+    unsigned long result = 0;
+    _BitScanForward64(&result, x);
+    return 63 - (U64) result;
+#else
+    return 63 - (U64) __builtin_clzl(x);
 #endif
 }
 
@@ -340,7 +351,7 @@ internal S8 s8_clamp(S8 x, S8 min, S8 max) {
 }
 
 internal S8 s8_abs(S8 x) {
-    S8 result = (x < 0 ? -x : x);
+    S8 result = (S8) (x < 0 ? -x : x);
     return result;
 }
 
@@ -362,7 +373,7 @@ internal S16 s16_clamp(S16 x, S16 min, S16 max) {
 }
 
 internal S16 s16_abs(S16 x) {
-    S16 result = (x < 0 ? -x : x);
+    S16 result = (S16) (x < 0 ? -x : x);
     return result;
 }
 
