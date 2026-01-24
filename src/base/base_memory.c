@@ -2,14 +2,15 @@
 thread_local Arena *thread_scratch_arenas[THREAD_SCRATCH_ARENA_POOL_SIZE];
 
 internal Arena *arena_create_reserve(U64 reserve_size) {
-    U8 *memory         = os_memory_reserve(reserve_size);
-    U64 initial_commit = u64_max(u64_ceil_to_power_of_2(sizeof(Arena)), ARENA_COMMIT_BLOCK_SIZE);
+    U64 capped_reserve_size = u64_max(u64_ceil_to_power_of_2(reserve_size), ARENA_COMMIT_BLOCK_SIZE);
+    U8 *memory              = os_memory_reserve(capped_reserve_size);
+    U64 initial_commit      = u64_max(u64_ceil_to_power_of_2(sizeof(Arena)), ARENA_COMMIT_BLOCK_SIZE);
     os_memory_commit(memory, initial_commit);
 
     Arena *result = (Arena *) memory;
 
     result->memory           = memory;
-    result->capacity         = reserve_size;
+    result->capacity         = capped_reserve_size;
     result->position         = sizeof(Arena);
     result->commit_position  = initial_commit;
 
